@@ -2,10 +2,11 @@ import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { redirectUrl } from "@/lib/redirect-url";
 
 export async function POST(request: Request) {
   const user = await currentUser();
-  if (!user) return NextResponse.redirect(new URL("/login", request.url), 303);
+  if (!user) return NextResponse.redirect(redirectUrl("/login", request), 303);
 
   const form = await request.formData();
   const currentPassword = String(form.get("currentPassword") || "");
@@ -13,16 +14,16 @@ export async function POST(request: Request) {
   const confirmPassword = String(form.get("confirmPassword") || "");
 
   if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
-    return NextResponse.redirect(new URL("/ucet?error=current", request.url), 303);
+    return NextResponse.redirect(redirectUrl("/ucet?error=current", request), 303);
   }
   if (newPassword.length < 12) {
-    return NextResponse.redirect(new URL("/ucet?error=length", request.url), 303);
+    return NextResponse.redirect(redirectUrl("/ucet?error=length", request), 303);
   }
   if (newPassword !== confirmPassword) {
-    return NextResponse.redirect(new URL("/ucet?error=match", request.url), 303);
+    return NextResponse.redirect(redirectUrl("/ucet?error=match", request), 303);
   }
   if (await bcrypt.compare(newPassword, user.passwordHash)) {
-    return NextResponse.redirect(new URL("/ucet?error=same", request.url), 303);
+    return NextResponse.redirect(redirectUrl("/ucet?error=same", request), 303);
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
@@ -33,5 +34,5 @@ export async function POST(request: Request) {
     }),
   ]);
 
-  return NextResponse.redirect(new URL("/ucet?changed=1", request.url), 303);
+  return NextResponse.redirect(redirectUrl("/ucet?changed=1", request), 303);
 }

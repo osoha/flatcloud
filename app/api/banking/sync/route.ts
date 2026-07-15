@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { currentUser, canManageProperty, canSeeAll } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { bankingProvider } from "@/lib/banking";
+import { redirectUrl } from "@/lib/redirect-url";
 
 export async function POST(request: Request) {
   const user = await currentUser();
-  if (!user) return NextResponse.redirect(new URL("/login", request.url), 303);
+  if (!user) return NextResponse.redirect(redirectUrl("/login", request), 303);
   if (!canManageProperty(user.role)) return new NextResponse("Forbidden", { status: 403 });
 
   const form = await request.formData();
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   if (!property) return new NextResponse("Forbidden", { status: 403 });
 
   const account = property.bankAccounts[0];
-  if (!account) return NextResponse.redirect(new URL(`/nemovitosti/${propertyId}/banka`, request.url), 303);
+  if (!account) return NextResponse.redirect(redirectUrl(`/nemovitosti/${propertyId}/banka`, request), 303);
 
   const incoming = await bankingProvider().sync(account);
   await prisma.$transaction(async (transaction) => {
@@ -43,5 +44,5 @@ export async function POST(request: Request) {
     });
   });
 
-  return NextResponse.redirect(new URL(`/nemovitosti/${propertyId}/banka`, request.url), 303);
+  return NextResponse.redirect(redirectUrl(`/nemovitosti/${propertyId}/banka`, request), 303);
 }
