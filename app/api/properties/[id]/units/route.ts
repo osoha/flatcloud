@@ -10,6 +10,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!access) return go(request, "/login");
   try {
     const form = await request.formData();
+    const property = await prisma.property.findUnique({ where: { id }, select: { ownerId: true } });
+    if (!property) throw new Error("Nemovitost nebyla nalezena.");
     const unit = await prisma.unit.create({
       data: {
         propertyId: id,
@@ -19,6 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         status: (text(form, "status") || "VACANT") as UnitStatus,
         areaM2: floatValue(form, "areaM2"),
         note: text(form, "note"),
+        ownerships: { create: { ownerId: property.ownerId, shareBasisPoints: 10000 } },
       },
     });
     await audit(access.user.id, "UNIT_CREATED", "Unit", unit.id, { propertyId: id, label: unit.label });

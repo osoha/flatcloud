@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           phone: text(form, "phone"),
           address: text(form, "tenantAddress"),
           note: text(form, "tenantNote"),
-          payerAccounts: stringArray(form, "payerAccounts"),
+          payerAccounts: stringArray(form, "payerAccounts").map((value) => value.replace(/\s+/g, "").toUpperCase()),
         },
       });
       const lease = await tx.lease.create({

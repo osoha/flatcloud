@@ -42,3 +42,18 @@ export const chargeCategories: Record<string, string> = {
   OTHER: "Ostatní",
   ADJUSTMENT: "Úprava / korekce",
 };
+
+export const paymentStatuses: Record<string, string> = {
+  UNMATCHED: "K vyřešení",
+  SUGGESTED: "Navrženo",
+  MATCHED: "Spárováno",
+  PARTIAL: "Částečná úhrada",
+  OVERPAYMENT: "Přeplatek",
+  IGNORED: "Ignorováno",
+};
+
+export const matchingRuleActions: Record<string, string> = {
+  IGNORE: "Ignorovat",
+  MATCH_LEASE: "Automaticky párovat",
+  SUGGEST_LEASE: "Pouze navrhnout",
+};

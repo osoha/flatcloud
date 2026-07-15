@@ -36,6 +36,19 @@ enum BankConnectionStatus {
   DISCONNECTED
 }
 
+enum BankAuthorizationStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+enum MatchRuleAction {
+  IGNORE
+  MATCH_LEASE
+  SUGGEST_LEASE
+}
+
 enum OwnerType {
   COMPANY
   PERSON
@@ -89,36 +102,57 @@ model User {
 }
 
 model Owner {
-  id         String     @id @default(cuid())
-  name       String
-  type       OwnerType  @default(COMPANY)
-  ico        String?
-  email      String?
-  phone      String?
-  address    String?
-  note       String?
-  active     Boolean    @default(true)
-  properties Property[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id                 String              @id @default(cuid())
+  name               String
+  type               OwnerType           @default(COMPANY)
+  ico                String?
+  email              String?
+  phone              String?
+  address            String?
+  note               String?
+  active             Boolean             @default(true)
+  properties         Property[]
+  propertyOwnerships PropertyOwnership[]
+  unitOwnerships     UnitOwnership[]
+  bankAccounts       BankAccount[]
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 }
 
 model Property {
-  id           String         @id @default(cuid())
-  name         String
-  address      String
-  city         String
-  postalCode   String?
-  note         String?
-  active       Boolean        @default(true)
-  ownerId      String
-  owner        Owner          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  units        Unit[]
-  bankAccounts BankAccount[]
-  memberships  UserProperty[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id                   String                  @id @default(cuid())
+  name                 String
+  address              String
+  city                 String
+  postalCode           String?
+  note                 String?
+  active               Boolean                 @default(true)
+  ownerId              String
+  owner                Owner                    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownerships           PropertyOwnership[]
+  units                Unit[]
+  bankAccounts         BankAccount[]
+  bankAuthorizations   BankAuthorization[]
+  matchingRules        BankMatchingRule[]
+  memberships          UserProperty[]
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
 
+  @@index([ownerId])
+}
+
+model PropertyOwnership {
+  id               String   @id @default(cuid())
+  propertyId       String
+  ownerId          String
+  shareBasisPoints Int      @default(10000)
+  note             String?
+  property         Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  owner            Owner    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([propertyId, ownerId])
   @@index([ownerId])
 }
 
@@ -133,21 +167,37 @@ model UserProperty {
 }
 
 model Unit {
-  id         String     @id @default(cuid())
+  id         String          @id @default(cuid())
   label      String
   floor      String?
-  type       UnitType   @default(APARTMENT)
-  status     UnitStatus @default(VACANT)
+  type       UnitType        @default(APARTMENT)
+  status     UnitStatus      @default(VACANT)
   areaM2     Float?
   note       String?
   propertyId String
-  property   Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property   Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerships UnitOwnership[]
   leases     Lease[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
 
   @@unique([propertyId, label])
   @@index([propertyId])
+}
+
+model UnitOwnership {
+  id               String   @id @default(cuid())
+  unitId           String
+  ownerId          String
+  shareBasisPoints Int      @default(10000)
+  note             String?
+  unit             Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  owner            Owner    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([unitId, ownerId])
+  @@index([ownerId])
 }
 
 model Tenant {
@@ -166,26 +216,28 @@ model Tenant {
 }
 
 model Lease {
-  id             String             @id @default(cuid())
-  unitId         String
-  tenantId       String
-  unit           Unit               @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  contractNumber String?
-  startDate      DateTime
-  endDate        DateTime?
-  dueDay         Int                @default(5)
-  variableSymbol String
-  currency       String             @default("CZK")
-  rentCents      Int
-  servicesCents  Int
-  depositCents   Int                @default(0)
-  note           String?
-  status         LeaseStatus        @default(ACTIVE)
-  paymentItems   LeasePaymentItem[]
-  charges        Charge[]
-  createdAt      DateTime           @default(now())
-  updatedAt      DateTime           @updatedAt
+  id                    String             @id @default(cuid())
+  unitId                String
+  tenantId              String
+  unit                  Unit               @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenant                Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contractNumber        String?
+  startDate             DateTime
+  endDate               DateTime?
+  dueDay                Int                @default(5)
+  variableSymbol        String
+  currency              String             @default("CZK")
+  rentCents             Int
+  servicesCents         Int
+  depositCents          Int                @default(0)
+  note                  String?
+  status                LeaseStatus        @default(ACTIVE)
+  paymentItems          LeasePaymentItem[]
+  charges               Charge[]
+  matchingRules         BankMatchingRule[] @relation("RuleTargetLease")
+  suggestedTransactions BankTransaction[]  @relation("SuggestedLease")
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
 
   @@unique([unitId, variableSymbol])
   @@index([tenantId])
@@ -237,21 +289,77 @@ model ChargeItem {
   @@index([chargeId])
 }
 
+model BankAuthorization {
+  id                      String                  @id @default(cuid())
+  propertyId              String
+  property                Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  provider                String
+  state                   String                  @unique
+  bankName                String
+  country                 String
+  psuType                 String                  @default("business")
+  status                  BankAuthorizationStatus @default(PENDING)
+  externalAuthorizationId String?
+  externalSessionId       String?
+  expiresAt               DateTime
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+
+  @@index([propertyId, status])
+}
+
 model BankAccount {
-  id                  String               @id @default(cuid())
-  propertyId          String
-  property            Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  provider            String
-  bankName            String
-  ibanMasked          String
-  currency            String               @default("CZK")
-  externalAccountId   String               @unique
-  connectionStatus    BankConnectionStatus @default(CONNECTED)
-  consentExpiresAt    DateTime?
-  lastSyncedAt        DateTime?
-  transactions        BankTransaction[]
+  id                 String               @id @default(cuid())
+  propertyId         String
+  property           Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerId            String?
+  owner              Owner?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  provider           String
+  bankName           String
+  accountName        String?
+  iban               String?
+  ibanMasked         String
+  currency           String               @default("CZK")
+  externalAccountId  String               @unique
+  externalSessionId  String?
+  identificationHash String?
+  connectionStatus   BankConnectionStatus @default(CONNECTED)
+  consentExpiresAt   DateTime?
+  balanceCents       Int?
+  balanceUpdatedAt   DateTime?
+  lastSyncedAt       DateTime?
+  transactions       BankTransaction[]
+  matchingRules      BankMatchingRule[]
 
   @@index([propertyId])
+  @@index([ownerId])
+  @@index([provider, identificationHash])
+}
+
+model BankMatchingRule {
+  id                       String          @id @default(cuid())
+  propertyId               String
+  property                 Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  bankAccountId            String?
+  bankAccount              BankAccount?    @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  name                     String
+  action                   MatchRuleAction
+  priority                 Int             @default(100)
+  active                   Boolean         @default(true)
+  counterpartyIban         String?
+  counterpartyNameContains String?
+  variableSymbol           String?
+  messageContains          String?
+  amountCents              Int?
+  targetLeaseId            String?
+  targetLease              Lease?          @relation("RuleTargetLease", fields: [targetLeaseId], references: [id], onDelete: Cascade)
+  matchedTransactions      BankTransaction[] @relation("MatchedRule")
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  @@index([propertyId, active, priority])
+  @@index([bankAccountId])
+  @@index([targetLeaseId])
 }
 
 model BankTransaction {
@@ -267,11 +375,18 @@ model BankTransaction {
   variableSymbol   String?
   message          String?
   status           PaymentStatus       @default(UNMATCHED)
+  matchedRuleId    String?
+  matchedRule      BankMatchingRule?   @relation("MatchedRule", fields: [matchedRuleId], references: [id], onDelete: SetNull)
+  suggestedLeaseId String?
+  suggestedLease   Lease?              @relation("SuggestedLease", fields: [suggestedLeaseId], references: [id], onDelete: SetNull)
+  matchNote        String?
   allocations      PaymentAllocation[]
   createdAt        DateTime            @default(now())
 
   @@unique([bankAccountId, externalId])
   @@index([bankAccountId, bookedAt])
+  @@index([matchedRuleId])
+  @@index([suggestedLeaseId])
 }
 
 model PaymentAllocation {

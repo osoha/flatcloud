@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         phone: text(form, "phone"),
         address: text(form, "address"),
         note: text(form, "note"),
-        payerAccounts: stringArray(form, "payerAccounts"),
+        payerAccounts: stringArray(form, "payerAccounts").map((value) => value.replace(/\s+/g, "").toUpperCase()),
         active: boolValue(form, "active"),
       },
     });

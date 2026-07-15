@@ -24,6 +24,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         ...(ownerId ? { ownerId } : {}),
       },
     });
+    if (ownerId) await prisma.propertyOwnership.upsert({ where: { propertyId_ownerId: { propertyId: id, ownerId } }, update: {}, create: { propertyId: id, ownerId, shareBasisPoints: 10000 } });
     await audit(access.user.id, "PROPERTY_UPDATED", "Property", property.id, { name: property.name });
     return goWithMessage(request, `/nemovitosti/${id}/nastaveni`, "ok", "Změny nemovitosti byly uloženy.");
   } catch (error) {

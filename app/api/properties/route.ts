@@ -19,6 +19,7 @@ export async function POST(request: Request) {
         postalCode: text(form, "postalCode"),
         note: text(form, "note"),
         ownerId,
+        ownerships: { create: { ownerId, shareBasisPoints: 10000 } },
       },
     });
     await audit(user.id, "PROPERTY_CREATED", "Property", property.id, { name: property.name, ownerId });

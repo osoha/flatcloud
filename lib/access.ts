@@ -4,10 +4,13 @@ import { canSeeAll } from "./auth";
 
 const propertyInclude = {
   owner: true,
-  bankAccounts: true,
+  ownerships: { include: { owner: true }, orderBy: { createdAt: "asc" as const } },
+  bankAccounts: { include: { owner: true }, orderBy: { bankName: "asc" as const } },
+  matchingRules: { orderBy: [{ priority: "asc" as const }, { createdAt: "asc" as const }] },
   units: {
     orderBy: { label: "asc" as const },
     include: {
+      ownerships: { include: { owner: true }, orderBy: { createdAt: "asc" as const } },
       leases: {
         orderBy: { startDate: "desc" as const },
         include: {

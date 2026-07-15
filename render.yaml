@@ -25,7 +25,13 @@ services:
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
       - key: BANKING_PROVIDER
-        value: mock
+        value: enablebanking
+      - key: ENABLE_BANKING_APP_ID
+        sync: false
+      - key: ENABLE_BANKING_PRIVATE_KEY
+        sync: false
+      - key: ENABLE_BANKING_BASE_URL
+        value: https://api.enablebanking.com
 
 databases:
   - name: flatcloud-rent-db
