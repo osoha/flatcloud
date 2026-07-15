@@ -1,48 +1,55 @@
-import { NextResponse } from "next/server";
-import { currentUser, canManageProperty, canSeeAll } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { bankingProvider } from "@/lib/banking";
-import { redirectUrl } from "@/lib/redirect-url";
+import { requireManagedProperty, audit } from "@/lib/management";
+import { syncBankAccount } from "@/lib/banking/sync";
+import { go, goWithMessage } from "@/lib/route-response";
 
+/**
+ * Kompatibilní endpoint pro starší formuláře z verzí V6/V7.
+ * Nová verze používá endpoint /api/banking/accounts/[accountId]/sync,
+ * ale tento soubor může bezpečně zůstat v repozitáři.
+ */
 export async function POST(request: Request) {
-  const user = await currentUser();
-  if (!user) return NextResponse.redirect(redirectUrl("/login", request), 303);
-  if (!canManageProperty(user.role)) return new NextResponse("Forbidden", { status: 403 });
-
   const form = await request.formData();
-  const propertyId = String(form.get("propertyId") || "");
-  const property = await prisma.property.findFirst({
-    where: {
-      id: propertyId,
-      ...(canSeeAll(user.role) ? {} : { memberships: { some: { userId: user.id } } }),
-    },
-    include: { bankAccounts: true },
+  const propertyId = String(form.get("propertyId") ?? "").trim();
+
+  if (!propertyId) return go(request, "/portfolio");
+
+  const access = await requireManagedProperty(propertyId);
+  if (!access) return go(request, "/login");
+
+  const account = await prisma.bankAccount.findFirst({
+    where: { propertyId },
+    orderBy: { lastSyncedAt: "desc" },
   });
-  if (!property) return new NextResponse("Forbidden", { status: 403 });
 
-  const account = property.bankAccounts[0];
-  if (!account) return NextResponse.redirect(redirectUrl(`/nemovitosti/${propertyId}/banka`, request), 303);
+  if (!account) {
+    return goWithMessage(
+      request,
+      `/nemovitosti/${propertyId}/banka`,
+      "error",
+      "K nemovitosti není připojen žádný bankovní účet.",
+    );
+  }
 
-  const incoming = await bankingProvider().sync(account);
-  await prisma.$transaction(async (transaction) => {
-    for (const item of incoming) {
-      await transaction.bankTransaction.upsert({
-        where: { bankAccountId_externalId: { bankAccountId: account.id, externalId: item.externalId } },
-        update: { ...item },
-        create: { ...item, bankAccountId: account.id },
-      });
-    }
-    await transaction.bankAccount.update({ where: { id: account.id }, data: { lastSyncedAt: new Date() } });
-    await transaction.auditLog.create({
-      data: {
-        userId: user.id,
-        action: "BANK_SYNC",
-        entityType: "BankAccount",
-        entityId: account.id,
-        details: { count: incoming.length },
-      },
+  try {
+    const result = await syncBankAccount(account.id);
+    await audit(access.user.id, "BANK_SYNC", "BankAccount", account.id, {
+      propertyId,
+      ...result,
     });
-  });
 
-  return NextResponse.redirect(redirectUrl(`/nemovitosti/${propertyId}/banka`, request), 303);
+    return goWithMessage(
+      request,
+      `/nemovitosti/${propertyId}/banka`,
+      "ok",
+      `Načteno ${result.received} příchozích transakcí (${result.created} nových, ${result.updated} aktualizovaných), zpracováno ${result.processed}.`,
+    );
+  } catch (error) {
+    return goWithMessage(
+      request,
+      `/nemovitosti/${propertyId}/banka`,
+      "error",
+      error instanceof Error ? error.message : "Synchronizace selhala.",
+    );
+  }
 }
