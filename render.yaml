@@ -5,8 +5,7 @@ services:
     region: frankfurt
     plan: starter
     buildCommand: npm ci --no-audit --no-fund && npm run build
-    preDeployCommand: npm run db:migrate
-    initialDeployHook: npm run db:bootstrap
+    preDeployCommand: npm run db:migrate && npm run db:bootstrap
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeployTrigger: commit
