@@ -2,8 +2,8 @@ import Link from "next/link";
 
 const sections = [
   ["prehled", "Přehled"], ["jednotky", "Jednotky"], ["vlastnici", "Vlastníci"], ["najemnici", "Nájemníci"],
-  ["smlouvy", "Smlouvy"], ["predpisy", "Předpisy"], ["platby", "Platby"],
-  ["dluznici", "Dlužníci"], ["banka", "Banka a pravidla"], ["nastaveni", "Nastavení"],
+  ["smlouvy", "Smlouvy"], ["predpisy", "Předpisy"], ["platby", "Příchozí platby"],
+  ["dluznici", "Dlužníci"], ["banka", "Banka a pravidla"], ["uzivatele", "Uživatelé"], ["nastaveni", "Nastavení"],
 ];
 
 export function PropertySubnav({ propertyId, active }: { propertyId: string; active: string }) {
