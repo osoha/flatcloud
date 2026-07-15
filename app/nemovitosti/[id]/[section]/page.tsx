@@ -13,6 +13,16 @@ import { leaseStatuses, unitStatuses, unitTypes } from "@/lib/labels";
 
 export const dynamic="force-dynamic";
 
+type TenantLeaseSummary = { unit: { label: string } };
+type TenantSummary = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  active: boolean;
+};
+type TenantOverview = { tenant: TenantSummary; leases: TenantLeaseSummary[] };
+
 export default async function PropertyPage({params,searchParams}:{params:Promise<{id:string;section:string}>;searchParams:Promise<{ok?:string;error?:string}>}){
   const {id,section}=await params; const query=await searchParams; const user=await requireUser(); const p=await requirePropertyAccess(user,id); if(!p)notFound();
   const canManage=canManageProperty(user.role); const bank=p.bankAccounts.find(account=>account.provider!=="manual"); const period=currentPeriod();
@@ -21,7 +31,17 @@ export default async function PropertyPage({params,searchParams}:{params:Promise
   const expected=currentCharges.reduce((s,row)=>s+row.charge.amountCents,0),paid=currentCharges.reduce((s,row)=>s+row.paid,0);
   const txs=await prisma.bankTransaction.findMany({where:{bankAccount:{propertyId:id}},orderBy:{bookedAt:"desc"},include:{bankAccount:true}});
   const debts=allCharges.filter(row=>row.paid<row.charge.amountCents);
-  const uniqueTenants:any[]=Array.from(new Map<string,any>(leases.map(lease=>[lease.tenant.id,{tenant:lease.tenant,leases:leases.filter(row=>row.tenant.id===lease.tenant.id)}])).values());
+  const uniqueTenants = Array.from(
+    new Map<string, TenantOverview>(
+      leases.map((lease) => [
+        lease.tenant.id,
+        {
+          tenant: lease.tenant,
+          leases: leases.filter((row) => row.tenant.id === lease.tenant.id),
+        },
+      ]),
+    ).values(),
+  );
 
   return <Shell user={user}><div className="page"><div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>{p.name}</span></div><div className="property-header"><div className="property-big-icon">⌂</div><div><h1>{p.name}</h1><p>{p.address}, {p.postalCode?`${p.postalCode} `:""}{p.city}</p><div className="property-meta"><span className="meta-pill">{p.owner.name}</span><span className="meta-pill">{p.units.length} jednotek</span><span className="meta-pill">{bank?.bankName||"Banka nepřipojena"}</span></div></div><div className="property-header-right"><span>Saldo {period}</span><strong className={paid-expected<0?"negative":"positive"}>{money(paid-expected)}</strong></div></div><PropertySubnav propertyId={id} active={section}/><Flash ok={query.ok} error={query.error}/>
   {section==="prehled"&&<><div className="stat-grid"><Stat label="Předpis" value={money(expected)} note={period}/><Stat label="Uhrazeno" value={money(paid)} note={`${expected?Math.round(paid/expected*100):100} % inkaso`} good/><Stat label="Dluh" value={money(Math.max(0,expected-paid))} note={`${debts.length} otevřených předpisů`} bad/><Stat label="Jednotky" value={String(p.units.length)} note={`${p.units.filter(unit=>unit.status==="OCCUPIED").length} obsazených`}/><Stat label="Nespárované" value={String(txs.filter(t=>t.status==="UNMATCHED").length)} note="bankovní transakce"/></div><div className="detail-grid"><div className="card col-8"><div className="card-head"><h2>Poslední platby</h2><Link href={`/nemovitosti/${id}/platby`}>Zobrazit vše</Link></div><TablePayments txs={txs.slice(0,6)}/></div><div className="card col-4"><div className="card-head"><h2>Stav evidence</h2></div><div className="summary-list"><div><span>Aktivní smlouvy</span><strong>{leases.filter(l=>l.status==="ACTIVE").length}</strong></div><div><span>Pravidelné položky</span><strong>{leases.reduce((s,l)=>s+l.paymentItems.filter(i=>i.active).length,0)}</strong></div><div><span>Předpisy za období</span><strong>{currentCharges.length}</strong></div><div><span>Otevřené dluhy</span><strong>{debts.length}</strong></div></div></div></div></>}
