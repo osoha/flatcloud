@@ -13,7 +13,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ acc
     const form = await request.formData();
     const ownerId = text(form, "ownerId");
     if (ownerId && !(await prisma.owner.findUnique({ where: { id: ownerId } }))) throw new Error("Vlastník nebyl nalezen.");
-    await prisma.bankAccount.update({ where: { id: accountId }, data: { ownerId, accountName: text(form, "accountName") } });
+    await prisma.bankAccount.update({ where: { id: accountId }, data: { ownerId, accountName: text(form, "accountName"), autoSyncEnabled: form.get("autoSyncEnabled") === "on" } });
     await audit(access.user.id, "BANK_ACCOUNT_UPDATED", "BankAccount", accountId, { propertyId: account.propertyId, ownerId });
     return goWithMessage(request, `/nemovitosti/${account.propertyId}/banka`, "ok", "Nastavení bankovního účtu bylo uloženo.");
   } catch (error) {

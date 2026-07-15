@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const allocated = Math.min(amountCents, remaining || amountCents);
     const status: PaymentStatus = amountCents > remaining && remaining > 0 ? "OVERPAYMENT" : allocated < remaining ? "PARTIAL" : "MATCHED";
     const account = await prisma.bankAccount.upsert({
-      where: { externalAccountId: `manual-${id}` },
+      where: { provider_externalAccountId: { provider: "manual", externalAccountId: `manual-${id}` } },
       update: {},
       create: { propertyId: id, provider: "manual", bankName: "Ruční evidence", ibanMasked: "RUČNÍ PLATBY", externalAccountId: `manual-${id}`, connectionStatus: "CONNECTED" },
     });

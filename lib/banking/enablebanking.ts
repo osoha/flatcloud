@@ -108,6 +108,8 @@ function mapTransaction(value: unknown): IncomingTransaction | null {
 
 export const enableBankingProvider: BankingProvider = {
   key: "enablebanking",
+  label: "Další banky – Open Banking",
+  direct: false,
   configured() { return Boolean(process.env.ENABLE_BANKING_APP_ID && privateKeyPem()); },
   async listInstitutions(country) {
     const data = await api<{ aspsps?: unknown[] }>(`/aspsps?country=${encodeURIComponent(country.toUpperCase())}`);
@@ -155,24 +157,29 @@ export const enableBankingProvider: BankingProvider = {
     const accounts = (rawAccounts || []).map((row) => accountFrom(row, sessionId)).filter((row): row is ConnectedBankAccount => Boolean(row));
     return { sessionId, accounts };
   },
-  async sync(account) {
-    const dateFrom = account.lastSyncedAt ? new Date(account.lastSyncedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) : new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  async sync(account, options) {
+    const dateFrom = options?.dateFrom
+      ? options.dateFrom.toISOString().slice(0, 10)
+      : account.lastSyncedAt
+        ? new Date(account.lastSyncedAt.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+        : new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     const all: IncomingTransaction[] = [];
     let continuation: string | undefined;
     for (let page = 0; page < 30; page += 1) {
-      const query = new URLSearchParams({ date_from: dateFrom, transaction_status: "BOOK" });
+      const query = new URLSearchParams({ date_from: dateFrom, transaction_status: "BOOK", strategy: options?.strategy || "default" });
+      if (options?.dateTo) query.set("date_to", options.dateTo.toISOString().slice(0, 10));
       if (continuation) query.set("continuation_key", continuation);
       const data = await api<{ transactions?: unknown[]; continuation_key?: string }>(`/accounts/${encodeURIComponent(account.externalAccountId)}/transactions?${query.toString()}`);
       for (const row of data.transactions || []) { const mapped = mapTransaction(row); if (mapped) all.push(mapped); }
       continuation = asString(data.continuation_key);
       if (!continuation) break;
     }
-    return all;
-  },
-  async balance(account) {
-    const data = await api<{ balances?: Array<{ balance_amount?: { amount?: string; currency?: string }; balance_type?: string }> }>(`/accounts/${encodeURIComponent(account.externalAccountId)}/balances`);
-    const balance = data.balances?.find((row) => row.balance_type === "CLAV") || data.balances?.[0];
-    if (!balance?.balance_amount) return null;
-    return { amountCents: Math.round(Number(balance.balance_amount.amount || 0) * 100), currency: balance.balance_amount.currency || "CZK" };
+    let balance: { amountCents: number; currency: string } | null = null;
+    try {
+      const data = await api<{ balances?: Array<{ balance_amount?: { amount?: string; currency?: string }; balance_type?: string }> }>(`/accounts/${encodeURIComponent(account.externalAccountId)}/balances`);
+      const row = data.balances?.find((item) => item.balance_type === "CLAV") || data.balances?.[0];
+      if (row?.balance_amount) balance = { amountCents: Math.round(Number(row.balance_amount.amount || 0) * 100), currency: row.balance_amount.currency || "CZK" };
+    } catch { /* zůstatek není podmínkou synchronizace */ }
+    return { transactions: all.filter((row) => row.amountCents > 0), balance };
   },
 };

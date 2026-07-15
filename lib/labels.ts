@@ -44,7 +44,7 @@ export const chargeCategories: Record<string, string> = {
 };
 
 export const paymentStatuses: Record<string, string> = {
-  UNMATCHED: "K vyřešení",
+  UNMATCHED: "Ke spárování",
   SUGGESTED: "Navrženo",
   MATCHED: "Spárováno",
   PARTIAL: "Částečná úhrada",
@@ -56,4 +56,17 @@ export const matchingRuleActions: Record<string, string> = {
   IGNORE: "Ignorovat",
   MATCH_LEASE: "Automaticky párovat",
   SUGGEST_LEASE: "Pouze navrhnout",
+};
+
+export const propertyPermissions: Record<string, string> = {
+  VIEW: "Pouze zobrazení",
+  EDIT: "Zobrazení a editace",
+  ADMIN: "Správa objektu a uživatelů",
+};
+
+export const userRoles: Record<string, string> = {
+  SUPER_ADMIN: "Hlavní administrátor",
+  MANAGER: "Generální správce",
+  PROPERTY_MANAGER: "Správce nemovitosti",
+  OWNER_VIEWER: "Vlastník / člen",
 };

@@ -17,6 +17,8 @@ export type BankInstitution = {
   maximumConsentValidity?: number;
 };
 
+export type ProviderCredentials = Record<string, string | number | boolean | null>;
+
 export type ConnectedBankAccount = {
   externalAccountId: string;
   externalSessionId: string;
@@ -29,10 +31,33 @@ export type ConnectedBankAccount = {
 export type AuthorizationStart = {
   url: string;
   externalAuthorizationId?: string;
+  context?: ProviderCredentials;
+};
+
+export type SyncOptions = {
+  dateFrom?: Date;
+  dateTo?: Date;
+  strategy?: "default" | "longest";
+};
+
+export type ProviderAccount = {
+  id: string;
+  externalAccountId: string;
+  externalSessionId?: string | null;
+  lastSyncedAt?: Date | null;
+  credentials?: ProviderCredentials;
+};
+
+export type ProviderSyncResult = {
+  transactions: IncomingTransaction[];
+  balance?: { amountCents: number; currency: string } | null;
+  credentials?: ProviderCredentials;
 };
 
 export interface BankingProvider {
   key: string;
+  label: string;
+  direct: boolean;
   configured(): boolean;
   listInstitutions(country: string): Promise<BankInstitution[]>;
   startAuthorization(input: {
@@ -46,9 +71,15 @@ export interface BankingProvider {
   }): Promise<AuthorizationStart>;
   completeAuthorization(input: {
     code: string;
+    redirectUrl: string;
+    context?: ProviderCredentials;
     psuIp?: string;
     userAgent?: string;
-  }): Promise<{ sessionId: string; accounts: ConnectedBankAccount[] }>;
-  sync(account: { externalAccountId: string; lastSyncedAt?: Date | null }): Promise<IncomingTransaction[]>;
-  balance(account: { externalAccountId: string }): Promise<{ amountCents: number; currency: string } | null>;
+  }): Promise<{
+    sessionId: string;
+    accounts: ConnectedBankAccount[];
+    credentials?: ProviderCredentials;
+    consentExpiresAt?: Date;
+  }>;
+  sync(account: ProviderAccount, options?: SyncOptions): Promise<ProviderSyncResult>;
 }

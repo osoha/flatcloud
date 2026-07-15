@@ -7,6 +7,8 @@ function shortHash(value: string) {
 
 export const mockBankingProvider: BankingProvider = {
   key: "mock",
+  label: "Testovací banka",
+  direct: false,
   configured: () => true,
   async listInstitutions() {
     return [{ name: "Mock ASPSP", country: "CZ", psuTypes: ["business", "personal"] }];
@@ -31,11 +33,11 @@ export const mockBankingProvider: BankingProvider = {
       }],
     };
   },
-  async sync(account) {
+  async sync(account, options) {
     const prefix = account.externalAccountId;
     const today = new Date();
     const bookedAt = (daysAgo: number) => new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), Math.max(1, today.getUTCDate() - daysAgo), 12));
-    return [
+    const rows = [
       {
         externalId: `${prefix}-rent-1001`,
         bookedAt: bookedAt(3),
@@ -73,8 +75,11 @@ export const mockBankingProvider: BankingProvider = {
         message: "Poplatek za vedení účtu",
       },
     ];
-  },
-  async balance() {
-    return { amountCents: 42850000, currency: "CZK" };
+    const from = options?.dateFrom?.getTime();
+    const to = options?.dateTo?.getTime();
+    return {
+      transactions: rows.filter((row) => row.amountCents > 0 && (!from || row.bookedAt.getTime() >= from) && (!to || row.bookedAt.getTime() <= to)),
+      balance: { amountCents: 42850000, currency: "CZK" },
+    };
   },
 };

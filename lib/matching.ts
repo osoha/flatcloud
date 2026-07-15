@@ -164,6 +164,7 @@ export async function processPropertyTransactions(propertyId: string, onlyIds?: 
   const transactions = await prisma.bankTransaction.findMany({
     where: {
       bankAccount: { propertyId },
+      amountCents: { gt: 0 },
       ...(onlyIds?.length ? { id: { in: onlyIds } } : { status: { in: [PaymentStatus.UNMATCHED, PaymentStatus.SUGGESTED] } }),
     },
     select: { id: true },

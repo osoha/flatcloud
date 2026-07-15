@@ -14,6 +14,19 @@ enum UserRole {
   PROPERTY_MANAGER
 }
 
+enum PropertyPermission {
+  VIEW
+  EDIT
+  ADMIN
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 enum PaymentStatus {
   UNMATCHED
   SUGGESTED
@@ -95,8 +108,11 @@ model User {
   passwordHash String
   role         UserRole       @default(OWNER_VIEWER)
   active       Boolean        @default(true)
-  memberships  UserProperty[]
-  auditLogs    AuditLog[]
+  memberships       UserProperty[]
+  invitationsSent   UserInvitation[] @relation("InvitationSender")
+  bankAuthorizationsConnected BankAuthorization[] @relation("BankAuthorizationConnector")
+  bankAccountsConnected       BankAccount[]       @relation("BankAccountConnector")
+  auditLogs         AuditLog[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -135,6 +151,7 @@ model Property {
   bankAuthorizations   BankAuthorization[]
   matchingRules        BankMatchingRule[]
   memberships          UserProperty[]
+  invitations          UserInvitation[]
   createdAt            DateTime                 @default(now())
   updatedAt            DateTime                 @updatedAt
 
@@ -159,11 +176,43 @@ model PropertyOwnership {
 model UserProperty {
   userId     String
   propertyId String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  permission PropertyPermission @default(VIEW)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property   Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@id([userId, propertyId])
-  @@index([propertyId])
+  @@index([propertyId, permission])
+}
+
+model UserInvitation {
+  id          String             @id @default(cuid())
+  email       String
+  name        String?
+  tokenHash   String             @unique
+  propertyId  String
+  property    Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  permission  PropertyPermission @default(VIEW)
+  invitedById String
+  invitedBy   User               @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  status      InvitationStatus   @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([propertyId, status])
+  @@index([email, status])
+}
+
+model AppSetting {
+  id                   String   @id @default("global")
+  automaticBankSync    Boolean  @default(true)
+  bankSyncsPerDay      Int      @default(24)
+  lastCronStartedAt    DateTime?
+  lastCronFinishedAt   DateTime?
+  lastCronSummary      String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 }
 
 model Unit {
@@ -301,11 +350,15 @@ model BankAuthorization {
   status                  BankAuthorizationStatus @default(PENDING)
   externalAuthorizationId String?
   externalSessionId       String?
+  providerContextEncrypted String?
+  connectedById          String?
+  connectedBy            User? @relation("BankAuthorizationConnector", fields: [connectedById], references: [id], onDelete: SetNull)
   expiresAt               DateTime
   createdAt               DateTime                @default(now())
   updatedAt               DateTime                @updatedAt
 
   @@index([propertyId, status])
+  @@index([connectedById])
 }
 
 model BankAccount {
@@ -320,20 +373,28 @@ model BankAccount {
   iban               String?
   ibanMasked         String
   currency           String               @default("CZK")
-  externalAccountId  String               @unique
+  externalAccountId  String
   externalSessionId  String?
+  credentialsEncrypted String?
+  connectedById      String?
+  connectedBy        User? @relation("BankAccountConnector", fields: [connectedById], references: [id], onDelete: SetNull)
   identificationHash String?
   connectionStatus   BankConnectionStatus @default(CONNECTED)
   consentExpiresAt   DateTime?
   balanceCents       Int?
   balanceUpdatedAt   DateTime?
   lastSyncedAt       DateTime?
+  lastSyncAttemptAt  DateTime?
+  lastSyncError      String?
+  autoSyncEnabled    Boolean              @default(true)
   transactions       BankTransaction[]
   matchingRules      BankMatchingRule[]
 
   @@index([propertyId])
   @@index([ownerId])
   @@index([provider, identificationHash])
+  @@index([connectedById])
+  @@unique([provider, externalAccountId])
 }
 
 model BankMatchingRule {

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser, canManageProperty } from "@/lib/auth";
+import { requireUser, canSeeAll } from "@/lib/auth";
 import { requirePropertyAccess } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { money, date } from "@/lib/format";
@@ -28,7 +28,8 @@ export default async function TransactionDetail({ params, searchParams }: { para
     searchParams,
   ]);
   if (!property || !transaction) notFound();
-  const canManage = canManageProperty(user.role);
+  const membership = property.memberships.find((row) => row.userId === user.id);
+  const canManage = canSeeAll(user.role) || membership?.permission === "EDIT" || membership?.permission === "ADMIN";
   const leases = property.units.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unit })));
   const openCharges = leases.flatMap((lease) => lease.charges.map((charge) => ({ lease, charge, paid: charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0) }))).filter((row) => row.paid < row.charge.amountCents).sort((a, b) => a.charge.dueDate.getTime() - b.charge.dueDate.getTime());
   const allocated = transaction.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0);

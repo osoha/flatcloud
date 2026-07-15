@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
-import { requireUser, canManageProperty } from "@/lib/auth";
+import { requireUser, canSeeAll } from "@/lib/auth";
 import { requirePropertyAccess } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Field, Flash, FormCard, FormPage, Select, Textarea } from "@/components/FormUi";
@@ -17,7 +17,9 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
     searchParams,
   ]);
   if (!property || !unit) notFound();
-  const canManage = canManageProperty(user.role);
+  const membership = property.memberships.find((row) => row.userId === user.id);
+  const canManage = canSeeAll(user.role) || membership?.permission === "EDIT" || membership?.permission === "ADMIN";
+  if (!canManage) redirect(`/nemovitosti/${id}/jednotky`);
   return <Shell user={user}><FormPage title={`Upravit jednotku ${unit.label}`} description={property.name} backHref={`/nemovitosti/${id}/jednotky`}>
     <Flash ok={query.ok} error={query.error}/>
     <FormCard action={`/api/properties/${id}/units/${unit.id}`} cancelHref={`/nemovitosti/${id}/jednotky`}><Field label="Označení jednotky" name="label" defaultValue={unit.label} required/><Field label="Podlaží" name="floor" defaultValue={unit.floor}/><Select label="Typ jednotky" name="type" defaultValue={unit.type} options={Object.entries(unitTypes)}/><Select label="Stav" name="status" defaultValue={unit.status} options={Object.entries(unitStatuses)}/><Field label="Plocha v m²" name="areaM2" type="number" step="0.01" min={0} defaultValue={unit.areaM2}/><Textarea label="Poznámka" name="note" defaultValue={unit.note}/></FormCard>
