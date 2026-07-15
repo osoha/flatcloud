@@ -1,54 +1,75 @@
-# FlatCloud Rent – Render deployment V2
+# FlatCloud Rent – evidence nemovitostí a nájemních plateb V6
 
-Produkční základ aplikace pro evidenci předpisů a bankovních plateb po jednotlivých vlastnících/SPV a nemovitostech. Balíček je připraven pro nasazení z GitHubu na Render pomocí Blueprintu `render.yaml`.
+Produkční webová aplikace pro správu oddělených portfolií vlastníků/SPV a jednotlivých nemovitostí. Verze V6 rozšiřuje funkční přihlášení a dashboard o skutečnou správu dat v PostgreSQL.
 
-## Automaticky vytvořené služby
+## Funkce V6
 
-- Node.js web service ve Frankfurtu,
-- placená PostgreSQL databáze ve Frankfurtu,
-- interní spojení aplikace s databází,
-- automatické databázové migrace před každým nasazením,
-- jednorázové vytvoření prvního administrátora,
-- HTTPS na Render URL a později na vlastní subdoméně,
-- health check `/api/health`.
+- vlastníci, SPV a externí klienti,
+- přidání a editace nemovitostí,
+- jednotky včetně typu, plochy a stavu,
+- nájemníci a známé účty plátců,
+- nájemní smlouvy s historií,
+- verzované položky pravidelného předpisu s platností od–do,
+- hromadné vytvoření měsíčních předpisů,
+- editace konkrétního měsíčního předpisu,
+- ruční zaevidování platby proti předpisu,
+- výpočet salda a přehled dlužníků,
+- role a omezení přístupu po nemovitostech,
+- audit vytvoření a změn záznamů.
 
-## První nasazení
+Bankovní napojení zůstává záměrně vypnuté. Výchozí režim je `BANKING_PROVIDER=mock`; sandbox se doplní až po ověření evidence, předpisů a sald.
 
-1. Nahrajte celý obsah tohoto adresáře do kořene soukromého GitHub repozitáře.
-2. V GitHubu ověřte, že `render.yaml` leží přímo vedle `package.json`.
-3. V Renderu zvolte **New > Blueprint** a vyberte repozitář.
-4. Render načte `render.yaml` a vyžádá tři hodnoty:
-   - `INITIAL_ADMIN_NAME`,
-   - `INITIAL_ADMIN_EMAIL`,
-   - `INITIAL_ADMIN_PASSWORD` – alespoň 12 znaků.
-5. Potvrďte vytvoření Blueprintu. Render sestaví aplikaci, vytvoří PostgreSQL, spustí migraci a jednorázově založí prvního administrátora.
-6. Po úspěšném deployi otevřete adresu ve tvaru `https://flatcloud-rent.onrender.com` a přihlaste se zadanými údaji.
-7. V aplikaci otevřete **Můj účet** a heslo změňte.
+## Aktualizace existující aplikace na Renderu
 
-## Demo data
-
-Databáze se standardně vytvoří prázdná. Pro vložení tří demonstračních objektů otevřete v Renderu web service a spusťte jednorázový Shell/Job:
+1. Zálohujte nebo stáhněte současný GitHub repozitář.
+2. Rozbalte tento ZIP.
+3. Nahrajte jeho obsah do kořene stejného repozitáře a potvrďte přepsání souborů.
+4. Commitněte změny do větve `main`.
+5. Render automaticky provede:
 
 ```bash
-npm run db:seed:demo
+npm ci --no-audit --no-fund
+npm run build
+npm run db:migrate
+npm run db:bootstrap
+npm start
 ```
 
-Příkaz je nedestruktivní a odmítne běžet, pokud už databáze obsahuje nemovitosti.
+Migrace `20260715190000_property_management` pouze rozšíří stávající databázi. Administrátora, uživatele ani současné objekty nemaže. U existujících smluv vytvoří výchozí položky „Nájemné“ a „Zálohy na služby“.
 
-## Vlastní subdoména
+Pokud automatický deploy nezačne, v Renderu zvolte **Manual Deploy → Deploy latest commit**. Vyčištění build cache není při této aktualizaci standardně potřeba.
 
-V Renderu otevřete web service > **Settings > Custom Domains** a přidejte například `platby.flatcloud.cz`. Render následně zobrazí DNS záznam, který nastavíte u správce domény. HTTPS certifikát vydá a obnovuje Render automaticky.
+## Doporučený první postup v aplikaci
 
-## Bankovní integrace
+1. Otevřete **Vlastníci / SPV** a přidejte vlastníka.
+2. V portfoliu zvolte **Přidat nemovitost**.
+3. V detailu nemovitosti přidejte jednotky.
+4. Přidejte nájemníka; formulář současně vytvoří jeho první smlouvu.
+5. V sekci **Předpisy** upravte pravidelné položky nájemného a služeb.
+6. Vytvořte předpisy pro zvolený měsíc.
+7. V sekci **Platby** vložte ruční platbu a ověřte saldo a dlužníky.
 
-Výchozí hodnota je `BANKING_PROVIDER=mock`. Reálná banka není připojena. Po získání sandboxových údajů open-banking poskytovatele se do Render Environment doplní klientské údaje a konkrétní adaptér.
+## Datová pravidla
 
-## Bezpečnostní poznámky
+- Nemovitost je hlavní bezpečnostní a účetní hranicí.
+- Smlouva propojuje nájemníka s jednotkou; historie se nepřepisuje.
+- Změna měsíční částky se provádí přes položku s novou platností od určitého data.
+- Již vytvořený měsíční předpis se automaticky nepřepíše.
+- Ruční platba vytváří auditovaný bankovní záznam se zdrojem „Ruční evidence“.
+- Nemovitosti, vlastníci a nájemníci se deaktivují; produkční UI neprovádí destruktivní mazání.
 
-- Nepřidávejte `.env` ani API klíče do GitHubu.
-- Databáze je podle `render.yaml` dostupná pouze z interní sítě Renderu.
-- Přístupová data prvního administrátora se při dalších deployích nepřepisují.
-- Před ostrým připojením banky je nutné doplnit 2FA, reset hesla, monitoring, zálohovací politiku, GDPR dokumentaci a bezpečnostní test.
+## Render a proměnné prostředí
+
+Ponechte existující proměnné:
+
+- `DATABASE_URL`
+- `SESSION_SECRET`
+- `INITIAL_ADMIN_NAME`
+- `INITIAL_ADMIN_EMAIL`
+- `INITIAL_ADMIN_PASSWORD`
+- `BANKING_PROVIDER=mock`
+
+Po úspěšném obnovení přihlášení nastavte `RESET_INITIAL_ADMIN_PASSWORD=false` nebo tuto dočasnou proměnnou smažte.
 
 ## Lokální vývoj
 
@@ -59,4 +80,6 @@ npm run db:bootstrap
 npm run dev
 ```
 
-Po změně Prisma modelu vytvořte novou migraci v lokálním vývojovém prostředí a commitněte ji do GitHubu.
+## Ověření balíčku
+
+Frontend a Route Handlers byly zkompilovány pomocí Next.js 16 a prošly TypeScript kontrolou. V pracovním prostředí nebylo možné stáhnout nativní Prisma engine z `binaries.prisma.sh`; standardní Render build jej stáhne během `prisma generate`, stejně jako u předchozí funkční verze.

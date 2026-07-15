@@ -44,7 +44,7 @@ async function main() {
 
     for (let index = 1; index <= 5; index += 1) {
       const unit = await prisma.unit.create({
-        data: { propertyId: property.id, label: `${index}.0${index}`, floor: `${index}. NP` },
+        data: { propertyId: property.id, label: `${index}.0${index}`, floor: `${index}. NP`, status: "OCCUPIED", type: "APARTMENT" },
       });
       const tenantName = ["Jan Novák", "Petra Malá", "Tomáš Dvořák", "Eva Veselá", "Martin Černý"][index - 1];
       const tenant = await prisma.tenant.create({
@@ -63,6 +63,12 @@ async function main() {
           rentCents: cents(11_000 + index * 500),
           servicesCents: cents(2_500),
           depositCents: cents(30_000),
+          paymentItems: {
+            create: [
+              { name: "Nájemné", category: "RENT", amountCents: cents(11_000 + index * 500), validFrom: new Date("2025-01-01"), sortOrder: 10 },
+              { name: "Zálohy na služby", category: "SERVICES", amountCents: cents(2_500), validFrom: new Date("2025-01-01"), sortOrder: 20 },
+            ],
+          },
         },
       });
       const charge = await prisma.charge.create({
@@ -71,6 +77,12 @@ async function main() {
           period: "2026-07",
           dueDate: new Date("2026-07-05"),
           amountCents: lease.rentCents + lease.servicesCents,
+          items: {
+            create: [
+              { name: "Nájemné", category: "RENT", amountCents: lease.rentCents },
+              { name: "Zálohy na služby", category: "SERVICES", amountCents: lease.servicesCents },
+            ],
+          },
         },
       });
 

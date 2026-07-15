@@ -36,6 +36,45 @@ enum BankConnectionStatus {
   DISCONNECTED
 }
 
+enum OwnerType {
+  COMPANY
+  PERSON
+  SPV
+}
+
+enum UnitType {
+  APARTMENT
+  COMMERCIAL
+  GARAGE
+  PARKING
+  STORAGE
+  OTHER
+}
+
+enum UnitStatus {
+  VACANT
+  OCCUPIED
+  RENOVATION
+  INACTIVE
+}
+
+enum TenantType {
+  PERSON
+  COMPANY
+}
+
+enum ChargeCategory {
+  RENT
+  WATER
+  HEATING
+  ELECTRICITY
+  SERVICES
+  PARKING
+  DEPOSIT
+  OTHER
+  ADJUSTMENT
+}
+
 model User {
   id           String         @id @default(cuid())
   email        String         @unique
@@ -52,9 +91,16 @@ model User {
 model Owner {
   id         String     @id @default(cuid())
   name       String
+  type       OwnerType  @default(COMPANY)
   ico        String?
+  email      String?
+  phone      String?
+  address    String?
+  note       String?
+  active     Boolean    @default(true)
   properties Property[]
   createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 }
 
 model Property {
@@ -62,6 +108,9 @@ model Property {
   name         String
   address      String
   city         String
+  postalCode   String?
+  note         String?
+  active       Boolean        @default(true)
   ownerId      String
   owner        Owner          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
   units        Unit[]
@@ -84,44 +133,79 @@ model UserProperty {
 }
 
 model Unit {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   label      String
   floor      String?
+  type       UnitType   @default(APARTMENT)
+  status     UnitStatus @default(VACANT)
+  areaM2     Float?
+  note       String?
   propertyId String
-  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property   Property   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   leases     Lease[]
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   @@unique([propertyId, label])
   @@index([propertyId])
 }
 
 model Tenant {
-  id            String   @id @default(cuid())
+  id            String     @id @default(cuid())
+  type          TenantType @default(PERSON)
   name          String
   email         String?
   phone         String?
+  address       String?
+  note          String?
+  active        Boolean    @default(true)
   payerAccounts String[]
   leases        Lease[]
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
 }
 
 model Lease {
-  id             String      @id @default(cuid())
+  id             String             @id @default(cuid())
   unitId         String
   tenantId       String
-  unit           Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  tenant         Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  unit           Unit               @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contractNumber String?
   startDate      DateTime
   endDate        DateTime?
-  dueDay         Int         @default(5)
+  dueDay         Int                @default(5)
   variableSymbol String
+  currency       String             @default("CZK")
   rentCents      Int
   servicesCents  Int
-  depositCents   Int         @default(0)
-  status         LeaseStatus @default(ACTIVE)
+  depositCents   Int                @default(0)
+  note           String?
+  status         LeaseStatus        @default(ACTIVE)
+  paymentItems   LeasePaymentItem[]
   charges        Charge[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   @@unique([unitId, variableSymbol])
   @@index([tenantId])
+}
+
+model LeasePaymentItem {
+  id          String         @id @default(cuid())
+  leaseId     String
+  lease       Lease          @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  name        String
+  category    ChargeCategory @default(OTHER)
+  amountCents Int
+  validFrom   DateTime
+  validTo     DateTime?
+  active      Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([leaseId, validFrom])
 }
 
 model Charge {
@@ -131,10 +215,26 @@ model Charge {
   period      String
   dueDate     DateTime
   amountCents Int
+  note        String?
+  items       ChargeItem[]
   allocations PaymentAllocation[]
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   @@unique([leaseId, period])
   @@index([leaseId, dueDate])
+}
+
+model ChargeItem {
+  id          String         @id @default(cuid())
+  chargeId    String
+  charge      Charge         @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  name        String
+  category    ChargeCategory @default(OTHER)
+  amountCents Int
+  createdAt   DateTime       @default(now())
+
+  @@index([chargeId])
 }
 
 model BankAccount {

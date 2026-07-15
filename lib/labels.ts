@@ -1,0 +1,44 @@
+export const ownerTypes: Record<string, string> = {
+  COMPANY: "Společnost",
+  PERSON: "Fyzická osoba",
+  SPV: "SPV / projektová společnost",
+};
+
+export const unitTypes: Record<string, string> = {
+  APARTMENT: "Byt",
+  COMMERCIAL: "Nebytový prostor",
+  GARAGE: "Garáž",
+  PARKING: "Parkovací stání",
+  STORAGE: "Sklep / sklad",
+  OTHER: "Jiné",
+};
+
+export const unitStatuses: Record<string, string> = {
+  VACANT: "Volná",
+  OCCUPIED: "Obsazená",
+  RENOVATION: "Rekonstrukce",
+  INACTIVE: "Neaktivní",
+};
+
+export const tenantTypes: Record<string, string> = {
+  PERSON: "Fyzická osoba",
+  COMPANY: "Právnická osoba",
+};
+
+export const leaseStatuses: Record<string, string> = {
+  ACTIVE: "Aktivní",
+  FUTURE: "Budoucí",
+  ENDED: "Ukončená",
+};
+
+export const chargeCategories: Record<string, string> = {
+  RENT: "Nájemné",
+  WATER: "Voda",
+  HEATING: "Teplo",
+  ELECTRICITY: "Elektřina",
+  SERVICES: "Služby",
+  PARKING: "Parkování",
+  DEPOSIT: "Kauce",
+  OTHER: "Ostatní",
+  ADJUSTMENT: "Úprava / korekce",
+};
