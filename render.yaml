@@ -1,0 +1,38 @@
+services:
+  - type: web
+    name: flatcloud-rent
+    runtime: node
+    region: frankfurt
+    plan: starter
+    buildCommand: npm ci && npm run build
+    preDeployCommand: npm run db:migrate
+    initialDeployHook: npm run db:bootstrap
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: 22.22.0
+      - key: DATABASE_URL
+        fromDatabase:
+          name: flatcloud-rent-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: INITIAL_ADMIN_NAME
+        sync: false
+      - key: INITIAL_ADMIN_EMAIL
+        sync: false
+      - key: INITIAL_ADMIN_PASSWORD
+        sync: false
+      - key: BANKING_PROVIDER
+        value: mock
+
+databases:
+  - name: flatcloud-rent-db
+    region: frankfurt
+    plan: basic-256mb
+    postgresMajorVersion: "18"
+    databaseName: flatcloud_rent
+    user: flatcloud_app
+    ipAllowList: []

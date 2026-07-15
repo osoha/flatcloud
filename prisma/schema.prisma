@@ -1,0 +1,200 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  MANAGER
+  OWNER_VIEWER
+  PROPERTY_MANAGER
+}
+
+enum PaymentStatus {
+  UNMATCHED
+  SUGGESTED
+  MATCHED
+  PARTIAL
+  OVERPAYMENT
+  IGNORED
+}
+
+enum LeaseStatus {
+  ACTIVE
+  ENDED
+  FUTURE
+}
+
+enum BankConnectionStatus {
+  CONNECTED
+  NEEDS_REAUTH
+  ERROR
+  DISCONNECTED
+}
+
+model User {
+  id           String         @id @default(cuid())
+  email        String         @unique
+  name         String
+  passwordHash String
+  role         UserRole       @default(OWNER_VIEWER)
+  active       Boolean        @default(true)
+  memberships  UserProperty[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Owner {
+  id         String     @id @default(cuid())
+  name       String
+  ico        String?
+  properties Property[]
+  createdAt  DateTime   @default(now())
+}
+
+model Property {
+  id           String         @id @default(cuid())
+  name         String
+  address      String
+  city         String
+  ownerId      String
+  owner        Owner          @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  units        Unit[]
+  bankAccounts BankAccount[]
+  memberships  UserProperty[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@index([ownerId])
+}
+
+model UserProperty {
+  userId     String
+  propertyId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@id([userId, propertyId])
+  @@index([propertyId])
+}
+
+model Unit {
+  id         String   @id @default(cuid())
+  label      String
+  floor      String?
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  leases     Lease[]
+
+  @@unique([propertyId, label])
+  @@index([propertyId])
+}
+
+model Tenant {
+  id            String   @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  payerAccounts String[]
+  leases        Lease[]
+}
+
+model Lease {
+  id             String      @id @default(cuid())
+  unitId         String
+  tenantId       String
+  unit           Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenant         Tenant      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  startDate      DateTime
+  endDate        DateTime?
+  dueDay         Int         @default(5)
+  variableSymbol String
+  rentCents      Int
+  servicesCents  Int
+  depositCents   Int         @default(0)
+  status         LeaseStatus @default(ACTIVE)
+  charges        Charge[]
+
+  @@unique([unitId, variableSymbol])
+  @@index([tenantId])
+}
+
+model Charge {
+  id          String              @id @default(cuid())
+  leaseId     String
+  lease       Lease               @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  period      String
+  dueDate     DateTime
+  amountCents Int
+  allocations PaymentAllocation[]
+
+  @@unique([leaseId, period])
+  @@index([leaseId, dueDate])
+}
+
+model BankAccount {
+  id                  String               @id @default(cuid())
+  propertyId          String
+  property            Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  provider            String
+  bankName            String
+  ibanMasked          String
+  currency            String               @default("CZK")
+  externalAccountId   String               @unique
+  connectionStatus    BankConnectionStatus @default(CONNECTED)
+  consentExpiresAt    DateTime?
+  lastSyncedAt        DateTime?
+  transactions        BankTransaction[]
+
+  @@index([propertyId])
+}
+
+model BankTransaction {
+  id               String              @id @default(cuid())
+  bankAccountId    String
+  bankAccount      BankAccount         @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  externalId       String
+  bookedAt         DateTime
+  amountCents      Int
+  currency         String              @default("CZK")
+  counterpartyName String?
+  counterpartyIban String?
+  variableSymbol   String?
+  message          String?
+  status           PaymentStatus       @default(UNMATCHED)
+  allocations      PaymentAllocation[]
+  createdAt        DateTime            @default(now())
+
+  @@unique([bankAccountId, externalId])
+  @@index([bankAccountId, bookedAt])
+}
+
+model PaymentAllocation {
+  id            String          @id @default(cuid())
+  transactionId String
+  chargeId      String
+  amountCents   Int
+  transaction   BankTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  charge        Charge          @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+
+  @@unique([transactionId, chargeId])
+  @@index([chargeId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String
+  entityId   String?
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+}

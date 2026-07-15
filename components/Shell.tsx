@@ -1,0 +1,41 @@
+import Link from "next/link";
+import { Building2, LayoutDashboard, LogOut, ShieldCheck, UserRound } from "lucide-react";
+
+export function Shell({ user, children }: { user: { name: string; email: string; role: string }, children: React.ReactNode }) {
+  const initials = user.name.split(" ").map((part) => part[0]).slice(0, 2).join("");
+  const bankingMode = process.env.BANKING_PROVIDER === "mock" ? "Bankovní sandbox" : "Produkční režim";
+
+  return (
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand"><div className="brand-mark">FC</div><strong>FlatCloud Rent</strong></div>
+        <div className="scope-box">
+          <small>Rozsah přístupu</small>
+          <strong>{user.role === "SUPER_ADMIN" || user.role === "MANAGER" ? "Všechna portfolia" : "Přiřazené nemovitosti"}</strong>
+          <span>Data oddělena podle objektů</span>
+        </div>
+        <nav className="nav">
+          <Link href="/portfolio" className="active"><span className="ico"><LayoutDashboard size={17} /></span>Portfolio</Link>
+          <div className="nav-label">Správa</div>
+          <Link href="/portfolio"><span className="ico"><Building2 size={17} /></span>Nemovitosti</Link>
+          <div className="nav-divider" />
+          <Link href="/ucet"><span className="ico"><UserRound size={17} /></span>Můj účet</Link>
+          <Link href="/portfolio"><span className="ico"><ShieldCheck size={17} /></span>Audit a nastavení</Link>
+        </nav>
+        <div className="sidebar-user">
+          <div className="user-card">
+            <div className="avatar">{initials}</div>
+            <div>
+              <strong>{user.name}</strong><small>{user.email}</small>
+              <form className="logout-form" action="/api/auth/logout" method="post"><button><LogOut size={11} style={{ display: "inline", marginRight: 4 }} />Odhlásit</button></form>
+            </div>
+          </div>
+        </div>
+      </aside>
+      <main className="main">
+        <header className="topbar"><div className="search">Hledat nemovitost, nájemníka nebo platbu…</div><div className="top-spacer" /><span className="status ok">{bankingMode}</span></header>
+        {children}
+      </main>
+    </div>
+  );
+}
