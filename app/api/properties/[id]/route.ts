@@ -1,33 +1,7 @@
+import { PropertyOwnershipMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { canSeeAll } from "@/lib/auth";
 import { go, goWithMessage } from "@/lib/route-response";
-
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const access = await requireManagedProperty(id);
-  if (!access) return go(request, "/login");
-  try {
-    const form = await request.formData();
-    const ownerId = text(form, "ownerId");
-    if (ownerId && !canSeeAll(access.user.role)) throw new Error("Vlastníka může změnit pouze generální správce.");
-    const property = await prisma.property.update({
-      where: { id },
-      data: {
-        name: text(form, "name", true)!,
-        address: text(form, "address", true)!,
-        city: text(form, "city", true)!,
-        postalCode: text(form, "postalCode"),
-        note: text(form, "note"),
-        active: boolValue(form, "active"),
-        ...(ownerId ? { ownerId } : {}),
-      },
-    });
-    if (ownerId) await prisma.propertyOwnership.upsert({ where: { propertyId_ownerId: { propertyId: id, ownerId } }, update: {}, create: { propertyId: id, ownerId, shareBasisPoints: 10000 } });
-    await audit(access.user.id, "PROPERTY_UPDATED", "Property", property.id, { name: property.name });
-    return goWithMessage(request, `/nemovitosti/${id}/nastaveni`, "ok", "Změny nemovitosti byly uloženy.");
-  } catch (error) {
-    return goWithMessage(request, `/nemovitosti/${id}/upravit`, "error", error instanceof Error ? error.message : "Změny se nepodařilo uložit.");
-  }
-}
+export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){const{id}=await params;const access=await requireManagedProperty(id);if(!access)return go(request,"/login");try{const form=await request.formData();const ownerId=text(form,"ownerId");if(ownerId&&!canSeeAll(access.user.role))throw new Error("Vlastnické údaje může změnit pouze generální správce.");const modeRaw=(text(form,"ownershipMode")||"WHOLE_OBJECT") as PropertyOwnershipMode;const ownershipMode=Object.values(PropertyOwnershipMode).includes(modeRaw)?modeRaw:PropertyOwnershipMode.WHOLE_OBJECT;const communicationOwnerId=text(form,"communicationOwnerId");const managerId=text(form,"managerId");if(managerId&&!await prisma.user.findFirst({where:{id:managerId,active:true},select:{id:true}}))throw new Error("Vybraný správce neexistuje.");const previous=await prisma.property.findUnique({where:{id},select:{managerId:true}});const property=await prisma.$transaction(async tx=>{const updated=await tx.property.update({where:{id},data:{name:text(form,"name",true)!,address:text(form,"address",true)!,city:text(form,"city",true)!,postalCode:text(form,"postalCode"),note:text(form,"note"),active:boolValue(form,"active"),...(ownerId?{ownerId,ownershipMode,communicationOwnerId:communicationOwnerId||ownerId,managerId:managerId||null}:{})}});if(ownerId)await tx.propertyOwnership.upsert({where:{propertyId_ownerId:{propertyId:id,ownerId}},update:{},create:{propertyId:id,ownerId,shareBasisPoints:ownershipMode==="WHOLE_OBJECT"?10000:0}});if(previous?.managerId&&previous.managerId!==managerId)await tx.userProperty.deleteMany({where:{userId:previous.managerId,propertyId:id}});if(managerId)await tx.userProperty.upsert({where:{userId_propertyId:{userId:managerId,propertyId:id}},update:{permission:"ADMIN"},create:{userId:managerId,propertyId:id,permission:"ADMIN"}});return updated});await audit(access.user.id,"PROPERTY_UPDATED","Property",property.id,{name:property.name,ownerId,ownershipMode,communicationOwnerId,managerId});return goWithMessage(request,`/nemovitosti/${id}/nastaveni`,"ok","Změny nemovitosti byly uloženy.")}catch(error){return goWithMessage(request,`/nemovitosti/${id}/upravit`,"error",error instanceof Error?error.message:"Změny se nepodařilo uložit.")}}

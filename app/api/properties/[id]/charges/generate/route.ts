@@ -32,7 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         data: {
           leaseId: lease.id,
           period,
-          dueDate: periodDueDate(period, lease.dueDay),
+          dueDate: periodDueDate(period, lease.dueDay, lease.rentTiming),
           amountCents: items.reduce((sum, item) => sum + item.amountCents, 0),
           items: { create: items.map((item) => ({ name: item.name, category: item.category, amountCents: item.amountCents })) },
         },

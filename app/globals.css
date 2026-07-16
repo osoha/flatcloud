@@ -117,3 +117,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 
 .connector-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 14px;border:1px solid #e4e9f2;border-radius:12px;background:#fafbfe}.connector-card div{display:flex;flex-direction:column;gap:3px}.connector-card small{color:#73809a}.connector-card.preferred{border-color:#cbd8ff;background:#f5f8ff}
 .users-create-grid{align-items:start}.users-create-grid .card{height:100%}.field small{display:block;color:var(--muted);font-size:9px;margin-top:5px}
+
+/* V10 FlatCloud corporate identity */
+:root{--blue:#1f5bd7;--navy:#162d58;--blue-soft:#edf3ff;--surface:#f5f7fb;--line:#dfe6f0}
+.brand{padding:24px 22px 20px;background:#fff}.brand img{width:166px;height:auto;object-fit:contain}.login-logo{display:flex;justify-content:center;margin-bottom:20px}.login-logo img{width:210px;height:auto}.scope-box{border-top:1px solid #e8edf5;border-bottom:1px solid #e8edf5;background:#f8faff}.nav a:hover,.nav a:focus{background:#eef3ff;color:#183c7a}.primary{background:#1f5bd7}.overdue-orange{color:#d97706}.manager-profile{display:flex;gap:14px;align-items:center;padding:15px;border:1px solid var(--line);border-radius:13px;background:#f8faff}.manager-profile .avatar{flex:0 0 auto}.manager-profile strong,.manager-profile span,.manager-profile a{display:block}.manager-profile span,.manager-profile a{font-size:10px;color:var(--muted);margin-top:3px}

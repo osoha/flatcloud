@@ -1,9 +1,10 @@
+import Image from "next/image";
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams;
   return (
     <main className="login-page">
       <div className="login-card">
-        <div className="brand-mark">FC</div>
+        <div className="login-logo"><Image src="/flatcloud-logo.png" width={210} height={51} alt="FlatCloud" priority/></div>
         <h1>Přihlášení</h1>
         <p>Evidence nájemních plateb a správa portfolia.</p>
         {params.error && <div className="error">Neplatný e-mail nebo heslo.</div>}

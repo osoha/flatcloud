@@ -1,9 +1,11 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { canSeeAll } from "./auth";
+import { hasAllPropertyAccess } from "./auth";
 
 const propertyInclude = {
   owner: true,
+  communicationOwner: true,
+  manager: true,
   ownerships: { include: { owner: true }, orderBy: { createdAt: "asc" as const } },
   bankAccounts: { include: { owner: true, connectedBy: true }, orderBy: { bankName: "asc" as const } },
   matchingRules: { orderBy: [{ priority: "asc" as const }, { createdAt: "asc" as const }] },
@@ -27,7 +29,7 @@ const propertyInclude = {
 
 export async function accessibleProperties(user:{id:string;role:string}){
   return prisma.property.findMany({
-    where: { ...(canSeeAll(user.role) ? {} : { memberships:{some:{userId:user.id}} }), active: true },
+    where: { ...(hasAllPropertyAccess(user) ? {} : { memberships:{some:{userId:user.id}} }), active: true },
     include: propertyInclude,
     orderBy:{name:"asc"}
   });
@@ -35,7 +37,7 @@ export async function accessibleProperties(user:{id:string;role:string}){
 
 export async function requirePropertyAccess(user:{id:string;role:string},propertyId:string){
   return prisma.property.findFirst({
-    where:{id:propertyId,...(canSeeAll(user.role)?{}:{memberships:{some:{userId:user.id}}})},
+    where:{id:propertyId,...(hasAllPropertyAccess(user)?{}:{memberships:{some:{userId:user.id}}})},
     include: propertyInclude,
   });
 }

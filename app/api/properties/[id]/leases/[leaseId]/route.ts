@@ -1,4 +1,4 @@
-import { LeaseStatus, UnitStatus } from "@prisma/client";
+import { LeaseStatus, RentTiming, UnitStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { dateValue, intValue, moneyToCents, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
@@ -34,6 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           endDate: dateValue(form, "endDate"),
           dueDay: Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31),
           variableSymbol,
+          rentTiming: ((text(form, "rentTiming") || "ADVANCE") as RentTiming),
           rentCents: moneyToCents(form, "rent"),
           servicesCents: moneyToCents(form, "services"),
           depositCents: moneyToCents(form, "deposit"),
