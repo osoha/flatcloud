@@ -1,24 +1,6 @@
-export function currentPeriod() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-export function periodStart(period: string) {
-  if (!/^\d{4}-\d{2}$/.test(period)) throw new Error("Období musí být ve formátu RRRR-MM.");
-  const [year, month] = period.split("-").map(Number);
-  if (month < 1 || month > 12) throw new Error("Neplatný měsíc.");
-  return new Date(Date.UTC(year, month - 1, 1, 12));
-}
-
-export function periodDueDate(period: string, dueDay: number) {
-  const start = periodStart(period);
-  const year = start.getUTCFullYear();
-  const month = start.getUTCMonth();
-  const maxDay = new Date(Date.UTC(year, month + 1, 0, 12)).getUTCDate();
-  return new Date(Date.UTC(year, month, Math.min(Math.max(dueDay, 1), maxDay), 12));
-}
-
-export function periodLabel(period: string) {
-  const start = periodStart(period);
-  return new Intl.DateTimeFormat("cs-CZ", { month: "long", year: "numeric" }).format(start);
-}
+import type { RentTiming } from "@prisma/client";
+export function currentPeriod(){const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`}
+export function periodStart(period:string){if(!/^\d{4}-\d{2}$/.test(period))throw new Error("Období musí být ve formátu RRRR-MM.");const[y,m]=period.split("-").map(Number);if(m<1||m>12)throw new Error("Neplatný měsíc.");return new Date(Date.UTC(y,m-1,1,12))}
+export function periodDueDate(period:string,dueDay:number,timing:RentTiming="ADVANCE"){const start=periodStart(period);const month=start.getUTCMonth()+(timing==="ARREARS"?1:0);const year=start.getUTCFullYear();const maxDay=new Date(Date.UTC(year,month+1,0,12)).getUTCDate();return new Date(Date.UTC(year,month,Math.min(Math.max(dueDay,1),maxDay),12))}
+export function periodLabel(period:string){return new Intl.DateTimeFormat("cs-CZ",{month:"long",year:"numeric"}).format(periodStart(period))}
+export function periodsBetween(startDate:Date,endDate:Date){const out:string[]=[];let y=startDate.getUTCFullYear(),m=startDate.getUTCMonth();const ey=endDate.getUTCFullYear(),em=endDate.getUTCMonth();while(y<ey||(y===ey&&m<=em)){out.push(`${y}-${String(m+1).padStart(2,"0")}`);m++;if(m===12){m=0;y++}}return out}

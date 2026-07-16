@@ -42,6 +42,17 @@ enum LeaseStatus {
   FUTURE
 }
 
+enum RentTiming {
+  ADVANCE
+  ARREARS
+}
+
+enum PropertyOwnershipMode {
+  WHOLE_OBJECT
+  UNIT_BASED
+  SVJ
+}
+
 enum BankConnectionStatus {
   CONNECTED
   NEEDS_REAUTH
@@ -108,10 +119,14 @@ model User {
   passwordHash String
   role         UserRole       @default(OWNER_VIEWER)
   active       Boolean        @default(true)
+  allProperties Boolean       @default(false)
+  phone        String?
+  title        String?
   memberships       UserProperty[]
   invitationsSent   UserInvitation[] @relation("InvitationSender")
   bankAuthorizationsConnected BankAuthorization[] @relation("BankAuthorizationConnector")
   bankAccountsConnected       BankAccount[]       @relation("BankAccountConnector")
+  managedProperties Property[] @relation("PropertyManager")
   auditLogs         AuditLog[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
@@ -131,6 +146,7 @@ model Owner {
   propertyOwnerships PropertyOwnership[]
   unitOwnerships     UnitOwnership[]
   bankAccounts       BankAccount[]
+  communicationProperties Property[] @relation("PropertyCommunicationOwner")
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
 }
@@ -145,6 +161,11 @@ model Property {
   active               Boolean                 @default(true)
   ownerId              String
   owner                Owner                    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownershipMode        PropertyOwnershipMode     @default(WHOLE_OBJECT)
+  communicationOwnerId String?
+  communicationOwner   Owner?                    @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  managerId            String?
+  manager              User?                     @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
   ownerships           PropertyOwnership[]
   units                Unit[]
   bankAccounts         BankAccount[]
@@ -156,6 +177,8 @@ model Property {
   updatedAt            DateTime                 @updatedAt
 
   @@index([ownerId])
+  @@index([communicationOwnerId])
+  @@index([managerId])
 }
 
 model PropertyOwnership {
@@ -190,6 +213,8 @@ model UserInvitation {
   name        String?
   tokenHash   String             @unique
   propertyId  String
+  propertyIds String[]           @default([])
+  allProperties Boolean          @default(false)
   property    Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   permission  PropertyPermission @default(VIEW)
   invitedById String
@@ -276,6 +301,7 @@ model Lease {
   dueDay                Int                @default(5)
   variableSymbol        String
   currency              String             @default("CZK")
+  rentTiming             RentTiming         @default(ADVANCE)
   rentCents             Int
   servicesCents         Int
   depositCents          Int                @default(0)
@@ -317,6 +343,7 @@ model Charge {
   dueDate     DateTime
   amountCents Int
   note        String?
+  active      Boolean             @default(true)
   items       ChargeItem[]
   allocations PaymentAllocation[]
   createdAt   DateTime            @default(now())

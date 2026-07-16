@@ -1,6 +1,6 @@
 import { Prisma, PropertyPermission } from "@prisma/client";
 import { prisma } from "./db";
-import { canSeeAll, currentUser } from "./auth";
+import { canSeeAll, hasAllPropertyAccess, currentUser } from "./auth";
 
 const permissionRank: Record<PropertyPermission, number> = { VIEW: 1, EDIT: 2, ADMIN: 3 };
 
@@ -15,7 +15,7 @@ export async function propertyMembership(userId: string, propertyId: string) {
 }
 
 export async function hasPropertyPermission(user: { id: string; role: string }, propertyId: string, minimum: PropertyPermission) {
-  if (canSeeAll(user.role)) return true;
+  if (hasAllPropertyAccess(user)) return true;
   const membership = await propertyMembership(user.id, propertyId);
   return Boolean(membership && permissionRank[membership.permission] >= permissionRank[minimum]);
 }
