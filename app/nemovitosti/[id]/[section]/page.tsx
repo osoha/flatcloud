@@ -38,6 +38,8 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   const p = await requirePropertyAccess(user, id);
   if (!p) notFound();
   const membership = p.memberships.find((row) => row.userId === user.id);
+  const propertyWide = hasAllPropertyAccess(user) || Boolean(membership);if(!propertyWide&&!["prehled","jednotky","najemnici","smlouvy","platby","dluznici"].includes(section))notFound();
+  const visibleUnitIds = p.units.map(unit=>unit.id);
   const canManage = hasAllPropertyAccess(user) || membership?.permission === "EDIT" || membership?.permission === "ADMIN";
   const canAdmin = hasAllPropertyAccess(user) || membership?.permission === "ADMIN";
   const period = currentPeriod();
@@ -47,24 +49,12 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   const expected = currentCharges.reduce((sum, row) => sum + row.charge.amountCents, 0);
   const paid = currentCharges.reduce((sum, row) => sum + row.paid, 0);
   const txs = await prisma.bankTransaction.findMany({
-    where: { bankAccount: { propertyId: id }, amountCents: { gt: 0 } },
+    where: { bankAccount: { propertyId: id }, amountCents: { gt: 0 }, ...(propertyWide?{}:{OR:[{suggestedLease:{unitId:{in:visibleUnitIds}}},{allocations:{some:{charge:{lease:{unitId:{in:visibleUnitIds}}}}}}]}) },
     orderBy: { bookedAt: "desc" },
     include: { bankAccount: true, allocations: true, suggestedLease: { include: { unit: true, tenant: true } } },
   });
   const debts = allCharges.filter((row) => row.charge.active && row.paid < row.charge.amountCents);
-  type PropertyLeaseRow = (typeof leases)[number];
-  type TenantGroup = { tenant: PropertyLeaseRow["tenant"]; leases: PropertyLeaseRow[] };
-  const uniqueTenants: TenantGroup[] = Array.from(
-    new Map<string, TenantGroup>(
-      leases.map((lease) => [
-        lease.tenant.id,
-        {
-          tenant: lease.tenant,
-          leases: leases.filter((row) => row.tenant.id === lease.tenant.id),
-        },
-      ]),
-    ).values(),
-  );
+  type TenantGroup={tenant:(typeof leases)[number]["tenant"];leases:typeof leases};const tenantGroups=new Map<string,TenantGroup>();for(const lease of leases){if(!tenantGroups.has(lease.tenant.id))tenantGroups.set(lease.tenant.id,{tenant:lease.tenant,leases:leases.filter(row=>row.tenant.id===lease.tenant.id)});}const uniqueTenants=Array.from(tenantGroups.values());
   const propertyOwners = p.ownerships.length ? p.ownerships : [{ id: "legacy", ownerId: p.ownerId, owner: p.owner, shareBasisPoints: 10000, note: null }];
   const propertyOwnerNames = propertyOwners.map((row) => row.owner.name).join(", ");
 
@@ -96,7 +86,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
       <div><h1>{p.name}</h1><p>{p.address}, {p.postalCode ? `${p.postalCode} ` : ""}{p.city}</p><div className="property-meta"><span className="meta-pill">{propertyOwnerNames}</span><span className="meta-pill">{p.units.length} jednotek</span><span className="meta-pill">{p.bankAccounts[0]?.bankName || "Banka nepřipojena"}</span></div></div>
       <div className="property-header-right"><span>Saldo {period}</span><strong className={paid - expected < 0 ? "negative" : "positive"}>{money(paid - expected)}</strong></div>
     </div>
-    <PropertySubnav propertyId={id} active={section}/><Flash ok={query.ok} error={query.error}/>
+    <PropertySubnav propertyId={id} active={section} unitLimited={!propertyWide}/><Flash ok={query.ok} error={query.error}/>
 
     {section === "prehled" && <>
       <div className="stat-grid"><Stat label="Předpis" value={money(expected)} note={period}/><Stat label="Uhrazeno" value={money(paid)} note={`${expected ? Math.round(paid / expected * 100) : 100} % inkaso`} good/><Stat label="Dluh" value={money(Math.max(0, expected - paid))} note={`${debts.length} otevřených předpisů`} bad/><Stat label="Jednotky" value={String(p.units.length)} note={`${p.units.filter((unit) => unit.status === "OCCUPIED").length} obsazených`}/><Stat label="Nespárované" value={String(txs.filter((transaction) => transaction.status === "UNMATCHED").length)} note="bankovní transakce"/></div>
