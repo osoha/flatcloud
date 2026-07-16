@@ -49,9 +49,9 @@ export default async function NewUnitPage({
             name="sharePercent"
             type="number"
             step="0.01"
-            min="0.01"
-            max="100"
-            defaultValue="100"
+            min={0.01}
+            max={100}
+            defaultValue={100}
           />
           <Textarea label="Poznámka" name="note" />
         </FormCard>
