@@ -2,7 +2,7 @@ import Link from "next/link";
 
 const sections = [
   ["prehled", "Přehled"], ["jednotky", "Jednotky"], ["vlastnici", "Vlastníci"], ["najemnici", "Nájemníci"],
-  ["smlouvy", "Smlouvy"], ["predpisy", "Předpisy"], ["platby", "Příchozí platby"],
+  ["smlouvy", "Smlouvy"], ["platby", "Příchozí platby"],
   ["dluznici", "Dlužníci"], ["banka", "Banka a pravidla"], ["uzivatele", "Uživatelé"], ["nastaveni", "Nastavení"],
 ];
 
