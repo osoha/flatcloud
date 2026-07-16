@@ -1,6 +1,6 @@
 {
   "name": "flatcloud-rent-production",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,12 +17,14 @@
     "jose": "6.1.0",
     "lucide-react": "0.468.0",
     "next": "16.2.10",
+    "nodemailer": "^7.0.10",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "zod": "4.1.12"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
+    "@types/nodemailer": "^7.0.4",
     "@types/react": "19.0.3",
     "@types/react-dom": "19.0.2",
     "prisma": "6.19.3",
