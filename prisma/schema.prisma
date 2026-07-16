@@ -214,6 +214,7 @@ model UserInvitation {
   tokenHash   String             @unique
   propertyId  String
   propertyIds String[]           @default([])
+  unitIds String[] @default([])
   allProperties Boolean          @default(false)
   property    Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   permission  PropertyPermission @default(VIEW)
