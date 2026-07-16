@@ -52,7 +52,19 @@ export default async function PropertyPage({ params, searchParams }: { params: P
     include: { bankAccount: true, allocations: true, suggestedLease: { include: { unit: true, tenant: true } } },
   });
   const debts = allCharges.filter((row) => row.charge.active && row.paid < row.charge.amountCents);
-  const uniqueTenants: any[] = Array.from(new Map(leases.map((lease) => [lease.tenant.id, { tenant: lease.tenant, leases: leases.filter((row) => row.tenant.id === lease.tenant.id) }])).values()) as any[];
+  type PropertyLeaseRow = (typeof leases)[number];
+  type TenantGroup = { tenant: PropertyLeaseRow["tenant"]; leases: PropertyLeaseRow[] };
+  const uniqueTenants: TenantGroup[] = Array.from(
+    new Map<string, TenantGroup>(
+      leases.map((lease) => [
+        lease.tenant.id,
+        {
+          tenant: lease.tenant,
+          leases: leases.filter((row) => row.tenant.id === lease.tenant.id),
+        },
+      ]),
+    ).values(),
+  );
   const propertyOwners = p.ownerships.length ? p.ownerships : [{ id: "legacy", ownerId: p.ownerId, owner: p.owner, shareBasisPoints: 10000, note: null }];
   const propertyOwnerNames = propertyOwners.map((row) => row.owner.name).join(", ");
 
