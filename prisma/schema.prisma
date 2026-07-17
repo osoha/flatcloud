@@ -123,6 +123,7 @@ model User {
   phone        String?
   title        String?
   memberships       UserProperty[]
+  unitMemberships   UserUnit[]
   invitationsSent   UserInvitation[] @relation("InvitationSender")
   bankAuthorizationsConnected BankAuthorization[] @relation("BankAuthorizationConnector")
   bankAccountsConnected       BankAccount[]       @relation("BankAccountConnector")
@@ -207,6 +208,17 @@ model UserProperty {
   @@index([propertyId, permission])
 }
 
+model UserUnit {
+  userId     String
+  unitId     String
+  permission PropertyPermission @default(VIEW)
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unit       Unit               @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@id([userId, unitId])
+  @@index([unitId, permission])
+}
+
 model UserInvitation {
   id          String             @id @default(cuid())
   email       String
@@ -214,7 +226,7 @@ model UserInvitation {
   tokenHash   String             @unique
   propertyId  String
   propertyIds String[]           @default([])
-  unitIds String[] @default([])
+  unitIds     String[]           @default([])
   allProperties Boolean          @default(false)
   property    Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   permission  PropertyPermission @default(VIEW)
@@ -252,6 +264,7 @@ model Unit {
   propertyId String
   property   Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   ownerships UnitOwnership[]
+  userAccesses UserUnit[]
   leases     Lease[]
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt

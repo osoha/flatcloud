@@ -43,6 +43,10 @@ Pokud přes aplikaci připojují účty různí vlastníci a externí klienti, j
 - `BANKOVNI-NAPOJENI-V8-CZ.md` – Česká spořitelna, historie, cron a párování,
 - `CHANGELOG-V8-CZ.md` – přehled změn.
 
+## Architektura
+
+Aktuální struktura databáze, vazby, oprávnění a projektové konvence jsou udržovány v souboru [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
 ## Lokální spuštění
 
 ```bash
