@@ -108,6 +108,20 @@ enum MeterType {
   GAS
 }
 
+enum NotificationType {
+  PAYMENT_NOTICE
+  FIRST_REMINDER
+  SECOND_REMINDER
+  MANAGER_ALERT
+  ESCALATION
+}
+
+enum NotificationStatus {
+  SENT
+  FAILED
+  SKIPPED
+}
+
 enum ChargeCategory {
   RENT
   WATER
@@ -121,63 +135,63 @@ enum ChargeCategory {
 }
 
 model User {
-  id           String         @id @default(cuid())
-  email        String         @unique
-  name         String
-  passwordHash String
-  role         UserRole       @default(OWNER_VIEWER)
-  active       Boolean        @default(true)
-  allProperties Boolean       @default(false)
-  phone        String?
-  title        String?
-  avatarData   Bytes?
-  avatarMimeType String?
-  memberships       UserProperty[]
-  unitMemberships   UserUnit[]
-  invitationsSent   UserInvitation[] @relation("InvitationSender")
+  id                          String              @id @default(cuid())
+  email                       String              @unique
+  name                        String
+  passwordHash                String
+  role                        UserRole            @default(OWNER_VIEWER)
+  active                      Boolean             @default(true)
+  allProperties               Boolean             @default(false)
+  phone                       String?
+  title                       String?
+  avatarData                  Bytes?
+  avatarMimeType              String?
+  memberships                 UserProperty[]
+  unitMemberships             UserUnit[]
+  invitationsSent             UserInvitation[]    @relation("InvitationSender")
   bankAuthorizationsConnected BankAuthorization[] @relation("BankAuthorizationConnector")
   bankAccountsConnected       BankAccount[]       @relation("BankAccountConnector")
-  managedProperties Property[] @relation("PropertyManager")
-  auditLogs         AuditLog[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  managedProperties           Property[]          @relation("PropertyManager")
+  auditLogs                   AuditLog[]
+  createdAt                   DateTime            @default(now())
+  updatedAt                   DateTime            @updatedAt
 }
 
 model Owner {
-  id                 String              @id @default(cuid())
-  name               String
-  type               OwnerType           @default(COMPANY)
-  ico                String?
-  email              String?
-  phone              String?
-  address            String?
-  note               String?
-  active             Boolean             @default(true)
-  properties         Property[]
-  propertyOwnerships PropertyOwnership[]
-  unitOwnerships     UnitOwnership[]
-  bankAccounts       BankAccount[]
-  communicationProperties Property[] @relation("PropertyCommunicationOwner")
-  createdAt          DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  id                      String              @id @default(cuid())
+  name                    String
+  type                    OwnerType           @default(COMPANY)
+  ico                     String?
+  email                   String?
+  phone                   String?
+  address                 String?
+  note                    String?
+  active                  Boolean             @default(true)
+  properties              Property[]
+  propertyOwnerships      PropertyOwnership[]
+  unitOwnerships          UnitOwnership[]
+  bankAccounts            BankAccount[]
+  communicationProperties Property[]          @relation("PropertyCommunicationOwner")
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
 }
 
 model Property {
-  id                   String                  @id @default(cuid())
+  id                   String                @id @default(cuid())
   name                 String
   address              String
   city                 String
   postalCode           String?
   note                 String?
   technicalData        Json?
-  active               Boolean                 @default(true)
+  active               Boolean               @default(true)
   ownerId              String
-  owner                Owner                    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  ownershipMode        PropertyOwnershipMode     @default(WHOLE_OBJECT)
+  owner                Owner                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownershipMode        PropertyOwnershipMode @default(WHOLE_OBJECT)
   communicationOwnerId String?
-  communicationOwner   Owner?                    @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  communicationOwner   Owner?                @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
   managerId            String?
-  manager              User?                     @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
+  manager              User?                 @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
   ownerships           PropertyOwnership[]
   units                Unit[]
   bankAccounts         BankAccount[]
@@ -185,8 +199,8 @@ model Property {
   matchingRules        BankMatchingRule[]
   memberships          UserProperty[]
   invitations          UserInvitation[]
-  createdAt            DateTime                 @default(now())
-  updatedAt            DateTime                 @updatedAt
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   @@index([ownerId])
   @@index([communicationOwnerId])
@@ -231,55 +245,79 @@ model UserUnit {
 }
 
 model UserInvitation {
-  id          String             @id @default(cuid())
-  email       String
-  name        String?
-  tokenHash   String             @unique
-  propertyId  String
-  propertyIds String[]           @default([])
-  unitIds     String[]           @default([])
-  allProperties Boolean          @default(false)
-  property    Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  permission  PropertyPermission @default(VIEW)
-  invitedById String
-  invitedBy   User               @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
-  status      InvitationStatus   @default(PENDING)
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id            String             @id @default(cuid())
+  email         String
+  name          String?
+  tokenHash     String             @unique
+  propertyId    String
+  propertyIds   String[]           @default([])
+  unitIds       String[]           @default([])
+  allProperties Boolean            @default(false)
+  property      Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  permission    PropertyPermission @default(VIEW)
+  invitedById   String
+  invitedBy     User               @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  status        InvitationStatus   @default(PENDING)
+  expiresAt     DateTime
+  acceptedAt    DateTime?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   @@index([propertyId, status])
   @@index([email, status])
 }
 
 model AppSetting {
-  id                   String   @id @default("global")
-  automaticBankSync    Boolean  @default(true)
-  bankSyncsPerDay      Int      @default(24)
-  lastCronStartedAt    DateTime?
-  lastCronFinishedAt   DateTime?
-  lastCronSummary      String?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  id                         String    @id @default("global")
+  automaticBankSync          Boolean   @default(true)
+  bankSyncsPerDay            Int       @default(24)
+  lastCronStartedAt          DateTime?
+  lastCronFinishedAt         DateTime?
+  lastCronSummary            String?
+  smtpHost                   String?
+  smtpPort                   Int       @default(587)
+  smtpSecure                 Boolean   @default(false)
+  smtpUser                   String?
+  smtpPasswordEncrypted      String?
+  smtpFromName               String?
+  smtpFromEmail              String?
+  smtpReplyTo                String?
+  remindersEnabled           Boolean   @default(false)
+  reminderSendHour           Int       @default(8)
+  paymentNoticeDaysBefore    Int       @default(5)
+  firstReminderDaysAfter     Int       @default(3)
+  secondReminderDaysAfter    Int       @default(10)
+  managerAlertDaysAfter      Int       @default(20)
+  escalationDaysAfter        Int       @default(30)
+  paymentNoticeSubject       String    @default("Platební údaje k nájmu – {{property}} / {{unit}}")
+  paymentNoticeBody          String    @default("Dobrý den,\n\nzasíláme platební údaje k předpisu za období {{period}} se splatností {{dueDate}}.\n\nČástka: {{amount}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nDěkujeme za včasnou úhradu.")
+  firstReminderSubject       String    @default("Upozornění na neuhrazený předpis – {{property}} / {{unit}}")
+  firstReminderBody          String    @default("Dobrý den,\n\nk dnešnímu dni neevidujeme úplnou úhradu předpisu po splatnosti. Je možné, že platba ještě nebyla spárována.\n\nAktuální dluh: {{outstanding}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nProsíme o kontrolu platby nebo kontaktování správce.")
+  secondReminderSubject      String    @default("Druhá upomínka – {{property}} / {{unit}}")
+  secondReminderBody         String    @default("Dobrý den,\n\nani po předchozím upozornění neevidujeme úplnou úhradu závazků po splatnosti.\n\nAktuální dluh: {{outstanding}}\nNejstarší splatnost: {{oldestDueDate}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nProsíme o neprodlenou úhradu nebo kontaktování správce.")
+  lastReminderCronStartedAt  DateTime?
+  lastReminderCronFinishedAt DateTime?
+  lastReminderCronSummary    String?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 }
 
 model Unit {
-  id         String          @id @default(cuid())
-  label      String
-  floor      String?
-  type       UnitType        @default(APARTMENT)
-  status     UnitStatus      @default(VACANT)
-  areaM2     Float?
-  note       String?
-  propertyId String
-  property   Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  ownerships UnitOwnership[]
+  id           String          @id @default(cuid())
+  label        String
+  floor        String?
+  type         UnitType        @default(APARTMENT)
+  status       UnitStatus      @default(VACANT)
+  areaM2       Float?
+  note         String?
+  propertyId   String
+  property     Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerships   UnitOwnership[]
   userAccesses UserUnit[]
-  leases     Lease[]
-  meters     Meter[]
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
+  leases       Lease[]
+  meters       Meter[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
   @@unique([propertyId, label])
   @@index([propertyId])
@@ -301,24 +339,24 @@ model UnitOwnership {
 }
 
 model Tenant {
-  id            String     @id @default(cuid())
-  type          TenantType @default(PERSON)
-  name          String
-  email         String?
-  phone         String?
-  address       String?
-  ico           String?
+  id                    String     @id @default(cuid())
+  type                  TenantType @default(PERSON)
+  name                  String
+  email                 String?
+  phone                 String?
+  address               String?
+  ico                   String?
   permanentAddress      String?
   correspondenceAddress String?
   billingAddress        String?
   billingEmail          String?
   communicationEmail    String?
-  note          String?
-  active        Boolean    @default(true)
-  payerAccounts String[]
-  leases        Lease[]
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  note                  String?
+  active                Boolean    @default(true)
+  payerAccounts         String[]
+  leases                Lease[]
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
 }
 
 model Lease {
@@ -333,7 +371,7 @@ model Lease {
   dueDay                Int                @default(5)
   variableSymbol        String
   currency              String             @default("CZK")
-  rentTiming             RentTiming         @default(ADVANCE)
+  rentTiming            RentTiming         @default(ADVANCE)
   rentCents             Int
   servicesCents         Int
   depositCents          Int                @default(0)
@@ -345,8 +383,14 @@ model Lease {
   suggestedTransactions BankTransaction[]  @relation("SuggestedLease")
   occupants             Occupant[]
   meterReadings         MeterReading[]
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  notifications         RentNotification[]
+  remindersPausedUntil  DateTime?
+  reminderPauseReason   String?
+  promisedPaymentDate   DateTime?
+  promisedAmountCents   Int?
+  collectionNote        String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   @@unique([unitId, variableSymbol])
   @@index([tenantId])
@@ -419,18 +463,19 @@ model LeasePaymentItem {
 }
 
 model Charge {
-  id          String              @id @default(cuid())
-  leaseId     String
-  lease       Lease               @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  period      String
-  dueDate     DateTime
-  amountCents Int
-  note        String?
-  active      Boolean             @default(true)
-  items       ChargeItem[]
-  allocations PaymentAllocation[]
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
+  id            String              @id @default(cuid())
+  leaseId       String
+  lease         Lease               @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  period        String
+  dueDate       DateTime
+  amountCents   Int
+  note          String?
+  active        Boolean             @default(true)
+  items         ChargeItem[]
+  allocations   PaymentAllocation[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  notifications RentNotification[]
 
   @@unique([leaseId, period])
   @@index([leaseId, dueDate])
@@ -449,84 +494,84 @@ model ChargeItem {
 }
 
 model BankAuthorization {
-  id                      String                  @id @default(cuid())
-  propertyId              String
-  property                Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  provider                String
-  state                   String                  @unique
-  bankName                String
-  country                 String
-  psuType                 String                  @default("business")
-  status                  BankAuthorizationStatus @default(PENDING)
-  externalAuthorizationId String?
-  externalSessionId       String?
+  id                       String                  @id @default(cuid())
+  propertyId               String
+  property                 Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  provider                 String
+  state                    String                  @unique
+  bankName                 String
+  country                  String
+  psuType                  String                  @default("business")
+  status                   BankAuthorizationStatus @default(PENDING)
+  externalAuthorizationId  String?
+  externalSessionId        String?
   providerContextEncrypted String?
-  connectedById          String?
-  connectedBy            User? @relation("BankAuthorizationConnector", fields: [connectedById], references: [id], onDelete: SetNull)
-  expiresAt               DateTime
-  createdAt               DateTime                @default(now())
-  updatedAt               DateTime                @updatedAt
+  connectedById            String?
+  connectedBy              User?                   @relation("BankAuthorizationConnector", fields: [connectedById], references: [id], onDelete: SetNull)
+  expiresAt                DateTime
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
 
   @@index([propertyId, status])
   @@index([connectedById])
 }
 
 model BankAccount {
-  id                 String               @id @default(cuid())
-  propertyId         String
-  property           Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  ownerId            String?
-  owner              Owner?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  provider           String
-  bankName           String
-  accountName        String?
-  iban               String?
-  ibanMasked         String
-  currency           String               @default("CZK")
-  externalAccountId  String
-  externalSessionId  String?
+  id                   String               @id @default(cuid())
+  propertyId           String
+  property             Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerId              String?
+  owner                Owner?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  provider             String
+  bankName             String
+  accountName          String?
+  iban                 String?
+  ibanMasked           String
+  currency             String               @default("CZK")
+  externalAccountId    String
+  externalSessionId    String?
   credentialsEncrypted String?
-  connectedById      String?
-  connectedBy        User? @relation("BankAccountConnector", fields: [connectedById], references: [id], onDelete: SetNull)
-  identificationHash String?
-  connectionStatus   BankConnectionStatus @default(CONNECTED)
-  consentExpiresAt   DateTime?
-  balanceCents       Int?
-  balanceUpdatedAt   DateTime?
-  lastSyncedAt       DateTime?
-  lastSyncAttemptAt  DateTime?
-  lastSyncError      String?
-  autoSyncEnabled    Boolean              @default(true)
-  transactions       BankTransaction[]
-  matchingRules      BankMatchingRule[]
+  connectedById        String?
+  connectedBy          User?                @relation("BankAccountConnector", fields: [connectedById], references: [id], onDelete: SetNull)
+  identificationHash   String?
+  connectionStatus     BankConnectionStatus @default(CONNECTED)
+  consentExpiresAt     DateTime?
+  balanceCents         Int?
+  balanceUpdatedAt     DateTime?
+  lastSyncedAt         DateTime?
+  lastSyncAttemptAt    DateTime?
+  lastSyncError        String?
+  autoSyncEnabled      Boolean              @default(true)
+  transactions         BankTransaction[]
+  matchingRules        BankMatchingRule[]
 
+  @@unique([provider, externalAccountId])
   @@index([propertyId])
   @@index([ownerId])
   @@index([provider, identificationHash])
   @@index([connectedById])
-  @@unique([provider, externalAccountId])
 }
 
 model BankMatchingRule {
-  id                       String          @id @default(cuid())
+  id                       String            @id @default(cuid())
   propertyId               String
-  property                 Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property                 Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   bankAccountId            String?
-  bankAccount              BankAccount?    @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  bankAccount              BankAccount?      @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
   name                     String
   action                   MatchRuleAction
-  priority                 Int             @default(100)
-  active                   Boolean         @default(true)
+  priority                 Int               @default(100)
+  active                   Boolean           @default(true)
   counterpartyIban         String?
   counterpartyNameContains String?
   variableSymbol           String?
   messageContains          String?
   amountCents              Int?
   targetLeaseId            String?
-  targetLease              Lease?          @relation("RuleTargetLease", fields: [targetLeaseId], references: [id], onDelete: Cascade)
+  targetLease              Lease?            @relation("RuleTargetLease", fields: [targetLeaseId], references: [id], onDelete: Cascade)
   matchedTransactions      BankTransaction[] @relation("MatchedRule")
-  createdAt                DateTime         @default(now())
-  updatedAt                DateTime         @updatedAt
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
 
   @@index([propertyId, active, priority])
   @@index([bankAccountId])
@@ -569,6 +614,29 @@ model PaymentAllocation {
   charge        Charge          @relation(fields: [chargeId], references: [id], onDelete: Cascade)
 
   @@unique([transactionId, chargeId])
+  @@index([chargeId])
+}
+
+model RentNotification {
+  id               String             @id @default(cuid())
+  leaseId          String
+  lease            Lease              @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  chargeId         String?
+  charge           Charge?            @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+  type             NotificationType
+  status           NotificationStatus
+  recipient        String
+  subject          String
+  body             String
+  referenceDate    DateTime
+  outstandingCents Int                @default(0)
+  messageId        String?
+  error            String?
+  sentAt           DateTime?
+  createdAt        DateTime           @default(now())
+
+  @@unique([leaseId, type, referenceDate])
+  @@index([leaseId, createdAt])
   @@index([chargeId])
 }
 

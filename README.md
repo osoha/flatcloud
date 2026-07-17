@@ -1,4 +1,4 @@
-# FlatCloud Rent V16
+# FlatCloud Rent V17
 
 Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, nájemníků, smluv, předpisů, plateb a bankovního párování.
 
@@ -18,7 +18,10 @@ Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, náj
 - technický pasport budovy,
 - oprávnění k celým objektům nebo konkrétním jednotkám,
 - avatary uživatelů s automatickým ořezem a zmenšením,
-- audit významných změn, revokace pozvánek a okamžité blokování deaktivovaných účtů.
+- audit významných změn, revokace pozvánek a okamžité blokování deaktivovaných účtů,
+- nastavitelné SMTP pro pozvánky i nájemní komunikaci,
+- platební e-maily s QR kódem, automatické upomínky a interní eskalace,
+- historie výzev, pozastavení upomínek a evidence slíbené úhrady,
 - klikací KPI, předpisy, kontaktní vizitky a sjednocená navigace k profilu uživatele.
 
 ## Nasazení aktualizace
@@ -28,7 +31,7 @@ Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, náj
 3. Commitněte změny do větve `main`.
 4. Render automaticky provede build, migrace a bootstrap administrátora.
 
-Podrobnosti jsou v [`DEPLOY-V16-CZ.md`](DEPLOY-V16-CZ.md). Přehled změn je v [`CHANGELOG-V16-CZ.md`](CHANGELOG-V16-CZ.md).
+Podrobnosti jsou v [`DEPLOY-V17-CZ.md`](DEPLOY-V17-CZ.md). Přehled změn je v [`CHANGELOG-V17-CZ.md`](CHANGELOG-V17-CZ.md).
 
 ## Architektura
 

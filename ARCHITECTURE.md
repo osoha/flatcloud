@@ -3,7 +3,7 @@
 > Tento dokument je živá technická dokumentace. Při každé změně aplikace je nutné aktualizovat relevantní část: databázi, vazby, oprávnění, route, provozní konvence nebo přijatá rozhodnutí.
 
 **Aktualizováno:** 17. 7. 2026  
-**Výchozí stav:** FlatCloud Rent V15  
+**Výchozí stav:** FlatCloud Rent V17  
 **Databázové schéma:** `prisma/schema.prisma`
 
 ## 1. Účel a základní principy
@@ -30,8 +30,9 @@ Portfolio
             ├── Nájemník
             ├── Další osoby v bytě
             ├── Pravidelné položky
-            └── Měsíční předpisy
-                └── Alokované platby
+            ├── Měsíční předpisy
+            │   └── Alokované platby
+            └── Platební zprávy, upomínky a inkasní historie
 ```
 
 Bankovní tok:
@@ -51,7 +52,7 @@ Bankovní autorizace
 - TypeScript se zapnutým `strict`
 - Prisma 6
 - PostgreSQL
-- Render Web Service + Render Cron Job
+- Render Web Service + samostatné Render Cron Jobs pro banky a nájemní komunikaci
 - GitHub, větev `main`
 - Node.js 22.23.1 na Renderu
 - SMTP přes Nodemailer
@@ -78,7 +79,7 @@ npm run db:migrate
 npm run db:bootstrap
 ```
 
-Cron synchronizace bank běží každou hodinu a podle globálního nastavení vybírá pouze účty, u kterých již uplynul požadovaný interval.
+Cron synchronizace bank běží každou hodinu a podle globálního nastavení vybírá pouze účty, u kterých již uplynul požadovaný interval. Druhý hodinový cron vyhodnocuje v časové zóně `Europe/Prague` platební zprávy, upomínky a interní eskalace; samotné odesílání proběhne jen v hodině nastavené hlavním administrátorem.
 
 ## 3. Struktura repozitáře
 
@@ -116,7 +117,10 @@ lib/
 ├── route-response.ts            redirect + flash zprávy
 ├── matching.ts                  párovací engine plateb
 ├── period.ts                    období a splatnosti předpisů
-├── settings.ts                  globální nastavení synchronizace
+├── settings.ts                  globální nastavení synchronizace a komunikace
+├── email.ts                     společný SMTP transport pro pozvánky a nájemní komunikaci
+├── secret.ts                    AES-256-GCM šifrování tajných hodnot
+├── rent-notifications.ts        vyhodnocení zpráv, QR platby, upomínky a evidence
 ├── property-technical.ts        parser a konvence technického pasportu
 ├── banking/                     adaptéry a synchronizace bank
 └── ...
@@ -128,7 +132,8 @@ prisma/
 └── seed.ts                     volitelná demo data
 
 scripts/
-└── banking-cron.ts             hodinová bankovní synchronizace
+├── banking-cron.ts             hodinová bankovní synchronizace
+└── rent-notifications-cron.ts  hodinová kontrola platebních zpráv a upomínek
 
 public/
 └── flatcloud-logo.png          logo aplikace
@@ -433,7 +438,21 @@ Jeden globální řádek s ID `global`.
 
 - zapnutí automatické bankovní synchronizace,
 - počet synchronizací denně,
-- poslední začátek, konec a výsledek cron běhu.
+- poslední začátek, konec a výsledek bankovního cron běhu,
+- SMTP host, port, účet, šifrované heslo, odesílatel a Reply-To,
+- zapnutí nájemní komunikace, hodina odesílání a nastavitelné lhůty,
+- upravitelné předměty a texty platebních zpráv a prvních dvou upomínek,
+- poslední začátek, konec a souhrn upomínkového cron běhu.
+
+#### `RentNotification`
+
+Auditní záznam každé platební zprávy, upomínky nebo interní eskalace.
+
+- patří konkrétnímu `Lease` a volitelně konkrétnímu `Charge`,
+- ukládá typ, stav `SENT / FAILED / SKIPPED`, příjemce, předmět a výsledný text,
+- eviduje referenční datum, dlužnou částku, SMTP message ID, chybu a čas odeslání,
+- unikátní kombinace nájemního vztahu, typu a referenčního data brání dvojímu odeslání,
+- na kartě jednotky tvoří historii komunikace u příslušného nájemního vztahu.
 
 #### `AuditLog`
 
@@ -470,6 +489,8 @@ erDiagram
     Unit ||--o{ UnitOwnership : has
     Unit ||--o{ UserUnit : grants
     Unit ||--o{ Lease : has
+    Lease ||--o{ RentNotification : records
+    Charge ||--o{ RentNotification : references
     Unit ||--o{ Meter : contains
 
     Tenant ||--o{ Lease : signs
@@ -648,15 +669,16 @@ Historie hlavních migrací:
 | `20260716190000_invitation_unit_ids` | kompatibilní doplnění jednotek do pozvánek; V12 hotfix míří na `UserInvitation` |
 | `20260717080000_property_technical_avatar` | technický JSON pasport nemovitosti a avatary uživatelů |
 | `20260717120000_tenants_occupants_meters` | podrobné kontakty nájemníků, další osoby, měřidla a odečty |
+| `20260717170000_rent_notifications` | SMTP administrace, nastavitelné lhůty a šablony, inkasní stav smlouvy a audit odeslaných zpráv |
 
 ## 11. Bezpečnostní konvence
 
 - session cookie je `httpOnly`, `sameSite=lax`, v produkci `secure`,
 - `SESSION_SECRET` musí mít v produkci alespoň 32 znaků,
 - hesla se hashují bcryptem,
-- bankovní tokeny a credentials se neukládají nešifrovaně,
+- bankovní tokeny, credentials a databázově uložené SMTP heslo se neukládají nešifrovaně,
 - pozvánky ukládají hash tokenu, ne token,
-- tajné hodnoty patří pouze do Render Environment,
+- výchozí tajné hodnoty patří do Render Environment; SMTP heslo lze po přihlášení hlavního administrátora uložit šifrovaně do databáze,
 - API route musí vždy ověřit, že upravovaná entita patří očekávané nemovitosti / jednotce,
 - bezpečnostní hlavičky jsou nastavené v `next.config.ts`.
 
@@ -676,7 +698,7 @@ Historie hlavních migrací:
 ## 13. Známé hranice aktuální implementace
 
 - `UserUnit` je současná autorizační vrstva V12; cílová doménová logika vlastníka se má opírat o `UnitOwnership`.
-- Detail jednotky zatím neobsahuje samostatné sekce Dokumenty a Historie; Osoby a Měřidla jsou již implementované.
+- Detail jednotky zatím neobsahuje samostatné sekce Dokumenty a obecnou Historii; Osoby, Měřidla a historie nájemní komunikace jsou již implementované.
 - Globální hledání v horní liště je zatím vizuální prvek bez vyhledávací implementace.
 - Přímý konektor ČSAS vyžaduje schválené produkční endpointy a přístupové údaje banky.
 - Technický pasport je v první verzi strukturovaný JSON; nemá zatím samostatné revize, dokumenty ani plán údržby.
@@ -731,3 +753,16 @@ Produkční příkaz `npm run db:migrate` je veden přes `scripts/migrate-deploy
 - Deaktivace uživatele je vynucena ve dvou vrstvách: přihlašovací route odmítá `active = false` a `currentUser()` při každém požadavku načítá pouze aktivní účet. Existující session je proto bez další migrace nebo blacklistu neplatná při následujícím requestu.
 - Navigace nastavení je rozdělena na `Administrace aplikace` (`/nastaveni`, pouze `SUPER_ADMIN`, globální cron a bankovní synchronizace) a `Můj účet` (`/ucet`, osobní avatar a heslo). Duplicitní odkaz na stejnou stránku se nepoužívá.
 - V16 nemění Prisma schéma a nevyžaduje databázovou migraci.
+
+
+## Rozhodnutí: V17 – SMTP, platební zprávy a upomínky (17. 7. 2026)
+
+- Globální SMTP a pravidla upomínek upravuje pouze `SUPER_ADMIN` na `/nastaveni`; běžní uživatelé je nemohou číst ani měnit přes API.
+- Pozvánky i nájemní komunikace používají společný transport `lib/email.ts`. Databázová konfigurace má přednost před Render environment variables, takže změna nevyžaduje přímý zápis do databáze ani nový deploy.
+- SMTP heslo se ukládá přes `lib/secret.ts` šifrované AES-256-GCM. Šifrovací klíč vychází z `BANK_TOKEN_ENCRYPTION_KEY`, případně `SESSION_SECRET`; stejný klíč musí být dostupný webu i cron službě.
+- Hlavička nájemního e-mailu není součástí editovatelné šablony. Vytváří se systémově z `Property.communicationOwner`, případně z hlavního `Property.owner`, aby zpráva vždy identifikovala příslušného vlastníka.
+- Platební zpráva se váže na konkrétní měsíční předpis. Upomínky po splatnosti se agregují za nájemní vztah, aby nájemník ve stejný den nedostal více duplicitních zpráv.
+- Automatické fáze jsou výchozí `−5 / +3 / +10 / +20 / +30` dní. První tři fáze komunikují s nájemníkem; poslední dvě jsou interní upozornění a nikdy samy neprovedou právní úkon nebo výpověď.
+- Smlouva může automatické upomínky dočasně pozastavit a evidovat slíbené datum, částku a interní inkasní poznámku.
+- Platební e-mail obsahuje QR platbu vytvořenou z IBAN nemovitosti, částky a variabilního symbolu smlouvy. Pokud chybí příjemce nebo IBAN, systém zprávu neodešle a uloží stav `SKIPPED` s důvodem.
+- V17 obsahuje nedestruktivní migraci `20260717170000_rent_notifications`.

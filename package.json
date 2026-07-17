@@ -1,6 +1,6 @@
 {
   "name": "flatcloud-rent-production",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,8 @@
     "db:migrate": "node scripts/migrate-deploy.mjs",
     "db:bootstrap": "tsx prisma/bootstrap.ts",
     "db:seed:demo": "tsx prisma/seed.ts",
-    "banking:cron": "tsx scripts/banking-cron.ts"
+    "banking:cron": "tsx scripts/banking-cron.ts",
+    "rent:notifications:cron": "tsx scripts/rent-notifications-cron.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
@@ -18,6 +19,7 @@
     "lucide-react": "0.468.0",
     "next": "16.2.10",
     "nodemailer": "^7.0.10",
+    "qrcode-generator": "^2.0.4",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "sharp": "0.34.5",
