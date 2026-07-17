@@ -12,7 +12,7 @@ export default async function InvitationPage({ params, searchParams }: { params:
   const query = await searchParams;
   const invitation = await prisma.userInvitation.findUnique({
     where: { tokenHash: hashInvitationToken(token) },
-    include: { property: true, invitedBy: true },
+    include: { property: true, invitedBy: { select: { id: true, name: true } } },
   });
   if (!invitation) notFound();
   const expired = invitation.expiresAt.getTime() < Date.now();
