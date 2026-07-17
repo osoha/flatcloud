@@ -12,18 +12,18 @@ export default async function OwnersPage({ searchParams }: { searchParams: Promi
   const user = await requireUser();
   if (!canSeeAll(user.role)) redirect("/portfolio");
   const [owners, query] = await Promise.all([
-    prisma.owner.findMany({ include: { _count: { select: { properties: true } } }, orderBy: { name: "asc" } }),
+    prisma.owner.findMany({ include: { _count: { select: { properties: true, paymentAccounts: true } } }, orderBy: { name: "asc" } }),
     searchParams,
   ]);
 
   return <Shell user={user}><div className="page">
-    <div className="page-title"><div><h1>Vlastníci a SPV</h1><p>Oddělená portfolia interních společností i externích vlastníků.</p></div></div>
+    <div className="page-title"><div><h1>Vlastníci a SPV</h1><p>Oddělená portfolia interních společností i externích vlastníků včetně platebních účtů.</p></div></div>
     <Flash ok={query.ok} error={query.error}/>
     <div className="detail-grid">
       <div className="card col-7">
         <div className="card-head"><h2>Seznam vlastníků</h2></div>
         <div className="table-wrap"><table>
-          <thead><tr><th>Název</th><th>Typ</th><th>IČO</th><th>Nemovitosti</th><th>Stav</th></tr></thead>
+          <thead><tr><th>Název</th><th>Typ</th><th>IČO</th><th>Nemovitosti</th><th>Účty</th><th>Stav</th></tr></thead>
           <tbody>{owners.length ? owners.map((owner) => {
             const href = `/vlastnici/${owner.id}`;
             return <tr className="clickable-table-row" key={owner.id}>
@@ -31,9 +31,10 @@ export default async function OwnersPage({ searchParams }: { searchParams: Promi
               <td><Link className="row-cell-link" href={href}>{ownerTypes[owner.type]}</Link></td>
               <td><Link className="row-cell-link" href={href}>{owner.ico || "—"}</Link></td>
               <td><Link className="row-cell-link" href={href}>{owner._count.properties}</Link></td>
+              <td><Link className="row-cell-link" href={href}>{owner._count.paymentAccounts}</Link></td>
               <td><Link className="row-cell-link" href={href}><span className={`status ${owner.active ? "ok" : "bad"}`}>{owner.active ? "Aktivní" : "Neaktivní"}</span></Link></td>
             </tr>;
-          }) : <tr><td colSpan={5} className="table-empty">Bez vlastníků</td></tr>}</tbody>
+          }) : <tr><td colSpan={6} className="table-empty">Bez vlastníků</td></tr>}</tbody>
         </table></div>
       </div>
       <div className="col-5">
@@ -46,6 +47,12 @@ export default async function OwnersPage({ searchParams }: { searchParams: Promi
           <Field label="Telefon" name="phone"/>
           <Field label="Adresa" name="address" full/>
           <Textarea label="Poznámka" name="note"/>
+          <h2 className="form-section-title field-full">První bankovní účet (volitelné)</h2>
+          <Field label="Název účtu" name="accountLabel" placeholder="např. Nájemné Moskevská"/>
+          <Field label="Číslo účtu" name="accountNumber" placeholder="např. 123456789"/>
+          <Field label="Kód banky" name="bankCode" placeholder="0800"/>
+          <Field label="IBAN" name="iban" placeholder="CZ…"/>
+          <Field label="Měna" name="currency" defaultValue="CZK"/>
         </FormCard>
       </div>
     </div>

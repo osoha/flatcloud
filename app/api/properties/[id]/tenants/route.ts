@@ -1,6 +1,7 @@
 import { LeaseStatus, RentTiming, TenantType, UnitStatus } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { dateValue, intValue, moneyToCents, stringArray, text } from "@/lib/forms";
+import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
@@ -12,9 +13,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const form = await request.formData();
     const unitId = text(form, "unitId", true)!;
-    const unit = await prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, include: { leases: { where: { status: "ACTIVE" } } } });
+    const unit = await prisma.unit.findFirst({
+      where: { id: unitId, propertyId: id },
+      include: { leases: { where: { status: "ACTIVE" } }, ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } },
+    });
     if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
     if (unit.leases.length) throw new Error("Vybraná jednotka už má aktivní smlouvu.");
+    const ownerBankAccountId = unit.ownerships[0]?.ownerBankAccountId;
+    if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
 
     const startDate = dateValue(form, "startDate", true)!;
     const termType = text(form, "termType") || "INDEFINITE";
@@ -33,15 +39,58 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const billingAddress = tenantType === "COMPANY" ? text(form, "billingAddress") : null;
     const billingEmail = tenantType === "COMPANY" ? text(form, "billingEmail") : null;
     const communicationEmail = tenantType === "COMPANY" ? text(form, "communicationEmail") : text(form, "email");
+    const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
+    const payerAccounts = Array.from(new Set([
+      ...stringArray(form, "payerAccounts").map(normalizePayerAccount),
+      ...(tenantBankAccount ? [tenantBankAccount] : []),
+    ].filter(Boolean)));
 
     const result = await prisma.$transaction(async (tx) => {
       await assertUniqueVariableSymbol(tx, variableSymbol);
-      const tenant = await tx.tenant.create({ data: { type: tenantType, name: text(form, "name", true)!, email: communicationEmail || billingEmail, phone: text(form, "phone"), address: permanentAddress || billingAddress, ico: tenantType === "COMPANY" ? text(form, "ico") : null, permanentAddress, correspondenceAddress: text(form, "correspondenceAddress"), billingAddress, billingEmail, communicationEmail, note: text(form, "tenantNote"), payerAccounts: stringArray(form, "payerAccounts").map((value) => value.replace(/\s+/g, "").toUpperCase()) } });
-      const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, contractNumber: text(form, "contractNumber"), startDate, endDate, dueDay: Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31), variableSymbol, rentTiming, rentCents, servicesCents, depositCents: moneyToCents(form, "deposit"), note: text(form, "leaseNote"), status, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : [])] } } });
+      const tenant = await tx.tenant.create({
+        data: {
+          type: tenantType,
+          name: text(form, "name", true)!,
+          email: communicationEmail || billingEmail,
+          phone: text(form, "phone"),
+          address: permanentAddress || billingAddress,
+          ico: tenantType === "COMPANY" ? text(form, "ico") : null,
+          permanentAddress,
+          correspondenceAddress: text(form, "correspondenceAddress"),
+          billingAddress,
+          billingEmail,
+          communicationEmail,
+          note: text(form, "tenantNote"),
+          payerAccounts,
+        },
+      });
+      const lease = await tx.lease.create({
+        data: {
+          unitId,
+          tenantId: tenant.id,
+          ownerBankAccountId,
+          tenantBankAccount,
+          contractNumber: text(form, "contractNumber"),
+          startDate,
+          endDate,
+          dueDay: Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31),
+          variableSymbol,
+          rentTiming,
+          rentCents,
+          servicesCents,
+          depositCents: moneyToCents(form, "deposit"),
+          note: text(form, "leaseNote"),
+          status,
+          paymentItems: { create: [
+            ...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []),
+            ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : []),
+          ] },
+        },
+      });
       await tx.unit.update({ where: { id: unitId }, data: { status: status === "ACTIVE" ? UnitStatus.OCCUPIED : unit.status } });
       return { tenant, lease };
     });
-    await audit(access.user.id, "TENANT_AND_LEASE_CREATED", "Lease", result.lease.id, { propertyId: id, tenantId: result.tenant.id, unitId, termType });
+    await audit(access.user.id, "TENANT_AND_LEASE_CREATED", "Lease", result.lease.id, { propertyId: id, tenantId: result.tenant.id, unitId, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) });
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", "Nájemník a smlouva byli vytvořeni.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/najemnici/novy`, "error", error instanceof Error ? error.message : "Nájemníka se nepodařilo vytvořit.");

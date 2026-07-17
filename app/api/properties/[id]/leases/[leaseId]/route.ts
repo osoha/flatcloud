@@ -2,6 +2,7 @@ import { LeaseStatus, RentTiming, UnitStatus } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { dateValue, intValue, moneyToCents, text } from "@/lib/forms";
+import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
@@ -36,17 +37,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const rentTiming = Object.values(RentTiming).includes(timingRaw as RentTiming) ? timingRaw as RentTiming : RentTiming.ADVANCE;
 
     const [unit, tenant] = await Promise.all([
-      prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, select: { id: true } }),
-      prisma.tenant.findFirst({ where: { id: tenantId, OR: [{ leases: { some: { unit: { propertyId: id } } } }, { id: existing.tenantId }] }, select: { id: true } }),
+      prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, include: { ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } }),
+      prisma.tenant.findFirst({ where: { id: tenantId, OR: [{ leases: { some: { unit: { propertyId: id } } } }, { id: existing.tenantId }] } }),
     ]);
     if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
     if (!tenant) throw new Error("Vybraný nájemník nepatří k této nemovitosti.");
+    const ownerBankAccountId = unit.ownerships[0]?.ownerBankAccountId;
+    if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
 
     const startDate = dateValue(form, "startDate", true)!;
     const termType = text(form, "termType") || "INDEFINITE";
     const endDate = termType === "FIXED" ? dateValue(form, "endDate", true)! : null;
     if (endDate && endDate < startDate) throw new Error("Konec smlouvy nesmí být před jejím začátkem.");
     const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
+    const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
 
     const lease = await prisma.$transaction(async (tx) => {
       await assertUniqueVariableSymbol(tx, variableSymbol, leaseId);
@@ -54,12 +58,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const collision = await tx.lease.findFirst({ where: { unitId, status: LeaseStatus.ACTIVE, id: { not: leaseId } }, select: { id: true } });
         if (collision) throw new Error("Vybraná jednotka už má jinou aktivní smlouvu.");
       }
+      if (tenantBankAccount && !tenant.payerAccounts.includes(tenantBankAccount)) {
+        await tx.tenant.update({ where: { id: tenant.id }, data: { payerAccounts: [...tenant.payerAccounts, tenantBankAccount] } });
+      }
 
       const updated = await tx.lease.update({
         where: { id: leaseId },
         data: {
           unitId,
           tenantId,
+          ownerBankAccountId,
+          tenantBankAccount,
           contractNumber: text(form, "contractNumber"),
           startDate,
           endDate,
@@ -84,7 +93,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return updated;
     });
 
-    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, status, termType });
+    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, status, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) });
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", "Smlouva byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo upravit.");

@@ -10,6 +10,7 @@ import { dateInput } from "@/lib/forms";
 import { currentPeriod } from "@/lib/period";
 import { chargeDisplayState, chargeStateLabel, overdueDebtCents, paidCents } from "@/lib/charges";
 import { meterTypes, unitStatuses, unitTypes } from "@/lib/labels";
+import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const canManage = canSeeAll(user.role) || membership?.permission === "EDIT" || membership?.permission === "ADMIN" || unitMembership?.permission === "EDIT" || unitMembership?.permission === "ADMIN";
   const activeLease = unit.leases.find((lease) => lease.status === "ACTIVE") || unit.leases[0];
   const owner = unit.ownerships[0]?.owner || property.owner;
+  const paymentAccount = activeLease?.ownerBankAccount || unit.ownerships[0]?.ownerBankAccount;
   const allCharges = unit.leases.flatMap((lease) => lease.charges);
   const overdueDebt = allCharges.reduce((sum, charge) => sum + overdueDebtCents(charge), 0);
   type UnitTransaction = (typeof allCharges)[number]["allocations"][number]["transaction"];
@@ -68,7 +70,7 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
             </tr>;
           }) : <tr><td colSpan={7} className="table-empty">Zatím nebyly vytvořeny žádné měsíční předpisy.</td></tr>}</tbody></table></div>
         </div>
-        <div id="smlouva" className="card col-5"><div className="card-head"><div><h2>Nájemní vztah</h2><p className="muted-copy">{activeLease.status === "ACTIVE" ? "Aktivní smlouva" : activeLease.status === "FUTURE" ? "Budoucí smlouva" : "Ukončená smlouva"}</p></div>{canManage && <Link className="icon-link" href={`/nemovitosti/${id}/smlouvy/${activeLease.id}/upravit`}><Pencil size={15}/></Link>}</div><div className="summary-list"><div><span>Nájemník</span><strong>{activeLease.tenant.name}</strong></div><div><span>Číslo smlouvy</span><strong>{activeLease.contractNumber || "Bez čísla"}</strong></div><div><span>Doba trvání</span><strong>{activeLease.endDate ? "Na dobu určitou" : "Na dobu neurčitou"}</strong></div><div><span>Platnost</span><strong>{date(activeLease.startDate)} – {activeLease.endDate ? date(activeLease.endDate) : "neurčito"}</strong></div><div><span>Splatnost</span><strong>{activeLease.dueDay}. den · {activeLease.rentTiming === "ARREARS" ? "zpětně" : "dopředně"}</strong></div><div><span>Variabilní symbol</span><strong>{activeLease.variableSymbol}</strong></div></div>
+        <div id="smlouva" className="card col-5"><div className="card-head"><div><h2>Nájemní vztah</h2><p className="muted-copy">{activeLease.status === "ACTIVE" ? "Aktivní smlouva" : activeLease.status === "FUTURE" ? "Budoucí smlouva" : "Ukončená smlouva"}</p></div>{canManage && <Link className="icon-link" href={`/nemovitosti/${id}/smlouvy/${activeLease.id}/upravit`}><Pencil size={15}/></Link>}</div><div className="summary-list"><div><span>Nájemník</span><strong>{activeLease.tenant.name}</strong></div><div><span>Číslo smlouvy</span><strong>{activeLease.contractNumber || "Bez čísla"}</strong></div><div><span>Doba trvání</span><strong>{activeLease.endDate ? "Na dobu určitou" : "Na dobu neurčitou"}</strong></div><div><span>Platnost</span><strong>{date(activeLease.startDate)} – {activeLease.endDate ? date(activeLease.endDate) : "neurčito"}</strong></div><div><span>Splatnost</span><strong>{activeLease.dueDay}. den · {activeLease.rentTiming === "ARREARS" ? "zpětně" : "dopředně"}</strong></div><div><span>Variabilní symbol</span><strong>{activeLease.variableSymbol}</strong></div><div><span>Účet vlastníka</span><strong>{paymentAccount ? ownerBankAccountLabel(paymentAccount) : "Není vybrán"}</strong></div><div><span>Účet nájemníka</span><strong>{activeLease.tenantBankAccount || "Neuveden"}</strong></div></div>
           <div className="contact-lines"><a href={`mailto:${primaryEmail || ""}`} className={!primaryEmail ? "disabled-link" : ""}><Mail size={15}/>{primaryEmail || "E-mail neuveden"}</a><a href={`tel:${tenant?.phone || ""}`} className={!tenant?.phone ? "disabled-link" : ""}><Phone size={15}/>{tenant?.phone || "Telefon neuveden"}</a></div>
         </div>
       </div>

@@ -10,8 +10,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!access) return go(request, "/login");
   try {
     const form = await request.formData();
-    const property = await prisma.property.findUnique({ where: { id }, select: { ownerId: true } });
+    const ownerId = text(form, "ownerId", true)!;
+    const ownerBankAccountId = text(form, "ownerBankAccountId", true)!;
+    const [property, account] = await Promise.all([
+      prisma.property.findUnique({ where: { id }, select: { id: true } }),
+      prisma.ownerBankAccount.findFirst({ where: { id: ownerBankAccountId, ownerId, active: true }, select: { id: true } }),
+    ]);
     if (!property) throw new Error("Nemovitost nebyla nalezena.");
+    if (!account) throw new Error("Vyberte aktivní bankovní účet zvoleného vlastníka.");
     const unit = await prisma.unit.create({
       data: {
         propertyId: id,
@@ -21,10 +27,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         status: (text(form, "status") || "VACANT") as UnitStatus,
         areaM2: floatValue(form, "areaM2"),
         note: text(form, "note"),
-        ownerships: { create: { ownerId: property.ownerId, shareBasisPoints: 10000 } },
+        ownerships: { create: { ownerId, ownerBankAccountId, shareBasisPoints: 10000 } },
       },
     });
-    await audit(access.user.id, "UNIT_CREATED", "Unit", unit.id, { propertyId: id, label: unit.label });
+    await audit(access.user.id, "UNIT_CREATED", "Unit", unit.id, { propertyId: id, label: unit.label, ownerId, ownerBankAccountId });
     return goWithMessage(request, `/nemovitosti/${id}/jednotky`, "ok", "Jednotka byla vytvořena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/nova`, "error", error instanceof Error ? error.message : "Jednotku se nepodařilo vytvořit.");

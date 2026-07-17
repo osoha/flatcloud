@@ -6,6 +6,8 @@ import { requirePropertyAccess } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Field, Flash, FormCard, FormPage, Select, Textarea } from "@/components/FormUi";
 import { unitStatuses, unitTypes } from "@/lib/labels";
+import { UnitOwnerFields } from "@/components/UnitOwnerFields";
+import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 
 export const dynamic = "force-dynamic";
 export default async function EditUnit({ params, searchParams }: { params: Promise<{ id: string; unitId: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
@@ -13,8 +15,8 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
   const { id, unitId } = await params;
   const [property, unit, owners, query] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, include: { ownerships: { include: { owner: true }, orderBy: { createdAt: "asc" } } } }),
-    prisma.owner.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, include: { ownerships: { include: { owner: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } }),
+    prisma.owner.findMany({ where: { active: true }, include: { paymentAccounts: { where: { active: true }, orderBy: { createdAt: "asc" } } }, orderBy: { name: "asc" } }),
     searchParams,
   ]);
   if (!property || !unit) notFound();
@@ -22,6 +24,8 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
   const canManage = canSeeAll(user.role) || membership?.permission === "EDIT" || membership?.permission === "ADMIN";
   if (!canManage) redirect(`/nemovitosti/${id}/jednotky/${unitId}`);
   const currentOwner = unit.ownerships[0]?.ownerId || property.ownerId;
+  const currentAccount = unit.ownerships[0]?.ownerBankAccountId;
+  const ownerOptions = owners.map((owner) => ({ id: owner.id, label: `${owner.name}${owner.ico ? ` · IČO ${owner.ico}` : ""}`, accounts: owner.paymentAccounts.map((account) => ({ id: account.id, label: ownerBankAccountLabel(account) })) }));
   return <Shell user={user}><FormPage title={`Upravit jednotku ${unit.label}`} description={property.name} backHref={`/nemovitosti/${id}/jednotky/${unit.id}`}>
     <Flash ok={query.ok} error={query.error}/>
     <FormCard action={`/api/properties/${id}/units/${unit.id}`} cancelHref={`/nemovitosti/${id}/jednotky/${unit.id}`}>
@@ -35,9 +39,8 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
     <div className="card ownership-simple-card">
       <div className="card-head"><div><h2>Vlastník jednotky</h2><p className="muted-copy">Vyberte aktuálního vlastníka. Změna nahradí předchozí vazbu; procentní podíly se již neevidují.</p></div></div>
       <form className="owner-replace-form" action={`/api/properties/${id}/units/${unit.id}/ownerships`} method="post">
-        <label className="field"><span>Vlastník</span><select name="ownerId" defaultValue={currentOwner} required>{owners.map((owner)=><option value={owner.id} key={owner.id}>{owner.name}{owner.ico ? ` · IČO ${owner.ico}` : ""}</option>)}</select></label>
+        <UnitOwnerFields owners={ownerOptions} defaultOwnerId={currentOwner} defaultAccountId={currentAccount}/>
         <input type="hidden" name="replace" value="true"/>
-        <button className="primary" type="submit">Uložit vlastníka</button>
       </form>
       <Link className="table-link inline-profile-link" href={`/vlastnici/${currentOwner}`}>Otevřít profil vlastníka →</Link>
     </div>
