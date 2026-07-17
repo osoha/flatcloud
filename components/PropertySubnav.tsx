@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 const fullSections = [
-  ["prehled", "Přehled"], ["jednotky", "Jednotky"], ["vlastnici", "Vlastníci"], ["najemnici", "Nájemníci"],
+  ["prehled", "Přehled"], ["jednotky", "Jednotky"], ["vlastnici", "Vlastníci a SPV"], ["najemnici", "Nájemníci"],
   ["smlouvy", "Smlouvy"], ["platby", "Příchozí platby"],
   ["dluznici", "Dlužníci"], ["technicke-udaje", "Technické údaje"], ["banka", "Banka a pravidla"], ["uzivatele", "Uživatelé"], ["nastaveni", "Nastavení"],
 ];

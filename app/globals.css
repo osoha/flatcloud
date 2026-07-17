@@ -164,3 +164,24 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .meter-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.meter-card{border:1px solid var(--line);border-radius:14px;background:#fbfcff;padding:15px}.meter-card.inactive{opacity:.62}.meter-card-head{display:flex;justify-content:space-between;gap:14px}.meter-card h3{font-size:13px;margin:4px 0}.meter-card small{color:var(--muted);font-size:9px}.meter-value{text-align:right}.meter-value strong,.meter-value span,.meter-value small{display:block}.meter-value strong{font-size:21px;color:var(--navy)}.meter-value span{font-size:10px;color:var(--muted)}.meter-history{margin-top:13px;border-top:1px solid var(--line)}.meter-history>div{display:grid;grid-template-columns:85px 120px 1fr;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:9px}.meter-history>div:last-child{border-bottom:0}.meter-history strong{font-size:10px}.meter-history small{line-height:1.4}.meter-reading-form{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:9px;align-items:end;margin-top:13px;padding-top:13px;border-top:1px solid var(--line)}.meter-reading-form .field>span{font-size:9px}.meter-reading-form .field input{height:38px;font-size:10px}.meter-reading-form .primary{height:38px}.meter-toggle-form{margin-top:9px;text-align:right}.compact-empty{grid-column:1/-1;padding:28px}.compact-empty p{margin-top:8px}
 @media(max-width:1150px){.unit-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.people-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.meter-reading-form{grid-template-columns:repeat(2,minmax(0,1fr))}.meter-reading-form .primary{width:max-content}}
 @media(max-width:780px){.unit-kpi-grid,.people-grid,.meter-grid{grid-template-columns:1fr}.module-form,.occupant-edit-form{grid-template-columns:1fr}.meter-card-head{align-items:flex-start}.meter-history>div{grid-template-columns:75px 100px 1fr}.row-cell-link{min-height:46px;padding:12px}}
+
+/* V16: klikací vizitky, jednotkové KPI a sjednocená navigace */
+.user-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center}
+.user-card-profile{display:flex;align-items:center;gap:10px;min-width:0;border-radius:8px;padding:2px;transition:background .15s}
+.user-card-profile:hover{background:rgba(255,255,255,.07)}
+.user-card-profile>div{min-width:0}.user-card-profile strong,.user-card-profile small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logout-form{align-self:end}.logout-form button{display:flex;align-items:center;gap:4px;border-radius:7px;padding:5px;color:#aebddd}.logout-form button:hover{background:rgba(255,255,255,.08);color:#fff}
+.mini-kpi-link{position:relative;display:block;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.mini-kpi-link:hover{transform:translateY(-2px);border-color:#c8d8f6;box-shadow:0 14px 34px rgba(20,37,68,.11)}
+.mini-kpi-arrow{position:absolute;right:14px;top:13px;color:#94a2b8;font-size:14px}.mini-kpi-link:hover .mini-kpi-arrow{color:var(--blue)}
+.status-kpi{box-shadow:none}.status-kpi.status-occupied{background:linear-gradient(145deg,#f5fcf8,var(--green-soft));border-color:#c9ead9}.status-kpi.status-occupied strong{color:#147b50}
+.status-kpi.status-vacant{background:linear-gradient(145deg,#f8fbff,var(--blue-soft));border-color:#d4e0fb}.status-kpi.status-vacant strong{color:#315fcb}
+.status-kpi.status-renovation{background:linear-gradient(145deg,#fffaf5,var(--orange-soft));border-color:#f3dcc5}.status-kpi.status-renovation strong{color:#b96724}
+.status-kpi.status-inactive{background:#f4f5f7;border-color:#e2e5ea}.status-kpi.status-inactive strong{color:#6c7890}
+#prehled,#predpisy,#platby,#smlouva,#osoby,#meridla{scroll-margin-top:145px}
+.clickable-table-row.row-debt:hover{background:#ffeded}.clickable-table-row.row-disabled:hover{background:#f2f3f6}
+.main-person-link{position:relative;color:inherit;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+.main-person-link:hover{transform:translateY(-2px);border-color:#bfcff0;box-shadow:0 12px 26px rgba(20,37,68,.09)}
+.person-business-card>span{display:flex;align-items:center;gap:7px}.person-business-card>span svg{color:var(--blue);flex:0 0 auto}
+.person-card-arrow{display:block;margin-top:11px;color:var(--blue);font-size:10px}
+@media(max-width:720px){.user-card{grid-template-columns:1fr}.logout-form{padding-left:46px}.mini-kpi-arrow{right:12px}}
