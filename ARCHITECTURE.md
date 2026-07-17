@@ -720,3 +720,14 @@ Produkční příkaz `npm run db:migrate` je veden přes `scripts/migrate-deploy
 - `lib/db.ts` vytváří Prisma klienta líně. Tím se při `next build` neotevírá databázový engine při pouhém načtení route modulů; běžné runtime chování singletonu zůstává zachováno.
 - V15 obsahuje nedestruktivní migraci `20260717120000_tenants_occupants_meters`.
 
+
+## Rozhodnutí: V16 – klikací navigace, pozvánky a administrace (17. 7. 2026)
+
+- Klikatelnost seznamů se řeší odkazem v každé buňce řádku. Tím zůstává zachována validní HTML struktura tabulky, přístupnost z klávesnice a možnost otevření odkazu v nové kartě.
+- Detail jednotky používá stejné navigační pravidlo pro KPI, předpisy a vizitku hlavního nájemníka. Editační akce zůstávají na cílových kartách entity.
+- Stav jednotky je pouze vizuálně tónovaný existující hodnotou `Unit.status`; nevzniká nový stavový model.
+- „Smazání“ čekající pozvánky je doménově revokace `UserInvitation.status = REVOKED`. Záznam se fyzicky nemaže kvůli auditu, ale token nelze přijmout, protože přijímací route vyžaduje stav `PENDING`.
+- Revokace pozvánky nikdy nevytváří ani nedeaktivuje `User`. Blacklist podle e-mailu se nepoužívá, protože by mohl zablokovat legitimní existující účet.
+- Deaktivace uživatele je vynucena ve dvou vrstvách: přihlašovací route odmítá `active = false` a `currentUser()` při každém požadavku načítá pouze aktivní účet. Existující session je proto bez další migrace nebo blacklistu neplatná při následujícím requestu.
+- Navigace nastavení je rozdělena na `Administrace aplikace` (`/nastaveni`, pouze `SUPER_ADMIN`, globální cron a bankovní synchronizace) a `Můj účet` (`/ucet`, osobní avatar a heslo). Duplicitní odkaz na stejnou stránku se nepoužívá.
+- V16 nemění Prisma schéma a nevyžaduje databázovou migraci.
