@@ -29,12 +29,15 @@ function recentPeriods(count = 12) {
   });
 }
 
-export default async function ReportPage({ params }: { params: Promise<{ report: string }> }) {
-  const { report } = await params;
+export default async function ReportPage({ params, searchParams }: { params: Promise<{ report: string }>; searchParams: Promise<{ propertyId?: string }> }) {
+  const [{ report }, query] = await Promise.all([params, searchParams]);
   if (!(report in reportTitles)) notFound();
   const reportKey = report as ReportKey;
   const user = await requireUser();
-  const properties = await accessibleProperties(user);
+  const allProperties = await accessibleProperties(user);
+  const propertyScope = query.propertyId ? allProperties.find((property) => property.id === query.propertyId) : undefined;
+  if (query.propertyId && !propertyScope) notFound();
+  const properties = propertyScope ? [propertyScope] : allProperties;
   const period = currentPeriod();
   const periods = recentPeriods();
   const charges = properties.flatMap((property) => property.units.flatMap((unit) => unit.leases.flatMap((lease) => lease.charges.filter((charge) => charge.active).map((charge) => ({ property, unit, lease, charge, paid: charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0) })))));
@@ -47,7 +50,11 @@ export default async function ReportPage({ params }: { params: Promise<{ report:
   const paid = currentRows.reduce((sum, row) => sum + row.paid, 0);
   const debtRows = charges.filter((row) => row.paid < row.charge.amountCents);
   const debtTotal = debtRows.reduce((sum, row) => sum + row.charge.amountCents - row.paid, 0);
-  const [title, description] = reportTitles[reportKey];
+  const [baseTitle, baseDescription] = reportTitles[reportKey];
+  const title = propertyScope ? `${baseTitle} – ${propertyScope.name}` : baseTitle;
+  const description = propertyScope ? `${baseDescription} Report je omezen pouze na tento objekt.` : baseDescription;
+  const backHref = propertyScope ? `/nemovitosti/${propertyScope.id}/prehled` : "/portfolio";
+  const backLabel = propertyScope ? "Zpět na objekt" : "Zpět na portfolio";
 
   const propertyRows = properties.map((property) => {
     const rows = currentRows.filter((row) => row.property.id === property.id);
@@ -85,7 +92,7 @@ export default async function ReportPage({ params }: { params: Promise<{ report:
   }
   const owners = Array.from(ownerMap.values()).sort((a, b) => a.name.localeCompare(b.name, "cs"));
 
-  return <Shell user={user}><div className="page"><div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Reporty</span><span>›</span><span>{title}</span></div><div className="page-title report-title"><div><h1>{title}</h1><p>{description}</p></div><Link className="secondary" href="/portfolio">Zpět na portfolio</Link></div><div className="stat-grid report-stat-grid"><div className="card stat"><div className="stat-icon blue"><Building2/></div><div><span>Nemovitosti</span><strong>{properties.length}</strong><small>v rozsahu uživatele</small></div></div><div className="card stat"><div className="stat-icon orange"><WalletCards/></div><div><span>Předpis {period}</span><strong>{money(expected)}</strong><small>{currentRows.length} předpisů</small></div></div><div className="card stat"><div className="stat-icon green"><TrendingUp/></div><div><span>Uhrazeno</span><strong>{money(paid)}</strong><small className="good">{expected ? Math.round(paid / expected * 100) : 100} % inkaso</small></div></div><div className="card stat"><div className="stat-icon red">!</div><div><span>Otevřené saldo</span><strong className="negative">{money(debtTotal)}</strong><small className="bad">{debtors.length} dlužníků</small></div></div></div><div className="card report-chart-card"><div className="card-head"><div><h2>Vývoj za posledních 12 měsíců</h2><p className="muted-copy">Předpis a skutečně alokované úhrady podle období.</p></div></div><CollectionChart data={trend}/></div>
+  return <Shell user={user}><div className="page"><div className="breadcrumb"><Link href="/portfolio">Portfolio</Link>{propertyScope&&<><span>›</span><Link href={`/nemovitosti/${propertyScope.id}/prehled`}>{propertyScope.name}</Link></>}<span>›</span><span>Reporty</span><span>›</span><span>{baseTitle}</span></div><div className="page-title report-title"><div><h1>{title}</h1><p>{description}</p></div><Link className="secondary" href={backHref}>{backLabel}</Link></div><div className="stat-grid report-stat-grid"><div className="card stat"><div className="stat-icon blue"><Building2/></div><div><span>{propertyScope ? "Jednotky" : "Nemovitosti"}</span><strong>{propertyScope ? propertyScope.units.length : properties.length}</strong><small>{propertyScope ? `${propertyScope.units.flatMap((unit) => unit.leases).filter((lease) => lease.status === "ACTIVE").length} aktivních smluv` : "v rozsahu uživatele"}</small></div></div><div className="card stat"><div className="stat-icon orange"><WalletCards/></div><div><span>Předpis {period}</span><strong>{money(expected)}</strong><small>{currentRows.length} předpisů</small></div></div><div className="card stat"><div className="stat-icon green"><TrendingUp/></div><div><span>Uhrazeno</span><strong>{money(paid)}</strong><small className="good">{expected ? Math.round(paid / expected * 100) : 100} % inkaso</small></div></div><div className="card stat"><div className="stat-icon red">!</div><div><span>Otevřené saldo</span><strong className="negative">{money(debtTotal)}</strong><small className="bad">{debtors.length} dlužníků</small></div></div></div><div className="card report-chart-card"><div className="card-head"><div><h2>Vývoj za posledních 12 měsíců</h2><p className="muted-copy">Předpis a skutečně alokované úhrady podle období.</p></div></div><CollectionChart data={trend}/></div>
 
   {reportKey === "saldo" && <ReportTable headers={["Nájemník", "Nemovitost / jednotka", "Stav vztahu", "Otevřené předpisy", "Nejstarší splatnost", "Dluh", ""]} rows={debtors.map((row) => [<strong key="tenant">{row.tenantName}<span className="owner-sub">{row.tenantActive ? "Aktivní nájemník" : "Neaktivní nájemník"}</span></strong>, <span key="unit">{row.propertyName}<span className="owner-sub">{row.unitLabel}</span></span>, <span className={`status ${row.leaseStatus === "ACTIVE" ? "ok" : row.leaseStatus === "FUTURE" ? "warn" : ""}`} key="status">{leaseStatuses[row.leaseStatus as keyof typeof leaseStatuses]}</span>, row.count, date(row.oldestDue), <strong className="negative" key="debt">{money(row.debt)}</strong>, <Link className="table-link" key="link" href={`/nemovitosti/${row.propertyId}/jednotky/${row.unitId}`}>Otevřít jednotku</Link>])}/>} 
   {reportKey === "nemovitosti" && <ReportTable headers={["Nemovitost", "Jednotky", "Aktivní smlouvy", "Předpis", "Uhrazeno", "Saldo", "Inkaso"]} rows={propertyRows.map((row) => [<Link className="entity-link" key="property" href={`/nemovitosti/${row.property.id}/prehled`}>{row.property.name}<span className="owner-sub">{row.property.address}, {row.property.city}</span></Link>, row.property.units.length, row.activeLeases, money(row.expected), money(row.paid), <strong className={row.paid-row.expected<0?"negative":"positive"} key="balance">{money(row.paid-row.expected)}</strong>, `${row.rate} %`])}/>} 
