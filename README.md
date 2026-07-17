@@ -1,4 +1,4 @@
-# FlatCloud Rent V13
+# FlatCloud Rent V14
 
 Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, nájemníků, smluv, předpisů, plateb a bankovního párování.
 
@@ -10,11 +10,11 @@ Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, náj
 - měsíční předpisy a alokace příchozích plateb,
 - globální ruční platba ke kterémukoli spravovanému nájemnímu vztahu,
 - bankovní synchronizace, párovací pravidla a fronta ke spárování,
-- klikací KPI reporty pro nemovitosti, vlastníky, předpisy, inkaso a saldo,
+- klikací KPI reporty pro portfolio i jednotlivé nemovitosti, vlastníky, předpisy, inkaso a saldo,
 - přehled dlužníků včetně ukončených smluv a neaktivních nájemníků,
 - technický pasport budovy,
 - uživatelská oprávnění k celým objektům nebo konkrétním jednotkám,
-- avatary uživatelů s fallbackem na iniciály,
+- samoobslužné avatary uživatelů s automatickým ořezem, zmenšením a fallbackem na iniciály,
 - audit významných změn.
 
 ## Nasazení aktualizace
@@ -24,7 +24,7 @@ Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, náj
 3. Commitněte změny do větve `main`.
 4. Render automaticky provede build, migrace a bootstrap administrátora.
 
-Podrobnosti jsou v [`DEPLOY-V13-CZ.md`](DEPLOY-V13-CZ.md). Migrace jsou nedestruktivní a stávající data zůstávají zachována.
+Podrobnosti jsou v [`DEPLOY-V14-CZ.md`](DEPLOY-V14-CZ.md). Migrace jsou nedestruktivní a stávající data zůstávají zachována.
 
 ## Architektura
 

@@ -647,3 +647,13 @@ Produkční příkaz `npm run db:migrate` je veden přes `scripts/migrate-deploy
 - Technické údaje budovy jsou uloženy jako `Property.technicalData` typu JSONB. Toto rozhodnutí minimalizuje zásah do schématu a dovoluje postupné doplňování provozních polí.
 - Avatar je uložen v `User.avatarData` jako `BYTEA`; maximální velikost je 2 MB a API kontroluje typ i signaturu souboru. Výchozí zobrazení iniciál zůstává zachováno.
 - Běžné selecty uživatele nesmějí automaticky načítat `avatarData`; seznamy načítají pouze `avatarMimeType` a `updatedAt`, samotný obrázek poskytuje autorizovaná route `/api/users/[id]/avatar`.
+
+
+## Rozhodnutí: V14 – normalizované avatary a objektově filtrované KPI (17. 7. 2026)
+
+- Vlastní avatar se upravuje v `/ucet` přes samostatnou route `/api/account/avatar`; administrátorská route uživatele se tím nerozšiřuje o samoobslužné změny ostatních profilových polí.
+- Zpracování avataru je centralizované v `lib/avatar.ts`. Vstup je validován, automaticky otočen, oříznut na čtverec a uložen jako WebP 320 × 320 px. Databázový model `User.avatarData` a `User.avatarMimeType` se nemění.
+- Autorizovaná obrázková route normalizuje i dříve uložené avatary, takže starší velké nebo nevhodně škálované soubory se v UI zobrazují ve stejné výstupní velikosti.
+- Objektové KPI používají existující reportové stránky s volitelným parametrem `propertyId`; nevzniká druhá sada reportů ani agregovaných tabulek.
+- `propertyId` je vždy ověřeno proti výsledku `accessibleProperties()`. Jednotkově omezený uživatel proto nemůže parametrem URL rozšířit svůj datový rozsah.
+- V14 nemění Prisma schéma a neobsahuje databázovou migraci.
