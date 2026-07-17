@@ -3,7 +3,7 @@
 > Tento dokument je živá technická dokumentace. Při každé změně aplikace je nutné aktualizovat relevantní část: databázi, vazby, oprávnění, route, provozní konvence nebo přijatá rozhodnutí.
 
 **Aktualizováno:** 17. 7. 2026  
-**Výchozí stav:** FlatCloud Rent V13  
+**Výchozí stav:** FlatCloud Rent V15  
 **Databázové schéma:** `prisma/schema.prisma`
 
 ## 1. Účel a základní principy
@@ -25,8 +25,10 @@ Portfolio
 └── Nemovitost
     └── Jednotka
         ├── Vlastník jednotky
+        ├── Měřidla a odečty
         └── Smlouva
             ├── Nájemník
+            ├── Další osoby v bytě
             ├── Pravidelné položky
             └── Měsíční předpisy
                 └── Alokované platby
@@ -97,6 +99,8 @@ app/
 components/
 ├── Shell.tsx                    hlavní layout, navigace a globální akce
 ├── PropertySubnav.tsx           navigace detailu nemovitosti
+├── LeaseCoreFields.tsx          společná pole smlouvy, doba trvání a návrh VS
+├── TenantFields.tsx             kontaktní pole fyzické / právnické osoby
 ├── ReportChart.tsx              serverově vykreslený SVG graf předpisů a inkasa
 ├── UserAvatar.tsx               avatar s fallbackem na iniciály
 └── FormUi.tsx                   sdílené formulářové komponenty
@@ -105,14 +109,16 @@ lib/
 ├── access.ts                    filtrování objektů a jednotek podle přístupu
 ├── auth.ts                      session, uživatel, role
 ├── management.ts               permission guardy a audit
-├── db.ts                       singleton PrismaClient
-├── forms.ts                    parsování FormData
-├── route-response.ts           redirect + flash zprávy
-├── matching.ts                 párovací engine plateb
-├── period.ts                   období a splatnosti předpisů
-├── settings.ts                 globální nastavení synchronizace
-├── property-technical.ts       parser a konvence technického pasportu
-├── banking/                    adaptéry a synchronizace bank
+├── db.ts                        líně inicializovaný singleton PrismaClient
+├── charges.ts                   jednotná logika uhrazení, splatnosti a dluhu
+├── variable-symbol.ts           návrh, validace a transakční kontrola VS
+├── forms.ts                     parsování FormData
+├── route-response.ts            redirect + flash zprávy
+├── matching.ts                  párovací engine plateb
+├── period.ts                    období a splatnosti předpisů
+├── settings.ts                  globální nastavení synchronizace
+├── property-technical.ts        parser a konvence technického pasportu
+├── banking/                     adaptéry a synchronizace bank
 └── ...
 
 prisma/
@@ -261,7 +267,8 @@ Bytová nebo nebytová jednotka v nemovitosti.
 
 - označení je unikátní v rámci nemovitosti,
 - typ, stav, podlaží, plocha a poznámka,
-- vazba na vlastnictví, uživatelský přístup a smlouvy.
+- vazba na vlastnictví, uživatelský přístup, smlouvy a měřidla,
+- měřidla zůstávají u jednotky i v době bez aktivní smlouvy.
 
 #### `UnitOwnership`
 
@@ -279,22 +286,55 @@ Owner → UnitOwnership → Unit
 
 Nájemník může být fyzická nebo právnická osoba.
 
-- kontaktní údaje,
-- seznam známých účtů plátce `payerAccounts`,
-- více smluv v čase.
+Společná pole obsahují jméno / název, telefon, poznámku, aktivní stav a seznam známých účtů plátce `payerAccounts`.
+
+Fyzická osoba používá zejména:
+
+- e-mail,
+- adresu trvalého pobytu,
+- korespondenční adresu.
+
+Právnická osoba používá zejména:
+
+- IČO,
+- fakturační adresu,
+- korespondenční adresu,
+- fakturační e-mail,
+- komunikační e-mail.
+
+Původní obecná pole `email` a `address` zůstávají kvůli kompatibilitě a API je průběžně synchronizuje s novými podrobnějšími poli.
 
 #### `Lease`
 
 Nájemní smlouva vždy patří jedné jednotce a jednomu nájemníkovi.
 
-- období platnosti,
+- smlouva na dobu určitou má `endDate`, smlouva na dobu neurčitou má `endDate = null`,
 - den splatnosti,
 - variabilní symbol,
 - nájem dopředně nebo zpětně,
 - základní částky nájmu, služeb a kauce,
-- stav `ACTIVE`, `FUTURE`, `ENDED`.
+- stav `ACTIVE`, `FUTURE`, `ENDED`,
+- vazbu na další osoby v bytě a volitelně na odečty měřidel.
 
-Unikátní je kombinace jednotky a variabilního symbolu.
+Databáze zachovává historickou unikátnost kombinace jednotky a VS. Aplikace navíc před každým vytvořením nebo změnou smlouvy kontroluje VS globálně v celé evidenci. Kontrola probíhá uvnitř transakce pod PostgreSQL advisory lockem, aby souběžné požadavky nevytvořily duplicitu.
+
+Návrh VS se skládá z čísla budovy, dvoumístného čísla jednotky a dvoumístného pořadí smlouvy. Příklad `1000/3 + byt 7 + druhá smlouva → 100030702`. Hodnota je maximálně desetimístná a uživatel ji může před uložením upravit.
+
+#### `Occupant`
+
+Další osoba bydlící v jednotce, která není hlavním nájemníkem smlouvy.
+
+- vždy patří konkrétní smlouvě,
+- jméno, e-mail, telefon,
+- trvalá a korespondenční adresa,
+- poznámka a aktivní stav,
+- při odstranění smlouvy se odstraní i její osoby.
+
+#### `Meter` a `MeterReading`
+
+Měřidlo patří jednotce, nikoli nájemníkovi. Typy jsou studená voda, teplá voda, elektřina VT, elektřina NT a plyn. Každé měřidlo může mít vlastní označení, sériové číslo, měrnou jednotku a aktivní stav.
+
+Odečet obsahuje datum, číselnou hodnotu a poznámku. Volitelně odkazuje na smlouvu platnou při odečtu; při odstranění smlouvy se odečet zachová a vazba se nastaví na `null`.
 
 #### `LeasePaymentItem`
 
@@ -320,6 +360,8 @@ Měsíční předpis.
 - období ve formátu `RRRR-MM`,
 - splatnost, celková částka, aktivní stav,
 - rozpad položek a přijaté alokace.
+
+Dluh je definován jako neuhrazená část aktivního předpisu, jehož datum splatnosti je dřívější než dnešní datum v časové zóně `Europe/Prague`. V den splatnosti ani před ním se částka do dluhu nezapočítává. Stav budoucího neuhrazeného předpisu je `Předepsáno`, nikoli `Po splatnosti`. Tuto logiku centralizuje `lib/charges.ts` a reporty ji nesmějí duplikovat vlastními výpočty.
 
 **Rozhodnutí:** předpisy jsou pouze na úrovni jednotky. Nemají být samostatnou globální entitou mimo vazbu `Unit → Lease → Charge`.
 
@@ -428,9 +470,13 @@ erDiagram
     Unit ||--o{ UnitOwnership : has
     Unit ||--o{ UserUnit : grants
     Unit ||--o{ Lease : has
+    Unit ||--o{ Meter : contains
 
     Tenant ||--o{ Lease : signs
+    Lease ||--o{ Occupant : houses
+    Lease ||--o{ MeterReading : contextualizes
     Lease ||--o{ LeasePaymentItem : defines
+    Meter ||--o{ MeterReading : records
     Lease ||--o{ Charge : generates
     Lease ||--o{ BankMatchingRule : target
 
@@ -523,12 +569,16 @@ Route `/platby/nova` používá `editableUnitWhere()`. Zobrazuje pouze smlouvy j
 
 Detail jednotky je hlavní pracovní obrazovka.
 
-Aktuálně implementované části V12:
+Aktuálně implementované části V15:
 
-- Přehled
-- Předpisy
-- Platby
-- Smlouva
+- Přehled,
+- Předpisy a úhrady,
+- Platby,
+- Nájemní vztah,
+- Osoby,
+- Měřidla a odečty.
+
+Řádky v seznamu jednotek jsou klikací v celé ploše a vedou na detail jednotky. Editace jednotky, nájemníka, vlastníka a smlouvy se otevírá až z navazujícího detailu.
 
 Cílové členění produktu:
 
@@ -597,6 +647,7 @@ Historie hlavních migrací:
 | `20260716180000_unit_level_access` | existující přímá oprávnění `UserUnit` |
 | `20260716190000_invitation_unit_ids` | kompatibilní doplnění jednotek do pozvánek; V12 hotfix míří na `UserInvitation` |
 | `20260717080000_property_technical_avatar` | technický JSON pasport nemovitosti a avatary uživatelů |
+| `20260717120000_tenants_occupants_meters` | podrobné kontakty nájemníků, další osoby, měřidla a odečty |
 
 ## 11. Bezpečnostní konvence
 
@@ -625,7 +676,7 @@ Historie hlavních migrací:
 ## 13. Známé hranice aktuální implementace
 
 - `UserUnit` je současná autorizační vrstva V12; cílová doménová logika vlastníka se má opírat o `UnitOwnership`.
-- Detail jednotky zatím neobsahuje samostatné sekce Dokumenty a Historie.
+- Detail jednotky zatím neobsahuje samostatné sekce Dokumenty a Historie; Osoby a Měřidla jsou již implementované.
 - Globální hledání v horní liště je zatím vizuální prvek bez vyhledávací implementace.
 - Přímý konektor ČSAS vyžaduje schválené produkční endpointy a přístupové údaje banky.
 - Technický pasport je v první verzi strukturovaný JSON; nemá zatím samostatné revize, dokumenty ani plán údržby.
@@ -657,3 +708,15 @@ Produkční příkaz `npm run db:migrate` je veden přes `scripts/migrate-deploy
 - Objektové KPI používají existující reportové stránky s volitelným parametrem `propertyId`; nevzniká druhá sada reportů ani agregovaných tabulek.
 - `propertyId` je vždy ověřeno proti výsledku `accessibleProperties()`. Jednotkově omezený uživatel proto nemůže parametrem URL rozšířit svůj datový rozsah.
 - V14 nemění Prisma schéma a neobsahuje databázovou migraci.
+
+## Rozhodnutí: V15 – splatnost, smlouvy, VS, osoby a měřidla (17. 7. 2026)
+
+- Výpočet dluhu je sjednocený v `lib/charges.ts`. Do dluhu vstupuje pouze neuhrazená část aktivního předpisu po uplynutí data splatnosti; dnešní a budoucí předpisy jsou pouze předepsané.
+- Smlouva na dobu neurčitou se reprezentuje hodnotou `Lease.endDate = null`. Nevzniká nový enum ani paralelní model typu smlouvy.
+- Návrh variabilního symbolu používá číslo budovy z technického pasportu nebo adresy, číslo jednotky a pořadí smlouvy. Globální duplicita se kontroluje uvnitř databázové transakce pod advisory lockem.
+- Další osoby jsou v modelu `Occupant` navázané na konkrétní `Lease`, protože obsazení jednotky se mění s nájemním vztahem.
+- Měřidla jsou v modelu `Meter` navázaná na `Unit`. Odečet `MeterReading` může volitelně ukazovat na `Lease`, ale není na smlouvě existenčně závislý.
+- Rozšířená kontaktní pole `Tenant` rozlišují fyzickou a právnickou osobu. Legacy pole `email` a `address` se zachovávají kvůli kompatibilitě.
+- `lib/db.ts` vytváří Prisma klienta líně. Tím se při `next build` neotevírá databázový engine při pouhém načtení route modulů; běžné runtime chování singletonu zůstává zachováno.
+- V15 obsahuje nedestruktivní migraci `20260717120000_tenants_occupants_meters`.
+

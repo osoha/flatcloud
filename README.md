@@ -1,20 +1,23 @@
-# FlatCloud Rent V14
+# FlatCloud Rent V15
 
 Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, nájemníků, smluv, předpisů, plateb a bankovního párování.
 
 ## Hlavní funkce
 
-- portfolio, nemovitosti a bytové / nebytové jednotky,
-- vlastníci objektů a vlastníci jednotlivých jednotek,
-- nájemníci, smlouvy a verzované pravidelné položky,
-- měsíční předpisy a alokace příchozích plateb,
+- portfolio, nemovitosti a plně klikací seznam bytových / nebytových jednotek,
+- vlastníci objektů a jednotlivých jednotek,
+- fyzické i právnické osoby s rozšířenými kontaktními a fakturačními údaji,
+- smlouvy na dobu určitou i neurčitou,
+- automatický návrh a kontrola unikátního variabilního symbolu,
+- další osoby evidované k nájemnímu vztahu,
+- měřidla vody, elektřiny a plynu včetně historie odečtů,
+- měsíční předpisy a dluh počítaný pouze po splatnosti,
 - globální ruční platba ke kterémukoli spravovanému nájemnímu vztahu,
 - bankovní synchronizace, párovací pravidla a fronta ke spárování,
-- klikací KPI reporty pro portfolio i jednotlivé nemovitosti, vlastníky, předpisy, inkaso a saldo,
-- přehled dlužníků včetně ukončených smluv a neaktivních nájemníků,
+- KPI reporty pro portfolio i jednotlivé nemovitosti,
 - technický pasport budovy,
-- uživatelská oprávnění k celým objektům nebo konkrétním jednotkám,
-- samoobslužné avatary uživatelů s automatickým ořezem, zmenšením a fallbackem na iniciály,
+- oprávnění k celým objektům nebo konkrétním jednotkám,
+- avatary uživatelů s automatickým ořezem a zmenšením,
 - audit významných změn.
 
 ## Nasazení aktualizace
@@ -24,7 +27,7 @@ Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, náj
 3. Commitněte změny do větve `main`.
 4. Render automaticky provede build, migrace a bootstrap administrátora.
 
-Podrobnosti jsou v [`DEPLOY-V14-CZ.md`](DEPLOY-V14-CZ.md). Migrace jsou nedestruktivní a stávající data zůstávají zachována.
+Podrobnosti jsou v [`DEPLOY-V15-CZ.md`](DEPLOY-V15-CZ.md). Přehled změn je v [`CHANGELOG-V15-CZ.md`](CHANGELOG-V15-CZ.md).
 
 ## Architektura
 

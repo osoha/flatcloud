@@ -3,7 +3,35 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { requirePropertyAccess } from "@/lib/access";
 import { Shell } from "@/components/Shell";
-import { Checkbox, Field, Flash, FormCard, FormPage, Select, Textarea } from "@/components/FormUi";
+import { Field, Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
+import { LeaseCoreFields } from "@/components/LeaseCoreFields";
 import { dateInput } from "@/lib/forms";
-export const dynamic="force-dynamic";
-export default async function NewLease({params,searchParams}:{params:Promise<{id:string}>;searchParams:Promise<{ok?:string;error?:string;unitId?:string}>}){const user=await requireUser();const{id}=await params;const[property,tenants,query]=await Promise.all([requirePropertyAccess(user,id),prisma.tenant.findMany({where:{active:true,leases:{some:{unit:{propertyId:id}}}},orderBy:{name:"asc"}}),searchParams]);if(!property)notFound();const freeUnits=property.units.filter(unit=>!unit.leases.some(lease=>lease.status==="ACTIVE"));return <Shell user={user}><FormPage title="Přidat nájemní smlouvu" description="Po uložení lze automaticky vytvořit měsíční předpisy na celé sjednané období." backHref={`/nemovitosti/${id}/smlouvy`}><Flash ok={query.ok} error={query.error}/>{freeUnits.length&&tenants.length?<FormCard action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu"><Select label="Jednotka" name="unitId" required defaultValue={query.unitId} options={freeUnits.map(u=>[u.id,u.label])}/><Select label="Nájemník" name="tenantId" required options={tenants.map(t=>[t.id,t.name])}/><Field label="Číslo smlouvy" name="contractNumber"/><Field label="Platnost od" name="startDate" type="date" defaultValue={dateInput(new Date())} required/><Field label="Platnost do" name="endDate" type="date"/><Select label="Stav" name="status" options={[["ACTIVE","Aktivní"],["FUTURE","Budoucí"]]}/><Field label="Den splatnosti" name="dueDay" type="number" min={1} max={31} defaultValue={5} required/><Select label="Způsob placení nájemného" name="rentTiming" defaultValue="ADVANCE" options={[["ADVANCE","Dopředné – splatnost v daném měsíci"],["ARREARS","Zpětné – splatnost v následujícím měsíci"]]}/><Field label="Variabilní symbol" name="variableSymbol" required/><Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/><Field label="Zálohy na služby Kč / měsíc" name="services" type="number" step="0.01" min={0}/><Field label="Kauce Kč" name="deposit" type="number" step="0.01" min={0}/><Checkbox label="Po vytvoření smlouvy vytvořit předpisy na celé období" name="generateCharges" defaultChecked={false} full/><Textarea label="Poznámka" name="note"/></FormCard>:<div className="card empty-state"><h2>Chybí volná jednotka nebo nájemník</h2></div>}</FormPage></Shell>}
+import { proposedVariableSymbol } from "@/lib/variable-symbol";
+
+export const dynamic = "force-dynamic";
+
+export default async function NewLease({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string; unitId?: string }> }) {
+  const user = await requireUser();
+  const { id } = await params;
+  const [property, tenants, query, usedRows] = await Promise.all([
+    requirePropertyAccess(user, id),
+    prisma.tenant.findMany({ where: { active: true, leases: { some: { unit: { propertyId: id } } } }, orderBy: { name: "asc" } }),
+    searchParams,
+    prisma.lease.findMany({ select: { variableSymbol: true } }),
+  ]);
+  if (!property) notFound();
+  const freeUnits = property.units.filter((unit) => !unit.leases.some((lease) => lease.status === "ACTIVE"));
+  const used = new Set(usedRows.map((row) => row.variableSymbol));
+  const proposals = Object.fromEntries(freeUnits.map((unit) => [unit.id, proposedVariableSymbol(property, unit, used)]));
+
+  return <Shell user={user}><FormPage title="Přidat nájemní smlouvu" description="Nejprve zvolte dobu trvání. Variabilní symbol je předvyplněn podle domu, jednotky a pořadí smlouvy a při uložení se znovu kontroluje." backHref={`/nemovitosti/${id}/smlouvy`}>
+    <Flash ok={query.ok} error={query.error}/>
+    {freeUnits.length && tenants.length ? <FormCard action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu">
+      <LeaseCoreFields unitOptions={freeUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} showGenerateCharges/>
+      <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
+      <Field label="Zálohy na služby Kč / měsíc" name="services" type="number" step="0.01" min={0}/>
+      <Field label="Kauce Kč" name="deposit" type="number" step="0.01" min={0}/>
+      <Textarea label="Poznámka" name="note"/>
+    </FormCard> : <div className="card empty-state"><h2>Chybí volná jednotka nebo nájemník</h2></div>}
+  </FormPage></Shell>;
+}
