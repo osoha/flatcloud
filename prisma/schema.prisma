@@ -100,6 +100,14 @@ enum TenantType {
   COMPANY
 }
 
+enum MeterType {
+  COLD_WATER
+  HOT_WATER
+  ELECTRICITY_HIGH_TARIFF
+  ELECTRICITY_LOW_TARIFF
+  GAS
+}
+
 enum ChargeCategory {
   RENT
   WATER
@@ -269,6 +277,7 @@ model Unit {
   ownerships UnitOwnership[]
   userAccesses UserUnit[]
   leases     Lease[]
+  meters     Meter[]
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
@@ -298,6 +307,12 @@ model Tenant {
   email         String?
   phone         String?
   address       String?
+  ico           String?
+  permanentAddress      String?
+  correspondenceAddress String?
+  billingAddress        String?
+  billingEmail          String?
+  communicationEmail    String?
   note          String?
   active        Boolean    @default(true)
   payerAccounts String[]
@@ -328,11 +343,62 @@ model Lease {
   charges               Charge[]
   matchingRules         BankMatchingRule[] @relation("RuleTargetLease")
   suggestedTransactions BankTransaction[]  @relation("SuggestedLease")
+  occupants             Occupant[]
+  meterReadings         MeterReading[]
   createdAt             DateTime            @default(now())
   updatedAt             DateTime            @updatedAt
 
   @@unique([unitId, variableSymbol])
   @@index([tenantId])
+  @@index([variableSymbol])
+}
+
+model Occupant {
+  id                    String   @id @default(cuid())
+  leaseId               String
+  lease                 Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  name                  String
+  email                 String?
+  phone                 String?
+  permanentAddress      String?
+  correspondenceAddress String?
+  note                  String?
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([leaseId, active])
+}
+
+model Meter {
+  id            String         @id @default(cuid())
+  unitId        String
+  unit          Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  type          MeterType
+  label         String?
+  serialNumber  String?
+  unitOfMeasure String
+  active        Boolean        @default(true)
+  readings      MeterReading[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([unitId, type])
+}
+
+model MeterReading {
+  id        String   @id @default(cuid())
+  meterId   String
+  meter     Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  leaseId   String?
+  lease     Lease?   @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  readAt    DateTime
+  value     Float
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([meterId, readAt])
+  @@index([leaseId])
 }
 
 model LeasePaymentItem {

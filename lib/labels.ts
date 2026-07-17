@@ -70,3 +70,11 @@ export const userRoles: Record<string, string> = {
   PROPERTY_MANAGER: "Správce nemovitosti",
   OWNER_VIEWER: "Vlastník / člen",
 };
+
+export const meterTypes = {
+  COLD_WATER: "Studená voda",
+  HOT_WATER: "Teplá voda",
+  ELECTRICITY_HIGH_TARIFF: "Elektřina – vysoký tarif",
+  ELECTRICITY_LOW_TARIFF: "Elektřina – nízký tarif",
+  GAS: "Plyn",
+} as const;
