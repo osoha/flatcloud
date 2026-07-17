@@ -1,51 +1,34 @@
-# FlatCloud Rent V8 – bankovní napojení, uživatelé a párování plateb
+# FlatCloud Rent V13
 
-Produkční webová aplikace pro správu nájemních nemovitostí oddělených podle objektu, vlastníka/SPV a uživatelských oprávnění.
+Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, nájemníků, smluv, předpisů, plateb a bankovního párování.
 
 ## Hlavní funkce
 
-- více vlastníků jednoho objektu a vlastníci jednotlivých jednotek,
-- jednotky, nájemníci, smlouvy, pravidelné položky a měsíční předpisy,
-- přímý konektor připravený pro Premium API České spořitelny,
-- samostatný bankovní souhlas a šifrované tokeny každého uživatele,
-- volitelný Open Banking konektor pro další banky,
-- automatická synchronizace přes Render Cron Job,
-- frekvence 1–24 synchronizací denně nastavitelná hlavním administrátorem,
-- ruční historické načtení transakcí od zvoleného data,
-- ochrana proti duplicitám podle bankovního účtu a externího ID transakce,
-- zpracování pouze příchozích plateb,
-- fronta „Ke spárování“, ruční přiřazení a pravidla podle VS, účtu plátce, jména, zprávy nebo částky,
-- pravidla pro automatické ignorování budoucích nerelevantních příchozích pohybů,
-- editace uživatelů a práv ke každé nemovitosti,
-- e-mailové pozvánky nových členů,
-- audit změn a bankovních synchronizací.
+- portfolio, nemovitosti a bytové / nebytové jednotky,
+- vlastníci objektů a vlastníci jednotlivých jednotek,
+- nájemníci, smlouvy a verzované pravidelné položky,
+- měsíční předpisy a alokace příchozích plateb,
+- globální ruční platba ke kterémukoli spravovanému nájemnímu vztahu,
+- bankovní synchronizace, párovací pravidla a fronta ke spárování,
+- klikací KPI reporty pro nemovitosti, vlastníky, předpisy, inkaso a saldo,
+- přehled dlužníků včetně ukončených smluv a neaktivních nájemníků,
+- technický pasport budovy,
+- uživatelská oprávnění k celým objektům nebo konkrétním jednotkám,
+- avatary uživatelů s fallbackem na iniciály,
+- audit významných změn.
 
 ## Nasazení aktualizace
 
 1. Rozbalte ZIP.
 2. Nahrajte celý obsah do kořene stávajícího GitHub repozitáře.
 3. Commitněte změny do větve `main`.
-4. V Renderu proveďte **Blueprint → Sync Blueprint**, protože V8 přidává hodinový Cron Job a nové proměnné prostředí.
-5. Zadejte nové tajné hodnoty podle `DEPLOY-V8-CZ.md`.
-6. Spusťte nový deploy webové služby a cron služby.
+4. Render automaticky provede build, migrace a bootstrap administrátora.
 
-Migrace jsou nedestruktivní. Stávající uživatelé, objekty, smlouvy, předpisy a platby zůstávají zachovány.
-
-## Důležitá podmínka přímého API České spořitelny
-
-Zdrojový kód obsahuje připravený přímý konektor a konfigurovatelné API cesty. Produkční technické URL, rozsahy oprávnění a klíče poskytne Česká spořitelna po registraci aplikace na Erste Developer Portalu a schválení zvoleného modelu přístupu.
-
-Pokud přes aplikaci připojují účty různí vlastníci a externí klienti, jde z pohledu banky typicky o přístup k účtům třetích stran. Ten může vyžadovat PSD2 oprávnění nebo individuální smlouvu s bankou. Do získání tohoto přístupu lze otestovat aplikační logiku přes mock nebo licencovaného Open Banking poskytovatele.
-
-## Dokumentace v balíčku
-
-- `DEPLOY-V8-CZ.md` – aktualizace GitHubu a Renderu,
-- `BANKOVNI-NAPOJENI-V8-CZ.md` – Česká spořitelna, historie, cron a párování,
-- `CHANGELOG-V8-CZ.md` – přehled změn.
+Podrobnosti jsou v [`DEPLOY-V13-CZ.md`](DEPLOY-V13-CZ.md). Migrace jsou nedestruktivní a stávající data zůstávají zachována.
 
 ## Architektura
 
-Aktuální struktura databáze, vazby, oprávnění a projektové konvence jsou udržovány v souboru [`ARCHITECTURE.md`](ARCHITECTURE.md).
+Aktuální databázové vazby, oprávnění, konvence a přijatá rozhodnutí jsou průběžně udržovány v [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
 ## Lokální spuštění
 
@@ -56,6 +39,10 @@ npm run db:bootstrap
 npm run dev
 ```
 
-## Ověření
+## Produkční ověření
 
-Prisma schéma bylo validováno přes interní DMMF parser. Projekt prošel kompletní TypeScript kontrolou a produkčním `next build`. Render při běžném buildu provede vlastní `prisma generate` se stažením příslušného Prisma enginu.
+```bash
+npm run build
+```
+
+Skript provede `prisma generate` a následně `next build`.

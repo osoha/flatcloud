@@ -2,15 +2,21 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { hasAllPropertyAccess } from "./auth";
 
+
+const publicUserSelect = {
+  id: true, email: true, name: true, role: true, active: true, allProperties: true,
+  phone: true, title: true, avatarMimeType: true, createdAt: true, updatedAt: true,
+} satisfies Prisma.UserSelect;
+
 const propertyInclude = {
   owner: true,
   communicationOwner: true,
-  manager: true,
+  manager: { select: publicUserSelect },
   ownerships: { include: { owner: true }, orderBy: { createdAt: "asc" as const } },
-  bankAccounts: { include: { owner: true, connectedBy: true }, orderBy: { bankName: "asc" as const } },
+  bankAccounts: { include: { owner: true, connectedBy: { select: publicUserSelect } }, orderBy: { bankName: "asc" as const } },
   matchingRules: { orderBy: [{ priority: "asc" as const }, { createdAt: "asc" as const }] },
-  memberships: { include: { user: true }, orderBy: { user: { name: "asc" as const } } },
-  invitations: { include: { invitedBy: true }, orderBy: { createdAt: "desc" as const } },
+  memberships: { include: { user: { select: publicUserSelect } }, orderBy: { user: { name: "asc" as const } } },
+  invitations: { include: { invitedBy: { select: publicUserSelect } }, orderBy: { createdAt: "desc" as const } },
   units: {
     orderBy: { label: "asc" as const },
     include: {
@@ -60,4 +66,15 @@ export async function requireUnitAccess(user:{id:string;role:string;allPropertie
 
 export function unitAccessWhere(user:{id:string;role:string;allProperties?:boolean},propertyId:string){
   return {propertyId,...(hasAllPropertyAccess(user)?{}:{OR:[{property:{memberships:{some:{userId:user.id}}}},{userAccesses:{some:{userId:user.id}}}]})};
+}
+
+export function editableUnitWhere(user:{id:string;role:string;allProperties?:boolean},propertyId?:string){
+  return {
+    ...(propertyId?{propertyId}:{}),
+    property:{active:true},
+    ...(hasAllPropertyAccess(user)?{}:{OR:[
+      {property:{memberships:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}}},
+      {userAccesses:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}},
+    ]}),
+  } satisfies Prisma.UnitWhereInput;
 }

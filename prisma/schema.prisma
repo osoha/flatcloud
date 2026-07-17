@@ -122,6 +122,8 @@ model User {
   allProperties Boolean       @default(false)
   phone        String?
   title        String?
+  avatarData   Bytes?
+  avatarMimeType String?
   memberships       UserProperty[]
   unitMemberships   UserUnit[]
   invitationsSent   UserInvitation[] @relation("InvitationSender")
@@ -159,6 +161,7 @@ model Property {
   city                 String
   postalCode           String?
   note                 String?
+  technicalData        Json?
   active               Boolean                 @default(true)
   ownerId              String
   owner                Owner                    @relation(fields: [ownerId], references: [id], onDelete: Restrict)

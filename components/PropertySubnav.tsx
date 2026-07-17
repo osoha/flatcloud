@@ -3,7 +3,7 @@ import Link from "next/link";
 const fullSections = [
   ["prehled", "Přehled"], ["jednotky", "Jednotky"], ["vlastnici", "Vlastníci"], ["najemnici", "Nájemníci"],
   ["smlouvy", "Smlouvy"], ["platby", "Příchozí platby"],
-  ["dluznici", "Dlužníci"], ["banka", "Banka a pravidla"], ["uzivatele", "Uživatelé"], ["nastaveni", "Nastavení"],
+  ["dluznici", "Dlužníci"], ["technicke-udaje", "Technické údaje"], ["banka", "Banka a pravidla"], ["uzivatele", "Uživatelé"], ["nastaveni", "Nastavení"],
 ];
 const unitSections = [["prehled","Přehled"],["jednotky","Moje jednotky"],["najemnici","Nájemníci"],["smlouvy","Smlouvy"],["platby","Platby"],["dluznici","Saldo"]];
 

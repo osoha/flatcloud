@@ -3,7 +3,7 @@
 > Tento dokument je živá technická dokumentace. Při každé změně aplikace je nutné aktualizovat relevantní část: databázi, vazby, oprávnění, route, provozní konvence nebo přijatá rozhodnutí.
 
 **Aktualizováno:** 17. 7. 2026  
-**Výchozí stav:** FlatCloud Rent V12 RC1  
+**Výchozí stav:** FlatCloud Rent V13  
 **Databázové schéma:** `prisma/schema.prisma`
 
 ## 1. Účel a základní principy
@@ -84,17 +84,21 @@ Cron synchronizace bank běží každou hodinu a podle globálního nastavení v
 app/
 ├── api/                         API route handlery
 ├── login/                       přihlášení
-├── portfolio/                   hlavní portfolio dashboard
-├── nemovitosti/                 detail objektu, jednotek, smluv a plateb
-├── uzivatele/                   správa uživatelů
+├── portfolio/                   hlavní portfolio dashboard a KPI vstupy
+├── reporty/                     portfolio reporty a dlužnické saldo
+├── platby/                      globální zadání ruční platby
+├── nemovitosti/                 detail objektu, technický pasport, jednotky, smlouvy a platby
+├── uzivatele/                   správa uživatelů a avatarů
 ├── vlastnici/                   správa vlastníků / SPV / SVJ
 ├── nastaveni/                   globální nastavení
 ├── ucet/                        profil přihlášeného uživatele
 └── pozvanka/                    přijetí pozvánky
 
 components/
-├── Shell.tsx                    hlavní layout a navigace
+├── Shell.tsx                    hlavní layout, navigace a globální akce
 ├── PropertySubnav.tsx           navigace detailu nemovitosti
+├── ReportChart.tsx              serverově vykreslený SVG graf předpisů a inkasa
+├── UserAvatar.tsx               avatar s fallbackem na iniciály
 └── FormUi.tsx                   sdílené formulářové komponenty
 
 lib/
@@ -107,6 +111,7 @@ lib/
 ├── matching.ts                 párovací engine plateb
 ├── period.ts                   období a splatnosti předpisů
 ├── settings.ts                 globální nastavení synchronizace
+├── property-technical.ts       parser a konvence technického pasportu
 ├── banking/                    adaptéry a synchronizace bank
 └── ...
 
@@ -180,7 +185,10 @@ Důležitá pole:
 - `active` – možnost přihlášení,
 - `allProperties` – přístup ke všem současným i budoucím objektům,
 - kontaktní údaje,
+- volitelný avatar v `avatarData` a jeho typ v `avatarMimeType`,
 - vazby na objekty, jednotky, bankovní připojení a audit.
+
+Avatar je omezen aplikační validací na PNG/JPG/WebP do 2 MB. Ukládá se v PostgreSQL, protože běžný lokální disk webové služby není považován za trvalé úložiště. Bez obrázku se vykreslují iniciály.
 
 #### `UserProperty`
 
@@ -234,7 +242,10 @@ Hlavní vazby:
 - jednotky,
 - bankovní účty,
 - párovací pravidla,
-- uživatelská oprávnění a pozvánky.
+- uživatelská oprávnění a pozvánky,
+- strukturovaný technický pasport v `technicalData` (`JSONB`).
+
+`technicalData` je záměrně jeden objekt místo sítě nových tabulek. Obsahuje identifikaci budovy, konstrukci, roky, plochy, energetiku, vytápění, pojištění, katastr a provozní poznámku. Dokumenty, revize a servisní události do tohoto JSON nepatří; případný budoucí dokumentový modul vyžaduje samostatné schválení modelu.
 
 #### `PropertyOwnership`
 
@@ -353,15 +364,16 @@ Podmínky mohou kombinovat účet, IBAN protistrany, jméno, VS, zprávu a přes
 
 #### `BankTransaction`
 
-Příchozí bankovní transakce.
+Příchozí bankovní transakce nebo ručně evidovaná příchozí platba.
 
 - unikátní kombinace `bankAccountId + externalId`,
 - obsahuje plátce, účet, VS, zprávu a částku,
 - stav párování,
 - volitelné pravidlo a navrženou smlouvu,
-- může být rozdělena na více předpisů.
+- může být rozdělena na více předpisů,
+- ruční platba používá provider `manual` a zůstává navázaná na vybranou smlouvu přes `suggestedLeaseId`, i pokud jde o přeplatek.
 
-Aktuální produkt zpracovává pouze kladné příchozí transakce.
+Globální ruční platba vybírá všechny editovatelné nájemní vztahy přihlášeného uživatele, včetně `ENDED` smluv a neaktivních nájemníků. Částka se alokuje od nejstaršího otevřeného předpisu. Aktuální produkt zpracovává pouze kladné příchozí transakce.
 
 #### `PaymentAllocation`
 
@@ -492,11 +504,20 @@ Dostupné sekce plného objektu:
 - Smlouvy
 - Příchozí platby
 - Dlužníci
+- Technické údaje
 - Banka a pravidla
 - Uživatelé
 - Nastavení
 
 Jednotkově omezený uživatel vidí zúženou navigaci a pouze data svých jednotek.
+
+### Portfolio reporty
+
+KPI karty na `/portfolio` jsou odkazy na `/reporty/[report]`. Dostupné reporty jsou `nemovitosti`, `vlastnici`, `predpisy`, `inkaso` a `saldo`. Reporty používají `accessibleProperties()`, takže respektují přístup k celému objektu i pouze k vybraným jednotkám. Grafy zobrazují posledních 12 měsíčních období a jsou vykreslené jako serverové SVG bez klientské grafové knihovny.
+
+### Globální ruční platba
+
+Route `/platby/nova` používá `editableUnitWhere()`. Zobrazuje pouze smlouvy jednotek, ke kterým má uživatel `EDIT` nebo `ADMIN`, případně globální přístup. API `/api/payments/manual` kontroluje stejný filtr znovu před zápisem.
 
 ### Detail jednotky
 
@@ -574,6 +595,8 @@ Historie hlavních migrací:
 | `20260716001000_direct_csas_user_connections` | přímá ČSAS připojení uživatelů |
 | `20260716130000_stable_members_owners_charges` | stabilizace členství, vlastníků a předpisů |
 | `20260716180000_unit_level_access` | existující přímá oprávnění `UserUnit` |
+| `20260716190000_invitation_unit_ids` | kompatibilní doplnění jednotek do pozvánek; V12 hotfix míří na `UserInvitation` |
+| `20260717080000_property_technical_avatar` | technický JSON pasport nemovitosti a avatary uživatelů |
 
 ## 11. Bezpečnostní konvence
 
@@ -605,10 +628,22 @@ Historie hlavních migrací:
 - Detail jednotky zatím neobsahuje samostatné sekce Dokumenty a Historie.
 - Globální hledání v horní liště je zatím vizuální prvek bez vyhledávací implementace.
 - Přímý konektor ČSAS vyžaduje schválené produkční endpointy a přístupové údaje banky.
-- README stále historicky používá označení V8; rozhodující je aktuální schéma, migrace a tento dokument.
+- Technický pasport je v první verzi strukturovaný JSON; nemá zatím samostatné revize, dokumenty ani plán údržby.
+- KPI reporty jsou provozní přehledy nad aktuální evidencí; export do XLSX/PDF a vlastní filtr období zatím nejsou implementovány.
 
 ## Rozhodnutí: zotavení chybné V12 migrace (17. 7. 2026)
 
 Migrace `20260716190000_invitation_unit_ids` původně odkazovala na tabulku `Invitation`, která v projektu neexistuje. Pozvánky reprezentuje Prisma model `UserInvitation` a stejnojmenná databázová tabulka. Výsledný databázový model se hotfixem nemění, protože `unitIds` už zavádí předchozí migrace `20260716180000_unit_level_access`.
 
 Produkční příkaz `npm run db:migrate` je veden přes `scripts/migrate-deploy.mjs`. Skript se nejprve pokusí označit výhradně neúspěšný pokus migrace `20260716190000_invitation_unit_ids` jako vrácený a potom vždy spustí standardní `prisma migrate deploy`. Na nové databázi nebo po úspěšném dokončení migrace je pokus o zotavení bezpečně přeskočen. Žádné jiné neúspěšné migrace skript automaticky nepotlačuje.
+
+
+## Rozhodnutí: V13 – reporty, ruční platby, technický pasport a avatary (17. 7. 2026)
+
+- Logo v `Shell` vede vždy na `/portfolio`; kořen `/` nadále přesměrovává na stejnou stránku.
+- Globální ruční platba nezavádí nový platební model. Používá existující `BankAccount`, `BankTransaction`, `PaymentAllocation` a vazbu `suggestedLeaseId`.
+- Pro výběr smluv se používá nový společný filtr `editableUnitWhere()`. Zobrazovací a zápisová kontrola používají stejnou podmínku oprávnění.
+- KPI reporty jsou samostatné serverové stránky. Nezavádějí materializované agregace ani nové databázové tabulky.
+- Technické údaje budovy jsou uloženy jako `Property.technicalData` typu JSONB. Toto rozhodnutí minimalizuje zásah do schématu a dovoluje postupné doplňování provozních polí.
+- Avatar je uložen v `User.avatarData` jako `BYTEA`; maximální velikost je 2 MB a API kontroluje typ i signaturu souboru. Výchozí zobrazení iniciál zůstává zachováno.
+- Běžné selecty uživatele nesmějí automaticky načítat `avatarData`; seznamy načítají pouze `avatarMimeType` a `updatedAt`, samotný obrázek poskytuje autorizovaná route `/api/users/[id]/avatar`.
