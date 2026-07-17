@@ -238,7 +238,16 @@ Je společným zdrojem pro:
 - komunikačního vlastníka,
 - spoluvlastnictví nemovitosti,
 - vlastnictví jednotek,
-- přiřazení bankovního účtu.
+- číselník platebních účtů vlastníka.
+
+#### `OwnerBankAccount`
+
+Platební účet evidovaný přímo u vlastníka. Jeden vlastník může mít více účtů a účet není totožný s technickým `BankAccount`, který slouží pro bankovní napojení a import transakcí.
+
+- domácí číslo účtu a kód banky nebo IBAN,
+- volitelný název účtu, měna a aktivní stav,
+- výběr konkrétního účtu u `UnitOwnership`,
+- snapshot účtu u `Lease`, aby smlouva jednoznačně určovala cílový účet pro předpisy, QR platby a upomínky.
 
 #### `Property`
 
@@ -283,6 +292,8 @@ Kanonický zdroj informace, kdo vlastní konkrétní jednotku.
 Owner → UnitOwnership → Unit
 ```
 
+Každá vazba může mít `ownerBankAccountId`, který určuje konkrétní účet vlastníka používaný pro nájemné dané jednotky.
+
 **Rozhodnutí:** oprávnění nebo zobrazení založené na vlastnictví se má odvozovat z této vazby. Nevytvářet novou M:N tabulku pro vlastnický přístup.
 
 ### 5.3 Nájemní vztah a předpisy
@@ -319,6 +330,8 @@ Nájemní smlouva vždy patří jedné jednotce a jednomu nájemníkovi.
 - nájem dopředně nebo zpětně,
 - základní částky nájmu, služeb a kauce,
 - stav `ACTIVE`, `FUTURE`, `ENDED`,
+- vybraný účet vlastníka `ownerBankAccountId`, převzatý z vlastnictví jednotky,
+- účet nájemníka `tenantBankAccount` pro první automatické párování,
 - vazbu na další osoby v bytě a volitelně na odečty měřidel.
 
 Databáze zachovává historickou unikátnost kombinace jednotky a VS. Aplikace navíc před každým vytvořením nebo změnou smlouvy kontroluje VS globálně v celé evidenci. Kontrola probíhá uvnitř transakce pod PostgreSQL advisory lockem, aby souběžné požadavky nevytvořily duplicitu.
@@ -476,7 +489,10 @@ erDiagram
     Owner ||--o{ Property : primary_owner
     Owner ||--o{ PropertyOwnership : owns
     Owner ||--o{ UnitOwnership : owns
-    Owner ||--o{ BankAccount : owns_account
+    Owner ||--o{ OwnerBankAccount : has_payment_account
+    Owner ||--o{ BankAccount : owns_connected_account
+    OwnerBankAccount ||--o{ UnitOwnership : selected_for_unit
+    OwnerBankAccount ||--o{ Lease : selected_for_lease
 
     Property ||--o{ PropertyOwnership : has
     Property ||--o{ Unit : contains
@@ -642,8 +658,9 @@ Pořadí párování příchozí transakce:
 1. aktivní ignorační pravidla,
 2. vlastní automatická nebo návrhová pravidla,
 3. jednoznačný variabilní symbol aktivní smlouvy,
-4. známý účet plátce nájemníka,
-5. fronta ke spárování.
+4. účet nájemníka uložený přímo ve smlouvě,
+5. další známý účet plátce nájemníka,
+6. fronta ke spárování.
 
 ## 10. Migrace a změny databáze
 
@@ -668,6 +685,7 @@ Historie hlavních migrací:
 | `20260716180000_unit_level_access` | existující přímá oprávnění `UserUnit` |
 | `20260716190000_invitation_unit_ids` | kompatibilní doplnění jednotek do pozvánek; V12 hotfix míří na `UserInvitation` |
 | `20260717080000_property_technical_avatar` | technický JSON pasport nemovitosti a avatary uživatelů |
+| `20260717193000_owner_payment_accounts` | číselník účtů vlastníků, účet u vlastnictví jednotky a platební účty ve smlouvě |
 | `20260717120000_tenants_occupants_meters` | podrobné kontakty nájemníků, další osoby, měřidla a odečty |
 | `20260717170000_rent_notifications` | SMTP administrace, nastavitelné lhůty a šablony, inkasní stav smlouvy a audit odeslaných zpráv |
 
@@ -760,9 +778,21 @@ Produkční příkaz `npm run db:migrate` je veden přes `scripts/migrate-deploy
 - Globální SMTP a pravidla upomínek upravuje pouze `SUPER_ADMIN` na `/nastaveni`; běžní uživatelé je nemohou číst ani měnit přes API.
 - Pozvánky i nájemní komunikace používají společný transport `lib/email.ts`. Databázová konfigurace má přednost před Render environment variables, takže změna nevyžaduje přímý zápis do databáze ani nový deploy.
 - SMTP heslo se ukládá přes `lib/secret.ts` šifrované AES-256-GCM. Šifrovací klíč vychází z `BANK_TOKEN_ENCRYPTION_KEY`, případně `SESSION_SECRET`; stejný klíč musí být dostupný webu i cron službě.
-- Hlavička nájemního e-mailu není součástí editovatelné šablony. Vytváří se systémově z `Property.communicationOwner`, případně z hlavního `Property.owner`, aby zpráva vždy identifikovala příslušného vlastníka.
+- Hlavička nájemního e-mailu není součástí editovatelné šablony. V17 ji vytváří z komunikačního nebo hlavního vlastníka nemovitosti; od V18 má přednost vlastník vybraného účtu smlouvy.
 - Platební zpráva se váže na konkrétní měsíční předpis. Upomínky po splatnosti se agregují za nájemní vztah, aby nájemník ve stejný den nedostal více duplicitních zpráv.
 - Automatické fáze jsou výchozí `−5 / +3 / +10 / +20 / +30` dní. První tři fáze komunikují s nájemníkem; poslední dvě jsou interní upozornění a nikdy samy neprovedou právní úkon nebo výpověď.
 - Smlouva může automatické upomínky dočasně pozastavit a evidovat slíbené datum, částku a interní inkasní poznámku.
 - Platební e-mail obsahuje QR platbu vytvořenou z IBAN nemovitosti, částky a variabilního symbolu smlouvy. Pokud chybí příjemce nebo IBAN, systém zprávu neodešle a uloží stav `SKIPPED` s důvodem.
 - V17 obsahuje nedestruktivní migraci `20260717170000_rent_notifications`.
+
+
+## Rozhodnutí: V18 – platební účty vlastníků a smluv (17. 7. 2026)
+
+- `OwnerBankAccount` je samostatný číselník platebních účtů vlastníka. Nezaměňuje se s `BankAccount`, který reprezentuje napojený bankovní zdroj pro import transakcí.
+- `UnitOwnership.ownerBankAccountId` určuje účet pro nájemné konkrétní jednotky. API vždy ověřuje, že účet patří zvolenému vlastníkovi a je aktivní.
+- `Lease.ownerBankAccountId` ukládá účet převzatý z jednotky. Změna účtu jednotky aktualizuje aktivní a budoucí smlouvy; historické ukončené smlouvy zůstávají beze změny.
+- `Lease.tenantBankAccount` ukládá účet plátce sjednaný ve smlouvě. České domácí číslo se při zápisu převádí na IBAN a současně se doplní do `Tenant.payerAccounts`.
+- Automatické párování po vlastních pravidlech a variabilním symbolu nejprve zkouší účet přímo na smlouvě a poté ostatní známé účty nájemníka.
+- Platební zprávy a QR platby používají účet vybraný na smlouvě, případně účet vlastnictví jednotky. Původní účet bankovního napojení nemovitosti zůstává pouze kompatibilní záloha.
+- Použitý účet nelze fyzicky odstranit. Lze jej označit jako neaktivní; tím se přestane nabízet pro nové vazby, ale historie smluv zůstane zachována.
+- V18 obsahuje nedestruktivní migraci `20260717193000_owner_payment_accounts`.

@@ -171,9 +171,28 @@ model Owner {
   propertyOwnerships      PropertyOwnership[]
   unitOwnerships          UnitOwnership[]
   bankAccounts            BankAccount[]
+  paymentAccounts         OwnerBankAccount[]
   communicationProperties Property[]          @relation("PropertyCommunicationOwner")
   createdAt               DateTime            @default(now())
   updatedAt               DateTime            @updatedAt
+}
+
+model OwnerBankAccount {
+  id             String          @id @default(cuid())
+  ownerId        String
+  owner          Owner           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  label          String?
+  accountNumber  String?
+  bankCode       String?
+  iban           String?
+  currency       String          @default("CZK")
+  active         Boolean         @default(true)
+  unitOwnerships UnitOwnership[]
+  leases         Lease[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([ownerId, active])
 }
 
 model Property {
@@ -324,18 +343,21 @@ model Unit {
 }
 
 model UnitOwnership {
-  id               String   @id @default(cuid())
-  unitId           String
-  ownerId          String
-  shareBasisPoints Int      @default(10000)
-  note             String?
-  unit             Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  owner            Owner    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                 String            @id @default(cuid())
+  unitId             String
+  ownerId            String
+  shareBasisPoints   Int               @default(10000)
+  note               String?
+  ownerBankAccountId String?
+  ownerBankAccount   OwnerBankAccount? @relation(fields: [ownerBankAccountId], references: [id], onDelete: SetNull)
+  unit               Unit              @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  owner              Owner             @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   @@unique([unitId, ownerId])
   @@index([ownerId])
+  @@index([ownerBankAccountId])
 }
 
 model Tenant {
@@ -389,12 +411,16 @@ model Lease {
   promisedPaymentDate   DateTime?
   promisedAmountCents   Int?
   collectionNote        String?
+  ownerBankAccountId    String?
+  ownerBankAccount      OwnerBankAccount?  @relation(fields: [ownerBankAccountId], references: [id], onDelete: SetNull)
+  tenantBankAccount     String?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
   @@unique([unitId, variableSymbol])
   @@index([tenantId])
   @@index([variableSymbol])
+  @@index([ownerBankAccountId])
 }
 
 model Occupant {

@@ -146,13 +146,16 @@ export async function processTransaction(transactionId: string) {
       where: {
         unit: { propertyId },
         status: { in: ["ACTIVE", "FUTURE"] },
-        tenant: { payerAccounts: { has: payerIban } },
+        OR: [
+          { tenantBankAccount: payerIban },
+          { tenant: { payerAccounts: { has: payerIban } } },
+        ],
       },
       select: { id: true },
       take: 2,
     });
     if (leases.length === 1) {
-      await allocateTransactionToLease(transaction.id, leases[0].id, "Automaticky podle známého účtu plátce.");
+      await allocateTransactionToLease(transaction.id, leases[0].id, "Automaticky podle účtu nájemníka ve smlouvě nebo známého účtu plátce.");
       return;
     }
   }

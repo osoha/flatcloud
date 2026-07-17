@@ -5,6 +5,7 @@ import { appSettings } from "./settings";
 import { escapeHtml, sendMail } from "./email";
 import { money, date } from "./format";
 import { outstandingCents } from "./charges";
+import { paymentIban } from "./owner-bank-account";
 
 const pragueParts = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Prague", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", hourCycle: "h23" });
 
@@ -30,7 +31,7 @@ function spd(iban: string, amountCents: number, variableSymbol: string, message:
   return `SPD*1.0*ACC:${cleanIban}*AM:${amount}*CC:CZK*X-VS:${variableSymbol}*MSG:${message.replace(/[\r\n*]/g, " ").slice(0, 60)}`;
 }
 
-type LeaseRow = Prisma.LeaseGetPayload<{ include: { tenant: true; unit: { include: { property: { include: { owner: true; communicationOwner: true; manager: true; bankAccounts: true } } } }; charges: { include: { allocations: true } } } }>;
+type LeaseRow = Prisma.LeaseGetPayload<{ include: { tenant: true; ownerBankAccount: { include: { owner: true } }; unit: { include: { ownerships: { include: { owner: true; ownerBankAccount: true } }; property: { include: { owner: true; communicationOwner: true; manager: true; bankAccounts: true } } } }; charges: { include: { allocations: true } } } }>;
 
 async function record(input: { leaseId: string; chargeId?: string; type: NotificationType; status: NotificationStatus; recipient: string; subject: string; body: string; referenceKey: string; outstandingCents: number; messageId?: string; error?: string }) {
   return prisma.rentNotification.upsert({
@@ -45,13 +46,14 @@ async function tenantMessage(lease: LeaseRow, input: { type: NotificationType; r
   if (await already(lease.id, input.type, input.referenceKey)) return "duplicate";
   const recipient = recipientFor(lease.tenant);
   const property = lease.unit.property;
-  const owner = property.communicationOwner || property.owner;
-  const iban = property.bankAccounts.find((account) => account.iban)?.iban || "";
+  const unitOwnership = lease.unit.ownerships[0];
+  const owner = lease.ownerBankAccount?.owner || unitOwnership?.owner || property.communicationOwner || property.owner;
+  const iban = paymentIban(lease.ownerBankAccount || unitOwnership?.ownerBankAccount) || property.bankAccounts.find((account) => account.iban)?.iban || "";
   const values = { property: property.name, unit: lease.unit.label, tenant: lease.tenant.name, period: input.period, dueDate: date(input.dueDate), oldestDueDate: date(input.oldestDueDate), amount: money(input.amountCents), outstanding: money(input.amountCents), iban: iban || "neuveden", variableSymbol: lease.variableSymbol, owner: owner.name };
   const subject = fill(input.subjectTemplate, values);
   const body = fill(input.bodyTemplate, values);
   if (!recipient || !iban) {
-    await record({ leaseId: lease.id, chargeId: input.chargeId, type: input.type, status: "SKIPPED", recipient: recipient || "", subject, body, referenceKey: input.referenceKey, outstandingCents: input.amountCents, error: !recipient ? "Nájemník nemá komunikační e-mail." : "Nemovitost nemá bankovní účet s IBAN." });
+    await record({ leaseId: lease.id, chargeId: input.chargeId, type: input.type, status: "SKIPPED", recipient: recipient || "", subject, body, referenceKey: input.referenceKey, outstandingCents: input.amountCents, error: !recipient ? "Nájemník nemá komunikační e-mail." : "U smlouvy ani vlastnictví jednotky není dostupný platební účet s IBAN." });
     return "skipped";
   }
   try {
@@ -81,7 +83,7 @@ async function tenantMessage(lease: LeaseRow, input: { type: NotificationType; r
 async function internalAlert(lease: LeaseRow, type: NotificationType, referenceKey: string, outstanding: number, oldest: Date) {
   if (await already(lease.id, type, referenceKey)) return "duplicate";
   const property = lease.unit.property;
-  const owner = property.communicationOwner || property.owner;
+  const owner = lease.ownerBankAccount?.owner || lease.unit.ownerships[0]?.owner || property.communicationOwner || property.owner;
   const recipient = property.manager?.email || owner.email;
   const label = type === "MANAGER_ALERT" ? "Dluh vyžaduje kontrolu správce" : "Dluh vyžaduje ruční rozhodnutí o eskalaci";
   const subject = `${label} – ${property.name} / ${lease.unit.label}`;
@@ -104,7 +106,8 @@ export async function runRentNotifications(now = new Date(), force = false) {
     where: { status: { in: ["ACTIVE", "ENDED"] }, charges: { some: { active: true } } },
     include: {
       tenant: true,
-      unit: { include: { property: { include: { owner: true, communicationOwner: true, manager: true, bankAccounts: true } } } },
+      ownerBankAccount: { include: { owner: true } },
+      unit: { include: { ownerships: { include: { owner: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }, property: { include: { owner: true, communicationOwner: true, manager: true, bankAccounts: true } } } },
       charges: { where: { active: true }, include: { allocations: true }, orderBy: { dueDate: "asc" } },
     },
   });

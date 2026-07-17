@@ -16,9 +16,9 @@ async function main() {
   const flatcloud = await prisma.owner.create({ data: { name: "FlatCloud a.s.", ico: "09123456" } });
   const externalOwner = await prisma.owner.create({ data: { name: "Externí vlastník" } });
   const definitions = [
-    { name: "Moskevská", address: "Moskevská 18", city: "Ústí nad Labem", ownerId: flatcloud.id, bank: "Česká spořitelna", iban: "CZ•• •••• •••• 1234" },
-    { name: "Karla Aksamita", address: "Karla Aksamita 12", city: "Teplice", ownerId: flatcloud.id, bank: "Česká spořitelna", iban: "CZ•• •••• •••• 5678" },
-    { name: "Dům ve správě", address: "Korunní 42", city: "Praha", ownerId: externalOwner.id, bank: "Raiffeisenbank", iban: "CZ•• •••• •••• 9012" },
+    { name: "Moskevská", address: "Moskevská 18", city: "Ústí nad Labem", ownerId: flatcloud.id, bank: "Česká spořitelna", accountNumber: "123456789", bankCode: "0800" },
+    { name: "Karla Aksamita", address: "Karla Aksamita 12", city: "Teplice", ownerId: flatcloud.id, bank: "Česká spořitelna", accountNumber: "987654321", bankCode: "0800" },
+    { name: "Dům ve správě", address: "Korunní 42", city: "Praha", ownerId: externalOwner.id, bank: "Raiffeisenbank", accountNumber: "456789123", bankCode: "5500" },
   ];
 
   for (let propertyIndex = 0; propertyIndex < definitions.length; propertyIndex += 1) {
@@ -36,15 +36,18 @@ async function main() {
         propertyId: property.id,
         provider: "mock",
         bankName: definition.bank,
-        ibanMasked: definition.iban,
+        ownerId: definition.ownerId,
+        ibanMasked: `${definition.accountNumber}/${definition.bankCode}`,
         externalAccountId: `mock-${propertyIndex + 1}`,
         lastSyncedAt: new Date(),
       },
     });
 
+    const paymentAccount = await prisma.ownerBankAccount.create({ data: { ownerId: definition.ownerId, label: `${definition.name} – nájemné`, accountNumber: definition.accountNumber, bankCode: definition.bankCode } });
+
     for (let index = 1; index <= 5; index += 1) {
       const unit = await prisma.unit.create({
-        data: { propertyId: property.id, label: `${index}.0${index}`, floor: `${index}. NP`, status: "OCCUPIED", type: "APARTMENT" },
+        data: { propertyId: property.id, label: `${index}.0${index}`, floor: `${index}. NP`, status: "OCCUPIED", type: "APARTMENT", ownerships: { create: { ownerId: definition.ownerId, ownerBankAccountId: paymentAccount.id, shareBasisPoints: 10000 } } },
       });
       const tenantName = ["Jan Novák", "Petra Malá", "Tomáš Dvořák", "Eva Veselá", "Martin Černý"][index - 1];
       const tenant = await prisma.tenant.create({
@@ -58,6 +61,8 @@ async function main() {
         data: {
           unitId: unit.id,
           tenantId: tenant.id,
+          ownerBankAccountId: paymentAccount.id,
+          tenantBankAccount: tenant.payerAccounts[0],
           startDate: new Date("2025-01-01"),
           variableSymbol: `${propertyIndex + 1}00${index}`,
           rentCents: cents(11_000 + index * 500),

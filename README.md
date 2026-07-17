@@ -1,13 +1,13 @@
-# FlatCloud Rent V17
+# FlatCloud Rent V18
 
 Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, nájemníků, smluv, předpisů, plateb a bankovního párování.
 
 ## Hlavní funkce
 
 - portfolio, nemovitosti a plně klikací seznamy nemovitostí, jednotek, vlastníků a uživatelů,
-- vlastníci objektů a jednotlivých jednotek,
+- vlastníci objektů a jednotlivých jednotek včetně více platebních účtů a výběru účtu pro nájemné,
 - fyzické i právnické osoby s rozšířenými kontaktními a fakturačními údaji,
-- smlouvy na dobu určitou i neurčitou,
+- smlouvy na dobu určitou i neurčitou včetně účtu vlastníka a účtu nájemníka pro párování,
 - automatický návrh a kontrola unikátního variabilního symbolu,
 - další osoby evidované k nájemnímu vztahu,
 - měřidla vody, elektřiny a plynu včetně historie odečtů,
@@ -31,7 +31,7 @@ Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, náj
 3. Commitněte změny do větve `main`.
 4. Render automaticky provede build, migrace a bootstrap administrátora.
 
-Podrobnosti jsou v [`DEPLOY-V17-CZ.md`](DEPLOY-V17-CZ.md). Přehled změn je v [`CHANGELOG-V17-CZ.md`](CHANGELOG-V17-CZ.md).
+Podrobnosti jsou v [`DEPLOY-V18-CZ.md`](DEPLOY-V18-CZ.md). Přehled změn je v [`CHANGELOG-V18-CZ.md`](CHANGELOG-V18-CZ.md).
 
 ## Architektura
 
