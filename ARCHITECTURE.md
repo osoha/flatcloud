@@ -606,3 +606,9 @@ Historie hlavních migrací:
 - Globální hledání v horní liště je zatím vizuální prvek bez vyhledávací implementace.
 - Přímý konektor ČSAS vyžaduje schválené produkční endpointy a přístupové údaje banky.
 - README stále historicky používá označení V8; rozhodující je aktuální schéma, migrace a tento dokument.
+
+## Rozhodnutí: zotavení chybné V12 migrace (17. 7. 2026)
+
+Migrace `20260716190000_invitation_unit_ids` původně odkazovala na tabulku `Invitation`, která v projektu neexistuje. Pozvánky reprezentuje Prisma model `UserInvitation` a stejnojmenná databázová tabulka. Výsledný databázový model se hotfixem nemění, protože `unitIds` už zavádí předchozí migrace `20260716180000_unit_level_access`.
+
+Produkční příkaz `npm run db:migrate` je veden přes `scripts/migrate-deploy.mjs`. Skript se nejprve pokusí označit výhradně neúspěšný pokus migrace `20260716190000_invitation_unit_ids` jako vrácený a potom vždy spustí standardní `prisma migrate deploy`. Na nové databázi nebo po úspěšném dokončení migrace je pokus o zotavení bezpečně přeskočen. Žádné jiné neúspěšné migrace skript automaticky nepotlačuje.

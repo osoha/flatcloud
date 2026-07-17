@@ -19,3 +19,10 @@
 - bankovní transakce jsou u jednotkového uživatele omezeny pouze na platby přiřazené k jeho jednotkám,
 - bankovní nastavení, vlastníci objektu, uživatelé a nastavení domu jsou pro jednotkové uživatele skryté,
 - detail jednotky, nájemníka, smlouvy a předpisu kontroluje přístup na úrovni jednotky.
+
+## Hotfix 17. 7. 2026 – nasazení Prisma migrací
+
+- opravena migrace `20260716190000_invitation_unit_ids`, která chybně odkazovala na neexistující tabulku `Invitation`; správná tabulka je `UserInvitation`,
+- migrace je idempotentní a nemění výsledný databázový model,
+- příkaz `npm run db:migrate` cíleně označí pouze předchozí neúspěšný pokus této migrace jako vrácený a následně spustí standardní `prisma migrate deploy`,
+- nové databáze i databáze, na kterých už byla oprava aplikována, pokračují bez ručního zásahu.
