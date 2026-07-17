@@ -32,6 +32,12 @@ export default async function EditLease({ params, searchParams }: { params: Prom
       <Field label="Služby Kč / měsíc" name="services" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.servicesCents).replace(",", ".")}/>
       <Field label="Kauce Kč" name="deposit" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.depositCents).replace(",", ".")}/>
       <Textarea label="Poznámka" name="note" defaultValue={lease.note}/>
+      <div className="field field-full"><h3>Upomínky a inkaso</h3><p className="muted-copy">Dočasné pozastavení má přednost před globálním automatickým plánem.</p></div>
+      <Field label="Pozastavit automatické upomínky do" name="remindersPausedUntil" type="date" defaultValue={dateInput(lease.remindersPausedUntil)}/>
+      <Field label="Slíbené datum úhrady" name="promisedPaymentDate" type="date" defaultValue={dateInput(lease.promisedPaymentDate)}/>
+      <Field label="Slíbená částka Kč" name="promisedAmount" type="number" step="0.01" min={0} defaultValue={lease.promisedAmountCents == null ? "" : moneyInput(lease.promisedAmountCents).replace(",", ".")}/>
+      <Textarea label="Důvod pozastavení" name="reminderPauseReason" defaultValue={lease.reminderPauseReason}/>
+      <Textarea label="Interní poznámka k inkasu" name="collectionNote" defaultValue={lease.collectionNote}/>
     </FormCard>
   </FormPage></Shell>;
 }

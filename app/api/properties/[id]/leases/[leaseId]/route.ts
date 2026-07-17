@@ -70,6 +70,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           servicesCents: moneyToCents(form, "services"),
           depositCents: moneyToCents(form, "deposit"),
           note: text(form, "note"),
+          remindersPausedUntil: dateValue(form, "remindersPausedUntil"),
+          reminderPauseReason: text(form, "reminderPauseReason"),
+          promisedPaymentDate: dateValue(form, "promisedPaymentDate"),
+          promisedAmountCents: text(form, "promisedAmount") ? moneyToCents(form, "promisedAmount") : null,
+          collectionNote: text(form, "collectionNote"),
           status,
         },
       });
