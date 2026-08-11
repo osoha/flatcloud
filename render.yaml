@@ -88,7 +88,15 @@ services:
           name: flatcloud-rent-db
           property: connectionString
       - key: BANK_TOKEN_ENCRYPTION_KEY
-        sync: false
+        fromService:
+          type: web
+          name: flatcloud-rent
+          envVarKey: BANK_TOKEN_ENCRYPTION_KEY
+      - key: SESSION_SECRET
+        fromService:
+          type: web
+          name: flatcloud-rent
+          envVarKey: SESSION_SECRET
       - key: BANKING_PROVIDER
         value: csas-premium
       - key: CSAS_CLIENT_ID
@@ -137,9 +145,15 @@ services:
           name: flatcloud-rent-db
           property: connectionString
       - key: BANK_TOKEN_ENCRYPTION_KEY
-        sync: false
+        fromService:
+          type: web
+          name: flatcloud-rent
+          envVarKey: BANK_TOKEN_ENCRYPTION_KEY
       - key: SESSION_SECRET
-        sync: false
+        fromService:
+          type: web
+          name: flatcloud-rent
+          envVarKey: SESSION_SECRET
       - key: SMTP_HOST
         value: smtp.fortion.net
       - key: SMTP_PORT
@@ -147,13 +161,22 @@ services:
       - key: SMTP_SECURE
         value: "false"
       - key: SMTP_USER
-        sync: false
+        fromService:
+          type: web
+          name: flatcloud-rent
+          envVarKey: SMTP_USER
       - key: SMTP_PASSWORD
-        sync: false
+        fromService:
+          type: web
+          name: flatcloud-rent
+          envVarKey: SMTP_PASSWORD
       - key: SMTP_FROM_NAME
         value: FlatCloud
       - key: SMTP_FROM_EMAIL
-        sync: false
+        fromService:
+          type: web
+          name: flatcloud-rent
+          envVarKey: SMTP_FROM_EMAIL
 
 databases:
   - name: flatcloud-rent-db

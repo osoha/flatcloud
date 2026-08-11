@@ -53,3 +53,7 @@ npm run build
 ```
 
 Skript provede `prisma generate` a následně `next build`.
+
+## V19 – upomínky
+
+V19 sjednocuje kryptografické klíče webové služby a Render cron jobů, umožňuje retry chybových upomínek, dohání zmeškané milníky a přidává administrátorské vynucené rozeslání mimo kalendář. Podrobnosti jsou v `CHANGELOG-V19-CZ.md` a `DEPLOY-V19-CZ.md`.

@@ -10,7 +10,16 @@ export async function smtpConfiguration() {
   const port = settings.smtpPort || Number(process.env.SMTP_PORT || 587);
   const secure = settings.smtpHost ? settings.smtpSecure : String(process.env.SMTP_SECURE || "false").toLowerCase() === "true" || port === 465;
   const user = settings.smtpUser || process.env.SMTP_USER || "";
-  const password = settings.smtpPasswordEncrypted ? openSecret(settings.smtpPasswordEncrypted) || "" : process.env.SMTP_PASSWORD || "";
+  let password = process.env.SMTP_PASSWORD || "";
+  if (settings.smtpPasswordEncrypted) {
+    try {
+      password = openSecret(settings.smtpPasswordEncrypted) || password;
+    } catch (error) {
+      // Pokud je na cron jobu dostupné SMTP_PASSWORD z Renderu, může bezpečně posloužit jako fallback.
+      if (!password) throw error;
+      console.warn(`[smtp] Uložené SMTP heslo se nepodařilo dešifrovat; používám SMTP_PASSWORD z prostředí. ${error instanceof Error ? error.message : ""}`);
+    }
+  }
   const fromName = settings.smtpFromName || process.env.SMTP_FROM_NAME || "FlatCloud";
   const fromEmail = settings.smtpFromEmail || process.env.SMTP_FROM_EMAIL || "";
   const replyTo = settings.smtpReplyTo || undefined;
