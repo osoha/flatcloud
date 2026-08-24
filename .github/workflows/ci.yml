@@ -13,6 +13,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: flatcloud_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/flatcloud_ci?schema=public
+      NEXT_TELEMETRY_DISABLED: '1'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,10 +51,11 @@ jobs:
       - name: Validate Prisma schema
         run: npx prisma validate
 
+      - name: Apply database migrations
+        run: npx prisma migrate deploy
+
       - name: Verify V20 logic
         run: npm run verify:v20
 
       - name: Production build
-        env:
-          NEXT_TELEMETRY_DISABLED: '1'
         run: npm run build
