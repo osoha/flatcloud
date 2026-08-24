@@ -42,6 +42,14 @@ enum LeaseStatus {
   FUTURE
 }
 
+enum InboxPaymentStatus {
+  RECEIVED
+  UNMATCHED
+  IMPORTED
+  IGNORED
+  ERROR
+}
+
 enum RentTiming {
   ADVANCE
   ARREARS
@@ -218,6 +226,7 @@ model Property {
   matchingRules        BankMatchingRule[]
   memberships          UserProperty[]
   invitations          UserInvitation[]
+  inboxPayments        InboxPayment[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
@@ -317,6 +326,16 @@ model AppSetting {
   lastReminderCronStartedAt  DateTime?
   lastReminderCronFinishedAt DateTime?
   lastReminderCronSummary    String?
+  inboundMailEnabled          Boolean   @default(false)
+  inboundMailHost             String?
+  inboundMailPort             Int       @default(993)
+  inboundMailSecure           Boolean   @default(true)
+  inboundMailUser             String?
+  inboundMailPasswordEncrypted String?
+  inboundMailMailbox          String    @default("INBOX")
+  inboundMailLastUid          Int       @default(0)
+  inboundMailLastCheckedAt    DateTime?
+  inboundMailLastSummary      String?
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 }
@@ -622,13 +641,51 @@ model BankTransaction {
   suggestedLeaseId String?
   suggestedLease   Lease?              @relation("SuggestedLease", fields: [suggestedLeaseId], references: [id], onDelete: SetNull)
   matchNote        String?
+  recipientAccount String?
+  source            String              @default("api")
   allocations      PaymentAllocation[]
+  inboxPayment      InboxPayment?
   createdAt        DateTime            @default(now())
 
   @@unique([bankAccountId, externalId])
   @@index([bankAccountId, bookedAt])
   @@index([matchedRuleId])
   @@index([suggestedLeaseId])
+}
+
+
+model InboxPayment {
+  id                  String             @id @default(cuid())
+  source              String             @default("email")
+  bank                String             @default("RB")
+  messageId           String?            @unique
+  imapUid             Int?
+  subject             String?
+  sender              String?
+  receivedAt          DateTime           @default(now())
+  bookedAt            DateTime?
+  amountCents         Int?
+  currency            String             @default("CZK")
+  recipientAccount    String?
+  counterpartyName    String?
+  counterpartyAccount String?
+  variableSymbol      String?
+  specificSymbol      String?
+  constantSymbol      String?
+  message             String?
+  rawExcerpt          String?
+  status              InboxPaymentStatus @default(RECEIVED)
+  parseNote           String?
+  propertyId          String?
+  property            Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  transactionId       String?             @unique
+  transaction         BankTransaction?    @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@index([status, receivedAt])
+  @@index([propertyId, status])
+  @@index([imapUid])
 }
 
 model PaymentAllocation {

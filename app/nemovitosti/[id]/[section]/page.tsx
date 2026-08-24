@@ -16,6 +16,7 @@ import { availableBankingProviders, bankingProvider } from "@/lib/banking";
 import { leaseStatuses, matchingRuleActions, paymentStatuses, propertyPermissions, unitStatuses, unitTypes } from "@/lib/labels";
 import { buildingTypeOptions, constructionTypeOptions, energyRatingOptions, optionLabel, readPropertyTechnicalData } from "@/lib/property-technical";
 import { UserAvatar } from "@/components/UserAvatar";
+import { leaseAlertsForProperties } from "@/lib/lease-alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   const propertyOwners = p.ownerships.length ? p.ownerships : [{ id: "legacy", ownerId: p.ownerId, owner: p.owner, shareBasisPoints: 10000, note: null }];
   const propertyOwnerNames = propertyOwners.map((row) => row.owner.name).join(", ");
   const technical = readPropertyTechnicalData(p.technicalData);
+  const propertyContractAlerts = leaseAlertsForProperties([{ id: p.id, name: p.name, units: p.units }]);
 
   let owners = [] as Awaited<ReturnType<typeof prisma.owner.findMany>>;
   let rules: MatchingRuleRow[] = [];
@@ -94,7 +96,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
     <PropertySubnav propertyId={id} active={section} unitLimited={!propertyWide}/><Flash ok={query.ok} error={query.error}/>
 
     {section === "prehled" && <>
-      <div className="stat-grid"><Stat href={`/reporty/predpisy?propertyId=${id}`} label="Předpis" value={money(expected)} note={period}/><Stat href={`/reporty/inkaso?propertyId=${id}`} label="Uhrazeno" value={money(paid)} note={`${expected ? Math.round(paid / expected * 100) : 100} % inkaso`} good/><Stat href={`/reporty/saldo?propertyId=${id}`} label="Dluh po splatnosti" value={money(overdueDebt)} note={`${debts.length} předpisů po splatnosti`} bad={overdueDebt > 0}/><Stat href={`/nemovitosti/${id}/jednotky`} label="Jednotky" value={String(p.units.length)} note={`${p.units.filter((unit) => unit.status === "OCCUPIED").length} obsazených`}/><Stat href={`/nemovitosti/${id}/platby#ke-sparovani`} label="Nespárované" value={String(txs.filter((transaction) => transaction.status === "UNMATCHED").length)} note="bankovní transakce"/></div>
+      <div className="stat-grid"><Stat href={`/reporty/predpisy?propertyId=${id}`} label="Předpis" value={money(expected)} note={period}/><Stat href={`/reporty/inkaso?propertyId=${id}`} label="Uhrazeno" value={money(paid)} note={`${expected ? Math.round(paid / expected * 100) : 100} % inkaso`} good/><Stat href={`/reporty/saldo?propertyId=${id}`} label="Dluh po splatnosti" value={money(overdueDebt)} note={`${debts.length} předpisů po splatnosti`} bad={overdueDebt > 0}/><Stat href={`/nemovitosti/${id}/jednotky`} label="Jednotky" value={String(p.units.length)} note={`${p.units.filter((unit) => unit.status === "OCCUPIED").length} obsazených`}/><Stat href={`/nemovitosti/${id}/platby#ke-sparovani`} label="Nespárované" value={String(txs.filter((transaction) => transaction.status === "UNMATCHED" || transaction.status === "SUGGESTED").length)} note="platby k potvrzení"/><Stat href={`/smlouvy/upozorneni?propertyId=${id}`} label="Smlouvy do 3 měsíců" value={String(propertyContractAlerts.length)} note={`${propertyContractAlerts.filter((row) => row.kind === "EXPIRY").length} expirace · ${propertyContractAlerts.filter((row) => row.kind === "ANNIVERSARY").length} výročí`}/></div>
       <div className="detail-grid"><div className="card col-8"><div className="card-head"><h2>Poslední platby</h2><Link href={`/nemovitosti/${id}/platby`}>Zobrazit vše</Link></div><TablePayments propertyId={id} txs={txs.slice(0, 6)}/></div><div className="card col-4"><div className="card-head"><h2>Stav evidence</h2></div><div className="summary-list"><div><span>Aktivní smlouvy</span><strong>{leases.filter((lease) => lease.status === "ACTIVE").length}</strong></div><div><span>Vlastníci objektu</span><strong>{propertyOwners.length}</strong></div><div><span>Předpisy za období</span><strong>{currentCharges.length}</strong></div><div><span>Otevřené dluhy</span><strong>{debts.length}</strong></div></div>{p.manager && <div className="manager-profile" style={{marginTop:14}}><UserAvatar user={p.manager} size="lg"/><div><Link className="entity-link" href={`/uzivatele/${p.manager.id}`}>{p.manager.name}</Link><span>{p.manager.title || "Správce nemovitosti"}</span>{p.manager.phone&&<a href={`tel:${p.manager.phone}`}><Phone size={13}/>{p.manager.phone}</a>}<a href={`mailto:${p.manager.email}`}><Mail size={13}/>{p.manager.email}</a><Link className="profile-action" href={`/uzivatele/${p.manager.id}`}>Zobrazit profil →</Link></div></div>}</div></div>
     </>}
 

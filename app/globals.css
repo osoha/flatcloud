@@ -185,3 +185,6 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .person-business-card>span{display:flex;align-items:center;gap:7px}.person-business-card>span svg{color:var(--blue);flex:0 0 auto}
 .person-card-arrow{display:block;margin-top:11px;color:var(--blue);font-size:10px}
 @media(max-width:720px){.user-card{grid-template-columns:1fr}.logout-form{padding-left:46px}.mini-kpi-arrow{right:12px}}
+.nav a{position:relative}.nav-count{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#e54b4b;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:800}.email-raw{white-space:pre-wrap;word-break:break-word;background:#f7f9fc;border:1px solid var(--line);border-radius:12px;padding:14px;font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;max-height:420px;overflow:auto}
+
+.instruction-list{margin:14px 0 0;padding-left:24px;display:grid;gap:10px;color:#263345;line-height:1.55}.instruction-list li::marker{font-weight:800;color:#2452a4}.instruction-list a{font-weight:750;color:#2452a4;text-decoration:none}.instruction-list a:hover{text-decoration:underline}

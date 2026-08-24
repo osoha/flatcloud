@@ -35,8 +35,8 @@ export async function syncBankAccount(accountId: string, options?: SyncOptions):
       });
       const saved = await prisma.bankTransaction.upsert({
         where: { bankAccountId_externalId: { bankAccountId: account.id, externalId: item.externalId } },
-        update: { ...item },
-        create: { ...item, bankAccountId: account.id },
+        update: { ...item, recipientAccount: account.iban || undefined, source: "api" },
+        create: { ...item, bankAccountId: account.id, recipientAccount: account.iban || undefined, source: "api" },
       });
       existing ? updated += 1 : created += 1;
       ids.push(saved.id);
