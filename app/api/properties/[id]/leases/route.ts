@@ -3,9 +3,16 @@ import { prisma } from "@/lib/db";
 import { boolValue, dateValue, intValue, moneyToCents, text } from "@/lib/forms";
 import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
-import { periodDueDate, periodsBetween } from "@/lib/period";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
+import { firstFutureAnniversary, periodKeyForDate, syncLeaseCharges } from "@/lib/charge-automation";
+
+function percentToBps(value: string | null) {
+  if (!value) return null;
+  const parsed = Number(value.replace(",", "."));
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100) throw new Error("Indexace musí být mezi 0,01 a 100 %.");
+  return Math.round(parsed * 100);
+}
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,8 +35,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const termType = text(form, "termType") || "INDEFINITE";
     const endDate = termType === "FIXED" ? dateValue(form, "endDate", true)! : null;
     if (endDate && endDate < startDate) throw new Error("Konec smlouvy nesmí být před jejím začátkem.");
-    const generateCharges = boolValue(form, "generateCharges");
-    if (generateCharges && !endDate) throw new Error("Předpisy na celé období lze vytvořit jen u smlouvy na dobu určitou.");
+
+    const autoChargesEnabled = boolValue(form, "autoChargesEnabled");
+    const indexationEnabled = boolValue(form, "indexationEnabled");
+    const indexationPercentBps = indexationEnabled ? percentToBps(text(form, "indexationPercent")) : null;
+    const nextIndexationAt = indexationEnabled ? firstFutureAnniversary(startDate) : null;
 
     const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
     const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
@@ -68,6 +78,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           depositCents: moneyToCents(form, "deposit"),
           note: text(form, "note"),
           status,
+          autoChargesEnabled,
+          indexationEnabled,
+          indexationPercentBps,
+          nextIndexationAt,
           paymentItems: { create: [
             ...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []),
             ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : []),
@@ -75,19 +89,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       });
       if (status === "ACTIVE") await tx.unit.update({ where: { id: unitId }, data: { status: UnitStatus.OCCUPIED } });
-      if (generateCharges && endDate) {
-        const items = [
-          ...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents }] : []),
-          ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents }] : []),
-        ];
-        for (const period of periodsBetween(startDate, endDate)) {
-          await tx.charge.create({ data: { leaseId: created.id, period, dueDate: periodDueDate(period, dueDay, rentTiming), amountCents: items.reduce((sum, item) => sum + item.amountCents, 0), items: { create: items } } });
-        }
+      if (autoChargesEnabled) {
+        const fromPeriod = endDate ? periodKeyForDate(startDate) : periodKeyForDate(startDate > new Date() ? startDate : new Date());
+        await syncLeaseCharges(tx, created.id, { force: true, fromPeriod });
       }
       return created;
     });
-    await audit(access.user.id, "LEASE_CREATED", "Lease", lease.id, { propertyId: id, generateCharges, rentTiming, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) }, id);
-    return goWithMessage(request, `/nemovitosti/${id}/predpisy/${lease.id}`, "ok", generateCharges ? "Smlouva i předpisy byly vytvořeny." : "Smlouva byla vytvořena.");
+    await audit(access.user.id, "LEASE_CREATED", "Lease", lease.id, { propertyId: id, autoChargesEnabled, indexationEnabled, rentTiming, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) }, id);
+    return goWithMessage(request, `/nemovitosti/${id}/predpisy/${lease.id}`, "ok", autoChargesEnabled ? "Smlouva i automatické předpisy byly vytvořeny." : "Smlouva byla vytvořena bez automatických předpisů.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/nova`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo vytvořit.");
   }

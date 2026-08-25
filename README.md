@@ -1,8 +1,8 @@
-# FlatCloud Rent V21
+# FlatCloud Rent V21.1
 
 Interní property-management aplikace FlatCloud pro správu nájemních nemovitostí, smluv, předpisů, plateb a každodenního provozu objektů.
 
-## V21 – hlavní koncept
+## V21.1 – provozní UX a automatizace
 
 FlatCloud je nově orientovaný na otázku **„co právě vyžaduje pozornost“**. Portfolio i detail nemovitosti spojují ekonomiku, smluvní termíny a provozní agendu do jedné pracovní fronty.
 
@@ -18,7 +18,10 @@ Hlavní funkce:
 - auditní stopa a provozní deník,
 - expirace a výročí smluv,
 - role a oprávnění na úrovni portfolia, nemovitosti a jednotky,
-- automatické platební zprávy a upomínky přes SMTP.
+- automatické platební zprávy a upomínky přes SMTP,
+- automatická tvorba a průběžná synchronizace předpisů podle smlouvy,
+- volitelná pevná procentní indexace nájemného při výročí,
+- jednotný hodinový scheduler pro bankovní e-mail, předpisy a nájemní notifikace.
 
 ## Bankovní platby
 
@@ -28,9 +31,9 @@ Podrobnosti: [`BANKOVNI-EMAIL-V21-CZ.md`](BANKOVNI-EMAIL-V21-CZ.md).
 
 ## Nasazení a ověření
 
-- [`DEPLOY-V21-CZ.md`](DEPLOY-V21-CZ.md)
-- [`VERIFY-V21-CZ.md`](VERIFY-V21-CZ.md)
-- [`CHANGELOG-V21-CZ.md`](CHANGELOG-V21-CZ.md)
+- [`DEPLOY-V21.1-CZ.md`](DEPLOY-V21.1-CZ.md)
+- [`VERIFY-V21.1-CZ.md`](VERIFY-V21.1-CZ.md)
+- [`CHANGELOG-V21.1-CZ.md`](CHANGELOG-V21.1-CZ.md)
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## Lokální příkazy
@@ -41,5 +44,6 @@ npx prisma migrate deploy
 npm run db:bootstrap
 npm run verify:v20
 npm run verify:v21
+npm run verify:v21.1
 npm run build
 ```

@@ -2,12 +2,11 @@ name: FlatCloud CI
 
 on:
   pull_request:
-    branches: [main, v20-bank-email-matching]
+    branches: [main]
   push:
     branches:
       - main
-      - v20-bank-email-matching
-      - v21-ui-operations-foundation
+      - v21-1-ux-polish
 
 jobs:
   build:
@@ -41,4 +40,5 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npm run verify:v20
       - run: npm run verify:v21
+      - run: npm run verify:v21.1
       - run: npm run build

@@ -1,4 +1,4 @@
-# FlatCloud Rent V21 – architektura
+# FlatCloud Rent V21.1 – architektura
 
 ## 1. Cíl aplikace
 
@@ -72,7 +72,7 @@ Neznámá platba se nikdy automaticky nezahodí.
 
 ## 4. Úkoly a případová vlákna
 
-`Task` obsahuje scope, kategorii, prioritu, stav, odpovědnou osobu a termín. `TaskEntry` je chronologické vlákno (`COMMENT`, `CALL`, `EMAIL`, `PROMISE`, `STATUS`, `SYSTEM`).
+`Task` obsahuje scope, kategorii, prioritu, stav, odpovědnou osobu a termín. `TaskEntry` je chronologické vlákno (`COMMENT`, `CALL`, `EMAIL`, `PROMISE`, `STATUS`, `SYSTEM`). Příslib úhrady ukládá do konkrétního záznamu také datum a částku, takže historie příslibů zůstává čitelná i po jejich změně.
 
 ### Upomínkové případy
 
@@ -110,12 +110,19 @@ Sekce `Provoz` obsahuje úkoly, revize, kontakty a aktivitu.
 
 ## 9. Automatizace
 
-Render používá dva hodinové crony:
+Render používá jediný hodinový cron `flatcloud-rent-scheduler`. V jednom běhu postupně:
 
-- `flatcloud-rent-payment-email` – pouze IMAP příjem bankovních notifikací,
-- `flatcloud-rent-notifications` – platební informace, upomínky a interní eskalace.
+1. načte bankovní e-mailové notifikace (pokud je IMAP zapnutý a nastavený),
+2. doplní / synchronizuje automatické předpisy a provede splatnou pevnou indexaci,
+3. vyhodnotí platební zprávy, upomínky a interní eskalace.
 
-Přímý bankovní API cron ve V21 neexistuje.
+Nenastavený sběrný e-mail je bezpečný stav `skipped`; scheduler kvůli němu nespadne. Přímý bankovní API cron neexistuje.
+
+### Automatické předpisy
+
+`Lease.autoChargesEnabled` zapíná plán předpisů. Doba určitá se generuje do konce smlouvy, doba neurčitá udržuje rolling horizont 12 měsíců. `Charge` má unikátní kombinaci `leaseId + period`, takže opakovaný scheduler nevytváří duplicity. Synchronizace nikdy nepřepisuje předpis, který už má alokovanou platbu. Historické sazby pravidelných položek zůstávají přes `validFrom` / `validTo`.
+
+Pevná indexace používá `indexationEnabled`, `indexationPercentBps` a `nextIndexationAt`. Při výročí vznikne nová verze položky Nájemné a budoucí neuhrazené předpisy se synchronizují.
 
 ## 10. Bezpečnost tajemství
 
@@ -132,6 +139,7 @@ npx prisma validate
 npx prisma migrate deploy
 npm run verify:v20
 npm run verify:v21
+npm run verify:v21.1
 npm run build
 ```
 

@@ -1,11 +1,12 @@
 import { LeaseStatus, RentTiming, UnitStatus } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { dateValue, intValue, moneyToCents, text } from "@/lib/forms";
+import { boolValue, dateValue, intValue, moneyToCents, text } from "@/lib/forms";
 import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
+import { firstFutureAnniversary, periodKeyForDate, replaceRecurringAmount, syncLeaseCharges } from "@/lib/charge-automation";
 
 async function syncUnitOccupancy(tx: Prisma.TransactionClient, unitId: string) {
   const [unit, activeLease] = await Promise.all([
@@ -18,6 +19,17 @@ async function syncUnitOccupancy(tx: Prisma.TransactionClient, unitId: string) {
   } else if (!activeLease && unit.status === UnitStatus.OCCUPIED) {
     await tx.unit.update({ where: { id: unitId }, data: { status: UnitStatus.VACANT } });
   }
+}
+
+function percentToBps(value: string | null) {
+  if (!value) return null;
+  const parsed = Number(value.replace(",", "."));
+  if (!Number.isFinite(parsed) || parsed <= 0 || parsed > 100) throw new Error("Indexace musí být mezi 0,01 a 100 %.");
+  return Math.round(parsed * 100);
+}
+
+function currentMonthStart(now = new Date()) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 12));
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; leaseId: string }> }) {
@@ -51,6 +63,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (endDate && endDate < startDate) throw new Error("Konec smlouvy nesmí být před jejím začátkem.");
     const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
     const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
+    const rentCents = moneyToCents(form, "rent");
+    const servicesCents = moneyToCents(form, "services");
+    const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
+    const autoChargesEnabled = boolValue(form, "autoChargesEnabled");
+    const indexationEnabled = boolValue(form, "indexationEnabled");
+    const indexationPercentBps = indexationEnabled ? percentToBps(text(form, "indexationPercent")) : null;
+    const indexationChanged = indexationEnabled !== existing.indexationEnabled || indexationPercentBps !== existing.indexationPercentBps || startDate.getTime() !== existing.startDate.getTime();
+    const nextIndexationAt = indexationEnabled ? (indexationChanged || !existing.nextIndexationAt ? firstFutureAnniversary(startDate) : existing.nextIndexationAt) : null;
+    const effectiveFrom = startDate > currentMonthStart() ? startDate : currentMonthStart();
 
     const lease = await prisma.$transaction(async (tx) => {
       await assertUniqueVariableSymbol(tx, ownerBankAccountId, variableSymbol, leaseId);
@@ -67,6 +88,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await tx.tenant.update({ where: { id: tenant.id }, data: { payerAccounts: [...tenant.payerAccounts, tenantBankAccount] } });
       }
 
+      if (rentCents !== existing.rentCents) await replaceRecurringAmount(tx, leaseId, "RENT", rentCents, effectiveFrom);
+      if (servicesCents !== existing.servicesCents) await replaceRecurringAmount(tx, leaseId, "SERVICES", servicesCents, effectiveFrom);
+
       const updated = await tx.lease.update({
         where: { id: leaseId },
         data: {
@@ -77,11 +101,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           contractNumber: text(form, "contractNumber"),
           startDate,
           endDate,
-          dueDay: Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31),
+          dueDay,
           variableSymbol,
           rentTiming,
-          rentCents: moneyToCents(form, "rent"),
-          servicesCents: moneyToCents(form, "services"),
+          rentCents,
+          servicesCents,
           depositCents: moneyToCents(form, "deposit"),
           note: text(form, "note"),
           remindersPausedUntil: dateValue(form, "remindersPausedUntil"),
@@ -90,16 +114,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           promisedAmountCents: text(form, "promisedAmount") ? moneyToCents(form, "promisedAmount") : null,
           collectionNote: text(form, "collectionNote"),
           status,
+          autoChargesEnabled,
+          indexationEnabled,
+          indexationPercentBps,
+          nextIndexationAt,
         },
       });
 
       await syncUnitOccupancy(tx, unitId);
       if (existing.unitId !== unitId) await syncUnitOccupancy(tx, existing.unitId);
+      if (autoChargesEnabled) await syncLeaseCharges(tx, leaseId, { fromPeriod: periodKeyForDate(effectiveFrom), force: true });
       return updated;
     });
 
-    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, status, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) }, id);
-    return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", "Smlouva byla upravena.");
+    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, status, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), autoChargesEnabled, indexationEnabled, amountsChanged: rentCents !== existing.rentCents || servicesCents !== existing.servicesCents }, id);
+    return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", autoChargesEnabled ? "Smlouva byla upravena a budoucí předpisy synchronizovány." : "Smlouva byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo upravit.");
   }
