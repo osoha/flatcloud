@@ -1,8 +1,8 @@
-# FlatCloud Rent V21.1
+# FlatCloud Rent V21.2
 
 Interní property-management aplikace FlatCloud pro správu nájemních nemovitostí, smluv, předpisů, plateb a každodenního provozu objektů.
 
-## V21.1 – provozní UX a automatizace
+## V21.2 – multi-bank platby a provozní automatizace
 
 FlatCloud je nově orientovaný na otázku **„co právě vyžaduje pozornost“**. Portfolio i detail nemovitosti spojují ekonomiku, smluvní termíny a provozní agendu do jedné pracovní fronty.
 
@@ -25,15 +25,15 @@ Hlavní funkce:
 
 ## Bankovní platby
 
-FlatCloud nepoužívá přímé přihlášení do banky. Banka zasílá e-mailové notifikace příchozích plateb do centrální IMAP schránky. Jeden bankovní účet může používat více nájemníků i více nemovitostí; platba se směruje primárně kombinací **cílový účet + VS**.
+FlatCloud nepoužívá přímé přihlášení do banky. Banky zasílají e-mailové notifikace příchozích plateb do centrální IMAP schránky. Parser je bank-agnostický: zpracuje běžné české účty podle bankovního kódu a pro neověřené formáty použije bezpečnou ruční frontu. Jeden bankovní účet může používat více nájemníků i více nemovitostí; platba se směruje primárně kombinací **cílový účet + VS**.
 
-Podrobnosti: [`BANKOVNI-EMAIL-V21-CZ.md`](BANKOVNI-EMAIL-V21-CZ.md).
+Podrobnosti: [`BANKOVNI-EMAIL-V21.2-CZ.md`](BANKOVNI-EMAIL-V21.2-CZ.md).
 
 ## Nasazení a ověření
 
-- [`DEPLOY-V21.1-CZ.md`](DEPLOY-V21.1-CZ.md)
-- [`VERIFY-V21.1-CZ.md`](VERIFY-V21.1-CZ.md)
-- [`CHANGELOG-V21.1-CZ.md`](CHANGELOG-V21.1-CZ.md)
+- [`DEPLOY-V21.2-CZ.md`](DEPLOY-V21.2-CZ.md)
+- [`VERIFY-V21.2-CZ.md`](VERIFY-V21.2-CZ.md)
+- [`CHANGELOG-V21.2-CZ.md`](CHANGELOG-V21.2-CZ.md)
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## Lokální příkazy
@@ -45,5 +45,6 @@ npm run db:bootstrap
 npm run verify:v20
 npm run verify:v21
 npm run verify:v21.1
+npm run verify:v21.2
 npm run build
 ```

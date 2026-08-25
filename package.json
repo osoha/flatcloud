@@ -1,6 +1,6 @@
 {
   "name": "flatcloud-rent-production",
-  "version": "1.21.1",
+  "version": "1.21.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,8 @@
     "verify:v20": "tsx scripts/verify-v20.ts",
     "verify:v21": "tsx scripts/verify-v21.ts",
     "scheduler:cron": "tsx scripts/scheduler-cron.ts",
-    "verify:v21.1": "tsx scripts/verify-v21-1.ts"
+    "verify:v21.1": "tsx scripts/verify-v21-1.ts",
+    "verify:v21.2": "tsx scripts/verify-v21-2.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

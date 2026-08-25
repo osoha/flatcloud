@@ -137,6 +137,8 @@ export function parseRawEmail(source: Buffer) {
     messageId: headers.get("message-id")?.replace(/^<|>$/g, ""),
     subject: headers.get("subject"),
     from: sender,
+    returnPath: headers.get("return-path"),
+    authenticationResults: headers.get("authentication-results"),
     date: parsedDate && !Number.isNaN(parsedDate.getTime()) ? parsedDate : undefined,
     text: text.replace(/\r/g, "").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(),
   };
