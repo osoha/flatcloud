@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     if (text(form, "mode") === "delete") {
       await prisma.bankMatchingRule.delete({ where: { id: ruleId } });
-      await audit(access.user.id, "MATCH_RULE_DELETED", "BankMatchingRule", ruleId, { propertyId: id });
+      await audit(access.user.id, "MATCH_RULE_DELETED", "BankMatchingRule", ruleId, { propertyId: id }, id);
       return goWithMessage(request, `/nemovitosti/${id}/banka`, "ok", "Pravidlo bylo odstraněno.");
     }
     const action = (text(form, "action") || existing.action) as MatchRuleAction;
@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
     await processPropertyTransactions(id);
-    await audit(access.user.id, "MATCH_RULE_UPDATED", "BankMatchingRule", ruleId, { propertyId: id, action });
+    await audit(access.user.id, "MATCH_RULE_UPDATED", "BankMatchingRule", ruleId, { propertyId: id, action }, id);
     return goWithMessage(request, `/nemovitosti/${id}/banka`, "ok", "Pravidlo bylo upraveno.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/banka`, "error", error instanceof Error ? error.message : "Pravidlo se nepodařilo upravit.");

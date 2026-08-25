@@ -1,75 +1,69 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CheckCircle2, Mail, RefreshCw, ShieldCheck } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { appSettings, syncIntervalHours } from "@/lib/settings";
+import { appSettings } from "@/lib/settings";
 import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 
 export const dynamic = "force-dynamic";
-const options = [1, 2, 3, 4, 6, 8, 12, 24];
 const variables = "{{property}}, {{unit}}, {{tenant}}, {{period}}, {{dueDate}}, {{oldestDueDate}}, {{amount}}, {{outstanding}}, {{iban}}, {{variableSymbol}}, {{owner}}";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   const user = await requireUser();
   if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
   const [settings, query] = await Promise.all([appSettings(), searchParams]);
+  const mailboxReady = Boolean(settings.inboundMailEnabled && settings.inboundMailHost && settings.inboundMailUser && settings.inboundMailPasswordEncrypted);
 
-  return <Shell user={user}><div className="page">
-    <div className="page-title"><div><h1>Administrace aplikace</h1><p>Bankovní automatizace, sběrný e-mail, SMTP a komunikace k nájemnému. Dostupné pouze hlavnímu administrátorovi.</p></div></div>
+  return <Shell user={user}><div className="page v21-admin-page">
+    <div className="page-title"><div><h1>Administrace aplikace</h1><p>Centrální sběr bankovních e-mailů, automatické párování plateb a komunikace k nájmu.</p></div></div>
     <Flash ok={query.ok} error={query.error}/>
 
     <div className="detail-grid">
-      <form className="card col-7 edit-form" action="/api/settings/banking" method="post">
-        <h2>Automatická synchronizace bank</h2>
-        <p className="muted-copy">Kontrolní úloha běží jednou za hodinu. API bank a sběrný e-mail používají stejný Render cron; není potřeba přidávat další službu.</p>
-        <div className="form-grid" style={{marginTop:18}}>
-          <label className="checkbox-field field-full"><input type="checkbox" name="automaticBankSync" defaultChecked={settings.automaticBankSync}/><span>Automatické stahování plateb přes bankovní API je aktivní</span></label>
-          <label className="field field-full"><span>Počet synchronizací API za den</span><select name="bankSyncsPerDay" defaultValue={settings.bankSyncsPerDay}>{options.map(v=><option value={v} key={v}>{v}× denně {v===24?"(každou hodinu)":`(přibližně každých ${syncIntervalHours(v)} h)`}</option>)}</select></label>
-        </div>
-        <div className="form-actions"><button className="primary" type="submit">Uložit nastavení bank</button></div>
-      </form>
-      <div className="card col-5"><h2>Stav bankovního plánovače</h2><div className="summary-list"><div><span>Poslední start</span><strong>{settings.lastCronStartedAt?.toLocaleString("cs-CZ")||"Zatím neběžel"}</strong></div><div><span>Poslední dokončení</span><strong>{settings.lastCronFinishedAt?.toLocaleString("cs-CZ")||"—"}</strong></div><div><span>Výsledek</span><strong>{settings.lastCronSummary||"—"}</strong></div></div></div>
-    </div>
-
-    <div className="detail-grid" style={{marginTop:20}}>
-      <form className="card col-7 edit-form" action="/api/settings/inbound-mail" method="post">
-        <div className="card-head"><div><h2>Sběrný e-mail bankovních notifikací</h2><p className="muted-copy">V20 umí číst samostatnou schránku přes IMAP, rozpoznat příchozí notifikace Raiffeisenbank a převést je do standardních plateb. Heslo je uloženo šifrovaně.</p></div></div>
+      <form className="card col-8 edit-form featured-settings-card" action="/api/settings/inbound-mail" method="post">
+        <div className="card-head"><div><div className="eyebrow"><Mail size={14}/> Platební automatizace</div><h2>Sběrný e-mail bankovních notifikací</h2><p className="muted-copy">FlatCloud nepotřebuje přímé API napojení banky. Jednotlivé účty se propojí nastavením e-mailových notifikací o příchozích platbách.</p></div><span className={`connection-badge ${mailboxReady?"ok":"warn"}`}>{mailboxReady?"Schránka aktivní":"Vyžaduje nastavení"}</span></div>
         <div className="form-grid">
           <label className="checkbox-field field-full"><input type="checkbox" name="inboundMailEnabled" defaultChecked={settings.inboundMailEnabled}/><span>Automatický sběr bankovních e-mailů je aktivní</span></label>
           <label className="field"><span>IMAP server</span><input name="inboundMailHost" placeholder="imap.vase-domena.cz" defaultValue={settings.inboundMailHost||""}/></label>
           <label className="field"><span>Port</span><input type="number" name="inboundMailPort" min={1} max={65535} defaultValue={settings.inboundMailPort||993}/></label>
-          <label className="field"><span>Uživatel / sběrný e-mail</span><input name="inboundMailUser" placeholder="platby@vase-domena.cz" defaultValue={settings.inboundMailUser||""}/></label>
+          <label className="field"><span>Sběrný e-mail / uživatel</span><input name="inboundMailUser" placeholder="platby@vase-domena.cz" defaultValue={settings.inboundMailUser||""}/></label>
           <label className="field"><span>Heslo</span><input type="password" name="inboundMailPassword" autoComplete="new-password" placeholder={settings.inboundMailPasswordEncrypted?"Nastaveno – vyplňte jen při změně":""}/></label>
           <label className="field"><span>Složka</span><input name="inboundMailMailbox" defaultValue={settings.inboundMailMailbox||"INBOX"}/></label>
           <label className="checkbox-field"><input type="checkbox" name="inboundMailSecure" defaultChecked={settings.inboundMailSecure}/><span>TLS / SSL (doporučeno, obvykle port 993)</span></label>
         </div>
         <div className="form-actions"><button className="primary" type="submit">Uložit sběrný e-mail</button></div>
       </form>
-      <div className="card col-5"><h2>Stav příjmu e-mailů</h2><div className="summary-list"><div><span>Poslední kontrola</span><strong>{settings.inboundMailLastCheckedAt?.toLocaleString("cs-CZ")||"Zatím neběhla"}</strong></div><div><span>Poslední UID</span><strong>{settings.inboundMailLastUid||0}</strong></div><div><span>Výsledek</span><strong>{settings.inboundMailLastSummary||"—"}</strong></div></div><div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/inbound-mail/run" method="post"><button className="secondary" type="submit">Zkontrolovat schránku nyní</button></form><Link className="secondary" href="/platby/nesparovane">Otevřít nespárované platby</Link></div></div>
+
+      <div className="card col-4 settings-status-card">
+        <div className="card-head"><div><h2>Stav příjmu plateb</h2><p className="muted-copy">Poslední známý stav centrální schránky.</p></div><ShieldCheck size={20}/></div>
+        <div className="summary-list"><div><span>Poslední kontrola</span><strong>{settings.inboundMailLastCheckedAt?.toLocaleString("cs-CZ")||"Zatím neběhla"}</strong></div><div><span>Poslední UID</span><strong>{settings.inboundMailLastUid||0}</strong></div><div><span>Výsledek</span><strong>{settings.inboundMailLastSummary||"—"}</strong></div></div>
+        <div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/inbound-mail/run" method="post"><button className="primary full-button" type="submit"><RefreshCw size={14}/> Otestovat a zkontrolovat schránku</button></form><Link className="secondary full-button" href="/platby/nesparovane">Otevřít nespárované platby</Link></div>
+      </div>
     </div>
 
-    <div className="card" style={{marginTop:20}}>
-      <div className="card-head"><div><h2>Jak nastavit Raiffeisenbank „Informuj mě“</h2><p className="muted-copy">Doporučený postup pro každý účet, na který nájemníci posílají nájemné.</p></div></div>
-      <ol className="instruction-list">
-        <li>Vytvořte samostatnou schránku na vlastní doméně (např. <strong>platby@vase-domena.cz</strong>) a její IMAP údaje zadejte výše. Pokud poskytovatel nabízí aplikační heslo, použijte ho místo hlavního hesla.</li>
-        <li>V internetovém / mobilním bankovnictví RB otevřete <strong>Nastavení → Informuj mě → Přidat / Nové upozornění</strong> a zvolte upozornění <strong>o pohybu na účtu</strong>.</li>
-        <li>Vyberte příslušný účet, směr pohybu nastavte na <strong>Příchozí</strong>, způsob odeslání na <strong>E-mail</strong> a jako kontakt zadejte sběrnou adresu.</li>
-        <li>Neomezujte upozornění jen na konkrétní VS. FlatCloud potřebuje dostat i platby s chybným nebo chybějícím symbolem, aby je mohl zobrazit v globální frontě.</li>
-        <li>U vlastníka / SPV ve FlatCloudu vyplňte u bankovního účtu číslo účtu + kód banky nebo IBAN a ke smlouvám správný VS. Známé účty plátců dále zpřesňují párování.</li>
-        <li>Po aktivaci pošlete testovací příchozí platbu a použijte tlačítko <strong>Zkontrolovat schránku nyní</strong>. Jednoznačná úhrada se zaúčtuje, nejasná zůstane v <Link href="/platby/nesparovane">globální frontě hlavního administrátora</Link>.</li>
-      </ol>
-      <div className="notice" style={{marginTop:16}}>Parser V20 počítá i se starším textovým formátem RB (např. řádky „Z:“, „Na:“, „Realizováno:“, „Dne:“ a symboly) a s dnešními HTML e-maily. Při změně formátu banky se nerozpoznaná zpráva nesmaže – objeví se ve frontě k ruční kontrole.</div>
+    <div className="card bank-guide-card" style={{marginTop:20}}>
+      <div className="card-head"><div><h2>Jak propojit bankovní účet s FlatCloudem</h2><p className="muted-copy">Centrální schránka se nastavuje jednou zde. Každý účet se potom ověřuje přímo u konkrétní nemovitosti.</p></div></div>
+      <div className="guide-steps">
+        <GuideStep n="1" title="Uložte sběrnou schránku" text="Použijte samostatný e-mail pouze pro bankovní notifikace a bezpečný IMAP přístup."/>
+        <GuideStep n="2" title="U nemovitosti otevřete Banka a pravidla" text="FlatCloud zobrazí účet pro nájemné, sběrný e-mail a unikátní testovací variabilní symbol."/>
+        <GuideStep n="3" title="V bance zapněte e-mailové notifikace" text="Pro příchozí pohyby nastavte zasílání na sběrný e-mail. Nefiltrujte pouze jeden VS."/>
+        <GuideStep n="4" title="Odešlete testovací 1 Kč" text="Po přijetí testovací notifikace FlatCloud účet označí jako ověřený a dál automaticky zpracovává platby."/>
+      </div>
+      <div className="notice success-notice"><CheckCircle2 size={16}/> Nejednoznačné nebo nerozpoznané platby se nikdy automaticky neztratí – zůstanou ve frontě nespárovaných plateb k ruční kontrole.</div>
     </div>
 
     <form className="card edit-form" action="/api/settings/notifications" method="post" style={{marginTop:20}}>
-      <div className="card-head"><div><h2>SMTP a automatická komunikace k nájmu</h2><p className="muted-copy">Heslo je uloženo šifrovaně. Prázdné pole hesla zachová současnou hodnotu; pokud databázová konfigurace chybí, pozvánky nadále použijí Render environment variables.</p></div></div>
+      <div className="card-head"><div><h2>SMTP a automatická komunikace k nájmu</h2><p className="muted-copy">Platební informace, upomínky a interní eskalace. Upomínkové případy se zároveň zapisují do Úkolů a vytvářejí komunikační vlákno pro správce a vlastníka.</p></div></div>
       <div className="form-grid">
         <label className="field"><span>SMTP server</span><input name="smtpHost" defaultValue={settings.smtpHost||process.env.SMTP_HOST||""}/></label><label className="field"><span>Port</span><input type="number" name="smtpPort" min={1} max={65535} defaultValue={settings.smtpPort||587}/></label><label className="field"><span>Uživatel</span><input name="smtpUser" defaultValue={settings.smtpUser||process.env.SMTP_USER||""}/></label><label className="field"><span>Heslo</span><input type="password" name="smtpPassword" placeholder={settings.smtpPasswordEncrypted||process.env.SMTP_PASSWORD?"Nastaveno – vyplňte jen při změně":""}/></label><label className="field"><span>Jméno odesílatele</span><input name="smtpFromName" defaultValue={settings.smtpFromName||process.env.SMTP_FROM_NAME||"FlatCloud"}/></label><label className="field"><span>E-mail odesílatele</span><input type="email" name="smtpFromEmail" defaultValue={settings.smtpFromEmail||process.env.SMTP_FROM_EMAIL||""}/></label><label className="field"><span>Reply-To</span><input type="email" name="smtpReplyTo" defaultValue={settings.smtpReplyTo||""}/></label><label className="checkbox-field"><input type="checkbox" name="smtpSecure" defaultChecked={settings.smtpSecure}/><span>Přímé TLS (obvykle port 465)</span></label>
-        <label className="checkbox-field field-full"><input type="checkbox" name="remindersEnabled" defaultChecked={settings.remindersEnabled}/><span>Automatické platební zprávy a upomínky jsou aktivní</span></label><label className="field"><span>Hodina odesílání (Praha)</span><input type="number" name="reminderSendHour" min={0} max={23} defaultValue={settings.reminderSendHour}/></label><label className="field"><span>Platební údaje před splatností</span><input type="number" name="paymentNoticeDaysBefore" min={0} max={31} defaultValue={settings.paymentNoticeDaysBefore}/><small>dní před splatností</small></label><label className="field"><span>První upozornění</span><input type="number" name="firstReminderDaysAfter" min={1} max={90} defaultValue={settings.firstReminderDaysAfter}/><small>dní po splatnosti</small></label><label className="field"><span>Druhá upomínka</span><input type="number" name="secondReminderDaysAfter" min={1} max={180} defaultValue={settings.secondReminderDaysAfter}/><small>dní po splatnosti</small></label><label className="field"><span>Interní upozornění správci</span><input type="number" name="managerAlertDaysAfter" min={1} max={365} defaultValue={settings.managerAlertDaysAfter}/><small>dní po splatnosti</small></label><label className="field"><span>Ruční eskalace</span><input type="number" name="escalationDaysAfter" min={1} max={365} defaultValue={settings.escalationDaysAfter}/><small>dní po splatnosti; právní krok se automaticky neprovede</small></label>
-        <div className="field field-full"><span>Dostupné proměnné šablon</span><div className="notice">{variables}</div></div><label className="field field-full"><span>Předmět platebních údajů</span><input name="paymentNoticeSubject" defaultValue={settings.paymentNoticeSubject} required/></label><label className="field field-full"><span>Text platebních údajů</span><textarea name="paymentNoticeBody" defaultValue={settings.paymentNoticeBody} rows={9} required/></label><label className="field field-full"><span>Předmět prvního upozornění</span><input name="firstReminderSubject" defaultValue={settings.firstReminderSubject} required/></label><label className="field field-full"><span>Text prvního upozornění</span><textarea name="firstReminderBody" defaultValue={settings.firstReminderBody} rows={9} required/></label><label className="field field-full"><span>Předmět druhé upomínky</span><input name="secondReminderSubject" defaultValue={settings.secondReminderSubject} required/></label><label className="field field-full"><span>Text druhé upomínky</span><textarea name="secondReminderBody" defaultValue={settings.secondReminderBody} rows={9} required/></label>
+        <label className="checkbox-field field-full"><input type="checkbox" name="remindersEnabled" defaultChecked={settings.remindersEnabled}/><span>Automatické platební zprávy a upomínky jsou aktivní</span></label><label className="field"><span>Hodina odesílání (Praha)</span><input type="number" name="reminderSendHour" min={0} max={23} defaultValue={settings.reminderSendHour}/></label><label className="field"><span>Platební údaje před splatností</span><input type="number" name="paymentNoticeDaysBefore" min={0} max={31} defaultValue={settings.paymentNoticeDaysBefore}/><small>dní před splatností</small></label><label className="field"><span>První upozornění</span><input type="number" name="firstReminderDaysAfter" min={1} max={90} defaultValue={settings.firstReminderDaysAfter}/><small>dní po splatnosti</small></label><label className="field"><span>Druhá upomínka</span><input type="number" name="secondReminderDaysAfter" min={1} max={180} defaultValue={settings.secondReminderDaysAfter}/><small>dní po splatnosti</small></label><label className="field"><span>Interní upozornění správci</span><input type="number" name="managerAlertDaysAfter" min={1} max={365} defaultValue={settings.managerAlertDaysAfter}/><small>dní po splatnosti</small></label><label className="field"><span>Ruční eskalace</span><input type="number" name="escalationDaysAfter" min={1} max={365} defaultValue={settings.escalationDaysAfter}/><small>dní po splatnosti</small></label>
+        <div className="field field-full"><span>Dostupné proměnné šablon</span><div className="notice">{variables}</div></div><label className="field field-full"><span>Předmět platebních údajů</span><input name="paymentNoticeSubject" defaultValue={settings.paymentNoticeSubject} required/></label><label className="field field-full"><span>Text platebních údajů</span><textarea name="paymentNoticeBody" defaultValue={settings.paymentNoticeBody} rows={7} required/></label><label className="field field-full"><span>Předmět prvního upozornění</span><input name="firstReminderSubject" defaultValue={settings.firstReminderSubject} required/></label><label className="field field-full"><span>Text prvního upozornění</span><textarea name="firstReminderBody" defaultValue={settings.firstReminderBody} rows={7} required/></label><label className="field field-full"><span>Předmět druhé upomínky</span><input name="secondReminderSubject" defaultValue={settings.secondReminderSubject} required/></label><label className="field field-full"><span>Text druhé upomínky</span><textarea name="secondReminderBody" defaultValue={settings.secondReminderBody} rows={7} required/></label>
       </div>
       <div className="form-actions"><button className="primary" type="submit">Uložit SMTP a upomínky</button></div>
     </form>
-    <div className="detail-grid" style={{marginTop:20}}><div className="card col-7"><h2>Stav upomínkového plánovače</h2><div className="summary-list"><div><span>Poslední start</span><strong>{settings.lastReminderCronStartedAt?.toLocaleString("cs-CZ")||"Zatím neběžel"}</strong></div><div><span>Poslední dokončení</span><strong>{settings.lastReminderCronFinishedAt?.toLocaleString("cs-CZ")||"—"}</strong></div><div><span>Výsledek</span><strong>{settings.lastReminderCronSummary||"—"}</strong></div></div><div className="notice" style={{marginTop:16}}>Hlavička každé zprávy se vytváří systémově z komunikačního vlastníka nemovitosti, případně z jejího hlavního vlastníka. Nelze ji omylem odstranit úpravou šablony.</div></div><div className="card col-5"><h2>Kontrola</h2><div className="stack-actions"><form action="/api/settings/notifications/test" method="post"><button className="secondary" type="submit">Odeslat test SMTP na můj e-mail</button></form><form action="/api/settings/notifications/run" method="post"><button className="secondary" type="submit">Spustit kontrolu upomínek nyní</button></form><Link className="secondary" href="/nastaveni/upominky/vynutit">Vynutit rozeslání mimo kalendář</Link></div><p className="muted-copy" style={{marginTop:12}}>Běžná ruční kontrola dožene zmeškané kalendářní milníky. Vynucené rozeslání umožní poslat další stupeň i dříve.</p></div></div>
+
+    <div className="detail-grid" style={{marginTop:20}}><div className="card col-7"><h2>Stav upomínkového plánovače</h2><div className="summary-list"><div><span>Poslední start</span><strong>{settings.lastReminderCronStartedAt?.toLocaleString("cs-CZ")||"Zatím neběžel"}</strong></div><div><span>Poslední dokončení</span><strong>{settings.lastReminderCronFinishedAt?.toLocaleString("cs-CZ")||"—"}</strong></div><div><span>Výsledek</span><strong>{settings.lastReminderCronSummary||"—"}</strong></div></div><div className="notice" style={{marginTop:16}}>Každá automatická upomínka doplní provozní případ v Úkolech. Vlastník tak vidí stav řešení bez ručního zjišťování u správce.</div></div><div className="card col-5"><h2>Kontrola komunikace</h2><div className="stack-actions"><form action="/api/settings/notifications/test" method="post"><button className="secondary" type="submit">Odeslat test SMTP na můj e-mail</button></form><form action="/api/settings/notifications/run" method="post"><button className="secondary" type="submit">Spustit kontrolu upomínek nyní</button></form><Link className="secondary" href="/nastaveni/upominky/vynutit">Vynutit rozeslání mimo kalendář</Link></div></div></div>
   </div></Shell>;
 }
+
+function GuideStep({n,title,text}:{n:string;title:string;text:string}) { return <div className="guide-step"><span>{n}</span><div><strong>{title}</strong><p>{text}</p></div></div>; }

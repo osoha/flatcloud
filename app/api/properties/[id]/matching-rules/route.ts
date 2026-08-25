@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
     await processPropertyTransactions(id);
-    await audit(access.user.id, "MATCH_RULE_CREATED", "BankMatchingRule", rule.id, { propertyId: id, action, targetLeaseId });
+    await audit(access.user.id, "MATCH_RULE_CREATED", "BankMatchingRule", rule.id, { propertyId: id, action, targetLeaseId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/banka`, "ok", "Párovací pravidlo bylo vytvořeno a aplikováno.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/banka`, "error", error instanceof Error ? error.message : "Pravidlo se nepodařilo vytvořit.");

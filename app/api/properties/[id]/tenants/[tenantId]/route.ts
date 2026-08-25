@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const billingEmail = type === "COMPANY" ? text(form, "billingEmail") : null;
     const communicationEmail = type === "COMPANY" ? text(form, "communicationEmail") : text(form, "email");
     const tenant = await prisma.tenant.update({ where: { id: tenantId }, data: { type, name: text(form, "name", true)!, email: communicationEmail || billingEmail, phone: text(form, "phone"), address: permanentAddress || billingAddress, ico: type === "COMPANY" ? text(form, "ico") : null, permanentAddress, correspondenceAddress: text(form, "correspondenceAddress"), billingAddress, billingEmail, communicationEmail, note: text(form, "note"), payerAccounts: Array.from(new Set(stringArray(form, "payerAccounts").map(normalizePayerAccount).filter(Boolean))), active: boolValue(form, "active") } });
-    await audit(access.user.id, "TENANT_UPDATED", "Tenant", tenant.id, { propertyId: id, name: tenant.name });
+    await audit(access.user.id, "TENANT_UPDATED", "Tenant", tenant.id, { propertyId: id, name: tenant.name }, id);
     const unitId = allowed.leases[0]?.unitId;
     return goWithMessage(request, unitId ? `/nemovitosti/${id}/jednotky/${unitId}` : `/nemovitosti/${id}/najemnici`, "ok", "Nájemník byl upraven.");
   } catch (error) {

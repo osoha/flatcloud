@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status: "UNMATCHED", matchedRuleId: null, suggestedLeaseId: null } });
     await processTransaction(transactionId);
-    await audit(access.user.id, "PAYMENT_RULE_CREATED", "BankMatchingRule", rule.id, { propertyId: id, transactionId, targetLeaseId, action });
+    await audit(access.user.id, "PAYMENT_RULE_CREATED", "BankMatchingRule", rule.id, { propertyId: id, transactionId, targetLeaseId, action }, id);
     return goWithMessage(request, `/nemovitosti/${id}/platby/${transactionId}`, "ok", "Pravidlo bylo vytvořeno a platba znovu zpracována.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/platby/${transactionId}`, "error", error instanceof Error ? error.message : "Pravidlo se nepodařilo vytvořit.");

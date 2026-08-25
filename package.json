@@ -1,6 +1,6 @@
 {
   "name": "flatcloud-rent-production",
-  "version": "1.20.0",
+  "version": "1.21.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,9 +9,10 @@
     "db:migrate": "node scripts/migrate-deploy.mjs",
     "db:bootstrap": "tsx prisma/bootstrap.ts",
     "db:seed:demo": "tsx prisma/seed.ts",
-    "banking:cron": "tsx scripts/banking-cron.ts",
     "rent:notifications:cron": "tsx scripts/rent-notifications-cron.ts",
-    "verify:v20": "tsx scripts/verify-v20.ts"
+    "verify:v20": "tsx scripts/verify-v20.ts",
+    "payments:email:cron": "tsx scripts/payment-email-cron.ts",
+    "verify:v21": "tsx scripts/verify-v21.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

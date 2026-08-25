@@ -14,10 +14,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const mode = text(form, "mode") || "update";
     if (mode === "toggle") {
       await prisma.meter.update({ where: { id: meterId }, data: { active: !existing.active } });
-      await audit(access.user.id, "METER_STATUS_CHANGED", "Meter", meterId, { propertyId: id, unitId, active: !existing.active });
+      await audit(access.user.id, "METER_STATUS_CHANGED", "Meter", meterId, { propertyId: id, unitId, active: !existing.active }, id);
     } else {
       await prisma.meter.update({ where: { id: meterId }, data: { label: text(form, "label"), serialNumber: text(form, "serialNumber"), unitOfMeasure: text(form, "unitOfMeasure", true)! } });
-      await audit(access.user.id, "METER_UPDATED", "Meter", meterId, { propertyId: id, unitId });
+      await audit(access.user.id, "METER_UPDATED", "Meter", meterId, { propertyId: id, unitId }, id);
     }
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#meridla`, "ok", "Měřidlo bylo upraveno.");
   } catch (error) {

@@ -53,7 +53,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
 
     const lease = await prisma.$transaction(async (tx) => {
-      await assertUniqueVariableSymbol(tx, variableSymbol, leaseId);
+      await assertUniqueVariableSymbol(tx, ownerBankAccountId, variableSymbol, leaseId);
+      await tx.propertyPaymentAccount.upsert({
+        where: { propertyId_ownerBankAccountId: { propertyId: id, ownerBankAccountId } },
+        update: { active: true },
+        create: { propertyId: id, ownerBankAccountId, active: true },
+      });
       if (status === LeaseStatus.ACTIVE) {
         const collision = await tx.lease.findFirst({ where: { unitId, status: LeaseStatus.ACTIVE, id: { not: leaseId } }, select: { id: true } });
         if (collision) throw new Error("Vybraná jednotka už má jinou aktivní smlouvu.");
@@ -93,7 +98,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return updated;
     });
 
-    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, status, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) });
+    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, status, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", "Smlouva byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo upravit.");

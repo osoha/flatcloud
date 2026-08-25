@@ -78,3 +78,56 @@ export const meterTypes = {
   ELECTRICITY_LOW_TARIFF: "Elektřina – nízký tarif",
   GAS: "Plyn",
 } as const;
+
+export const taskStatuses: Record<string, string> = {
+  OPEN: "Otevřený",
+  IN_PROGRESS: "Řeší se",
+  WAITING: "Čeká na reakci",
+  DONE: "Hotovo",
+  CANCELLED: "Zrušeno",
+};
+
+export const taskPriorities: Record<string, string> = {
+  LOW: "Nízká",
+  NORMAL: "Běžná",
+  HIGH: "Vysoká",
+  URGENT: "Urgentní",
+};
+
+export const taskCategories: Record<string, string> = {
+  COLLECTION: "Vymáhání / upomínka",
+  MAINTENANCE: "Provoz / závada",
+  LEASE: "Smlouva",
+  COMPLIANCE: "Revize / kontrola",
+  GENERAL: "Obecný úkol",
+};
+
+export const taskEntryKinds: Record<string, string> = {
+  COMMENT: "Poznámka",
+  CALL: "Telefonát",
+  EMAIL: "E-mail",
+  PROMISE: "Příslib úhrady",
+  STATUS: "Změna stavu",
+  SYSTEM: "Systém",
+};
+
+export const contactCategories: Record<string, string> = {
+  MANAGER: "Správce",
+  EMERGENCY: "Havarijní služba",
+  ELECTRICIAN: "Elektrikář",
+  PLUMBER: "Instalatér",
+  HEATING: "Topení / kotelna",
+  ELEVATOR: "Výtah",
+  FIRE_SAFETY: "PO / EPS",
+  INSPECTION: "Revizní technik",
+  INSURANCE: "Pojišťovna",
+  CLEANING: "Úklid",
+  UTILITY: "Dodavatel energií / sítí",
+  OTHER: "Ostatní",
+};
+
+export const complianceResults: Record<string, string> = {
+  OK: "V pořádku",
+  ISSUE: "Závada",
+  FOLLOW_UP: "Vyžaduje nápravu",
+};

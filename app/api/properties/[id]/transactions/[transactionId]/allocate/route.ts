@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { moneyToCents, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { recomputeTransactionStatus } from "@/lib/matching";
+import { resolveCollectionTasksIfSettled } from "@/lib/tasks";
 import { go, goWithMessage } from "@/lib/route-response";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; transactionId: string }> }) {
@@ -28,7 +29,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     await prisma.bankTransaction.update({ where: { id: transactionId }, data: { suggestedLeaseId: charge.leaseId, matchNote: "Ručně přiřazeno správcem." } });
     await recomputeTransactionStatus(transactionId);
-    await audit(access.user.id, "PAYMENT_ALLOCATED", "BankTransaction", transactionId, { propertyId: id, chargeId, amountCents: requested });
+    await resolveCollectionTasksIfSettled(charge.leaseId);
+    await audit(access.user.id, "PAYMENT_ALLOCATED", "BankTransaction", transactionId, { propertyId: id, chargeId, amountCents: requested }, id);
     return goWithMessage(request, `/nemovitosti/${id}/platby/${transactionId}`, "ok", "Platba byla přiřazena k předpisu.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/platby/${transactionId}`, "error", error instanceof Error ? error.message : "Platbu se nepodařilo přiřadit.");

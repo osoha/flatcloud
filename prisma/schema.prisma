@@ -61,20 +61,6 @@ enum PropertyOwnershipMode {
   SVJ
 }
 
-enum BankConnectionStatus {
-  CONNECTED
-  NEEDS_REAUTH
-  ERROR
-  DISCONNECTED
-}
-
-enum BankAuthorizationStatus {
-  PENDING
-  COMPLETED
-  FAILED
-  EXPIRED
-}
-
 enum MatchRuleAction {
   IGNORE
   MATCH_LEASE
@@ -130,6 +116,59 @@ enum NotificationStatus {
   SKIPPED
 }
 
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum TaskCategory {
+  COLLECTION
+  MAINTENANCE
+  LEASE
+  COMPLIANCE
+  GENERAL
+}
+
+enum TaskEntryKind {
+  COMMENT
+  CALL
+  EMAIL
+  PROMISE
+  STATUS
+  SYSTEM
+}
+
+enum ComplianceResult {
+  OK
+  ISSUE
+  FOLLOW_UP
+}
+
+enum ContactCategory {
+  MANAGER
+  EMERGENCY
+  ELECTRICIAN
+  PLUMBER
+  HEATING
+  ELEVATOR
+  FIRE_SAFETY
+  INSPECTION
+  INSURANCE
+  CLEANING
+  UTILITY
+  OTHER
+}
+
 enum ChargeCategory {
   RENT
   WATER
@@ -157,10 +196,12 @@ model User {
   memberships                 UserProperty[]
   unitMemberships             UserUnit[]
   invitationsSent             UserInvitation[]    @relation("InvitationSender")
-  bankAuthorizationsConnected BankAuthorization[] @relation("BankAuthorizationConnector")
-  bankAccountsConnected       BankAccount[]       @relation("BankAccountConnector")
   managedProperties           Property[]          @relation("PropertyManager")
   auditLogs                   AuditLog[]
+  tasksCreated                Task[]               @relation("TaskCreator")
+  tasksAssigned               Task[]               @relation("TaskAssignee")
+  taskEntries                 TaskEntry[]
+  complianceRecordsCreated    ComplianceRecord[]   @relation("ComplianceRecordCreator")
   createdAt                   DateTime            @default(now())
   updatedAt                   DateTime            @updatedAt
 }
@@ -193,10 +234,12 @@ model OwnerBankAccount {
   accountNumber  String?
   bankCode       String?
   iban           String?
-  currency       String          @default("CZK")
-  active         Boolean         @default(true)
-  unitOwnerships UnitOwnership[]
+  currency                   String          @default("CZK")
+  active                     Boolean         @default(true)
+  lastNotificationAt         DateTime?
+  unitOwnerships             UnitOwnership[]
   leases         Lease[]
+  propertyLinks  PropertyPaymentAccount[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -222,17 +265,40 @@ model Property {
   ownerships           PropertyOwnership[]
   units                Unit[]
   bankAccounts         BankAccount[]
-  bankAuthorizations   BankAuthorization[]
   matchingRules        BankMatchingRule[]
   memberships          UserProperty[]
   invitations          UserInvitation[]
   inboxPayments        InboxPayment[]
+  paymentAccounts      PropertyPaymentAccount[]
+  tasks                Task[]
+  contacts             PropertyContact[]
+  complianceItems      ComplianceItem[]
+  auditLogs            AuditLog[]
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
   @@index([ownerId])
   @@index([communicationOwnerId])
   @@index([managerId])
+}
+
+
+model PropertyPaymentAccount {
+  id                 String           @id @default(cuid())
+  propertyId         String
+  property           Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerBankAccountId String
+  ownerBankAccount   OwnerBankAccount @relation(fields: [ownerBankAccountId], references: [id], onDelete: Cascade)
+  primary                Boolean          @default(false)
+  active                 Boolean          @default(true)
+  notificationVerifiedAt DateTime?
+  lastNotificationAt     DateTime?
+  createdAt              DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([propertyId, ownerBankAccountId])
+  @@index([ownerBankAccountId, active])
+  @@index([propertyId, active])
 }
 
 model PropertyOwnership {
@@ -297,11 +363,6 @@ model UserInvitation {
 
 model AppSetting {
   id                         String    @id @default("global")
-  automaticBankSync          Boolean   @default(true)
-  bankSyncsPerDay            Int       @default(24)
-  lastCronStartedAt          DateTime?
-  lastCronFinishedAt         DateTime?
-  lastCronSummary            String?
   smtpHost                   String?
   smtpPort                   Int       @default(587)
   smtpSecure                 Boolean   @default(false)
@@ -354,6 +415,7 @@ model Unit {
   userAccesses UserUnit[]
   leases       Lease[]
   meters       Meter[]
+  tasks        Task[]
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
@@ -396,6 +458,7 @@ model Tenant {
   active                Boolean    @default(true)
   payerAccounts         String[]
   leases                Lease[]
+  tasks                 Task[]
   createdAt             DateTime   @default(now())
   updatedAt             DateTime   @updatedAt
 }
@@ -425,6 +488,7 @@ model Lease {
   occupants             Occupant[]
   meterReadings         MeterReading[]
   notifications         RentNotification[]
+  tasks                 Task[]
   remindersPausedUntil  DateTime?
   reminderPauseReason   String?
   promisedPaymentDate   DateTime?
@@ -538,63 +602,25 @@ model ChargeItem {
   @@index([chargeId])
 }
 
-model BankAuthorization {
-  id                       String                  @id @default(cuid())
-  propertyId               String
-  property                 Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  provider                 String
-  state                    String                  @unique
-  bankName                 String
-  country                  String
-  psuType                  String                  @default("business")
-  status                   BankAuthorizationStatus @default(PENDING)
-  externalAuthorizationId  String?
-  externalSessionId        String?
-  providerContextEncrypted String?
-  connectedById            String?
-  connectedBy              User?                   @relation("BankAuthorizationConnector", fields: [connectedById], references: [id], onDelete: SetNull)
-  expiresAt                DateTime
-  createdAt                DateTime                @default(now())
-  updatedAt                DateTime                @updatedAt
-
-  @@index([propertyId, status])
-  @@index([connectedById])
-}
-
 model BankAccount {
-  id                   String               @id @default(cuid())
-  propertyId           String
-  property             Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  ownerId              String?
-  owner                Owner?               @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  provider             String
-  bankName             String
-  accountName          String?
-  iban                 String?
-  ibanMasked           String
-  currency             String               @default("CZK")
-  externalAccountId    String
-  externalSessionId    String?
-  credentialsEncrypted String?
-  connectedById        String?
-  connectedBy          User?                @relation("BankAccountConnector", fields: [connectedById], references: [id], onDelete: SetNull)
-  identificationHash   String?
-  connectionStatus     BankConnectionStatus @default(CONNECTED)
-  consentExpiresAt     DateTime?
-  balanceCents         Int?
-  balanceUpdatedAt     DateTime?
-  lastSyncedAt         DateTime?
-  lastSyncAttemptAt    DateTime?
-  lastSyncError        String?
-  autoSyncEnabled      Boolean              @default(true)
-  transactions         BankTransaction[]
-  matchingRules        BankMatchingRule[]
+  id                String            @id @default(cuid())
+  propertyId        String
+  property          Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerId           String?
+  owner             Owner?            @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  provider          String
+  bankName          String
+  accountName       String?
+  iban              String?
+  ibanMasked        String
+  currency          String            @default("CZK")
+  externalAccountId String
+  transactions      BankTransaction[]
+  matchingRules     BankMatchingRule[]
 
   @@unique([provider, externalAccountId])
   @@index([propertyId])
   @@index([ownerId])
-  @@index([provider, identificationHash])
-  @@index([connectedById])
 }
 
 model BankMatchingRule {
@@ -642,7 +668,7 @@ model BankTransaction {
   suggestedLease   Lease?              @relation("SuggestedLease", fields: [suggestedLeaseId], references: [id], onDelete: SetNull)
   matchNote        String?
   recipientAccount String?
-  source            String              @default("api")
+  source            String              @default("manual")
   allocations      PaymentAllocation[]
   inboxPayment      InboxPayment?
   createdAt        DateTime            @default(now())
@@ -723,10 +749,116 @@ model RentNotification {
   @@index([chargeId])
 }
 
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  category    TaskCategory @default(GENERAL)
+  status      TaskStatus   @default(OPEN)
+  priority    TaskPriority @default(NORMAL)
+  propertyId  String
+  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId      String?
+  unit        Unit?        @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  leaseId     String?
+  lease       Lease?       @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  tenantId    String?
+  tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  createdById String?
+  createdBy   User?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  assigneeId  String?
+  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  dueAt       DateTime?
+  closedAt    DateTime?
+  dedupeKey   String?      @unique
+  entries     TaskEntry[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([propertyId, status, dueAt])
+  @@index([assigneeId, status, dueAt])
+  @@index([leaseId, category, status])
+}
+
+model TaskEntry {
+  id        String        @id @default(cuid())
+  taskId    String
+  task      Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  kind      TaskEntryKind @default(COMMENT)
+  body      String
+  createdAt DateTime      @default(now())
+
+  @@index([taskId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+model PropertyContact {
+  id        String          @id @default(cuid())
+  propertyId String
+  property  Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  category  ContactCategory @default(OTHER)
+  name      String
+  company   String?
+  phone     String?
+  email     String?
+  note      String?
+  emergency Boolean         @default(false)
+  active    Boolean         @default(true)
+  sortOrder Int             @default(100)
+  complianceItems ComplianceItem[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  @@index([propertyId, active, sortOrder])
+}
+
+model ComplianceItem {
+  id                String             @id @default(cuid())
+  propertyId        String
+  property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  name              String
+  category          String
+  frequencyMonths   Int?
+  lastCompletedAt   DateTime?
+  nextDueAt         DateTime
+  assignedContactId String?
+  assignedContact   PropertyContact?   @relation(fields: [assignedContactId], references: [id], onDelete: SetNull)
+  note              String?
+  active            Boolean            @default(true)
+  records           ComplianceRecord[]
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@index([propertyId, active, nextDueAt])
+  @@index([assignedContactId])
+}
+
+model ComplianceRecord {
+  id               String           @id @default(cuid())
+  complianceItemId String
+  complianceItem   ComplianceItem   @relation(fields: [complianceItemId], references: [id], onDelete: Cascade)
+  performedAt      DateTime
+  result           ComplianceResult @default(OK)
+  note             String?
+  documentUrl      String?
+  nextDueAt        DateTime?
+  performedBy      String?
+  createdById      String?
+  createdBy        User?            @relation("ComplianceRecordCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime         @default(now())
+
+  @@index([complianceItemId, performedAt])
+  @@index([createdById, createdAt])
+}
+
 model AuditLog {
   id         String   @id @default(cuid())
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   action     String
   entityType String
   entityId   String?
@@ -734,4 +866,5 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([userId, createdAt])
+  @@index([propertyId, createdAt])
 }

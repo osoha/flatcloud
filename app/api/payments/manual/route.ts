@@ -4,6 +4,7 @@ import { currentUser } from "@/lib/auth";
 import { editableUnitWhere } from "@/lib/access";
 import { dateValue, moneyToCents, text } from "@/lib/forms";
 import { audit } from "@/lib/management";
+import { resolveCollectionTasksIfSettled } from "@/lib/tasks";
 import { go, goWithMessage } from "@/lib/route-response";
 
 export async function POST(request: Request) {
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
     const account = await prisma.bankAccount.upsert({
       where: { provider_externalAccountId: { provider: "manual", externalAccountId: `manual-${propertyId}` } },
       update: {},
-      create: { propertyId, provider: "manual", bankName: "Ruční evidence", ibanMasked: "RUČNÍ PLATBY", externalAccountId: `manual-${propertyId}`, connectionStatus: "CONNECTED" },
+      create: { propertyId, provider: "manual", bankName: "Ruční evidence", ibanMasked: "RUČNÍ PLATBY", externalAccountId: `manual-${propertyId}` },
     });
     const transaction = await prisma.bankTransaction.create({
       data: {
@@ -60,7 +61,8 @@ export async function POST(request: Request) {
         allocations: allocations.length ? { create: allocations } : undefined,
       },
     });
-    await audit(user.id, "MANUAL_PAYMENT_CREATED", "BankTransaction", transaction.id, { propertyId, leaseId, amountCents, allocatedCents: amountCents - remainingPayment, overpaymentCents: remainingPayment });
+    await resolveCollectionTasksIfSettled(leaseId);
+    await audit(user.id, "MANUAL_PAYMENT_CREATED", "BankTransaction", transaction.id, { propertyId, leaseId, amountCents, allocatedCents: amountCents - remainingPayment, overpaymentCents: remainingPayment }, propertyId);
     return goWithMessage(request, `/nemovitosti/${propertyId}/platby`, "ok", `Ruční platba byla přiřazena k ${lease.unit.label} · ${lease.tenant.name}.`);
   } catch (error) {
     return goWithMessage(request, "/platby/nova", "error", error instanceof Error ? error.message : "Platbu se nepodařilo uložit.");

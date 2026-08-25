@@ -37,7 +37,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     });
     const inviteUrl = redirectUrl(`/pozvanka/${token}`, request).toString();
     const result = await sendInvitationEmail({ to: email, inviterName: access.user.name, propertyName: property.name, permissionLabel: propertyPermissions[selectedPermission], inviteUrl });
-    await audit(access.user.id, "USER_INVITED", "UserInvitation", invitation.id, { propertyId: id, email, permission: selectedPermission, sent: result.sent });
+    await audit(access.user.id, "USER_INVITED", "UserInvitation", invitation.id, { propertyId: id, email, permission: selectedPermission, sent: result.sent }, id);
     const message = result.sent ? `Pozvánka byla odeslána na ${email}.` : `Pozvánka vytvořena. E-mail není nakonfigurován; zkopírujte odkaz níže.`;
     const target = `/nemovitosti/${id}/uzivatele?ok=${encodeURIComponent(message)}${result.sent ? "" : `&invite=${encodeURIComponent(inviteUrl)}`}`;
     return go(request, target);

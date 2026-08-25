@@ -26,36 +26,6 @@ services:
         sync: false
       - key: INITIAL_ADMIN_PASSWORD
         sync: false
-      - key: BANKING_PROVIDER
-        value: csas-premium
-      - key: CSAS_CLIENT_ID
-        sync: false
-      - key: CSAS_CLIENT_SECRET
-        sync: false
-      - key: CSAS_WEB_API_KEY
-        sync: false
-      - key: CSAS_API_BASE_URL
-        sync: false
-      - key: CSAS_AUTH_URL
-        sync: false
-      - key: CSAS_TOKEN_URL
-        sync: false
-      - key: CSAS_CONSENTS_PATH
-        value: /consents
-      - key: CSAS_ACCOUNTS_PATH
-        value: /accounts
-      - key: CSAS_TRANSACTIONS_PATH_TEMPLATE
-        value: /accounts/{accountId}/transactions
-      - key: CSAS_BALANCES_PATH_TEMPLATE
-        value: /accounts/{accountId}/balances
-      - key: CSAS_SCOPE_TEMPLATE
-        value: AIS:{consentId} openid offline_access
-      - key: ENABLE_BANKING_APP_ID
-        sync: false
-      - key: ENABLE_BANKING_PRIVATE_KEY
-        sync: false
-      - key: ENABLE_BANKING_BASE_URL
-        value: https://api.enablebanking.com
       - key: SMTP_HOST
         value: smtp.fortion.net
       - key: SMTP_PORT
@@ -72,13 +42,13 @@ services:
         sync: false
 
   - type: cron
-    name: flatcloud-rent-bank-sync
+    name: flatcloud-rent-payment-email
     runtime: node
     region: frankfurt
     plan: starter
     schedule: "0 * * * *"
     buildCommand: npm ci --no-audit --no-fund && npx prisma generate
-    startCommand: npm run banking:cron
+    startCommand: npm run payments:email:cron
     autoDeployTrigger: commit
     envVars:
       - key: NODE_VERSION
@@ -97,36 +67,6 @@ services:
           type: web
           name: flatcloud-rent
           envVarKey: SESSION_SECRET
-      - key: BANKING_PROVIDER
-        value: csas-premium
-      - key: CSAS_CLIENT_ID
-        sync: false
-      - key: CSAS_CLIENT_SECRET
-        sync: false
-      - key: CSAS_WEB_API_KEY
-        sync: false
-      - key: CSAS_API_BASE_URL
-        sync: false
-      - key: CSAS_AUTH_URL
-        sync: false
-      - key: CSAS_TOKEN_URL
-        sync: false
-      - key: CSAS_CONSENTS_PATH
-        value: /consents
-      - key: CSAS_ACCOUNTS_PATH
-        value: /accounts
-      - key: CSAS_TRANSACTIONS_PATH_TEMPLATE
-        value: /accounts/{accountId}/transactions
-      - key: CSAS_BALANCES_PATH_TEMPLATE
-        value: /accounts/{accountId}/balances
-      - key: CSAS_SCOPE_TEMPLATE
-        value: AIS:{consentId} openid offline_access
-      - key: ENABLE_BANKING_APP_ID
-        sync: false
-      - key: ENABLE_BANKING_PRIVATE_KEY
-        sync: false
-      - key: ENABLE_BANKING_BASE_URL
-        value: https://api.enablebanking.com
 
   - type: cron
     name: flatcloud-rent-notifications

@@ -46,7 +46,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     ].filter(Boolean)));
 
     const result = await prisma.$transaction(async (tx) => {
-      await assertUniqueVariableSymbol(tx, variableSymbol);
+      await assertUniqueVariableSymbol(tx, ownerBankAccountId, variableSymbol);
+      await tx.propertyPaymentAccount.upsert({
+        where: { propertyId_ownerBankAccountId: { propertyId: id, ownerBankAccountId } },
+        update: { active: true },
+        create: { propertyId: id, ownerBankAccountId, active: true },
+      });
       const tenant = await tx.tenant.create({
         data: {
           type: tenantType,
@@ -90,7 +95,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await tx.unit.update({ where: { id: unitId }, data: { status: status === "ACTIVE" ? UnitStatus.OCCUPIED : unit.status } });
       return { tenant, lease };
     });
-    await audit(access.user.id, "TENANT_AND_LEASE_CREATED", "Lease", result.lease.id, { propertyId: id, tenantId: result.tenant.id, unitId, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) });
+    await audit(access.user.id, "TENANT_AND_LEASE_CREATED", "Lease", result.lease.id, { propertyId: id, tenantId: result.tenant.id, unitId, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", "Nájemník a smlouva byli vytvořeni.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/najemnici/novy`, "error", error instanceof Error ? error.message : "Nájemníka se nepodařilo vytvořit.");

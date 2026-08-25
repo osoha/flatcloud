@@ -7,6 +7,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const access = await requireManagedProperty(id);
   if (!access) return go(request, "/login");
   const count = await processPropertyTransactions(id);
-  await audit(access.user.id, "PAYMENTS_REPROCESSED", "Property", id, { count });
+  await audit(access.user.id, "PAYMENTS_REPROCESSED", "Property", id, { count }, id);
   return goWithMessage(request, `/nemovitosti/${id}/banka`, "ok", `Znovu zpracováno ${count} plateb.`);
 }

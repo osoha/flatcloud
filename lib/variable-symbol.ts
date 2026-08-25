@@ -42,13 +42,24 @@ export function proposedVariableSymbol(property: PropertyForVs, unit: UnitForVs,
   }
   return null;
 }
-export async function assertUniqueVariableSymbol(tx: Prisma.TransactionClient, value: string, excludeLeaseId?: string) {
-  const lockKey = `flatcloud:lease-variable-symbol:${value}`;
+export async function assertUniqueVariableSymbol(
+  tx: Prisma.TransactionClient,
+  ownerBankAccountId: string,
+  value: string,
+  excludeLeaseId?: string,
+) {
+  const lockKey = `flatcloud:lease-variable-symbol:${ownerBankAccountId}:${value}`;
   await tx.$queryRaw<Array<{ locked: number }>>`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
   const duplicate = await tx.lease.findFirst({
-    where: { variableSymbol: value, ...(excludeLeaseId ? { id: { not: excludeLeaseId } } : {}) },
-    select: { id: true },
+    where: {
+      ownerBankAccountId,
+      variableSymbol: value,
+      status: { in: ["ACTIVE", "FUTURE"] },
+      ...(excludeLeaseId ? { id: { not: excludeLeaseId } } : {}),
+    },
+    include: { unit: true, tenant: true },
   });
-  if (duplicate) throw new Error("Variabilní symbol už používá jiná smlouva v evidenci.");
+  if (duplicate) {
+    throw new Error(`Variabilní symbol ${value} už na tomto účtu používá aktivní/budoucí smlouva ${duplicate.unit.label} · ${duplicate.tenant.name}. Zvolte jiný VS.`);
+  }
 }
-
