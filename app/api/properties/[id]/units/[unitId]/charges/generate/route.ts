@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const exists = await prisma.charge.findUnique({ where: { leaseId_period: { leaseId: lease.id, period } } });
     if (exists) return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "error", "Předpis pro tento měsíc již existuje.");
     const charge = await prisma.charge.create({ data: { leaseId: lease.id, period, dueDate: periodDueDate(period, lease.dueDay, lease.rentTiming), amountCents: items.reduce((s,i)=>s+i.amountCents,0), items: { create: items.map(i=>({ name:i.name, category:i.category, amountCents:i.amountCents })) } } });
-    await audit(access.user.id,"UNIT_CHARGE_GENERATED","Charge",charge.id,{unitId,period});
+    await audit(access.user.id,"UNIT_CHARGE_GENERATED","Charge",charge.id,{unitId,period}, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", `Předpis ${period} byl vytvořen.`);
   } catch(error) {
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "error", error instanceof Error?error.message:"Předpis se nepodařilo vytvořit.");

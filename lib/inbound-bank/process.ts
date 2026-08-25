@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { allocateTransactionToLease, processTransaction } from "@/lib/matching";
 import { bankAccountMatches, normalizeBankAccount } from "@/lib/inbound-bank/rb";
+import { touchPropertyPaymentNotification, tryVerifyNotificationPayment } from "@/lib/bank-email-verification";
 
 function normalizedVs(value?: string | null) {
   return (value || "").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
@@ -53,14 +54,15 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
   }
 
   if (ownerAccountIds.length) {
-    const [leaseRows, ownershipRows] = await Promise.all([
+    const [propertyLinks, leaseRows, ownershipRows] = await Promise.all([
+      prisma.propertyPaymentAccount.findMany({ where: { ownerBankAccountId: { in: ownerAccountIds }, active: true }, include: { ownerBankAccount: true } }),
       prisma.lease.findMany({ where: { ownerBankAccountId: { in: ownerAccountIds }, status: { in: ["ACTIVE", "FUTURE"] } }, include: { unit: true, ownerBankAccount: true } }),
       prisma.unitOwnership.findMany({ where: { ownerBankAccountId: { in: ownerAccountIds } }, include: { unit: true, ownerBankAccount: true } }),
     ]);
-    const propertyIds = new Set([...leaseRows.map((row) => row.unit.propertyId), ...ownershipRows.map((row) => row.unit.propertyId)]);
+    const propertyIds = new Set([...propertyLinks.map((row)=>row.propertyId), ...leaseRows.map((row) => row.unit.propertyId), ...ownershipRows.map((row) => row.unit.propertyId)]);
     if (propertyIds.size === 1) {
       const propertyId = [...propertyIds][0];
-      const ownerId = leaseRows.find((row) => row.unit.propertyId === propertyId)?.ownerBankAccount?.ownerId || ownershipRows.find((row) => row.unit.propertyId === propertyId)?.ownerBankAccount?.ownerId || null;
+      const ownerId = propertyLinks.find((row)=>row.propertyId===propertyId)?.ownerBankAccount.ownerId || leaseRows.find((row) => row.unit.propertyId === propertyId)?.ownerBankAccount?.ownerId || ownershipRows.find((row) => row.unit.propertyId === propertyId)?.ownerBankAccount?.ownerId || null;
       return { propertyId, leaseId: null, ownerId, reason: "jednoznačný cílový účet objektu" };
     }
   }
@@ -83,8 +85,6 @@ async function emailBankAccount(propertyId: string, recipientAccount?: string | 
       iban: normalizeBankAccount(recipientAccount).startsWith("CZ") ? normalizeBankAccount(recipientAccount) : undefined,
       ibanMasked: maskedAccount(recipientAccount),
       externalAccountId,
-      connectionStatus: "CONNECTED",
-      autoSyncEnabled: false,
     },
   });
 }
@@ -93,6 +93,15 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   const inbox = await prisma.inboxPayment.findUnique({ where: { id: inboxId } });
   if (!inbox || !inbox.amountCents || inbox.amountCents <= 0) return { imported: false, reason: "Platba nemá kladnou částku." };
   if (inbox.transactionId) return { imported: true, transactionId: inbox.transactionId, reason: "Platba už byla importována." };
+
+  const verification = await tryVerifyNotificationPayment({
+    inboxId: inbox.id,
+    amountCents: inbox.amountCents,
+    recipientAccount: inbox.recipientAccount,
+    variableSymbol: inbox.variableSymbol,
+    receivedAt: inbox.receivedAt,
+  });
+  if (verification) return { imported: true, propertyId: verification.propertyId, reason: "Ověřovací platba 1 Kč potvrdila bankovní e-mailové notifikace." };
 
   let route = await inferRoute(inbox);
   if (explicitLeaseId) {
@@ -105,6 +114,7 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
     return { imported: false, reason: route.reason };
   }
 
+  await touchPropertyPaymentNotification(route.propertyId, inbox.recipientAccount, inbox.receivedAt);
   const account = await emailBankAccount(route.propertyId, inbox.recipientAccount, route.ownerId);
   const transaction = await prisma.bankTransaction.upsert({
     where: { bankAccountId_externalId: { bankAccountId: account.id, externalId: `email:${inbox.id}` } },

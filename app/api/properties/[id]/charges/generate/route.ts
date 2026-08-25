@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       });
       created += 1;
     }
-    await audit(access.user.id, "CHARGES_GENERATED", "Property", id, { period, created, skipped });
+    await audit(access.user.id, "CHARGES_GENERATED", "Property", id, { period, created, skipped }, id);
     return goWithMessage(request, `/nemovitosti/${id}/predpisy`, "ok", `Vytvořeno ${created} předpisů, přeskočeno ${skipped}.`);
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/predpisy`, "error", error instanceof Error ? error.message : "Předpisy se nepodařilo vytvořit.");

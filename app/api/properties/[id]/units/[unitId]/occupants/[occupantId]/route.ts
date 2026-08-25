@@ -13,11 +13,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     if (text(form, "mode") === "delete") {
       await prisma.occupant.delete({ where: { id: occupantId } });
-      await audit(access.user.id, "OCCUPANT_DELETED", "Occupant", occupantId, { propertyId: id, unitId });
+      await audit(access.user.id, "OCCUPANT_DELETED", "Occupant", occupantId, { propertyId: id, unitId }, id);
       return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#osoby`, "ok", "Osoba byla odebrána.");
     }
     await prisma.occupant.update({ where: { id: occupantId }, data: { name: text(form, "name", true)!, email: text(form, "email"), phone: text(form, "phone"), permanentAddress: text(form, "permanentAddress"), correspondenceAddress: text(form, "correspondenceAddress"), note: text(form, "note"), active: boolValue(form, "active") } });
-    await audit(access.user.id, "OCCUPANT_UPDATED", "Occupant", occupantId, { propertyId: id, unitId });
+    await audit(access.user.id, "OCCUPANT_UPDATED", "Occupant", occupantId, { propertyId: id, unitId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#osoby`, "ok", "Osoba byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#osoby`, "error", error instanceof Error ? error.message : "Osobu se nepodařilo upravit.");

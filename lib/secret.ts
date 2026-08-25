@@ -11,7 +11,7 @@ function configuredSecrets() {
 
 function keys() {
   const secrets = configuredSecrets();
-  if (!secrets.length) throw new Error("Chybí dostatečně dlouhý SESSION_SECRET nebo BANK_TOKEN_ENCRYPTION_KEY. Automatický cron musí sdílet stejný šifrovací klíč jako webová služba.");
+  if (!secrets.length) throw new Error("Chybí dostatečně dlouhý SESSION_SECRET nebo BANK_TOKEN_ENCRYPTION_KEY. E-mailový a upomínkový cron musí sdílet stejný šifrovací klíč jako webová služba.");
   return secrets.map((secret) => createHash("sha256").update(secret).digest());
 }
 

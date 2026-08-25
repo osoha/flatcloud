@@ -18,7 +18,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     ]);
     if (!property) throw new Error("Nemovitost nebyla nalezena.");
     if (!account) throw new Error("Vyberte aktivní bankovní účet zvoleného vlastníka.");
-    const unit = await prisma.unit.create({
+    const unit = await prisma.$transaction(async (tx) => {
+      await tx.propertyPaymentAccount.upsert({
+        where: { propertyId_ownerBankAccountId: { propertyId: id, ownerBankAccountId } },
+        update: { active: true },
+        create: { propertyId: id, ownerBankAccountId, active: true },
+      });
+      return tx.unit.create({
       data: {
         propertyId: id,
         label: text(form, "label", true)!,
@@ -29,8 +35,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         note: text(form, "note"),
         ownerships: { create: { ownerId, ownerBankAccountId, shareBasisPoints: 10000 } },
       },
+      });
     });
-    await audit(access.user.id, "UNIT_CREATED", "Unit", unit.id, { propertyId: id, label: unit.label, ownerId, ownerBankAccountId });
+    await audit(access.user.id, "UNIT_CREATED", "Unit", unit.id, { propertyId: id, label: unit.label, ownerId, ownerBankAccountId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky`, "ok", "Jednotka byla vytvořena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/nova`, "error", error instanceof Error ? error.message : "Jednotku se nepodařilo vytvořit.");

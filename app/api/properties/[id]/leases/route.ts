@@ -42,7 +42,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
 
     const lease = await prisma.$transaction(async (tx) => {
-      await assertUniqueVariableSymbol(tx, variableSymbol);
+      await assertUniqueVariableSymbol(tx, ownerBankAccountId, variableSymbol);
+      await tx.propertyPaymentAccount.upsert({
+        where: { propertyId_ownerBankAccountId: { propertyId: id, ownerBankAccountId } },
+        update: { active: true },
+        create: { propertyId: id, ownerBankAccountId, active: true },
+      });
       if (tenantBankAccount && !tenant.payerAccounts.includes(tenantBankAccount)) {
         await tx.tenant.update({ where: { id: tenant.id }, data: { payerAccounts: [...tenant.payerAccounts, tenantBankAccount] } });
       }
@@ -81,7 +86,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       }
       return created;
     });
-    await audit(access.user.id, "LEASE_CREATED", "Lease", lease.id, { propertyId: id, generateCharges, rentTiming, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) });
+    await audit(access.user.id, "LEASE_CREATED", "Lease", lease.id, { propertyId: id, generateCharges, rentTiming, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) }, id);
     return goWithMessage(request, `/nemovitosti/${id}/predpisy/${lease.id}`, "ok", generateCharges ? "Smlouva i předpisy byly vytvořeny." : "Smlouva byla vytvořena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/nova`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo vytvořit.");

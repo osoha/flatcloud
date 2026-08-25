@@ -6,6 +6,7 @@ import { escapeHtml, sendMail } from "./email";
 import { money, date } from "./format";
 import { outstandingCents } from "./charges";
 import { paymentIban } from "./owner-bank-account";
+import { ensureCollectionTask } from "./tasks";
 
 const pragueParts = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Prague",
@@ -154,6 +155,16 @@ async function tenantMessage(lease: LeaseRow, input: { type: NotificationType; r
     });
     if (!result.sent) throw new Error(result.reason);
     await record({ leaseId: lease.id, chargeId: input.chargeId, type: input.type, status: "SENT", recipient, subject, body, referenceKey: input.referenceKey, outstandingCents: input.amountCents, messageId: result.messageId });
+    if (input.type === "FIRST_REMINDER" || input.type === "SECOND_REMINDER") {
+      await ensureCollectionTask({
+        leaseId: lease.id,
+        period: input.period,
+        outstandingCents: input.amountCents,
+        event: `${rentNotificationLabels[input.type]} odesláno nájemníkovi na ${recipient}. Evidovaný dluh: ${money(input.amountCents)}.`,
+        kind: "EMAIL",
+        priority: input.type === "SECOND_REMINDER" ? "URGENT" : "HIGH",
+      });
+    }
     return { ...base, status: "sent", recipient };
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Neznámá chyba SMTP.";
@@ -180,6 +191,14 @@ async function internalAlert(lease: LeaseRow, type: NotificationType, referenceK
     const result = await sendMail({ to: recipient, subject, text: `${owner.name}\n\n${body}`, html: mailLayout(owner, subject, body) });
     if (!result.sent) throw new Error(result.reason);
     await record({ leaseId: lease.id, type, status: "SENT", recipient, subject, body, referenceKey, outstandingCents: outstanding, messageId: result.messageId });
+    await ensureCollectionTask({
+      leaseId: lease.id,
+      period: oldest.toISOString().slice(0, 7),
+      outstandingCents: outstanding,
+      event: `${label}. Interní upozornění odesláno na ${recipient}. Evidovaný dluh: ${money(outstanding)}.`,
+      kind: "SYSTEM",
+      priority: type === "ESCALATION" ? "URGENT" : "HIGH",
+    });
     return { ...base, status: "sent", recipient };
   } catch (error) {
     const detail = error instanceof Error ? error.message : "Neznámá chyba SMTP.";

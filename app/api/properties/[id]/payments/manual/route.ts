@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { dateValue, moneyToCents, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { resolveCollectionTasksIfSettled } from "@/lib/tasks";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const account = await prisma.bankAccount.upsert({
       where: { provider_externalAccountId: { provider: "manual", externalAccountId: `manual-${id}` } },
       update: {},
-      create: { propertyId: id, provider: "manual", bankName: "Ruční evidence", ibanMasked: "RUČNÍ PLATBY", externalAccountId: `manual-${id}`, connectionStatus: "CONNECTED" },
+      create: { propertyId: id, provider: "manual", bankName: "Ruční evidence", ibanMasked: "RUČNÍ PLATBY", externalAccountId: `manual-${id}` },
     });
     const transaction = await prisma.bankTransaction.create({
       data: {
@@ -33,11 +34,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         counterpartyName: text(form, "counterpartyName") || charge.lease.tenant.name,
         variableSymbol: text(form, "variableSymbol") || charge.lease.variableSymbol,
         message: text(form, "message") || "Ruční evidence platby",
+        source: "manual",
         status,
         allocations: { create: { chargeId, amountCents: allocated } },
       },
     });
-    await audit(access.user.id, "MANUAL_PAYMENT_CREATED", "BankTransaction", transaction.id, { propertyId: id, chargeId, amountCents, allocated });
+    await resolveCollectionTasksIfSettled(charge.leaseId);
+    await audit(access.user.id, "MANUAL_PAYMENT_CREATED", "BankTransaction", transaction.id, { propertyId: id, chargeId, amountCents, allocated }, id);
     return goWithMessage(request, `/nemovitosti/${id}/platby`, "ok", "Ruční platba byla uložena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/platby/nova`, "error", error instanceof Error ? error.message : "Platbu se nepodařilo uložit.");

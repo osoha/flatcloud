@@ -36,6 +36,6 @@ export function requirePropertyAdmin(propertyId: string) {
   return requirePropertyPermission(propertyId, PropertyPermission.ADMIN);
 }
 
-export async function audit(userId: string | null, action: string, entityType: string, entityId?: string, details?: Prisma.InputJsonObject) {
-  await prisma.auditLog.create({ data: { userId, action, entityType, entityId, details } });
+export async function audit(userId: string | null, action: string, entityType: string, entityId?: string, details?: Prisma.InputJsonObject, propertyId?: string | null) {
+  await prisma.auditLog.create({ data: { userId, action, entityType, entityId, details, propertyId: propertyId || null } });
 }

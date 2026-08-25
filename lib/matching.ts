@@ -1,6 +1,7 @@
 import { MatchRuleAction, PaymentStatus } from "@prisma/client";
 import { prisma } from "./db";
 import { bankAccountMatches, normalizeBankAccount } from "./inbound-bank/rb";
+import { resolveCollectionTasksIfSettled } from "./tasks";
 
 export function normalizeIban(value?: string | null) {
   return (value || "").replace(/\s+/g, "").toUpperCase();
@@ -49,7 +50,7 @@ export async function allocateTransactionToLease(transactionId: string, leaseId:
   if (!transaction || transaction.amountCents <= 0) return;
   const lease = await prisma.lease.findFirst({
     where: { id: leaseId, unit: { propertyId: transaction.bankAccount.propertyId } },
-    include: { charges: { include: { allocations: true }, orderBy: { dueDate: "asc" } } },
+    include: { charges: { where: { active: true }, include: { allocations: true }, orderBy: { dueDate: "asc" } } },
   });
   if (!lease) return;
 
@@ -82,6 +83,7 @@ export async function allocateTransactionToLease(transactionId: string, leaseId:
     where: { id: transactionId },
     data: { status, suggestedLeaseId: leaseId, matchNote: note, matchedRuleId: matchedRuleId || null },
   });
+  await resolveCollectionTasksIfSettled(leaseId);
 }
 
 export async function recomputeTransactionStatus(transactionId: string) {

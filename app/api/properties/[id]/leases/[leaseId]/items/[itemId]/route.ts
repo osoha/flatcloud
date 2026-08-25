@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         active: boolValue(form, "active"),
       },
     });
-    await audit(access.user.id, "PAYMENT_ITEM_UPDATED", "LeasePaymentItem", item.id, { propertyId: id, leaseId });
+    await audit(access.user.id, "PAYMENT_ITEM_UPDATED", "LeasePaymentItem", item.id, { propertyId: id, leaseId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/predpisy/${leaseId}`, "ok", "Položka předpisu byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/predpisy/${leaseId}`, "error", error instanceof Error ? error.message : "Položku se nepodařilo upravit.");

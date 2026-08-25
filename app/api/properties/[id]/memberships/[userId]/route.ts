@@ -14,14 +14,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (mode === "remove") {
       if (!canSeeAll(access.user.role) && userId === access.user.id) throw new Error("Nemůžete odebrat vlastní administrátorský přístup.");
       await prisma.userProperty.delete({ where: { userId_propertyId: { userId, propertyId: id } } });
-      await audit(access.user.id, "PROPERTY_ACCESS_REMOVED", "UserProperty", `${userId}:${id}`, { propertyId: id, userId });
+      await audit(access.user.id, "PROPERTY_ACCESS_REMOVED", "UserProperty", `${userId}:${id}`, { propertyId: id, userId }, id);
       return goWithMessage(request, `/nemovitosti/${id}/uzivatele`, "ok", "Přístup uživatele byl odebrán.");
     }
     const raw = String(form.get("permission") || "VIEW") as PropertyPermission;
     let selected = Object.values(PropertyPermission).includes(raw) ? raw : PropertyPermission.VIEW;
     if (!canSeeAll(access.user.role) && selected === PropertyPermission.ADMIN) selected = PropertyPermission.EDIT;
     await prisma.userProperty.update({ where: { userId_propertyId: { userId, propertyId: id } }, data: { permission: selected } });
-    await audit(access.user.id, "PROPERTY_ACCESS_UPDATED", "UserProperty", `${userId}:${id}`, { propertyId: id, userId, permission: selected });
+    await audit(access.user.id, "PROPERTY_ACCESS_UPDATED", "UserProperty", `${userId}:${id}`, { propertyId: id, userId, permission: selected }, id);
     return goWithMessage(request, `/nemovitosti/${id}/uzivatele`, "ok", "Oprávnění bylo změněno.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/uzivatele`, "error", error instanceof Error ? error.message : "Oprávnění se nepodařilo změnit.");

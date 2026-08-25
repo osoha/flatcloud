@@ -42,7 +42,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status: PaymentStatus.IGNORED, matchedRuleId: ruleId, suggestedLeaseId: null, matchNote: future ? "Ignorováno a vytvořeno pravidlo pro budoucí transakce." : "Ručně ignorováno správcem." } });
     if (future) await processPropertyTransactions(id);
-    await audit(access.user.id, "PAYMENT_IGNORED", "BankTransaction", transactionId, { propertyId: id, futureRule: future, ruleId });
+    await audit(access.user.id, "PAYMENT_IGNORED", "BankTransaction", transactionId, { propertyId: id, futureRule: future, ruleId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/platby/${transactionId}`, "ok", future ? "Platba byla ignorována a pravidlo platí i pro budoucí transakce." : "Platba byla ignorována.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/platby/${transactionId}`, "error", error instanceof Error ? error.message : "Platbu se nepodařilo ignorovat.");

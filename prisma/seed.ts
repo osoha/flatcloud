@@ -39,11 +39,11 @@ async function main() {
         ownerId: definition.ownerId,
         ibanMasked: `${definition.accountNumber}/${definition.bankCode}`,
         externalAccountId: `mock-${propertyIndex + 1}`,
-        lastSyncedAt: new Date(),
       },
     });
 
     const paymentAccount = await prisma.ownerBankAccount.create({ data: { ownerId: definition.ownerId, label: `${definition.name} – nájemné`, accountNumber: definition.accountNumber, bankCode: definition.bankCode } });
+    await prisma.propertyPaymentAccount.create({ data: { propertyId: property.id, ownerBankAccountId: paymentAccount.id, primary: true } });
 
     for (let index = 1; index <= 5; index += 1) {
       const unit = await prisma.unit.create({

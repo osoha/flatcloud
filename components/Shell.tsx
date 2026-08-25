@@ -1,8 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, Building2, LayoutDashboard, LogOut, Plus, Settings, UserRound, Users, UsersRound } from "lucide-react";
+import { AlertTriangle, BarChart3, Building2, CalendarCheck2, ClipboardCheck, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { openTaskStatuses } from "@/lib/operations";
 import { UserAvatar } from "@/components/UserAvatar";
 
 type ShellUser = {
@@ -17,66 +18,75 @@ type ShellUser = {
 
 export async function Shell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
   const superAdmin = user.role === "SUPER_ADMIN";
+  const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role);
-  const unmatchedCount = superAdmin ? (await Promise.all([
-    prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
-    prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
-  ])).reduce((sum, value) => sum + value, 0) : 0;
-  const canAddManualPayment = hasAllPropertyAccess(user) || Boolean(await prisma.user.findUnique({
+  const taskWhere = fullAccess ? {} : { OR: [{ property: { memberships: { some: { userId: user.id } } } }, { unit: { userAccesses: { some: { userId: user.id } } } }] };
+  const revisionWhere = fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } };
+  const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
+  const [openTasks, dueRevisions, unmatchedCount] = await Promise.all([
+    prisma.task.count({ where: { ...taskWhere, status: { in: openTaskStatuses } } }),
+    prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
+    superAdmin ? Promise.all([
+      prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
+      prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
+    ]).then((values) => values.reduce((sum, value) => sum + value, 0)) : Promise.resolve(0),
+  ]);
+  const canAddManualPayment = fullAccess || Boolean(await prisma.user.findUnique({
     where: { id: user.id },
-    select: {
-      _count: {
-        select: {
-          memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } },
-          unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } },
-        },
-      },
-    },
+    select: { _count: { select: { memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } }, unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } } } } },
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
 
-  return <div className="app-shell">
+  return <div className="app-shell v21-shell">
     <aside className="sidebar">
       <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka">
-        <Image src="/flatcloud-logo.png" width={178} height={43} alt="FlatCloud" priority/>
+        <Image src="/flatcloud-logo.png" width={148} height={36} alt="FlatCloud" priority/>
       </Link>
-      <div className="scope-box">
-        <small>Rozsah přístupu</small>
-        <strong>{hasAllPropertyAccess(user) ? "Všechna portfolia" : "Přiřazené objekty / jednotky"}</strong>
-        <span>Data oddělena podle oprávnění</span>
-      </div>
-      <nav className="nav">
-        <Link href="/portfolio"><span className="ico"><LayoutDashboard size={17}/></span>Portfolio</Link>
+      <nav className="nav v21-nav">
+        <div className="nav-label">Přehled</div>
+        <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
+        <Nav href="/portfolio#nemovitosti" icon={<Building2 size={17}/>} label="Nemovitosti"/>
+
+        <div className="nav-label">Provoz</div>
+        <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
+        <Nav href="/revize" icon={<ClipboardCheck size={17}/>} label="Revize a kontroly" count={dueRevisions}/>
+
+        <div className="nav-label">Finance</div>
+        {superAdmin && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>} 
+        <Nav href="/reporty/predpisy" icon={<ReceiptText size={17}/>} label="Předpisy"/>
+        <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
+
+        <div className="nav-label">Evidence</div>
+        <Nav href="/smlouvy/upozorneni" icon={<CalendarCheck2 size={17}/>} label="Smlouvy"/>
+        {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
+
         <div className="nav-label">Správa</div>
-        <Link href="/portfolio"><span className="ico"><Building2 size={17}/></span>Nemovitosti</Link>
-        {hasAllPropertyAccess(user) && <Link href="/vlastnici"><span className="ico"><UsersRound size={17}/></span>Vlastníci a SPV</Link>}
-        {superAdmin && <Link href="/uzivatele"><span className="ico"><Users size={17}/></span>Uživatelé</Link>}
-        {superAdmin && <Link href="/platby/nesparovane"><span className="ico"><AlertTriangle size={17}/></span>Nespárované platby{unmatchedCount > 0 && <span className="nav-count">{unmatchedCount > 99 ? "99+" : unmatchedCount}</span>}</Link>}
-        {superAdmin && <Link href="/nastaveni"><span className="ico"><Settings size={17}/></span>Administrace aplikace</Link>}
-        <div className="nav-divider"/>
-        <Link href="/ucet"><span className="ico"><UserRound size={17}/></span>Můj účet</Link>
+        <Nav href="/reporty/nemovitosti" icon={<BarChart3 size={17}/>} label="Reporty"/>
+        {superAdmin && <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>}
+        {superAdmin && <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>}
       </nav>
-      <div className="sidebar-user">
+      <div className="sidebar-footer">
+        <div className="scope-box compact-scope"><small>Rozsah</small><strong>{fullAccess ? "Všechna portfolia" : "Přiřazené objekty"}</strong></div>
         <div className="user-card">
-          <Link className="user-card-profile" href="/ucet" aria-label="Otevřít můj účet">
-            <UserAvatar user={user}/>
-            <div><strong>{user.name}</strong><small>{user.email}</small></div>
-          </Link>
-          <form className="logout-form" action="/api/auth/logout" method="post">
-            <button><LogOut size={11}/>Odhlásit</button>
-          </form>
+          <Link className="user-card-profile" href="/ucet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small>{user.email}</small></div></Link>
+          <form className="logout-form" action="/api/auth/logout" method="post"><button aria-label="Odhlásit"><LogOut size={13}/></button></form>
         </div>
       </div>
     </aside>
     <main className="main">
-      <header className="topbar">
-        <div className="search">Hledat nemovitost, nájemníka nebo platbu…</div>
+      <header className="topbar v21-topbar">
+        <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
           {canAddManualPayment && <Link className="secondary top-action" href="/platby/nova"><Plus size={15}/><span>Ruční platba</span></Link>}
           {canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
+          <Link className="account-chip" href="/ucet"><UserRound size={15}/><span>{user.name}</span></Link>
         </div>
       </header>
       {children}
     </main>
   </div>;
+}
+
+function Nav({href,icon,label,count=0}:{href:string;icon:React.ReactNode;label:string;count?:number}){
+  return <Link href={href}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</Link>;
 }

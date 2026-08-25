@@ -16,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const leaseId = text(form, "leaseId");
     if (leaseId && !(await prisma.lease.findFirst({ where: { id: leaseId, unitId }, select: { id: true } }))) throw new Error("Vybraný nájemní vztah nepatří k této jednotce.");
     const reading = await prisma.meterReading.create({ data: { meterId, leaseId, readAt: dateValue(form, "readAt", true)!, value, note: text(form, "note") } });
-    await audit(access.user.id, "METER_READING_CREATED", "MeterReading", reading.id, { propertyId: id, unitId, meterId, value });
+    await audit(access.user.id, "METER_READING_CREATED", "MeterReading", reading.id, { propertyId: id, unitId, meterId, value }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#meridla`, "ok", "Odečet byl uložen.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#meridla`, "error", error instanceof Error ? error.message : "Odečet se nepodařilo uložit.");

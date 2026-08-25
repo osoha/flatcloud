@@ -23,7 +23,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         note: text(form, "note"),
       },
     });
-    await audit(access.user.id, "UNIT_UPDATED", "Unit", unit.id, { propertyId: id, label: unit.label });
+    await audit(access.user.id, "UNIT_UPDATED", "Unit", unit.id, { propertyId: id, label: unit.label }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky`, "ok", "Jednotka byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}/upravit`, "error", error instanceof Error ? error.message : "Jednotku se nepodařilo upravit.");
