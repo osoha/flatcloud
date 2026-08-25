@@ -497,6 +497,10 @@ model Lease {
   ownerBankAccountId    String?
   ownerBankAccount      OwnerBankAccount?  @relation(fields: [ownerBankAccountId], references: [id], onDelete: SetNull)
   tenantBankAccount     String?
+  autoChargesEnabled    Boolean            @default(true)
+  indexationEnabled     Boolean            @default(false)
+  indexationPercentBps  Int?
+  nextIndexationAt      DateTime?
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
@@ -787,8 +791,10 @@ model TaskEntry {
   authorId  String?
   author    User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
   kind      TaskEntryKind @default(COMMENT)
-  body      String
-  createdAt DateTime      @default(now())
+  body                  String
+  promisedPaymentDate   DateTime?
+  promisedAmountCents   Int?
+  createdAt              DateTime      @default(now())
 
   @@index([taskId, createdAt])
   @@index([authorId, createdAt])

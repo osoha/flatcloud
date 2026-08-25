@@ -18,16 +18,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const body = text(form, "body", true)!;
     const kindRaw = text(form, "kind") || "COMMENT";
     if (!kinds.has(kindRaw)) throw new Error("Neplatný typ záznamu.");
-    const entry = await prisma.taskEntry.create({ data: { taskId: id, authorId: user.id, kind: kindRaw as "COMMENT" | "CALL" | "EMAIL" | "PROMISE" | "STATUS" | "SYSTEM", body } });
+
+    const promiseDateRaw = kindRaw === "PROMISE" ? text(form, "promiseDate") : null;
+    const promiseAmountRaw = kindRaw === "PROMISE" ? text(form, "promiseAmount") : null;
+    const promiseDate = promiseDateRaw ? new Date(`${promiseDateRaw}T12:00:00`) : null;
+    const promiseAmountCents = promiseAmountRaw ? Math.round(Number(promiseAmountRaw.replace(",", ".")) * 100) : null;
+    if (promiseDate && Number.isNaN(promiseDate.getTime())) throw new Error("Neplatné datum příslibu.");
+    if (promiseAmountRaw && (!promiseAmountCents || promiseAmountCents <= 0)) throw new Error("Přislíbená částka musí být vyšší než 0 Kč.");
+
+    const entry = await prisma.taskEntry.create({
+      data: {
+        taskId: id,
+        authorId: user.id,
+        kind: kindRaw as "COMMENT" | "CALL" | "EMAIL" | "PROMISE" | "STATUS" | "SYSTEM",
+        body,
+        promisedPaymentDate: kindRaw === "PROMISE" ? promiseDate : null,
+        promisedAmountCents: kindRaw === "PROMISE" ? promiseAmountCents : null,
+      },
+    });
     if (kindRaw === "PROMISE") {
-      const promiseDateRaw = text(form, "promiseDate");
-      const promiseAmountRaw = text(form, "promiseAmount");
-      const promiseDate = promiseDateRaw ? new Date(`${promiseDateRaw}T12:00:00`) : null;
-      const promiseAmountCents = promiseAmountRaw ? Math.round(Number(promiseAmountRaw.replace(",", ".")) * 100) : null;
-      await prisma.task.update({ where: { id }, data: { status: "WAITING", ...(promiseDate && !Number.isNaN(promiseDate.getTime()) ? { dueAt: promiseDate } : {}) } });
-      if (task.leaseId) await prisma.lease.update({ where: { id: task.leaseId }, data: { promisedPaymentDate: promiseDate && !Number.isNaN(promiseDate.getTime()) ? promiseDate : null, promisedAmountCents: promiseAmountCents && promiseAmountCents > 0 ? promiseAmountCents : null, collectionNote: body } });
+      await prisma.task.update({ where: { id }, data: { status: "WAITING", ...(promiseDate ? { dueAt: promiseDate } : {}) } });
+      if (task.leaseId) await prisma.lease.update({ where: { id: task.leaseId }, data: { promisedPaymentDate: promiseDate, promisedAmountCents: promiseAmountCents && promiseAmountCents > 0 ? promiseAmountCents : null, collectionNote: body } });
     }
-    await audit(user.id, "TASK_ENTRY_ADDED", "TaskEntry", entry.id, { taskId: id, kind: kindRaw }, task.propertyId);
+    await audit(user.id, "TASK_ENTRY_ADDED", "TaskEntry", entry.id, { taskId: id, kind: kindRaw, promiseDate: promiseDate?.toISOString(), promiseAmountCents }, task.propertyId);
     return goWithMessage(request, `/ukoly/${id}`, "ok", "Záznam byl přidán do vlákna.");
   } catch (error) {
     return goWithMessage(request, `/ukoly/${id}`, "error", error instanceof Error ? error.message : "Záznam se nepodařilo přidat.");

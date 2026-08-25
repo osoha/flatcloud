@@ -34,10 +34,10 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const tenant = activeLease?.tenant;
   const primaryEmail = tenant?.type === "COMPANY" ? tenant.communicationEmail || tenant.billingEmail || tenant.email : tenant?.email;
   const primaryAddress = tenant?.type === "COMPANY" ? tenant.billingAddress || tenant.address : tenant?.permanentAddress || tenant?.address;
-  const recurringCharge = activeLease ? activeLease.paymentItems.filter((item) => item.active).reduce((sum, item) => sum + item.amountCents, 0) : 0;
+  const recurringCharge = activeLease ? activeLease.rentCents + activeLease.servicesCents : 0;
   const statusTone = unit.status === "OCCUPIED" ? "occupied" : unit.status === "VACANT" ? "vacant" : unit.status === "RENOVATION" ? "renovation" : "inactive";
 
-  return <Shell user={user}><div className="page">
+  return <Shell user={user} taskPropertyId={id} taskLeaseId={activeLease?.id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><Link href={`/nemovitosti/${id}/jednotky`}>Jednotky</Link><span>›</span><span>{unit.label}</span></div>
     <div className="unit-hero card"><div><span className="eyebrow">{unitTypes[unit.type]}</span><h1>{unit.label}</h1><p>{property.name} · {unit.floor || "podlaží neuvedeno"} · {unit.areaM2 ? `${unit.areaM2} m²` : "plocha neuvedena"}</p></div><div className="action-row">{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unit.id}/upravit`}><Pencil size={15}/> Upravit jednotku</Link>}{canManage && <Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova?unitId=${unit.id}`}><Plus size={15}/> Nová smlouva</Link>}</div></div>
     <Flash ok={query.ok} error={query.error}/>

@@ -1,3 +1,5 @@
+> **HISTORICKÁ DOKUMENTACE V21:** Pro aktuální nasazení použijte `DEPLOY-V21.1-CZ.md`.
+
 # Nasazení FlatCloud Rent V21
 
 V21 navazuje na V20 a je určen pro současný sandbox režim. Migrace obsahuje záměrný cleanup nepoužívaného přímého bankovního API modelu.

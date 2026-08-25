@@ -25,6 +25,9 @@ export async function POST(request: Request) {
     const unitId = text(form, "unitId");
     const leaseId = text(form, "leaseId");
     const tenantId = text(form, "tenantId");
+    let resolvedUnitId = unitId;
+    let resolvedTenantId = tenantId;
+    if (categoryRaw === "COLLECTION" && !leaseId) throw new Error("Upomínkový případ musí být navázaný na konkrétní smlouvu.");
     if (!categories.has(categoryRaw)) throw new Error("Neplatná kategorie úkolu.");
     if (!priorities.has(priorityRaw)) throw new Error("Neplatná priorita úkolu.");
 
@@ -40,6 +43,8 @@ export async function POST(request: Request) {
       if (!lease) throw new Error("Vybraná smlouva nepatří k této nemovitosti.");
       if (unitId && lease.unitId !== unitId) throw new Error("Vybraná smlouva nepatří k vybrané jednotce.");
       if (tenantId && lease.tenantId !== tenantId) throw new Error("Vybraná smlouva nepatří k vybranému nájemníkovi.");
+      resolvedUnitId = lease.unitId;
+      resolvedTenantId = lease.tenantId;
     }
     if (tenantId && !leaseId) {
       const tenantInProperty = await prisma.lease.findFirst({ where: { tenantId, unit: { propertyId } }, select: { id: true } });
@@ -72,15 +77,15 @@ export async function POST(request: Request) {
         createdById: user.id,
         assigneeId: assigneeId || undefined,
         dueAt: dueAt || undefined,
-        unitId: unitId || undefined,
+        unitId: resolvedUnitId || undefined,
         leaseId: leaseId || undefined,
-        tenantId: tenantId || undefined,
+        tenantId: resolvedTenantId || undefined,
         entries: { create: { authorId: user.id, kind: "SYSTEM", body: "Úkol byl založen." } },
       },
     });
     await audit(user.id, "TASK_CREATED", "Task", created.id, { title, category: categoryRaw, priority: priorityRaw }, propertyId);
     return goWithMessage(request, `/ukoly/${created.id}`, "ok", "Úkol byl vytvořen.");
   } catch (error) {
-    return goWithMessage(request, propertyId ? `/nemovitosti/${propertyId}/provoz` : "/ukoly", "error", error instanceof Error ? error.message : "Úkol se nepodařilo vytvořit.");
+    return goWithMessage(request, propertyId ? `/ukoly/novy?propertyId=${propertyId}` : "/ukoly/novy", "error", error instanceof Error ? error.message : "Úkol se nepodařilo vytvořit.");
   }
 }

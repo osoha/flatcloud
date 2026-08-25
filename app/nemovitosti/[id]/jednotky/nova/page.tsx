@@ -20,7 +20,7 @@ export default async function NewUnit({ params, searchParams }: { params: Promis
   if (!property) notFound();
   const ownerOptions = owners.map((owner) => ({ id: owner.id, label: `${owner.name}${owner.ico ? ` · IČO ${owner.ico}` : ""}`, accounts: owner.paymentAccounts.map((account) => ({ id: account.id, label: ownerBankAccountLabel(account) })) }));
   const defaultOwner = owners.find((owner) => owner.id === property.ownerId) || owners[0];
-  return <Shell user={user}><FormPage title="Přidat jednotku" description={property.name} backHref={`/nemovitosti/${id}/jednotky`}>
+  return <Shell user={user} taskPropertyId={id}><FormPage title="Přidat jednotku" description={property.name} backHref={`/nemovitosti/${id}/jednotky`}>
     <Flash ok={query.ok} error={query.error}/>
     <FormCard action={`/api/properties/${id}/units`} cancelHref={`/nemovitosti/${id}/jednotky`} submitLabel="Přidat jednotku">
       <Field label="Označení jednotky" name="label" required placeholder="např. Byt 12 nebo 3.02"/>

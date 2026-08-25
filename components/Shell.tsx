@@ -4,6 +4,7 @@ import { AlertTriangle, BarChart3, Building2, CalendarCheck2, ClipboardCheck, La
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
+import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
 import { UserAvatar } from "@/components/UserAvatar";
 
 type ShellUser = {
@@ -16,21 +17,31 @@ type ShellUser = {
   updatedAt?: Date | string;
 };
 
-export async function Shell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
+export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string }) {
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role);
   const taskWhere = fullAccess ? {} : { OR: [{ property: { memberships: { some: { userId: user.id } } } }, { unit: { userAccesses: { some: { userId: user.id } } } }] };
   const revisionWhere = fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } };
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
-  const [openTasks, dueRevisions, unmatchedCount] = await Promise.all([
+  const [openTasks, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
     prisma.task.count({ where: { ...taskWhere, status: { in: openTaskStatuses } } }),
     prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
     superAdmin ? Promise.all([
       prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
       prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
     ]).then((values) => values.reduce((sum, value) => sum + value, 0)) : Promise.resolve(0),
+    prisma.lease.findMany({ where: { status: "ACTIVE", ...(fullAccess ? {} : { unit: { property: { memberships: { some: { userId: user.id } } } } }) }, select: { startDate: true, endDate: true } }),
   ]);
+  const today = new Date();
+  const leaseHorizon = addCalendarMonths(today, 3);
+  const leaseAlertCount = leaseRows.reduce((count, lease) => {
+    const expiry = lease.endDate && lease.endDate >= today && lease.endDate <= leaseHorizon ? 1 : 0;
+    const anniversary = nextLeaseAnniversary(lease.startDate, today);
+    const anniversaryHit = anniversary <= leaseHorizon && (!lease.endDate || anniversary <= lease.endDate) ? 1 : 0;
+    return count + expiry + anniversaryHit;
+  }, 0);
+  const canAddTask = fullAccess || Boolean(await prisma.userProperty.count({ where: { userId: user.id, permission: { in: ["EDIT", "ADMIN"] } } }));
   const canAddManualPayment = fullAccess || Boolean(await prisma.user.findUnique({
     where: { id: user.id },
     select: { _count: { select: { memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } }, unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } } } } },
@@ -48,7 +59,7 @@ export async function Shell({ user, children }: { user: ShellUser; children: Rea
 
         <div className="nav-label">Provoz</div>
         <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
-        <Nav href="/revize" icon={<ClipboardCheck size={17}/>} label="Revize a kontroly" count={dueRevisions}/>
+        <Nav href="/revize" icon={<ClipboardCheck size={17}/>} label="Revize" count={dueRevisions}/>
 
         <div className="nav-label">Finance</div>
         {superAdmin && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>} 
@@ -56,7 +67,7 @@ export async function Shell({ user, children }: { user: ShellUser; children: Rea
         <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
 
         <div className="nav-label">Evidence</div>
-        <Nav href="/smlouvy/upozorneni" icon={<CalendarCheck2 size={17}/>} label="Smlouvy"/>
+        <Nav href="/smlouvy/upozorneni" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
         {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
 
         <div className="nav-label">Správa</div>
@@ -78,6 +89,7 @@ export async function Shell({ user, children }: { user: ShellUser; children: Rea
         <div className="top-spacer"/>
         <div className="top-actions">
           {canAddManualPayment && <Link className="secondary top-action" href="/platby/nova"><Plus size={15}/><span>Ruční platba</span></Link>}
+          {canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
           {canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
           <Link className="account-chip" href="/ucet"><UserRound size={15}/><span>{user.name}</span></Link>
         </div>

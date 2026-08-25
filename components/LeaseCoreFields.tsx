@@ -22,9 +22,12 @@ type Props = {
   ownerAccountsByUnit?: Record<string, OwnerAccountOption>;
   tenantAccountsByTenant?: Record<string, string[]>;
   showGenerateCharges?: boolean;
+  defaultAutoChargesEnabled?: boolean;
+  defaultIndexationEnabled?: boolean;
+  defaultIndexationPercent?: number | string | null;
 };
 
-export function LeaseCoreFields({ unitOptions, tenantOptions, defaultUnitId, defaultTenantId, defaultContractNumber, defaultStartDate, defaultEndDate = "", defaultStatus = "ACTIVE", defaultDueDay = 5, defaultRentTiming = "ADVANCE", defaultVariableSymbol = "", defaultTenantBankAccount = "", proposals = {}, ownerAccountsByUnit = {}, tenantAccountsByTenant = {}, showGenerateCharges = false }: Props) {
+export function LeaseCoreFields({ unitOptions, tenantOptions, defaultUnitId, defaultTenantId, defaultContractNumber, defaultStartDate, defaultEndDate = "", defaultStatus = "ACTIVE", defaultDueDay = 5, defaultRentTiming = "ADVANCE", defaultVariableSymbol = "", defaultTenantBankAccount = "", proposals = {}, ownerAccountsByUnit = {}, tenantAccountsByTenant = {}, showGenerateCharges = false, defaultAutoChargesEnabled = true, defaultIndexationEnabled = false, defaultIndexationPercent = "" }: Props) {
   const initialUnit = defaultUnitId || unitOptions[0]?.[0] || "";
   const initialTenant = defaultTenantId || tenantOptions?.[0]?.[0] || "";
   const [unitId, setUnitId] = useState(initialUnit);
@@ -33,6 +36,7 @@ export function LeaseCoreFields({ unitOptions, tenantOptions, defaultUnitId, def
   const initialVs = defaultVariableSymbol || proposals[initialUnit] || "";
   const [variableSymbol, setVariableSymbol] = useState(initialVs);
   const [tenantBankAccount, setTenantBankAccount] = useState(defaultTenantBankAccount || tenantAccountsByTenant[initialTenant]?.[0] || "");
+  const [indexationEnabled, setIndexationEnabled] = useState(defaultIndexationEnabled);
   const proposed = useMemo(() => proposals[unitId] || "", [proposals, unitId]);
   const ownerAccount = ownerAccountsByUnit[unitId] || null;
   const knownTenantAccounts = tenantAccountsByTenant[tenantId] || [];
@@ -61,7 +65,7 @@ export function LeaseCoreFields({ unitOptions, tenantOptions, defaultUnitId, def
     <label className="field"><span>Stav smlouvy</span><select name="status" defaultValue={defaultStatus}><option value="ACTIVE">Aktivní</option><option value="FUTURE">Budoucí</option><option value="ENDED">Ukončená</option></select></label>
     <label className="field"><span>Den splatnosti *</span><input name="dueDay" type="number" min={1} max={31} defaultValue={defaultDueDay} required/></label>
     <label className="field"><span>Způsob placení</span><select name="rentTiming" defaultValue={defaultRentTiming}><option value="ADVANCE">Dopředné – v daném měsíci</option><option value="ARREARS">Zpětné – v následujícím měsíci</option></select></label>
-    <label className="field"><span>Variabilní symbol *</span><input name="variableSymbol" inputMode="numeric" pattern="[0-9]{1,10}" maxLength={10} value={variableSymbol} onChange={(event) => setVariableSymbol(event.target.value.replace(/\D/g, "").slice(0, 10))} required/><small>{proposed ? `Návrh podle domu, jednotky a pořadí smlouvy: ${proposed}` : "VS musí být číselný a unikátní v celé evidenci."}</small></label>
-    {showGenerateCharges && termType === "FIXED" && <label className="checkbox-field field-full"><input type="checkbox" name="generateCharges"/><span>Po vytvoření smlouvy vytvořit předpisy na celé sjednané období</span></label>}
+    <label className="field"><span>Variabilní symbol *</span><input name="variableSymbol" inputMode="numeric" pattern="[0-9]{1,10}" maxLength={10} value={variableSymbol} onChange={(event) => setVariableSymbol(event.target.value.replace(/\D/g, "").slice(0, 10))} required/><small>{proposed ? `Návrh podle domu, jednotky a pořadí smlouvy: ${proposed}` : "VS musí být číselný a unikátní mezi aktivními/budoucími smlouvami na stejném příjmovém účtu."}</small></label>
+    {showGenerateCharges && <div className="field field-full automation-box"><h3>Automatizace předpisů</h3><label className="checkbox-field"><input type="checkbox" name="autoChargesEnabled" defaultChecked={defaultAutoChargesEnabled}/><span>{termType === "FIXED" ? "Automaticky vytvořit a udržovat předpisy na celé období smlouvy" : "Automaticky vytvářet předpisy 12 měsíců dopředu"}</span></label><small>FlatCloud doplní předpisy při založení i prodloužení smlouvy a změny budoucích částek promítne bez zásahu do uhrazené historie.</small><label className="checkbox-field"><input type="checkbox" name="indexationEnabled" checked={indexationEnabled} onChange={(event) => setIndexationEnabled(event.target.checked)}/><span>Automatická pevná procentní indexace nájemného při výročí smlouvy</span></label>{indexationEnabled && <label className="field automation-percent"><span>Roční indexace %</span><input name="indexationPercent" type="number" step="0.01" min="0.01" max="100" defaultValue={defaultIndexationPercent ?? ""} required/><small>Např. 5 znamená navýšení nájemného o 5 % při každém výročí smlouvy.</small></label>}</div>}
   </>;
 }

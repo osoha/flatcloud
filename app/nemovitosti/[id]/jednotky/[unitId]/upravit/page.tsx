@@ -26,7 +26,7 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
   const currentOwner = unit.ownerships[0]?.ownerId || property.ownerId;
   const currentAccount = unit.ownerships[0]?.ownerBankAccountId;
   const ownerOptions = owners.map((owner) => ({ id: owner.id, label: `${owner.name}${owner.ico ? ` · IČO ${owner.ico}` : ""}`, accounts: owner.paymentAccounts.map((account) => ({ id: account.id, label: ownerBankAccountLabel(account) })) }));
-  return <Shell user={user}><FormPage title={`Upravit jednotku ${unit.label}`} description={property.name} backHref={`/nemovitosti/${id}/jednotky/${unit.id}`}>
+  return <Shell user={user} taskPropertyId={id}><FormPage title={`Upravit jednotku ${unit.label}`} description={property.name} backHref={`/nemovitosti/${id}/jednotky/${unit.id}`}>
     <Flash ok={query.ok} error={query.error}/>
     <FormCard action={`/api/properties/${id}/units/${unit.id}`} cancelHref={`/nemovitosti/${id}/jednotky/${unit.id}`}>
       <Field label="Označení jednotky" name="label" defaultValue={unit.label} required/>
