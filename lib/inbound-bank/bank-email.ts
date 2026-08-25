@@ -222,10 +222,18 @@ function detectBank(combined: string, from?: string | null, returnPath?: string 
 function sourceTrusted(bankCode: string, input: Input) {
   const rule = trustedSenderRules.find((item) => item.bankCode === bankCode);
   if (!rule) return false;
+
   const fromDomain = domainFromAddress(input.from);
   const returnDomain = domainFromAddress(input.returnPath);
-  const knownDomain = domainAllowed(fromDomain, rule.domains) || domainAllowed(returnDomain, rule.domains);
-  if (!knownDomain || authExplicitlyFailed(input.authenticationResults)) return false;
+
+  const knownDomain =
+    domainAllowed(fromDomain, rule.domains) ||
+    domainAllowed(returnDomain, rule.domains);
+
+  if (!knownDomain) return false;
+  if (authExplicitlyFailed(input.authenticationResults)) return false;
+  if (!authExplicitlyPassed(input.authenticationResults)) return false;
+
   return true;
 }
 
