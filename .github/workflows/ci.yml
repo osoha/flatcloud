@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - main
-      - v21-2-multibank-email
+      - v21-2-universal-bank-email
 
 jobs:
   build:
