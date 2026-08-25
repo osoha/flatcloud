@@ -796,3 +796,13 @@ Produkční příkaz `npm run db:migrate` je veden přes `scripts/migrate-deploy
 - Platební zprávy a QR platby používají účet vybraný na smlouvě, případně účet vlastnictví jednotky. Původní účet bankovního napojení nemovitosti zůstává pouze kompatibilní záloha.
 - Použitý účet nelze fyzicky odstranit. Lze jej označit jako neaktivní; tím se přestane nabízet pro nové vazby, ale historie smluv zůstane zachována.
 - V18 obsahuje nedestruktivní migraci `20260717193000_owner_payment_accounts`.
+
+## V20 – bankovní notifikace e-mailem a smluvní události
+
+- `AppSetting` obsahuje globální šifrovanou konfiguraci jedné dedikované IMAP schránky a UID checkpoint.
+- `InboxPayment` je staging vrstva před `BankTransaction`: uchovává parse výsledek a dovoluje globální ruční routing ještě před přiřazením k nemovitosti.
+- Po určení nemovitosti se vytvoří technický `BankAccount` s providerem `rb-email`; standardní `BankTransaction` tak může použít existující alokace, detail platby i matching workflow bez paralelní účetní evidence.
+- `InboxPayment.transactionId` je 1:1 vazba na materializovanou transakci; `messageId` je deduplikační klíč e-mailu.
+- Hodinový `flatcloud-rent-bank-sync` zpracovává API účty i IMAP. Provider `rb-email` je z API synchronizace výslovně vyloučen.
+- Globální fronta e-mailových položek je záměrně pouze pro `SUPER_ADMIN`, protože nezařazená platba ještě nemá objekt, podle kterého by šlo bezpečně aplikovat běžná property oprávnění.
+- Výročí a expirace smluv jsou počítány dynamicky z `Lease.startDate` / `endDate`; není potřeba další tabulka ani cron.

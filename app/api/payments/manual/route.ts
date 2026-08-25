@@ -53,6 +53,7 @@ export async function POST(request: Request) {
         counterpartyName: text(form, "counterpartyName") || lease.tenant.name,
         variableSymbol: text(form, "variableSymbol") || lease.variableSymbol,
         message: text(form, "message") || "Ruční evidence platby",
+        source: "manual",
         status,
         suggestedLeaseId: lease.id,
         matchNote: remainingPayment > 0 ? `Přeplatek ${(remainingPayment / 100).toLocaleString("cs-CZ")} Kč vedený u smlouvy` : "Ruční platba přiřazená ke smlouvě",

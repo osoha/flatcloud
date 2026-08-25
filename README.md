@@ -1,4 +1,4 @@
-# FlatCloud Rent V18
+# FlatCloud Rent V20
 
 Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, nájemníků, smluv, předpisů, plateb a bankovního párování.
 
@@ -31,7 +31,7 @@ Interní aplikace FlatCloud pro správu nájemních nemovitostí, jednotek, náj
 3. Commitněte změny do větve `main`.
 4. Render automaticky provede build, migrace a bootstrap administrátora.
 
-Podrobnosti jsou v [`DEPLOY-V18-CZ.md`](DEPLOY-V18-CZ.md). Přehled změn je v [`CHANGELOG-V18-CZ.md`](CHANGELOG-V18-CZ.md).
+Podrobnosti pro aktuální verzi jsou v [`DEPLOY-V20-CZ.md`](DEPLOY-V20-CZ.md). Přehled změn je v [`CHANGELOG-V20-CZ.md`](CHANGELOG-V20-CZ.md).
 
 ## Architektura
 
@@ -57,3 +57,8 @@ Skript provede `prisma generate` a následně `next build`.
 ## V19 – upomínky
 
 V19 sjednocuje kryptografické klíče webové služby a Render cron jobů, umožňuje retry chybových upomínek, dohání zmeškané milníky a přidává administrátorské vynucené rozeslání mimo kalendář. Podrobnosti jsou v `CHANGELOG-V19-CZ.md` a `DEPLOY-V19-CZ.md`.
+
+
+## V20 – bankovní e-mail a smluvní KPI
+
+V20 přidává sběrný IMAP e-mail pro notifikace Raiffeisenbank, konzervativní párování plateb, globální frontu nespárovaných plateb pro hlavního administrátora a KPI expirací / výročí smluv tři měsíce dopředu. Uživatelský postup je v `BANKOVNI-EMAIL-RB-V20-CZ.md`.

@@ -1,5 +1,6 @@
 import { MatchRuleAction, PaymentStatus } from "@prisma/client";
 import { prisma } from "./db";
+import { bankAccountMatches, normalizeBankAccount } from "./inbound-bank/rb";
 
 export function normalizeIban(value?: string | null) {
   return (value || "").replace(/\s+/g, "").toUpperCase();
@@ -128,39 +129,42 @@ export async function processTransaction(transactionId: string) {
     }
   }
 
-  if (transaction.variableSymbol) {
-    const leases = await prisma.lease.findMany({
-      where: { variableSymbol: transaction.variableSymbol, unit: { propertyId }, status: { in: ["ACTIVE", "FUTURE"] } },
-      select: { id: true },
-      take: 2,
-    });
-    if (leases.length === 1) {
-      await allocateTransactionToLease(transaction.id, leases[0].id, "Automaticky podle variabilního symbolu.");
-      return;
-    }
-  }
+  const leases = await prisma.lease.findMany({
+    where: { unit: { propertyId }, status: { in: ["ACTIVE", "FUTURE"] } },
+    include: {
+      tenant: true,
+      ownerBankAccount: true,
+      charges: { where: { active: true }, include: { allocations: true }, orderBy: { dueDate: "asc" } },
+    },
+  });
+  const txVs = (transaction.variableSymbol || "").replace(/^0+(?=\d)/, "");
+  const payerAccount = normalizeBankAccount(transaction.counterpartyIban);
+  const recipient = transaction.recipientAccount || transaction.bankAccount.iban;
+  const scored = leases.map((lease) => {
+    const outstanding = lease.charges.map((charge) => Math.max(0, charge.amountCents - charge.allocations.reduce((sum, row) => sum + row.amountCents, 0))).filter((value) => value > 0);
+    const totalOutstanding = outstanding.reduce((sum, value) => sum + value, 0);
+    const exactAmount = outstanding.includes(transaction.amountCents) || totalOutstanding === transaction.amountCents;
+    const vs = Boolean(txVs && lease.variableSymbol.replace(/^0+(?=\d)/, "") === txVs);
+    const payer = Boolean(payerAccount && [lease.tenantBankAccount, ...lease.tenant.payerAccounts].map(normalizeBankAccount).filter(Boolean).includes(payerAccount));
+    const ownerAccount = Boolean(recipient && lease.ownerBankAccount && bankAccountMatches(lease.ownerBankAccount, recipient));
+    return { lease, exactAmount, vs, payer, ownerAccount };
+  });
 
-  const payerIban = normalizeIban(transaction.counterpartyIban);
-  if (payerIban) {
-    const leases = await prisma.lease.findMany({
-      where: {
-        unit: { propertyId },
-        status: { in: ["ACTIVE", "FUTURE"] },
-        OR: [
-          { tenantBankAccount: payerIban },
-          { tenant: { payerAccounts: { has: payerIban } } },
-        ],
-      },
-      select: { id: true },
-      take: 2,
-    });
-    if (leases.length === 1) {
-      await allocateTransactionToLease(transaction.id, leases[0].id, "Automaticky podle účtu nájemníka ve smlouvě nebo známého účtu plátce.");
-      return;
-    }
-  }
+  const choose = async (rows: typeof scored, note: string, suggest = false) => {
+    if (rows.length !== 1) return false;
+    if (suggest) await setSuggestion(transaction.id, rows[0].lease.id, note);
+    else await allocateTransactionToLease(transaction.id, rows[0].lease.id, note);
+    return true;
+  };
 
-  await prisma.bankTransaction.update({ where: { id: transaction.id }, data: { status: PaymentStatus.UNMATCHED, matchNote: "Nenalezeno jednoznačné pravidlo." } });
+  if (recipient && await choose(scored.filter((row) => row.ownerAccount && row.vs && row.exactAmount), "Automaticky: cílový účet vlastníka + VS + přesná částka.")) return;
+  if (recipient && await choose(scored.filter((row) => row.ownerAccount && row.vs), "Automaticky: cílový účet vlastníka + VS.")) return;
+  if (await choose(scored.filter((row) => row.vs && row.exactAmount), "Automaticky: VS + přesná částka.")) return;
+  if (await choose(scored.filter((row) => row.payer && row.exactAmount), "Automaticky: známý účet plátce + přesná částka.")) return;
+  if (await choose(scored.filter((row) => row.vs), "Automaticky podle jednoznačného variabilního symbolu.")) return;
+  if (await choose(scored.filter((row) => row.payer), "Návrh podle známého účtu plátce; částka nesouhlasí přesně s otevřeným předpisem.", true)) return;
+
+  await prisma.bankTransaction.update({ where: { id: transaction.id }, data: { status: PaymentStatus.UNMATCHED, matchNote: "Nenalezeno jednoznačné pravidlo. Platba je v globální frontě hlavního administrátora." } });
 }
 
 export async function processPropertyTransactions(propertyId: string, onlyIds?: string[]) {

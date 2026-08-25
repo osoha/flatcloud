@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Building2, LayoutDashboard, LogOut, Plus, Settings, UserRound, Users, UsersRound } from "lucide-react";
+import { AlertTriangle, Building2, LayoutDashboard, LogOut, Plus, Settings, UserRound, Users, UsersRound } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -18,6 +18,10 @@ type ShellUser = {
 export async function Shell({ user, children }: { user: ShellUser; children: React.ReactNode }) {
   const superAdmin = user.role === "SUPER_ADMIN";
   const canAddProperty = canSeeAll(user.role);
+  const unmatchedCount = superAdmin ? (await Promise.all([
+    prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
+    prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
+  ])).reduce((sum, value) => sum + value, 0) : 0;
   const canAddManualPayment = hasAllPropertyAccess(user) || Boolean(await prisma.user.findUnique({
     where: { id: user.id },
     select: {
@@ -46,6 +50,7 @@ export async function Shell({ user, children }: { user: ShellUser; children: Rea
         <Link href="/portfolio"><span className="ico"><Building2 size={17}/></span>Nemovitosti</Link>
         {hasAllPropertyAccess(user) && <Link href="/vlastnici"><span className="ico"><UsersRound size={17}/></span>Vlastníci a SPV</Link>}
         {superAdmin && <Link href="/uzivatele"><span className="ico"><Users size={17}/></span>Uživatelé</Link>}
+        {superAdmin && <Link href="/platby/nesparovane"><span className="ico"><AlertTriangle size={17}/></span>Nespárované platby{unmatchedCount > 0 && <span className="nav-count">{unmatchedCount > 99 ? "99+" : unmatchedCount}</span>}</Link>}
         {superAdmin && <Link href="/nastaveni"><span className="ico"><Settings size={17}/></span>Administrace aplikace</Link>}
         <div className="nav-divider"/>
         <Link href="/ucet"><span className="ico"><UserRound size={17}/></span>Můj účet</Link>
