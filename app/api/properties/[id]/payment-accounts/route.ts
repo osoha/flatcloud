@@ -20,10 +20,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!allowedOwnerIds.has(account.ownerId)) throw new Error("Účet nepatří vlastníkovi ani spoluvlastníkovi této nemovitosti.");
     if (mode === "remove") {
       const [leaseUse, ownershipUse] = await Promise.all([
-        prisma.lease.count({ where: { ownerBankAccountId: accountId, status: { in: ["ACTIVE", "FUTURE"] }, unit: { propertyId: id } } }),
+        prisma.lease.count({ where: { ownerBankAccountId: accountId, unit: { propertyId: id } } }),
         prisma.unitOwnership.count({ where: { ownerBankAccountId: accountId, unit: { propertyId: id } } }),
       ]);
-      if (leaseUse || ownershipUse) throw new Error("Účet nelze z objektu odebrat, protože jej používá jednotka nebo aktivní/budoucí smlouva. Nejprve změňte účet u těchto záznamů.");
+      if (leaseUse || ownershipUse) throw new Error("Účet nelze z objektu odebrat, protože jej používá jednotka nebo aktuální nebo historická smlouva. Nejprve změňte účet u těchto záznamů.");
       await prisma.propertyPaymentAccount.deleteMany({ where: { propertyId: id, ownerBankAccountId: accountId } });
       await audit(user.id, "PROPERTY_PAYMENT_ACCOUNT_REMOVED", "OwnerBankAccount", accountId, {}, id);
       return goWithMessage(request, `/nemovitosti/${id}/banka`, "ok", "Účet byl z nemovitosti odebrán.");

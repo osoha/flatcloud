@@ -16,6 +16,12 @@ export const unitTypes: Record<string, string> = {
 export const unitStatuses: Record<string, string> = {
   VACANT: "Volná",
   OCCUPIED: "Obsazená",
+  RENOVATION: "Rekonstrukce (legacy)",
+  INACTIVE: "Neaktivní (legacy)",
+};
+
+export const unitOperationalStatuses: Record<string, string> = {
+  STANDARD: "Standardní provoz",
   RENOVATION: "Rekonstrukce",
   INACTIVE: "Neaktivní",
 };

@@ -1,5 +1,4 @@
-import { LeaseStatus, RentTiming, UnitStatus } from "@prisma/client";
-import type { Prisma } from "@prisma/client";
+import { LeaseStatus, RentTiming } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { boolValue, dateValue, intValue, moneyToCents, text } from "@/lib/forms";
 import { normalizePayerAccount } from "@/lib/owner-bank-account";
@@ -7,19 +6,8 @@ import { requireManagedProperty, audit } from "@/lib/management";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
 import { firstFutureAnniversary, periodKeyForDate, replaceRecurringAmount, syncLeaseCharges } from "@/lib/charge-automation";
-
-async function syncUnitOccupancy(tx: Prisma.TransactionClient, unitId: string) {
-  const [unit, activeLease] = await Promise.all([
-    tx.unit.findUnique({ where: { id: unitId }, select: { status: true } }),
-    tx.lease.findFirst({ where: { unitId, status: LeaseStatus.ACTIVE }, select: { id: true } }),
-  ]);
-  if (!unit) return;
-  if (activeLease && unit.status !== UnitStatus.OCCUPIED) {
-    await tx.unit.update({ where: { id: unitId }, data: { status: UnitStatus.OCCUPIED } });
-  } else if (!activeLease && unit.status === UnitStatus.OCCUPIED) {
-    await tx.unit.update({ where: { id: unitId }, data: { status: UnitStatus.VACANT } });
-  }
-}
+import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
+import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "@/lib/lease-lifecycle";
 
 function percentToBps(value: string | null) {
   if (!value) return null;
@@ -43,8 +31,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const unitId = text(form, "unitId", true)!;
     const tenantId = text(form, "tenantId", true)!;
-    const statusRaw = text(form, "status") || "ACTIVE";
-    const status = Object.values(LeaseStatus).includes(statusRaw as LeaseStatus) ? statusRaw as LeaseStatus : LeaseStatus.ACTIVE;
     const timingRaw = text(form, "rentTiming") || "ADVANCE";
     const rentTiming = Object.values(RentTiming).includes(timingRaw as RentTiming) ? timingRaw as RentTiming : RentTiming.ADVANCE;
 
@@ -61,6 +47,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const termType = text(form, "termType") || "INDEFINITE";
     const endDate = termType === "FIXED" ? dateValue(form, "endDate", true)! : null;
     if (endDate && endDate < startDate) throw new Error("Konec smlouvy nesmí být před jejím začátkem.");
+    if (existing.terminatedOn && existing.terminatedOn < startDate) throw new Error("Začátek smlouvy nemůže být po evidovaném skutečném ukončení. Nejprve opravte lifecycle událost.");
+
     const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
     const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
     const rentCents = moneyToCents(form, "rent");
@@ -72,18 +60,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const indexationChanged = indexationEnabled !== existing.indexationEnabled || indexationPercentBps !== existing.indexationPercentBps || startDate.getTime() !== existing.startDate.getTime();
     const nextIndexationAt = indexationEnabled ? (indexationChanged || !existing.nextIndexationAt ? firstFutureAnniversary(startDate) : existing.nextIndexationAt) : null;
     const effectiveFrom = startDate > currentMonthStart() ? startDate : currentMonthStart();
+    const derivedStatus = leaseStatusAt({ startDate, endDate, terminatedOn: existing.terminatedOn, cancelledAt: existing.cancelledAt }) as LeaseStatus;
 
     const lease = await prisma.$transaction(async (tx) => {
+      await assertNoLeaseOverlap(tx, { unitId, startDate, endDate, terminatedOn: existing.terminatedOn, cancelledAt: existing.cancelledAt, excludeLeaseId: leaseId });
       await assertUniqueVariableSymbol(tx, ownerBankAccountId, variableSymbol, leaseId);
       await tx.propertyPaymentAccount.upsert({
         where: { propertyId_ownerBankAccountId: { propertyId: id, ownerBankAccountId } },
         update: { active: true },
         create: { propertyId: id, ownerBankAccountId, active: true },
       });
-      if (status === LeaseStatus.ACTIVE) {
-        const collision = await tx.lease.findFirst({ where: { unitId, status: LeaseStatus.ACTIVE, id: { not: leaseId } }, select: { id: true } });
-        if (collision) throw new Error("Vybraná jednotka už má jinou aktivní smlouvu.");
-      }
       if (tenantBankAccount && !tenant.payerAccounts.includes(tenantBankAccount)) {
         await tx.tenant.update({ where: { id: tenant.id }, data: { payerAccounts: [...tenant.payerAccounts, tenantBankAccount] } });
       }
@@ -113,7 +99,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           promisedPaymentDate: dateValue(form, "promisedPaymentDate"),
           promisedAmountCents: text(form, "promisedAmount") ? moneyToCents(form, "promisedAmount") : null,
           collectionNote: text(form, "collectionNote"),
-          status,
+          status: derivedStatus,
           autoChargesEnabled,
           indexationEnabled,
           indexationPercentBps,
@@ -121,13 +107,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         },
       });
 
-      await syncUnitOccupancy(tx, unitId);
-      if (existing.unitId !== unitId) await syncUnitOccupancy(tx, existing.unitId);
+      await syncUnitOccupancyCache(tx, unitId);
+      if (existing.unitId !== unitId) await syncUnitOccupancyCache(tx, existing.unitId);
       if (autoChargesEnabled) await syncLeaseCharges(tx, leaseId, { fromPeriod: periodKeyForDate(effectiveFrom), force: true });
       return updated;
     });
 
-    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, status, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), autoChargesEnabled, indexationEnabled, amountsChanged: rentCents !== existing.rentCents || servicesCents !== existing.servicesCents }, id);
+    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, lifecycleStatus: derivedStatus, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), autoChargesEnabled, indexationEnabled, amountsChanged: rentCents !== existing.rentCents || servicesCents !== existing.servicesCents }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", autoChargesEnabled ? "Smlouva byla upravena a budoucí předpisy synchronizovány." : "Smlouva byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo upravit.");

@@ -3,6 +3,7 @@ import { text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { periodDueDate, periodStart } from "@/lib/period";
 import { go, goWithMessage } from "@/lib/route-response";
+import { leaseOverlapsPeriod } from "@/lib/lease-lifecycle-core";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,19 +13,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const period = text(form, "period", true)!;
     const start = periodStart(period);
-    const leases = await prisma.lease.findMany({
-      where: {
-        unit: { propertyId: id },
-        status: { in: ["ACTIVE", "FUTURE"] },
-        startDate: { lte: new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0, 23, 59, 59)) },
-        OR: [{ endDate: null }, { endDate: { gte: start } }],
-      },
+    const periodEnd = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0, 23, 59, 59));
+    const allLeases = await prisma.lease.findMany({
+      where: { unit: { propertyId: id } },
       include: { paymentItems: { where: { active: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
     });
+    const leases = allLeases.filter((lease) => leaseOverlapsPeriod(lease, start, periodEnd));
     let created = 0;
     let skipped = 0;
     for (const lease of leases) {
-      const items = lease.paymentItems.filter((item) => item.validFrom <= new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0, 23, 59, 59)) && (!item.validTo || item.validTo >= start));
+      const items = lease.paymentItems.filter((item) => item.validFrom <= periodEnd && (!item.validTo || item.validTo >= start));
       if (!items.length) { skipped += 1; continue; }
       const exists = await prisma.charge.findUnique({ where: { leaseId_period: { leaseId: lease.id, period } }, select: { id: true } });
       if (exists) { skipped += 1; continue; }

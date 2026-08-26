@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
 import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
 import { UserAvatar } from "@/components/UserAvatar";
+import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 
 type ShellUser = {
   id: string;
@@ -31,14 +32,16 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
       prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
       prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
     ]).then((values) => values.reduce((sum, value) => sum + value, 0)) : Promise.resolve(0),
-    prisma.lease.findMany({ where: { status: "ACTIVE", ...(fullAccess ? {} : { unit: { property: { memberships: { some: { userId: user.id } } } } }) }, select: { startDate: true, endDate: true } }),
+    prisma.lease.findMany({ where: { ...(fullAccess ? {} : { unit: { property: { memberships: { some: { userId: user.id } } } } }) }, select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
   ]);
   const today = new Date();
   const leaseHorizon = addCalendarMonths(today, 3);
   const leaseAlertCount = leaseRows.reduce((count, lease) => {
-    const expiry = lease.endDate && lease.endDate >= today && lease.endDate <= leaseHorizon ? 1 : 0;
+    if (leaseStatusAt(lease, today) !== "ACTIVE") return count;
+    const end = effectiveLeaseEnd(lease);
+    const expiry = end && end >= today && end <= leaseHorizon ? 1 : 0;
     const anniversary = nextLeaseAnniversary(lease.startDate, today);
-    const anniversaryHit = anniversary <= leaseHorizon && (!lease.endDate || anniversary <= lease.endDate) ? 1 : 0;
+    const anniversaryHit = anniversary <= leaseHorizon && (!end || anniversary <= end) ? 1 : 0;
     return count + expiry + anniversaryHit;
   }, 0);
   const canAddTask = fullAccess || Boolean(await prisma.userProperty.count({ where: { userId: user.id, permission: { in: ["EDIT", "ADMIN"] } } }));

@@ -1,10 +1,12 @@
-import { LeaseStatus, RentTiming, TenantType, UnitStatus } from "@prisma/client";
+import { LeaseStatus, RentTiming, TenantType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { dateValue, intValue, moneyToCents, stringArray, text } from "@/lib/forms";
 import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
+import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
+import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "@/lib/lease-lifecycle";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,10 +17,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const unitId = text(form, "unitId", true)!;
     const unit = await prisma.unit.findFirst({
       where: { id: unitId, propertyId: id },
-      include: { leases: { where: { status: "ACTIVE" } }, ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } },
+      include: { ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } },
     });
     if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
-    if (unit.leases.length) throw new Error("Vybraná jednotka už má aktivní smlouvu.");
     const ownerBankAccountId = unit.ownerships[0]?.ownerBankAccountId;
     if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
 
@@ -27,8 +28,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const endDate = termType === "FIXED" ? dateValue(form, "endDate", true)! : null;
     if (endDate && endDate < startDate) throw new Error("Konec smlouvy nesmí být před jejím začátkem.");
     const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
-    const statusRaw = text(form, "status") || "ACTIVE";
-    const status = Object.values(LeaseStatus).includes(statusRaw as LeaseStatus) ? statusRaw as LeaseStatus : LeaseStatus.ACTIVE;
     const timingRaw = text(form, "rentTiming") || "ADVANCE";
     const rentTiming = Object.values(RentTiming).includes(timingRaw as RentTiming) ? timingRaw as RentTiming : RentTiming.ADVANCE;
     const tenantTypeRaw = text(form, "tenantType") || "PERSON";
@@ -44,8 +43,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       ...stringArray(form, "payerAccounts").map(normalizePayerAccount),
       ...(tenantBankAccount ? [tenantBankAccount] : []),
     ].filter(Boolean)));
+    const derivedStatus = leaseStatusAt({ startDate, endDate }) as LeaseStatus;
 
     const result = await prisma.$transaction(async (tx) => {
+      await assertNoLeaseOverlap(tx, { unitId, startDate, endDate });
       await assertUniqueVariableSymbol(tx, ownerBankAccountId, variableSymbol);
       await tx.propertyPaymentAccount.upsert({
         where: { propertyId_ownerBankAccountId: { propertyId: id, ownerBankAccountId } },
@@ -67,6 +68,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           communicationEmail,
           note: text(form, "tenantNote"),
           payerAccounts,
+          active: true,
         },
       });
       const lease = await tx.lease.create({
@@ -85,17 +87,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           servicesCents,
           depositCents: moneyToCents(form, "deposit"),
           note: text(form, "leaseNote"),
-          status,
+          status: derivedStatus,
           paymentItems: { create: [
             ...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []),
             ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : []),
           ] },
         },
       });
-      await tx.unit.update({ where: { id: unitId }, data: { status: status === "ACTIVE" ? UnitStatus.OCCUPIED : unit.status } });
+      await syncUnitOccupancyCache(tx, unitId);
       return { tenant, lease };
     });
-    await audit(access.user.id, "TENANT_AND_LEASE_CREATED", "Lease", result.lease.id, { propertyId: id, tenantId: result.tenant.id, unitId, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) }, id);
+    await audit(access.user.id, "TENANT_AND_LEASE_CREATED", "Lease", result.lease.id, { propertyId: id, tenantId: result.tenant.id, unitId, termType, lifecycleStatus: derivedStatus, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount) }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", "Nájemník a smlouva byli vytvořeni.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/najemnici/novy`, "error", error instanceof Error ? error.message : "Nájemníka se nepodařilo vytvořit.");

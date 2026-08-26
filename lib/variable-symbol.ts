@@ -54,12 +54,11 @@ export async function assertUniqueVariableSymbol(
     where: {
       ownerBankAccountId,
       variableSymbol: value,
-      status: { in: ["ACTIVE", "FUTURE"] },
       ...(excludeLeaseId ? { id: { not: excludeLeaseId } } : {}),
     },
     include: { unit: true, tenant: true },
   });
   if (duplicate) {
-    throw new Error(`Variabilní symbol ${value} už na tomto účtu používá aktivní/budoucí smlouva ${duplicate.unit.label} · ${duplicate.tenant.name}. Zvolte jiný VS.`);
+    throw new Error(`Variabilní symbol ${value} už na tomto účtu historicky používá smlouva ${duplicate.unit.label} · ${duplicate.tenant.name}. Zvolte jiný VS.`);
   }
 }

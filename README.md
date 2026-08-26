@@ -1,10 +1,12 @@
-# FlatCloud Rent V21.2
+# FlatCloud Rent V21.3
 
 Interní property-management aplikace FlatCloud pro správu nájemních nemovitostí, smluv, předpisů, plateb a každodenního provozu objektů.
 
-## V21.2 – multi-bank platby a provozní automatizace
+## V21.3 – lifecycle nájemního vztahu
 
 FlatCloud je nově orientovaný na otázku **„co právě vyžaduje pozornost“**. Portfolio i detail nemovitosti spojují ekonomiku, smluvní termíny a provozní agendu do jedné pracovní fronty.
+
+V21.3 sjednocuje nájemní lifecycle: smlouva je zdroj pravdy pro obsazenost, podporuje FUTURE vztahy, zachovává historii a blokuje překryvy smluv.
 
 Hlavní funkce:
 
@@ -21,7 +23,7 @@ Hlavní funkce:
 - automatické platební zprávy a upomínky přes SMTP,
 - automatická tvorba a průběžná synchronizace předpisů podle smlouvy,
 - volitelná pevná procentní indexace nájemného při výročí,
-- jednotný hodinový scheduler pro bankovní e-mail, předpisy a nájemní notifikace.
+- jednotný hodinový scheduler pro lifecycle smluv, bankovní e-mail, předpisy a nájemní notifikace.
 
 ## Bankovní platby
 
@@ -31,9 +33,9 @@ Podrobnosti: [`BANKOVNI-EMAIL-V21.2-CZ.md`](BANKOVNI-EMAIL-V21.2-CZ.md).
 
 ## Nasazení a ověření
 
-- [`DEPLOY-V21.2-CZ.md`](DEPLOY-V21.2-CZ.md)
-- [`VERIFY-V21.2-CZ.md`](VERIFY-V21.2-CZ.md)
-- [`CHANGELOG-V21.2-CZ.md`](CHANGELOG-V21.2-CZ.md)
+- [`DEPLOY-V21.3-CZ.md`](DEPLOY-V21.3-CZ.md)
+- [`VERIFY-V21.3-CZ.md`](VERIFY-V21.3-CZ.md)
+- [`CHANGELOG-V21.3-CZ.md`](CHANGELOG-V21.3-CZ.md)
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)
 
 ## Lokální příkazy
@@ -46,5 +48,6 @@ npm run verify:v20
 npm run verify:v21
 npm run verify:v21.1
 npm run verify:v21.2
+npm run verify:v21.3
 npm run build
 ```

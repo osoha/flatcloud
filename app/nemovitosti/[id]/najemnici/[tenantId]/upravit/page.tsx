@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { requirePropertyAccess, unitAccessWhere } from "@/lib/access";
 import { Shell } from "@/components/Shell";
-import { Checkbox, Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
+import { Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
 import { TenantFields } from "@/components/TenantFields";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +24,7 @@ export default async function EditTenant({ params, searchParams }: { params: Pro
     <FormCard action={`/api/properties/${id}/tenants/${tenant.id}`} cancelHref={`/nemovitosti/${id}/najemnici`}>
       <TenantFields typeName="type" noteName="note" defaults={{ type: tenant.type, name: tenant.name, email: tenant.email, phone: tenant.phone, ico: tenant.ico, permanentAddress: tenant.permanentAddress || (tenant.type === "PERSON" ? tenant.address : null), correspondenceAddress: tenant.correspondenceAddress, billingAddress: tenant.billingAddress || (tenant.type === "COMPANY" ? tenant.address : null), billingEmail: tenant.billingEmail, communicationEmail: tenant.communicationEmail, note: tenant.note }}/>
       <Textarea label="Známé účty plátce" name="payerAccounts" defaultValue={tenant.payerAccounts.join("\n")} placeholder="Jeden účet na řádek"/>
-      <Checkbox label="Aktivní nájemník" name="active" defaultChecked={tenant.active} full/>
+      <div className="field field-full notice"><strong>Nájemník se neukončuje ani nemaže</strong><span>Historie nájemních vztahů zůstává zachována. Ukončení se provádí vždy na konkrétní smlouvě.</span></div>
     </FormCard>
   </FormPage></Shell>;
 }

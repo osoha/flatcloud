@@ -8,6 +8,9 @@ import { LeaseCoreFields } from "@/components/LeaseCoreFields";
 import { dateInput, moneyInput } from "@/lib/forms";
 import { proposedVariableSymbol } from "@/lib/variable-symbol";
 import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
+import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
+import { leaseStatuses } from "@/lib/labels";
+import { date } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +20,7 @@ export default async function EditLease({ params, searchParams }: { params: Prom
   const [property, lease, tenants, query, usedRows] = await Promise.all([
     requirePropertyAccess(user, id),
     prisma.lease.findFirst({ where: { id: leaseId, unit: unitAccessWhere(user, id) }, include: { tenant: true, unit: true, ownerBankAccount: true } }),
-    prisma.tenant.findMany({ where: { OR: [{ leases: { some: { id: leaseId } } }, { active: true, leases: { some: { unit: { propertyId: id } } } }] }, orderBy: { name: "asc" } }),
+    prisma.tenant.findMany({ where: { leases: { some: { unit: { propertyId: id } } } }, orderBy: { name: "asc" } }),
     searchParams,
     prisma.lease.findMany({ where: { id: { not: leaseId } }, select: { variableSymbol: true } }),
   ]);
@@ -26,11 +29,13 @@ export default async function EditLease({ params, searchParams }: { params: Prom
   const proposals = Object.fromEntries(property.units.map((unit) => [unit.id, proposedVariableSymbol(property, unit, used)]));
   const ownerAccountsByUnit = Object.fromEntries(property.units.map((unit) => { const account = unit.ownerships[0]?.ownerBankAccount; return [unit.id, account ? { id: account.id, label: ownerBankAccountLabel(account) } : null]; }));
   const tenantAccountsByTenant = Object.fromEntries(tenants.map((tenant) => [tenant.id, tenant.payerAccounts]));
+  const lifecycleStatus = leaseStatusAt(lease);
 
   return <Shell user={user} taskPropertyId={id} taskLeaseId={lease.id}><FormPage title={`Upravit smlouvu: ${lease.unit.label}`} description={lease.tenant.name} backHref={`/nemovitosti/${id}/jednotky/${lease.unitId}`}>
     <Flash ok={query.ok} error={query.error}/>
+    <div className="notice"><strong>Stav smlouvy: {leaseStatuses[lifecycleStatus]}</strong><span>Stav je odvozen automaticky z data platnosti a lifecycle událostí a nelze jej ručně přepnout.</span></div>
     <FormCard action={`/api/properties/${id}/leases/${lease.id}`} cancelHref={`/nemovitosti/${id}/jednotky/${lease.unitId}`}>
-      <LeaseCoreFields unitOptions={property.units.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={lease.unitId} defaultTenantId={lease.tenantId} defaultContractNumber={lease.contractNumber} defaultStartDate={dateInput(lease.startDate)} defaultEndDate={dateInput(lease.endDate)} defaultStatus={lease.status} defaultDueDay={lease.dueDay} defaultRentTiming={lease.rentTiming} defaultVariableSymbol={lease.variableSymbol} defaultTenantBankAccount={lease.tenantBankAccount} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges defaultAutoChargesEnabled={lease.autoChargesEnabled} defaultIndexationEnabled={lease.indexationEnabled} defaultIndexationPercent={lease.indexationPercentBps == null ? "" : lease.indexationPercentBps / 100}/>
+      <LeaseCoreFields unitOptions={property.units.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={lease.unitId} defaultTenantId={lease.tenantId} defaultContractNumber={lease.contractNumber} defaultStartDate={dateInput(lease.startDate)} defaultEndDate={dateInput(lease.endDate)} defaultDueDay={lease.dueDay} defaultRentTiming={lease.rentTiming} defaultVariableSymbol={lease.variableSymbol} defaultTenantBankAccount={lease.tenantBankAccount} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges defaultAutoChargesEnabled={lease.autoChargesEnabled} defaultIndexationEnabled={lease.indexationEnabled} defaultIndexationPercent={lease.indexationPercentBps == null ? "" : lease.indexationPercentBps / 100}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.rentCents).replace(",", ".")}/>
       <Field label="Služby Kč / měsíc" name="services" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.servicesCents).replace(",", ".")}/>
       <Field label="Kauce Kč" name="deposit" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.depositCents).replace(",", ".")}/>
@@ -42,5 +47,19 @@ export default async function EditLease({ params, searchParams }: { params: Prom
       <Textarea label="Důvod pozastavení" name="reminderPauseReason" defaultValue={lease.reminderPauseReason}/>
       <Textarea label="Interní poznámka k inkasu" name="collectionNote" defaultValue={lease.collectionNote}/>
     </FormCard>
+    <div className="card ownership-simple-card">
+      <div className="card-head"><div><h2>Lifecycle nájemního vztahu</h2><p className="muted-copy">Nájemník ani smlouva se nemažou. Ukončení vytvoří historickou lifecycle událost a uvolní jednotku podle skutečného data.</p></div></div>
+      {lifecycleStatus === "ENDED" ? <div className="summary-list">
+        <div><span>Stav</span><strong>Ukončená</strong></div>
+        {lease.terminatedOn && <div><span>Skutečné ukončení</span><strong>{date(lease.terminatedOn)}</strong></div>}
+        {lease.terminationReason && <div><span>Důvod ukončení</span><strong>{lease.terminationReason}</strong></div>}
+        {lease.cancelledAt && <div><span>Budoucí smlouva zrušena</span><strong>{date(lease.cancelledAt)}</strong></div>}
+        {lease.cancellationReason && <div><span>Důvod zrušení</span><strong>{lease.cancellationReason}</strong></div>}
+      </div> : <form className="compact-form" action={`/api/properties/${id}/leases/${lease.id}/terminate`} method="post">
+        {lifecycleStatus === "ACTIVE" && <Field label="Skutečné datum ukončení" name="terminatedOn" type="date" defaultValue={dateInput(new Date())} required/>}
+        <Textarea label={lifecycleStatus === "FUTURE" ? "Důvod zrušení budoucí smlouvy" : "Důvod ukončení"} name="reason"/>
+        <button className="secondary" type="submit">{lifecycleStatus === "FUTURE" ? "Zrušit budoucí smlouvu" : "Ukončit nájemní vztah"}</button>
+      </form>}
+    </div>
   </FormPage></Shell>;
 }

@@ -3,6 +3,7 @@ import { text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { assertUniqueVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
+import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; unitId: string }> }) {
   const { id, unitId } = await params;
@@ -26,12 +27,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         create: { propertyId: id, ownerBankAccountId, active: true },
       });
       if (ownerBankAccountId) {
-        const affectedLeases = await tx.lease.findMany({ where: { unitId, status: { in: ["ACTIVE", "FUTURE"] } }, select: { id: true, variableSymbol: true } });
+        const leaseRows = await tx.lease.findMany({ where: { unitId }, select: { id: true, variableSymbol: true, startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } });
+        const affectedLeases = leaseRows.filter((lease) => leaseStatusAt(lease) !== "ENDED");
         for (const lease of affectedLeases) await assertUniqueVariableSymbol(tx, ownerBankAccountId, lease.variableSymbol, lease.id);
       }
       await tx.unitOwnership.deleteMany({ where: { unitId } });
       await tx.unitOwnership.create({ data: { unitId, ownerId, ownerBankAccountId, shareBasisPoints: 10000 } });
-      await tx.lease.updateMany({ where: { unitId, status: { in: ["ACTIVE", "FUTURE"] } }, data: { ownerBankAccountId } });
+      const leaseRows = await tx.lease.findMany({ where: { unitId }, select: { id: true, startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } });
+      const affectedLeaseIds = leaseRows.filter((lease) => leaseStatusAt(lease) !== "ENDED").map((lease) => lease.id);
+      if (affectedLeaseIds.length) await tx.lease.updateMany({ where: { id: { in: affectedLeaseIds } }, data: { ownerBankAccountId } });
     });
     await audit(access.user.id, "UNIT_OWNER_REPLACED", "Unit", unitId, { ownerId, ownerBankAccountId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", "Vlastník jednotky a účet pro nájemné byly uloženy.");

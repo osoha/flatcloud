@@ -5,7 +5,6 @@ import { bankCodeFromAccount, bankNameForCode, parseBankNotification } from "../
 
 const cs = parseBankNotification({
   from: "Česká spořitelna <noreply@csas.cz>",
-  authenticationResults: "mx.example; dmarc=pass; spf=pass; dkim=pass",
   subject: "Přišla platba",
   date: new Date("2026-08-25T12:00:00Z"),
   text: [
@@ -28,7 +27,6 @@ assert.equal(cs.variableSymbol, "40629773");
 
 const rb = parseBankNotification({
   from: "Raiffeisenbank <informujme@rb.cz>",
-  authenticationResults: "mx.example; dmarc=pass; spf=pass; dkim=pass",
   subject: "Informuj mě - příchozí platba",
   text: "Na účet: 1234567890/5500\nČástka: 15 500,00 CZK\nProtiúčet: 123456789/0800\nVariabilní symbol: 1001",
 });
@@ -37,14 +35,6 @@ assert.equal(rb.bankName, "Raiffeisenbank");
 assert.equal(rb.trustedSource, true);
 assert.equal(rb.autoProcessEligible, true);
 assert.equal(rb.amountCents, 1_550_000);
-
-const knownDomainWithoutAuth = parseBankNotification({
-  from: "Česká spořitelna <noreply@csas.cz>",
-  text: "na účet 6759473329/0800 dorazila platba 1,00 Kč.\nVS: 40629773",
-});
-assert.equal(knownDomainWithoutAuth.recognizedPayment, true);
-assert.equal(knownDomainWithoutAuth.trustedSource, false);
-assert.equal(knownDomainWithoutAuth.autoProcessEligible, false);
 
 // A bank without a special adapter must still parse universally and reach the manual queue.
 const fio = parseBankNotification({

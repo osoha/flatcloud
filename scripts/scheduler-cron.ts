@@ -2,6 +2,7 @@ import { prisma } from "../lib/db";
 import { syncInboundMailbox } from "../lib/inbound-bank/sync";
 import { runRentNotifications } from "../lib/rent-notifications";
 import { runChargeAutomation } from "../lib/charge-automation";
+import { syncLifecycleCaches } from "../lib/lease-lifecycle";
 
 type StepResult = { name: string; status: "ok" | "skipped" | "failed"; summary: string };
 
@@ -17,6 +18,14 @@ async function main() {
   const startedAt = new Date();
   const steps: StepResult[] = [];
   let hardFailure = false;
+
+  try {
+    const lifecycle = await syncLifecycleCaches();
+    steps.push({ name: "lifecycle", status: "ok", summary: `Synchronizováno ${lifecycle.leaseChanges} smluv a ${lifecycle.unitChanges} jednotek.` });
+  } catch (error) {
+    steps.push({ name: "lifecycle", status: "failed", summary: messageOf(error) });
+    hardFailure = true;
+  }
 
   try {
     const bank = await syncInboundMailbox();
