@@ -52,6 +52,39 @@ WHERE "status" = 'ENDED'
   AND "cancelledAt" IS NULL
   AND "terminatedOn" IS NULL;
 
+-- V21.3.2: preserve impossible legacy intervals as cancelled history. PostgreSQL
+-- rejects a daterange whose lower bound is after its upper bound.
+UPDATE "Lease"
+SET
+  "cancelledAt" = COALESCE("cancelledAt", "updatedAt"),
+  "cancellationReason" = COALESCE(
+    "cancellationReason",
+    'Migrace V21.3.2: neplatný historický interval (konec před začátkem)'
+  )
+WHERE "cancelledAt" IS NULL
+  AND LEAST("endDate", "terminatedOn") IS NOT NULL
+  AND LEAST("endDate", "terminatedOn")::date < "startDate"::date;
+
+-- Prevent new non-cancelled records from creating impossible intervals.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Lease_end_not_before_start'
+  ) THEN
+    ALTER TABLE "Lease"
+      ADD CONSTRAINT "Lease_end_not_before_start"
+      CHECK ("cancelledAt" IS NOT NULL OR "endDate" IS NULL OR "endDate"::date >= "startDate"::date);
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Lease_termination_not_before_start'
+  ) THEN
+    ALTER TABLE "Lease"
+      ADD CONSTRAINT "Lease_termination_not_before_start"
+      CHECK ("cancelledAt" IS NOT NULL OR "terminatedOn" IS NULL OR "terminatedOn"::date >= "startDate"::date);
+  END IF;
+END $$;
+
 -- Refuse to guess if legacy data contains genuinely overlapping effective rental periods.
 -- The exception contains sample record ids directly in the Render deploy log.
 DO $$
