@@ -597,6 +597,7 @@ model Charge {
   amountCents   Int
   note          String?
   active        Boolean             @default(true)
+  manualOverride Boolean            @default(false)
   items         ChargeItem[]
   allocations   PaymentAllocation[]
   createdAt     DateTime            @default(now())

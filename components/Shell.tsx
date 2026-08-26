@@ -53,7 +53,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
   return <div className="app-shell v21-shell">
     <aside className="sidebar">
       <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka">
-        <Image src="/flatcloud-logo.png" width={148} height={36} alt="FlatCloud" priority/>
+        <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
       </Link>
       <nav className="nav v21-nav">
         <div className="nav-label">Přehled</div>

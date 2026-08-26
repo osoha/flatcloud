@@ -21,7 +21,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
     <div className="detail-grid">
       <form className="card col-8 edit-form featured-settings-card" action="/api/settings/inbound-mail" method="post">
-        <div className="card-head"><div><div className="eyebrow"><Mail size={14}/> Platební automatizace</div><h2>Sběrný e-mail bankovních notifikací</h2><p className="muted-copy">FlatCloud nepotřebuje přímé API napojení banky. Jednotlivé účty se propojí nastavením e-mailových notifikací o příchozích platbách.</p></div><span className={`connection-badge ${mailboxReady?"ok":"warn"}`}>{mailboxReady?"Schránka aktivní":"Vyžaduje nastavení"}</span></div>
+        <div className="card-head"><div><div className="eyebrow"><Mail size={14}/> Platební automatizace</div><h2>Sběrný e-mail bankovních notifikací</h2><p className="muted-copy">FlatCloud nepotřebuje přímé API napojení banky. Jednotlivé účty se propojí nastavením e-mailových notifikací o příchozích platbách.</p></div><span className={`connection-badge ${mailboxReady?"ok":"warn"}`}>{mailboxReady?"Nastavení uloženo":"Vyžaduje nastavení"}</span></div>
         <div className="form-grid">
           <label className="checkbox-field field-full"><input type="checkbox" name="inboundMailEnabled" defaultChecked={settings.inboundMailEnabled}/><span>Automatický sběr bankovních e-mailů je aktivní</span></label>
           <label className="field"><span>IMAP server</span><input name="inboundMailHost" placeholder="imap.vase-domena.cz" defaultValue={settings.inboundMailHost||""}/></label>
@@ -37,7 +37,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       <div className="card col-4 settings-status-card">
         <div className="card-head"><div><h2>Stav příjmu plateb</h2><p className="muted-copy">Poslední známý stav centrální schránky.</p></div><ShieldCheck size={20}/></div>
         <div className="summary-list"><div><span>Poslední kontrola</span><strong>{settings.inboundMailLastCheckedAt?.toLocaleString("cs-CZ")||"Zatím neběhla"}</strong></div><div><span>Poslední UID</span><strong>{settings.inboundMailLastUid||0}</strong></div><div><span>Výsledek</span><strong>{settings.inboundMailLastSummary||"—"}</strong></div></div>
-        <div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/inbound-mail/run" method="post"><button className="primary full-button" type="submit"><RefreshCw size={14}/> Otestovat a zkontrolovat schránku</button></form><Link className="secondary full-button" href="/platby/nesparovane">Otevřít nespárované platby</Link></div>
+        <div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/inbound-mail/test" method="post"><button className="primary full-button" type="submit"><ShieldCheck size={14}/> Otestovat IMAP připojení</button></form><form action="/api/settings/inbound-mail/run" method="post"><button className="secondary full-button" type="submit"><RefreshCw size={14}/> Zkontrolovat schránku nyní</button></form><Link className="secondary full-button" href="/platby/nesparovane">Otevřít nespárované platby</Link></div>
       </div>
     </div>
 

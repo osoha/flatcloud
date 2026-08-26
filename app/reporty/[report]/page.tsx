@@ -5,7 +5,7 @@ import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { accessibleProperties } from "@/lib/access";
 import { money, date } from "@/lib/format";
 import { currentPeriod } from "@/lib/period";
-import { overdueDebtCents } from "@/lib/charges";
+import { chargeDisplayState, chargeStateLabel, overdueDebtCents } from "@/lib/charges";
 import { leaseStatuses } from "@/lib/labels";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { Shell } from "@/components/Shell";
@@ -42,7 +42,9 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
   const properties = propertyScope ? [propertyScope] : allProperties;
   const period = currentPeriod();
   const periods = recentPeriods();
-  const charges = properties.flatMap((property) => property.units.flatMap((unit) => unit.leases.flatMap((lease) => lease.charges.filter((charge) => charge.active).map((charge) => ({ property, unit, lease, charge, paid: charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0) })))));
+  const allChargeRows = properties.flatMap((property) => property.units.flatMap((unit) => unit.leases.flatMap((lease) => lease.charges.map((charge) => ({ property, unit, lease, charge, paid: charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0) })))));
+  const charges = allChargeRows.filter((row) => row.charge.active);
+  const prescriptionRows = allChargeRows.filter((row) => periods.includes(row.charge.period)).sort((a, b) => b.charge.dueDate.getTime() - a.charge.dueDate.getTime());
   const trend = periods.map((item) => {
     const rows = charges.filter((row) => row.charge.period === item);
     return { label: item, expected: rows.reduce((sum, row) => sum + row.charge.amountCents, 0), paid: rows.reduce((sum, row) => sum + row.paid, 0) };
@@ -100,7 +102,17 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
   {reportKey === "saldo" && <ReportTable headers={["Nájemník", "Nemovitost / jednotka", "Stav vztahu", "Otevřené předpisy", "Nejstarší splatnost", "Dluh", ""]} rows={debtors.map((row) => [<strong key="tenant">{row.tenantName}</strong>, <span key="unit">{row.propertyName}<span className="owner-sub">{row.unitLabel}</span></span>, <span className={`status ${row.leaseStatus === "ACTIVE" ? "ok" : row.leaseStatus === "FUTURE" ? "warn" : ""}`} key="status">{leaseStatuses[row.leaseStatus as keyof typeof leaseStatuses]}</span>, row.count, date(row.oldestDue), <strong className="negative" key="debt">{money(row.debt)}</strong>, <Link className="table-link" key="link" href={`/nemovitosti/${row.propertyId}/jednotky/${row.unitId}`}>Otevřít jednotku</Link>])}/>}
   {reportKey === "nemovitosti" && <ReportTable headers={["Nemovitost", "Jednotky", "Aktivní smlouvy", "Předpis", "Uhrazeno", "Dluh po splatnosti", "Inkaso"]} rows={propertyRows.map((row) => [<Link className="entity-link" key="property" href={`/nemovitosti/${row.property.id}/prehled`}>{row.property.name}<span className="owner-sub">{row.property.address}, {row.property.city}</span></Link>, row.property.units.length, row.activeLeases, money(row.expected), money(row.paid), <strong className={row.debt ? "negative" : "positive"} key="balance">{money(row.debt)}</strong>, `${row.rate} %`])}/>}
   {reportKey === "inkaso" && <ReportTable headers={["Nemovitost", "Předpis", "Uhrazeno", "Chybí uhradit", "Inkaso", ""]} rows={propertyRows.sort((a,b)=>a.rate-b.rate).map((row) => [row.property.name, money(row.expected), money(row.paid), <strong className="negative" key="missing">{money(Math.max(0,row.expected-row.paid))}</strong>, <div className={`progress ${row.rate<85?"bad":row.rate<95?"warn":""}`} key="progress"><i style={{width:`${Math.min(row.rate,100)}%`}}/></div>, <Link className="table-link" key="link" href={`/nemovitosti/${row.property.id}/dluznici`}>Detail salda</Link>])}/>}
-  {reportKey === "predpisy" && <ReportTable headers={["Období", "Předpis", "Uhrazeno", "Saldo", "Inkaso"]} rows={[...trend].reverse().map((row) => [row.label, money(row.expected), money(row.paid), <strong className={row.paid-row.expected<0?"negative":"positive"} key="balance">{money(row.paid-row.expected)}</strong>, `${row.expected?Math.round(row.paid/row.expected*100):100} %`])}/>}
+  {reportKey === "predpisy" && <ReportTable headers={["Období", "Nemovitost", "Jednotka", "Nájemník", "Předepsáno", "Uhrazeno", "Stav", "Zdroj", ""]} rows={prescriptionRows.map((row) => { const state = row.charge.active ? chargeDisplayState(row.charge) : null; return [
+    row.charge.period,
+    <Link className="entity-link" key="property" href={`/nemovitosti/${row.property.id}/predpisy`}>{row.property.name}</Link>,
+    <Link className="entity-link" key="unit" href={`/nemovitosti/${row.property.id}/jednotky/${row.unit.id}`}>{row.unit.label}</Link>,
+    row.lease.tenant.name,
+    <strong key="amount">{row.charge.active ? money(row.charge.amountCents) : "0 Kč"}</strong>,
+    money(row.paid),
+    <span className={`status ${!row.charge.active ? "bad" : state === "paid" ? "ok" : state === "overdue" ? "bad" : state === "partial" || state === "scheduled" ? "warn" : ""}`} key="state">{row.charge.active && state ? chargeStateLabel(state) : "Vypnutý"}</span>,
+    row.charge.manualOverride ? <span className="status warn" key="source">Ruční úprava</span> : <span key="source">Automatika</span>,
+    <Link className="table-link" key="detail" href={`/nemovitosti/${row.property.id}/predpisy/mesicni/${row.charge.id}`}>Otevřít předpis</Link>,
+  ]; })}/>}
   {reportKey === "vlastnici" && <ReportTable headers={["Vlastník / SPV", "Nemovitosti", "Jednotky", "Předpis", "Uhrazeno", "Saldo"]} rows={owners.map((row) => [hasAllPropertyAccess(user)?<Link className="entity-link" key="owner" href={`/vlastnici/${row.id}`}>{row.name}</Link>:<strong key="owner">{row.name}</strong>, row.properties.size, row.units, money(row.expected), money(row.paid), <strong className={row.paid-row.expected<0?"negative":"positive"} key="balance">{money(row.paid-row.expected)}</strong>])}/>}
   </div></Shell>;
 }

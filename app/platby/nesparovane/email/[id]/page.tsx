@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { bankAccountMatches, bankNameForCode } from "@/lib/inbound-bank/bank-email";
 import { verificationCodeForLink } from "@/lib/bank-email-verification";
+import { linkIsUsedByUnit } from "@/lib/bank-verification-scope";
 import { Shell } from "@/components/Shell";
 import { Flash, FormPage } from "@/components/FormUi";
 
@@ -26,13 +27,13 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
   const [row, leases, paymentLinks, query] = await Promise.all([
     prisma.inboxPayment.findUnique({ where: { id } }),
     prisma.lease.findMany({ where: { unit: { property: { active: true } } }, include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
-    prisma.propertyPaymentAccount.findMany({ where: { active: true }, include: { property: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }),
+    prisma.propertyPaymentAccount.findMany({ where: { active: true, property: { active: true } }, include: { property: { include: { units: { select: { label: true, ownerships: { select: { ownerBankAccountId: true } } } } } }, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }),
     searchParams,
   ]);
   if (!row) notFound();
 
   const isOneCrownTest = row.amountCents === 100;
-  const matchingLinks = paymentLinks.filter((link) => link.property.active && link.ownerBankAccount.active && bankAccountMatches(link.ownerBankAccount, row.recipientAccount)).sort((a, b) => a.property.name.localeCompare(b.property.name, "cs"));
+  const matchingLinks = paymentLinks.filter((link) => link.ownerBankAccount.active && linkIsUsedByUnit(link.ownerBankAccountId, link.property.units) && bankAccountMatches(link.ownerBankAccount, row.recipientAccount)).sort((a, b) => a.property.name.localeCompare(b.property.name, "cs"));
   const exactTestLink = matchingLinks.find((link) => digits(verificationCodeForLink(link.id)) === digits(row.variableSymbol));
 
   return <Shell user={user}><FormPage title="Bankovní e-mail – ruční řešení" description="Sběrný e-mail bankovních notifikací" backHref="/platby/nesparovane">
@@ -56,15 +57,15 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
       <div className="card col-5">
         {isOneCrownTest ? <>
           <h2>Ověření bankovního účtu</h2>
-          <p className="muted-copy">Platba 1,00 Kč se nepřiřazuje k nájemníkovi ani jednotce. Potvrzuje propojení konkrétního bankovního účtu s nemovitostí.</p>
+          <p className="muted-copy">Platba 1,00 Kč se nezaúčtuje jako nájemné. Ověří konkrétní účet vlastníka pouze pro jednotky v dané nemovitosti, které tento účet skutečně používají.</p>
           {matchingLinks.length ? <form className="compact-form" action={`/api/inbound-payments/${row.id}/verify-account`} method="post">
             <label className="field"><span>Nemovitost a účet</span><select name="linkId" required defaultValue={exactTestLink?.id || (matchingLinks.length === 1 ? matchingLinks[0].id : "")}>
               {!exactTestLink && matchingLinks.length > 1 ? <option value="" disabled>Vyberte nemovitost / účet</option> : null}
-              {matchingLinks.map((link) => <option value={link.id} key={link.id}>{link.property.name} · {accountLabel(link.ownerBankAccount)} · test VS {verificationCodeForLink(link.id)}</option>)}
+              {matchingLinks.map((link) => { const unitLabels=link.property.units.filter((unit)=>unit.ownerships.some((ownership)=>ownership.ownerBankAccountId===link.ownerBankAccountId)).map((unit)=>unit.label).join(", "); return <option value={link.id} key={link.id}>{link.property.name} · {unitLabels} · {accountLabel(link.ownerBankAccount)} · test VS {verificationCodeForLink(link.id)}</option>; })}
             </select></label>
             {exactTestLink ? <div className="notice">VS odpovídá testovacímu kódu pro <strong>{exactTestLink.property.name}</strong>.</div> : null}
             <button className="primary" type="submit">Potvrdit jako test bankovního účtu</button>
-          </form> : <div className="notice">Cílový účet z e-mailu není propojený s žádnou aktivní nemovitostí. Nejdřív nastavte bankovní účet u nemovitosti.</div>}
+          </form> : <div className="notice">Cílový účet z e-mailu není přiřazen žádné jednotce aktivní nemovitosti. Nejdřív nastavte vlastníka a bankovní účet u konkrétní jednotky.</div>}
         </> : <>
           <h2>Přiřadit ke smlouvě</h2>
           <p className="muted-copy">Tím vznikne standardní bankovní transakce v objektu a částka se automaticky rozpočítá na nejstarší otevřené předpisy vybrané smlouvy.</p>
