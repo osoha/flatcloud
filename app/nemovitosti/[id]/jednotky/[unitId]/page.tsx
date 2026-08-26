@@ -27,7 +27,10 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const futureLeases = futureLeasesForUnit(unit.leases);
   const pastLeases = pastLeasesForUnit(unit.leases);
   const owner = unit.ownerships[0]?.owner || property.owner;
-  const paymentAccount = activeLease?.ownerBankAccount || unit.ownerships[0]?.ownerBankAccount;
+  const ownershipPaymentAccount = unit.ownerships[0]?.ownerBankAccount || null;
+  const paymentAccount = activeLease?.ownerBankAccount || ownershipPaymentAccount;
+  const ownershipPaymentLink = ownershipPaymentAccount ? property.paymentAccounts.find((link) => link.ownerBankAccountId === ownershipPaymentAccount.id) : null;
+  const unitBankVerified = Boolean(ownershipPaymentLink?.notificationVerifiedAt);
   const allCharges = unit.leases.flatMap((lease) => lease.charges);
   const overdueDebt = allCharges.reduce((sum, charge) => sum + overdueDebtCents(charge), 0);
   type UnitTransaction = (typeof allCharges)[number]["allocations"][number]["transaction"];
@@ -48,6 +51,7 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
     <div id="prehled" className="unit-kpi-grid">
       <div className={`card mini-kpi status-kpi status-${statusTone}`}><span>Obsazenost</span><strong>{activeLease ? "Obsazená" : "Volná"}</strong>{unit.operationalStatus !== "STANDARD" && <small>{unitOperationalStatuses[unit.operationalStatus]}</small>}</div>
       <Link className="card mini-kpi mini-kpi-link" href={`/vlastnici/${owner.id}`}><span>Vlastník</span><strong>{owner.name}</strong><b className="mini-kpi-arrow">→</b></Link>
+      <div className="card mini-kpi"><span>Bankovní účet vlastníka</span><strong className={unitBankVerified ? "positive" : ""}>{ownershipPaymentAccount ? (unitBankVerified ? "Ověřený" : "Čeká na ověření") : "Není nastaven"}</strong></div>
       {activeLease ? <Link className="card mini-kpi mini-kpi-link" href={`/nemovitosti/${id}/najemnici/${activeLease.tenant.id}/upravit`}><span>Nájemník</span><strong>{activeLease.tenant.name}</strong><b className="mini-kpi-arrow">→</b></Link> : <div className="card mini-kpi"><span>Nájemník</span><strong>Volná jednotka</strong></div>}
       {activeLease ? <Link className="card mini-kpi mini-kpi-link" href={`/nemovitosti/${id}/predpisy/${activeLease.id}`}><span>Aktuální předpis</span><strong>{money(recurringCharge)}</strong><b className="mini-kpi-arrow">→</b></Link> : <div className="card mini-kpi"><span>Aktuální předpis</span><strong>—</strong></div>}
       <a className="card mini-kpi mini-kpi-link" href={activeLease ? "#platby" : "#historie-finance"}><span>Dluh po splatnosti</span><strong className={overdueDebt ? "negative" : "positive"}>{money(overdueDebt)}</strong><b className="mini-kpi-arrow">↓</b></a>

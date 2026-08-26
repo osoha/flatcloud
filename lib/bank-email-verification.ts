@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "./db";
 import { bankAccountMatches } from "./inbound-bank/bank-email";
+import { linkIsUsedByUnit } from "./bank-verification-scope";
 
 function normalizedVs(value?: string | null) {
   return (value || "").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
@@ -52,12 +53,14 @@ export async function tryVerifyNotificationPayment(input: {
   if (!vs || !accounts.length) return null;
 
   const links = await prisma.propertyPaymentAccount.findMany({
-    where: { active: true, ownerBankAccountId: { in: accounts.map((account) => account.id) } },
+    where: { active: true, property: { active: true }, ownerBankAccountId: { in: accounts.map((account) => account.id) } },
+    include: { property: { include: { units: { select: { id: true, ownerships: { select: { ownerBankAccountId: true } } } } } } },
   });
-  const candidates = links.filter((link) => normalizedVs(verificationCodeForLink(link.id)) === vs);
+  const candidates = links.filter((link) => linkIsUsedByUnit(link.ownerBankAccountId, link.property.units) && normalizedVs(verificationCodeForLink(link.id)) === vs);
   if (candidates.length !== 1) return null;
 
   const link = candidates[0];
+  const coveredUnitIds = link.property.units.filter((unit) => unit.ownerships.some((ownership) => ownership.ownerBankAccountId === link.ownerBankAccountId)).map((unit) => unit.id);
   await prisma.$transaction([
     prisma.propertyPaymentAccount.update({
       where: { id: link.id },
@@ -68,7 +71,7 @@ export async function tryVerifyNotificationPayment(input: {
       data: {
         status: "IGNORED",
         propertyId: link.propertyId,
-        parseNote: "Ověřovací platba 1,00 Kč přijata. E-mailové notifikace pro tento účet a nemovitost jsou funkční.",
+        parseNote: `Ověřovací platba 1,00 Kč přijata. Bankovní e-mail je ověřen pro ${coveredUnitIds.length} jednotek používajících tento účet.`,
       },
     }),
     prisma.auditLog.create({
@@ -77,7 +80,7 @@ export async function tryVerifyNotificationPayment(input: {
         action: "BANK_EMAIL_ACCOUNT_VERIFIED",
         entityType: "PropertyPaymentAccount",
         entityId: link.id,
-        details: { inboxId: input.inboxId, ownerBankAccountId: link.ownerBankAccountId },
+        details: { inboxId: input.inboxId, ownerBankAccountId: link.ownerBankAccountId, unitIds: coveredUnitIds },
       },
     }),
   ]);
@@ -87,13 +90,15 @@ export async function tryVerifyNotificationPayment(input: {
 export async function manuallyVerifyNotificationPayment(input: { inboxId: string; linkId: string; userId: string }) {
   const [inbox, link] = await Promise.all([
     prisma.inboxPayment.findUnique({ where: { id: input.inboxId } }),
-    prisma.propertyPaymentAccount.findUnique({ where: { id: input.linkId }, include: { ownerBankAccount: true } }),
+    prisma.propertyPaymentAccount.findUnique({ where: { id: input.linkId }, include: { ownerBankAccount: true, property: { include: { units: { select: { id: true, ownerships: { select: { ownerBankAccountId: true } } } } } } } }),
   ]);
   if (!inbox) throw new Error("Bankovní e-mail nebyl nalezen.");
   if (!link || !link.active) throw new Error("Vybrané propojení bankovního účtu není aktivní.");
+  if (!linkIsUsedByUnit(link.ownerBankAccountId, link.property.units)) throw new Error("Bankovní účet není přiřazen žádné jednotce této nemovitosti. Ověření nelze použít pro celý objekt.");
   if (inbox.amountCents !== 100) throw new Error("Ruční potvrzení testu je možné pouze pro platbu 1,00 Kč.");
   if (!bankAccountMatches(link.ownerBankAccount, inbox.recipientAccount)) throw new Error("Cílový účet e-mailu neodpovídá vybranému bankovnímu účtu.");
   if (normalizedVs(inbox.variableSymbol) !== normalizedVs(verificationCodeForLink(link.id))) throw new Error("Variabilní symbol neodpovídá testovacímu kódu vybraného účtu a nemovitosti.");
+  const coveredUnitIds = link.property.units.filter((unit) => unit.ownerships.some((ownership) => ownership.ownerBankAccountId === link.ownerBankAccountId)).map((unit) => unit.id);
 
   await prisma.$transaction([
     prisma.propertyPaymentAccount.update({
@@ -109,7 +114,7 @@ export async function manuallyVerifyNotificationPayment(input: { inboxId: string
       data: {
         status: "IGNORED",
         propertyId: link.propertyId,
-        parseNote: "Testovací platba 1,00 Kč byla ručně potvrzena hlavním administrátorem. E-mailové notifikace pro tento účet a nemovitost jsou funkční.",
+        parseNote: `Testovací platba 1,00 Kč byla ručně potvrzena hlavním administrátorem. Bankovní e-mail je ověřen pro ${coveredUnitIds.length} jednotek používajících tento účet.`,
       },
     }),
     prisma.auditLog.create({
@@ -119,7 +124,7 @@ export async function manuallyVerifyNotificationPayment(input: { inboxId: string
         action: "BANK_EMAIL_ACCOUNT_VERIFIED_MANUALLY",
         entityType: "PropertyPaymentAccount",
         entityId: link.id,
-        details: { inboxId: inbox.id, ownerBankAccountId: link.ownerBankAccountId },
+        details: { inboxId: inbox.id, ownerBankAccountId: link.ownerBankAccountId, unitIds: coveredUnitIds },
       },
     }),
   ]);

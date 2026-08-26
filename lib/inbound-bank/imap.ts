@@ -144,17 +144,21 @@ export function parseRawEmail(source: Buffer) {
   };
 }
 
-export async function fetchImapMessages(options: ImapOptions, afterUid: number): Promise<{ messages: RawImapMessage[]; maxUid: number }> {
+function createImapSession(options: ImapOptions) {
   const socket = options.secure
     ? tls.connect({ host: options.host, port: options.port, servername: options.host, rejectUnauthorized: true })
     : net.connect({ host: options.host, port: options.port });
-  socket.setTimeout(30_000);
+  socket.setTimeout(15_000);
   let buffer = Buffer.alloc(0);
   const waiters: Array<() => void> = [];
   let socketError: Error | null = null;
-  socket.on("data", (chunk: Buffer) => { buffer = Buffer.concat([buffer, chunk]); for (const wake of waiters.splice(0)) wake(); });
-  socket.on("error", (error) => { socketError = error; for (const wake of waiters.splice(0)) wake(); });
-  socket.on("timeout", () => socket.destroy(new Error("IMAP timeout")));
+  let socketClosed = false;
+  const wakeAll = () => { for (const wake of waiters.splice(0)) wake(); };
+  socket.on("data", (chunk: Buffer) => { buffer = Buffer.concat([buffer, chunk]); wakeAll(); });
+  socket.on("error", (error) => { socketError = error; wakeAll(); });
+  socket.on("end", () => { socketClosed = true; wakeAll(); });
+  socket.on("close", () => { socketClosed = true; wakeAll(); });
+  socket.on("timeout", () => socket.destroy(new Error("IMAP timeout po 15 sekundách bez odpovědi.")));
 
   const waitData = () => new Promise<void>((resolve) => waiters.push(resolve));
   async function waitForLine(predicate: (line: string) => boolean) {
@@ -167,10 +171,12 @@ export async function fetchImapMessages(options: ImapOptions, afterUid: number):
         if (predicate(line)) return line;
         continue;
       }
+      if (socketClosed) throw new Error("IMAP server ukončil spojení dříve, než dokončil odpověď.");
       await waitData();
     }
   }
   async function command(tag: string, body: string) {
+    if (socketClosed || socket.destroyed) throw new Error("IMAP spojení už není aktivní.");
     socket.write(`${tag} ${body}\r\n`);
     let collected = Buffer.alloc(0);
     const taggedLine = new RegExp(`(?:^|\\r\\n)${tag} (OK|NO|BAD)[^\\r\\n]*\\r\\n`, "i");
@@ -192,23 +198,44 @@ export async function fetchImapMessages(options: ImapOptions, afterUid: number):
           return output;
         }
       }
+      if (socketClosed) throw new Error("IMAP server ukončil spojení dříve, než dokončil příkaz.");
       await waitData();
     }
   }
-
-  try {
+  async function loginAndSelect() {
     await waitForLine((line) => /^\* OK/i.test(line));
     await command("A001", `LOGIN ${quoted(options.user)} ${quoted(options.pass)}`);
     await command("A002", `SELECT ${quoted(options.mailbox || "INBOX")}`);
-    const search = await command("A003", `UID SEARCH UID ${Math.max(1, afterUid + 1)}:*`);
+  }
+  function close() {
+    if (!socket.destroyed) socket.destroy();
+  }
+  return { command, loginAndSelect, close };
+}
+
+export async function testImapConnection(options: ImapOptions): Promise<{ ok: true; mailbox: string }> {
+  const session = createImapSession(options);
+  try {
+    await session.loginAndSelect();
+    return { ok: true, mailbox: options.mailbox || "INBOX" };
+  } finally {
+    session.close();
+  }
+}
+
+export async function fetchImapMessages(options: ImapOptions, afterUid: number): Promise<{ messages: RawImapMessage[]; maxUid: number }> {
+  const session = createImapSession(options);
+  try {
+    await session.loginAndSelect();
+    const search = await session.command("A003", `UID SEARCH UID ${Math.max(1, afterUid + 1)}:*`);
     const searchText = search.toString("latin1");
-    const ids = [...new Set((searchText.match(/^\* SEARCH\s*(.*)$/mi)?.[1] || "").trim().split(/\s+/).map(Number).filter((n) => Number.isInteger(n) && n > afterUid))].sort((a, b) => a - b);
+    const ids: number[] = [...new Set<number>((searchText.match(/^\* SEARCH\s*(.*)$/mi)?.[1] || "").trim().split(/\s+/).map(Number).filter((n) => Number.isInteger(n) && n > afterUid))].sort((a, b) => a - b);
     const messages: RawImapMessage[] = [];
     let seq = 4;
     let maxUid = afterUid;
     for (const uid of ids.slice(0, 200)) {
       const tag = `A${String(seq++).padStart(3, "0")}`;
-      const response = await command(tag, `UID FETCH ${uid} (UID BODY.PEEK[])`);
+      const response = await session.command(tag, `UID FETCH ${uid} (UID BODY.PEEK[])`);
       const latin = response.toString("latin1");
       const literal = latin.match(/\{(\d+)\}\r\n/);
       if (!literal || literal.index === undefined) continue;
@@ -219,10 +246,8 @@ export async function fetchImapMessages(options: ImapOptions, afterUid: number):
       messages.push({ uid, source });
       maxUid = Math.max(maxUid, uid);
     }
-    await command(`A${String(seq).padStart(3, "0")}`, "LOGOUT").catch(() => undefined);
     return { messages, maxUid };
   } finally {
-    socket.end();
-    socket.destroy();
+    session.close();
   }
 }

@@ -11,7 +11,8 @@ export async function POST(request: Request) {
   try {
     const form = await request.formData();
     const current = await prisma.appSetting.findUnique({ where: { id: "global" } });
-    const password = text(form, "inboundMailPassword");
+    const passwordValue = form.get("inboundMailPassword");
+    const password = typeof passwordValue === "string" && passwordValue.length ? passwordValue : null;
     const inboundMailPort = Math.min(65535, Math.max(1, intValue(form, "inboundMailPort", 993)));
     const inboundMailHost = text(form, "inboundMailHost");
     const inboundMailUser = text(form, "inboundMailUser");

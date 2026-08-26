@@ -106,6 +106,9 @@ export async function syncLeaseCharges(tx: Tx, leaseId: string, options: { now?:
     const items = lease.paymentItems.filter((item) => item.active && item.validFrom <= monthEnd && (!item.validTo || item.validTo >= start));
     const existing = existingByPeriod.get(period);
     if (!existing && period < fromPeriod) continue;
+    // A human explicitly adjusted this concrete month. The recurring template
+    // must not silently overwrite the amount, item split, due date or active state.
+    if (existing?.manualOverride) continue;
     if (!items.length) {
       if (existing?.active && !existing.allocations.length && period >= fromPeriod) {
         await tx.charge.update({ where: { id: existing.id }, data: { active: false } });

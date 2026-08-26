@@ -1,4 +1,4 @@
-# FlatCloud Rent V21.3
+# FlatCloud Rent V21.3.4
 
 Interní property-management aplikace FlatCloud pro správu nájemních nemovitostí, smluv, předpisů, plateb a každodenního provozu objektů.
 
@@ -33,6 +33,8 @@ Podrobnosti: [`BANKOVNI-EMAIL-V21.2-CZ.md`](BANKOVNI-EMAIL-V21.2-CZ.md).
 
 ## Nasazení a ověření
 
+- [`DEPLOY-V21.3.4-CZ.md`](DEPLOY-V21.3.4-CZ.md)
+- [`CHANGELOG-V21.3.4-CZ.md`](CHANGELOG-V21.3.4-CZ.md)
 - [`DEPLOY-V21.3.3-CZ.md`](DEPLOY-V21.3.3-CZ.md)
 - [`VERIFY-V21.3-CZ.md`](VERIFY-V21.3-CZ.md)
 - [`CHANGELOG-V21.3.3-CZ.md`](CHANGELOG-V21.3.3-CZ.md)
@@ -51,5 +53,6 @@ npm run verify:v21
 npm run verify:v21.1
 npm run verify:v21.2
 npm run verify:v21.3
+npm run verify:v21.3.4
 npm run build
 ```

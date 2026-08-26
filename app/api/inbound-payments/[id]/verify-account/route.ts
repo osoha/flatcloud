@@ -11,7 +11,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const linkId = text(form, "linkId", true)!;
     await manuallyVerifyNotificationPayment({ inboxId: id, linkId, userId: user.id });
-    return goWithMessage(request, "/platby/nesparovane", "ok", "Testovací platba byla potvrzena. Bankovní e-mail pro vybraný účet a nemovitost je funkční.");
+    return goWithMessage(request, "/platby/nesparovane", "ok", "Testovací platba byla potvrzena. Bankovní e-mail je ověřen pro jednotky, které používají vybraný účet vlastníka.");
   } catch (error) {
     return goWithMessage(request, `/platby/nesparovane/email/${id}`, "error", error instanceof Error ? error.message : "Test bankovního účtu se nepodařilo potvrdit.");
   }
