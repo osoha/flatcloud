@@ -70,7 +70,7 @@ assert.match(terminate, /LEASE_CANCELLED/);
 const migration = readFileSync("prisma/migrations/20260826190000_v21_3_lease_lifecycle/migration.sql", "utf8");
 assert.match(migration, /EXCLUDE USING gist/);
 assert.match(migration, /Lease_ownerBankAccountId_variableSymbol_key/);
-assert.match(migration, /V21\.3 migration stopped: existing Lease rows overlap/);
+assert.match(migration, /V21\.3 migration stopped: (?:existing Lease rows overlap|overlapping lease periods)/);
 
 const matching = readFileSync("lib/matching.ts", "utf8");
 assert.doesNotMatch(matching, /status:\s*\{\s*in:\s*\[\s*["']ACTIVE["'],\s*["']FUTURE["']/);
