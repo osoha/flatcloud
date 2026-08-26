@@ -3,6 +3,7 @@ import { text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { periodDueDate, periodStart } from "@/lib/period";
 import { go, goWithMessage } from "@/lib/route-response";
+import { leaseOverlapsPeriod } from "@/lib/lease-lifecycle-core";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; unitId: string }> }) {
   const { id, unitId } = await params;
@@ -13,8 +14,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const period = text(form, "period", true)!;
     const start = periodStart(period);
     const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth()+1, 0, 23, 59, 59));
-    const lease = await prisma.lease.findFirst({ where: { unitId, unit: { propertyId: id }, status: { in: ["ACTIVE","FUTURE"] }, startDate: { lte: end }, OR: [{ endDate: null }, { endDate: { gte: start } }] }, include: { paymentItems: { where: { active: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } } });
-    if (!lease) throw new Error("Pro zvolené období není u jednotky aktivní smlouva.");
+    const leases = await prisma.lease.findMany({ where: { unitId, unit: { propertyId: id } }, include: { paymentItems: { where: { active: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } } });
+    const lease = leases.find((row) => leaseOverlapsPeriod(row, start, end));
+    if (!lease) throw new Error("Pro zvolené období není u jednotky platná smlouva.");
     const items = lease.paymentItems.filter((item)=>item.validFrom<=end&&(!item.validTo||item.validTo>=start));
     if (!items.length) throw new Error("Smlouva nemá pro toto období aktivní položky předpisu.");
     const exists = await prisma.charge.findUnique({ where: { leaseId_period: { leaseId: lease.id, period } } });

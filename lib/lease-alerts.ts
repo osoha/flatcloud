@@ -1,3 +1,5 @@
+import { effectiveLeaseEnd, leaseStatusAt } from "./lease-lifecycle-core";
+
 export type LeaseAlertKind = "EXPIRY" | "ANNIVERSARY";
 
 export type LeaseAlert = {
@@ -8,6 +10,8 @@ export type LeaseAlert = {
     contractNumber: string | null;
     startDate: Date;
     endDate: Date | null;
+    terminatedOn?: Date | null;
+    cancelledAt?: Date | null;
     status: string;
     tenant: { id: string; name: string };
     unit: { id: string; label: string; propertyId: string };
@@ -51,6 +55,8 @@ export function leaseAlertsForProperties(properties: Array<{
       contractNumber: string | null;
       startDate: Date;
       endDate: Date | null;
+      terminatedOn?: Date | null;
+      cancelledAt?: Date | null;
       status: string;
       tenant: { id: string; name: string };
     }>;
@@ -60,14 +66,15 @@ export function leaseAlertsForProperties(properties: Array<{
   const horizon = addCalendarMonths(today, months);
   const alerts: LeaseAlert[] = [];
   for (const property of properties) for (const unit of property.units) for (const lease of unit.leases) {
-    if (lease.status !== "ACTIVE") continue;
-    const base = { lease: { ...lease, unit: { id: unit.id, label: unit.label, propertyId: unit.propertyId } }, property: { id: property.id, name: property.name } };
-    if (lease.endDate) {
-      const end = startOfDay(lease.endDate);
+    if (leaseStatusAt(lease, now) !== "ACTIVE") continue;
+    const base = { lease: { ...lease, status: "ACTIVE", unit: { id: unit.id, label: unit.label, propertyId: unit.propertyId } }, property: { id: property.id, name: property.name } };
+    const effectiveEnd = effectiveLeaseEnd(lease);
+    if (effectiveEnd) {
+      const end = startOfDay(effectiveEnd);
       if (end >= today && end <= horizon) alerts.push({ kind: "EXPIRY", date: end, ...base });
     }
     const anniversary = nextLeaseAnniversary(lease.startDate, today);
-    const leaseEnd = lease.endDate ? startOfDay(lease.endDate) : null;
+    const leaseEnd = effectiveEnd ? startOfDay(effectiveEnd) : null;
     if (anniversary >= today && anniversary <= horizon && (!leaseEnd || anniversary <= leaseEnd)) {
       alerts.push({ kind: "ANNIVERSARY", date: anniversary, ...base });
     }

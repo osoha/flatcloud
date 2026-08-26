@@ -3,6 +3,7 @@ import { floatValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { assertUniqueVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
+import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; unitId: string; ownershipId: string }> }) {
   const { id, unitId, ownershipId } = await params;
@@ -35,11 +36,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         create: { propertyId: id, ownerBankAccountId, active: true },
       });
       if (ownerBankAccountId) {
-        const affectedLeases = await tx.lease.findMany({ where: { unitId, status: { in: ["ACTIVE", "FUTURE"] } }, select: { id: true, variableSymbol: true } });
+        const leaseRows = await tx.lease.findMany({ where: { unitId }, select: { id: true, variableSymbol: true, startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } });
+        const affectedLeases = leaseRows.filter((lease) => leaseStatusAt(lease) !== "ENDED");
         for (const lease of affectedLeases) await assertUniqueVariableSymbol(tx, ownerBankAccountId, lease.variableSymbol, lease.id);
       }
       await tx.unitOwnership.update({ where: { id: ownershipId }, data: { shareBasisPoints: Math.round(share * 100), note: text(form, "note"), ownerBankAccountId } });
-      if (ownerBankAccountId) await tx.lease.updateMany({ where: { unitId, status: { in: ["ACTIVE", "FUTURE"] } }, data: { ownerBankAccountId } });
+      if (ownerBankAccountId) {
+        const leaseRows = await tx.lease.findMany({ where: { unitId }, select: { id: true, startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } });
+        const affectedLeaseIds = leaseRows.filter((lease) => leaseStatusAt(lease) !== "ENDED").map((lease) => lease.id);
+        if (affectedLeaseIds.length) await tx.lease.updateMany({ where: { id: { in: affectedLeaseIds } }, data: { ownerBankAccountId } });
+      }
     });
     await audit(access.user.id, "UNIT_OWNER_UPDATED", "UnitOwnership", ownershipId, { propertyId: id, unitId, sharePercent: share, ownerBankAccountId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}/upravit`, "ok", "Podíl a účet vlastníka jednotky byly upraveny.");

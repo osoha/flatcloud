@@ -1,4 +1,4 @@
-import { UnitStatus, UnitType } from "@prisma/client";
+import { UnitOperationalStatus, UnitType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { floatValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         label: text(form, "label", true)!,
         floor: text(form, "floor"),
         type: (text(form, "type") || "APARTMENT") as UnitType,
-        status: (text(form, "status") || "VACANT") as UnitStatus,
+        operationalStatus: (text(form, "operationalStatus") || "STANDARD") as UnitOperationalStatus,
         areaM2: floatValue(form, "areaM2"),
         note: text(form, "note"),
         ownerships: { create: { ownerId, ownerBankAccountId, shareBasisPoints: 10000 } },

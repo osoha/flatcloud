@@ -1,6 +1,7 @@
-import { ChargeCategory, LeaseStatus, Prisma, type RentTiming } from "@prisma/client";
+import { ChargeCategory, Prisma, type RentTiming } from "@prisma/client";
 import { prisma } from "./db";
 import { periodDueDate, periodsBetween, periodStart } from "./period";
+import { effectiveLeaseEnd, leaseStatusAt } from "./lease-lifecycle-core";
 
 export const INDEFINITE_CHARGE_HORIZON_MONTHS = 12;
 
@@ -80,21 +81,21 @@ export async function syncLeaseCharges(tx: Tx, leaseId: string, options: { now?:
   const result: SyncResult = { created: 0, updated: 0, skippedPaid: 0, deactivated: 0 };
   if (!lease || (!lease.autoChargesEnabled && !options.force)) return result;
 
-  const currentPeriod = periodKeyForDate(now);
-  if (lease.status === LeaseStatus.ENDED) {
+  // A cancelled FUTURE relationship never entered into force. Keep paid history if any,
+  // but disable every unpaid generated charge.
+  if (lease.cancelledAt) {
     for (const charge of lease.charges) {
-      if (charge.period < currentPeriod || charge.allocations.length) continue;
-      if (charge.active) {
-        await tx.charge.update({ where: { id: charge.id }, data: { active: false } });
-        result.deactivated += 1;
-      }
+      if (!charge.active || charge.allocations.length) continue;
+      await tx.charge.update({ where: { id: charge.id }, data: { active: false } });
+      result.deactivated += 1;
     }
     return result;
   }
 
+  const effectiveEnd = effectiveLeaseEnd(lease);
   const horizonBase = lease.startDate > now ? lease.startDate : now;
-  const horizonEnd = lease.endDate || endOfMonth(addMonthsUtc(horizonBase, INDEFINITE_CHARGE_HORIZON_MONTHS - 1));
-  const targetPeriods = periodsBetween(lease.startDate, horizonEnd);
+  const horizonEnd = effectiveEnd || endOfMonth(addMonthsUtc(horizonBase, INDEFINITE_CHARGE_HORIZON_MONTHS - 1));
+  const targetPeriods = horizonEnd >= lease.startDate ? periodsBetween(lease.startDate, horizonEnd) : [];
   const targetSet = new Set(targetPeriods);
   const existingByPeriod = new Map(lease.charges.map((charge) => [charge.period, charge]));
   const fromPeriod = options.fromPeriod || periodKeyForDate(lease.startDate);
@@ -151,8 +152,11 @@ export async function syncLeaseCharges(tx: Tx, leaseId: string, options: { now?:
     result.updated += 1;
   }
 
+  const effectiveEndPeriod = effectiveEnd ? periodKeyForDate(effectiveEnd) : null;
   for (const charge of lease.charges) {
-    if (targetSet.has(charge.period) || charge.allocations.length || !charge.active || charge.period < fromPeriod) continue;
+    if (targetSet.has(charge.period) || charge.allocations.length || !charge.active) continue;
+    const isBeyondEffectiveEnd = Boolean(effectiveEndPeriod && charge.period > effectiveEndPeriod);
+    if (!isBeyondEffectiveEnd && charge.period < fromPeriod) continue;
     await tx.charge.update({ where: { id: charge.id }, data: { active: false } });
     result.deactivated += 1;
   }
@@ -161,18 +165,27 @@ export async function syncLeaseCharges(tx: Tx, leaseId: string, options: { now?:
 
 export async function runChargeAutomation(now = new Date()) {
   const leases = await prisma.lease.findMany({
-    where: { autoChargesEnabled: true, status: { in: [LeaseStatus.ACTIVE, LeaseStatus.FUTURE] } },
+    where: { autoChargesEnabled: true },
     select: { id: true },
   });
-  let generated = 0, updated = 0, skippedPaid = 0, indexed = 0;
+  let generated = 0, updated = 0, skippedPaid = 0, indexed = 0, deactivated = 0;
 
   for (const row of leases) {
     const result = await prisma.$transaction(async (tx) => {
       let firstChangedPeriod: string | undefined;
       let lease = await tx.lease.findUnique({ where: { id: row.id }, include: { unit: { select: { propertyId: true } } } });
-      if (!lease) return { created: 0, updated: 0, skippedPaid: 0, indexed: 0 };
+      if (!lease) return { created: 0, updated: 0, skippedPaid: 0, deactivated: 0, indexed: 0 };
       let indexCount = 0;
-      while (lease.indexationEnabled && lease.indexationPercentBps && lease.nextIndexationAt && lease.nextIndexationAt <= now && indexCount < 10) {
+      const end = effectiveLeaseEnd(lease);
+      while (
+        leaseStatusAt(lease, now) !== "ENDED" &&
+        lease.indexationEnabled &&
+        lease.indexationPercentBps &&
+        lease.nextIndexationAt &&
+        lease.nextIndexationAt <= now &&
+        (!end || lease.nextIndexationAt <= end) &&
+        indexCount < 10
+      ) {
         const effectiveFrom = lease.nextIndexationAt;
         const oldRent = lease.rentCents;
         const newRent = Math.round(oldRent * (10_000 + lease.indexationPercentBps) / 10_000);
@@ -198,7 +211,8 @@ export async function runChargeAutomation(now = new Date()) {
     generated += result.created;
     updated += result.updated;
     skippedPaid += result.skippedPaid;
+    deactivated += result.deactivated;
     indexed += result.indexed;
   }
-  return { leases: leases.length, generated, updated, skippedPaid, indexed, summary: `Předpisy: smlouvy ${leases.length}; nové ${generated}; aktualizované ${updated}; ponechané s úhradou ${skippedPaid}; indexace ${indexed}.` };
+  return { leases: leases.length, generated, updated, skippedPaid, deactivated, indexed, summary: `Předpisy: smlouvy ${leases.length}; nové ${generated}; aktualizované ${updated}; deaktivované ${deactivated}; ponechané s úhradou ${skippedPaid}; indexace ${indexed}.` };
 }

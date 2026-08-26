@@ -89,6 +89,12 @@ enum UnitStatus {
   INACTIVE
 }
 
+enum UnitOperationalStatus {
+  STANDARD
+  RENOVATION
+  INACTIVE
+}
+
 enum TenantType {
   PERSON
   COMPANY
@@ -407,6 +413,7 @@ model Unit {
   floor        String?
   type         UnitType        @default(APARTMENT)
   status       UnitStatus      @default(VACANT)
+  operationalStatus UnitOperationalStatus @default(STANDARD)
   areaM2       Float?
   note         String?
   propertyId   String
@@ -472,6 +479,10 @@ model Lease {
   contractNumber        String?
   startDate             DateTime
   endDate               DateTime?
+  terminatedOn          DateTime?
+  terminationReason     String?
+  cancelledAt           DateTime?
+  cancellationReason    String?
   dueDay                Int                @default(5)
   variableSymbol        String
   currency              String             @default("CZK")
@@ -504,8 +515,8 @@ model Lease {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
-  @@unique([unitId, variableSymbol])
-  @@index([tenantId])
+  @@index([unitId, startDate])
+  @@index([tenantId, startDate])
   @@index([variableSymbol])
   @@index([ownerBankAccountId])
 }

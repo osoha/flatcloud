@@ -1,4 +1,4 @@
-# FlatCloud Rent V21.2 – architektura
+# FlatCloud Rent V21.3 – architektura
 
 ## 1. Cíl aplikace
 
@@ -23,6 +23,11 @@ Každý zápis přes API znovu ověřuje oprávnění a scope entity; nespoléh�
 `Property` → `Unit` → `Lease` → `Charge` → `PaymentAllocation`.
 
 Vlastnictví je oddělené přes `PropertyOwnership` a `UnitOwnership`. Platební účet vlastníka je číselník `OwnerBankAccount`.
+
+
+### Lifecycle nájemního vztahu V21.3
+
+`Lease.startDate`, `Lease.endDate`, `Lease.terminatedOn` a `Lease.cancelledAt` tvoří zdroj pravdy pro lifecycle smlouvy. `ACTIVE / FUTURE / ENDED` se odvozuje v `lib/lease-lifecycle-core.ts`. Obsazenost jednotky je odvozena existencí aktuálně platné smlouvy; `Unit.operationalStatus` je samostatný provozní stav. Legacy `Lease.status` a `Unit.status` zůstávají pouze jako dočasná kompatibilní cache. Překryvu smluv brání API validace s advisory lockem a PostgreSQL exclusion constraint.
 
 ### Účty pro nájemné
 

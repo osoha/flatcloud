@@ -201,12 +201,6 @@ function authExplicitlyFailed(value?: string | null) {
   return /\bdmarc=fail\b/.test(auth) || (/\bspf=fail\b/.test(auth) && /\bdkim=fail\b/.test(auth));
 }
 
-function authExplicitlyPassed(value?: string | null) {
-  const auth = (value || "").toLowerCase();
-  return /\bdmarc=pass\b/.test(auth)
-    || (/\bspf=pass\b/.test(auth) && /\bdkim=pass\b/.test(auth));
-}
-
 function detectBank(combined: string, from?: string | null, returnPath?: string | null, recipientAccount?: string | null) {
   const accountCode = bankCodeFromAccount(recipientAccount);
   if (accountCode) return { code: accountCode, name: bankNameForCode(accountCode), registryKnown: Boolean(CZECH_BANKS[accountCode]) };
@@ -222,18 +216,10 @@ function detectBank(combined: string, from?: string | null, returnPath?: string 
 function sourceTrusted(bankCode: string, input: Input) {
   const rule = trustedSenderRules.find((item) => item.bankCode === bankCode);
   if (!rule) return false;
-
   const fromDomain = domainFromAddress(input.from);
   const returnDomain = domainFromAddress(input.returnPath);
-
-  const knownDomain =
-    domainAllowed(fromDomain, rule.domains) ||
-    domainAllowed(returnDomain, rule.domains);
-
-  if (!knownDomain) return false;
-  if (authExplicitlyFailed(input.authenticationResults)) return false;
-  if (!authExplicitlyPassed(input.authenticationResults)) return false;
-
+  const knownDomain = domainAllowed(fromDomain, rule.domains) || domainAllowed(returnDomain, rule.domains);
+  if (!knownDomain || authExplicitlyFailed(input.authenticationResults)) return false;
   return true;
 }
 

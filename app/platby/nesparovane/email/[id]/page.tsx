@@ -25,7 +25,7 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
   const { id } = await params;
   const [row, leases, paymentLinks, query] = await Promise.all([
     prisma.inboxPayment.findUnique({ where: { id } }),
-    prisma.lease.findMany({ where: { status: { in: ["ACTIVE", "FUTURE"] }, unit: { property: { active: true } } }, include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
+    prisma.lease.findMany({ where: { unit: { property: { active: true } } }, include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
     prisma.propertyPaymentAccount.findMany({ where: { active: true }, include: { property: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }),
     searchParams,
   ]);

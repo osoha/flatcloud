@@ -30,7 +30,6 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
   if (vs) {
     const leases = await prisma.lease.findMany({
       where: {
-        status: { in: ["ACTIVE", "FUTURE"] },
         ...(ownerAccountIds.length ? { ownerBankAccountId: { in: ownerAccountIds } } : {}),
       },
       include: { unit: true, ownerBankAccount: true, tenant: true },
@@ -42,7 +41,7 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
   if (input.counterpartyAccount) {
     const payer = normalizeBankAccount(input.counterpartyAccount);
     const leases = await prisma.lease.findMany({
-      where: { status: { in: ["ACTIVE", "FUTURE"] } },
+      where: {},
       include: { unit: true, tenant: true, ownerBankAccount: true },
     });
     const exact = leases.filter((lease) => {
@@ -56,7 +55,7 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
   if (ownerAccountIds.length) {
     const [propertyLinks, leaseRows, ownershipRows] = await Promise.all([
       prisma.propertyPaymentAccount.findMany({ where: { ownerBankAccountId: { in: ownerAccountIds }, active: true }, include: { ownerBankAccount: true } }),
-      prisma.lease.findMany({ where: { ownerBankAccountId: { in: ownerAccountIds }, status: { in: ["ACTIVE", "FUTURE"] } }, include: { unit: true, ownerBankAccount: true } }),
+      prisma.lease.findMany({ where: { ownerBankAccountId: { in: ownerAccountIds } }, include: { unit: true, ownerBankAccount: true } }),
       prisma.unitOwnership.findMany({ where: { ownerBankAccountId: { in: ownerAccountIds } }, include: { unit: true, ownerBankAccount: true } }),
     ]);
     const propertyIds = new Set([...propertyLinks.map((row)=>row.propertyId), ...leaseRows.map((row) => row.unit.propertyId), ...ownershipRows.map((row) => row.unit.propertyId)]);

@@ -132,7 +132,7 @@ export async function processTransaction(transactionId: string) {
   }
 
   const leases = await prisma.lease.findMany({
-    where: { unit: { propertyId }, status: { in: ["ACTIVE", "FUTURE"] } },
+    where: { unit: { propertyId } },
     include: {
       tenant: true,
       ownerBankAccount: true,
