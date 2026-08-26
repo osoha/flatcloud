@@ -1,7 +1,15 @@
 import { spawnSync } from "node:child_process";
 
 const prismaCommand = process.platform === "win32" ? "npx.cmd" : "npx";
-const recoverableMigration = "20260716190000_invitation_unit_ids";
+
+// These migrations are explicitly safe to retry after Prisma recorded a failed
+// attempt.
+// V21.3 SQL is written idempotently so a partial PostgreSQL application can be
+// resumed.
+const recoverableMigrations = [
+  "20260716190000_invitation_unit_ids",
+  "20260826190000_v21_3_lease_lifecycle",
+];
 
 function runPrisma(args, { capture = false } = {}) {
   const result = spawnSync(prismaCommand, ["prisma", ...args], {
@@ -17,21 +25,17 @@ function runPrisma(args, { capture = false } = {}) {
   return result;
 }
 
-// Prisma po P3018 odmítá spouštět další migrace, dokud není neúspěšný
-// pokus označen jako vrácený. Příkaz uspěje jen tehdy, když je tato konkrétní
-// migrace skutečně v neúspěšném stavu. Na nové nebo již opravené databázi
-// bezpečně selže a pokračujeme standardním migrate deploy.
-const recovery = runPrisma(
-  ["migrate", "resolve", "--rolled-back", recoverableMigration],
-  { capture: true },
-);
+for (const migration of recoverableMigrations) {
+  const recovery = runPrisma(
+    ["migrate", "resolve", "--rolled-back", migration],
+    { capture: true },
+  );
 
-if (recovery.status === 0) {
-  process.stdout.write(recovery.stdout ?? "");
-  process.stderr.write(recovery.stderr ?? "");
-  console.log(`[db:migrate] Obnovena neúspěšná migrace ${recoverableMigration}.`);
-} else {
-  console.log("[db:migrate] Žádná neúspěšná V12 migrace nevyžaduje obnovení.");
+  if (recovery.status === 0) {
+    process.stdout.write(recovery.stdout ?? "");
+    process.stderr.write(recovery.stderr ?? "");
+    console.log(`[db:migrate] Neúspěšná migrace ${migration} označena jako rolled-back; následuje bezpečný retry.`);
+  }
 }
 
 const deploy = runPrisma(["migrate", "deploy"]);

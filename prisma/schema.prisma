@@ -515,6 +515,8 @@ model Lease {
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
+  @@unique([unitId, variableSymbol])
+  @@unique([ownerBankAccountId, variableSymbol])
   @@index([unitId, startDate])
   @@index([tenantId, startDate])
   @@index([variableSymbol])

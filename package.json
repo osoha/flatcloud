@@ -1,6 +1,6 @@
 {
   "name": "flatcloud-rent-production",
-  "version": "1.21.3",
+  "version": "1.21.3-hotfix.1",
   "private": true,
   "scripts": {
     "dev": "next dev",

@@ -1,36 +1,67 @@
--- FlatCloud V21.3 – lease lifecycle is derived from contract dates.
--- Legacy Lease.status and Unit.status remain as compatibility caches for a safe rolling deploy.
+-- FlatCloud V21.3.1 hotfix - restart-safe lease lifecycle migration.
+-- Legacy Lease.status and Unit.status remain compatibility caches for a safe rolling deploy.
+-- Every schema operation below is safe to retry after a partially failed PostgreSQL migration.
 
-CREATE TYPE "UnitOperationalStatus" AS ENUM ('STANDARD', 'RENOVATION', 'INACTIVE');
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_type t
+    JOIN pg_namespace n ON n.oid = t.typnamespace
+    WHERE t.typname = 'UnitOperationalStatus' AND n.nspname = current_schema()
+  ) THEN
+    CREATE TYPE "UnitOperationalStatus" AS ENUM ('STANDARD', 'RENOVATION', 'INACTIVE');
+  END IF;
+END $$;
 
 ALTER TABLE "Unit"
-  ADD COLUMN "operationalStatus" "UnitOperationalStatus" NOT NULL DEFAULT 'STANDARD';
+  ADD COLUMN IF NOT EXISTS "operationalStatus" "UnitOperationalStatus" NOT NULL DEFAULT 'STANDARD';
 
+-- Backfill only from meaningful legacy operational values. Re-running never downgrades an
+-- already explicit RENOVATION/INACTIVE value to STANDARD.
 UPDATE "Unit"
 SET "operationalStatus" = CASE
   WHEN "status" = 'RENOVATION' THEN 'RENOVATION'::"UnitOperationalStatus"
   WHEN "status" = 'INACTIVE' THEN 'INACTIVE'::"UnitOperationalStatus"
-  ELSE 'STANDARD'::"UnitOperationalStatus"
+  ELSE "operationalStatus"
 END;
 
 ALTER TABLE "Lease"
-  ADD COLUMN "terminatedOn" TIMESTAMP(3),
-  ADD COLUMN "terminationReason" TEXT,
-  ADD COLUMN "cancelledAt" TIMESTAMP(3),
-  ADD COLUMN "cancellationReason" TEXT;
+  ADD COLUMN IF NOT EXISTS "terminatedOn" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "terminationReason" TEXT,
+  ADD COLUMN IF NOT EXISTS "cancelledAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "cancellationReason" TEXT;
 
--- Preserve the best historical end marker for records that were manually marked ENDED.
+-- A legacy ENDED contract whose start was still in the future was effectively cancelled
+-- before commencement. Do not invent a one-day tenancy for it.
 UPDATE "Lease"
-SET "terminatedOn" = LEAST("endDate", GREATEST("updatedAt", "startDate"))
-WHERE "status" = 'ENDED' AND "terminatedOn" IS NULL;
+SET
+  "cancelledAt" = COALESCE("cancelledAt", "updatedAt"),
+  "cancellationReason" = COALESCE("cancellationReason", 'Migrace V21.3: historicky ukončená budoucí smlouva')
+WHERE "status" = 'ENDED'
+  AND "startDate" > "updatedAt"
+  AND "cancelledAt" IS NULL;
 
--- Tenant.active is retained only as a legacy person-record flag; rental lifecycle no longer depends on it.
+-- Preserve the best historical end marker for genuinely commenced legacy ENDED records.
+UPDATE "Lease"
+SET "terminatedOn" = CASE
+  WHEN "endDate" IS NOT NULL AND "endDate" <= "updatedAt" THEN "endDate"
+  ELSE GREATEST("updatedAt", "startDate")
+END
+WHERE "status" = 'ENDED'
+  AND "cancelledAt" IS NULL
+  AND "terminatedOn" IS NULL;
 
--- Refuse to guess if legacy data already contains overlapping rental periods.
+-- Refuse to guess if legacy data contains genuinely overlapping effective rental periods.
+-- The exception contains sample record ids directly in the Render deploy log.
 DO $$
+DECLARE
+  conflicts TEXT;
 BEGIN
-  IF EXISTS (
-    SELECT 1
+  SELECT string_agg(format('unit=%s leases=%s/%s', x."unitId", x."aId", x."bId"), ', ')
+  INTO conflicts
+  FROM (
+    SELECT a."unitId", a."id" AS "aId", b."id" AS "bId"
     FROM "Lease" a
     JOIN "Lease" b
       ON a."unitId" = b."unitId"
@@ -39,40 +70,61 @@ BEGIN
       AND b."cancelledAt" IS NULL
       AND daterange(a."startDate"::date, LEAST(a."endDate", a."terminatedOn")::date, '[]')
           && daterange(b."startDate"::date, LEAST(b."endDate", b."terminatedOn")::date, '[]')
-  ) THEN
-    RAISE EXCEPTION 'V21.3 migration stopped: existing Lease rows overlap on at least one unit. Resolve the conflicting historical contracts before deploying V21.3.';
+    LIMIT 10
+  ) x;
+
+  IF conflicts IS NOT NULL THEN
+    RAISE EXCEPTION 'V21.3 migration stopped: overlapping lease periods: %', conflicts;
   END IF;
 END $$;
 
 -- Historical VS values must never be recycled on the same receiving owner account.
+-- Print sample account/VS pairs if legacy data violates the new invariant.
 DO $$
+DECLARE
+  conflicts TEXT;
 BEGIN
-  IF EXISTS (
-    SELECT 1
+  SELECT string_agg(format('account=%s VS=%s count=%s', x."ownerBankAccountId", x."variableSymbol", x.cnt), ', ')
+  INTO conflicts
+  FROM (
+    SELECT "ownerBankAccountId", "variableSymbol", COUNT(*) AS cnt
     FROM "Lease"
     WHERE "ownerBankAccountId" IS NOT NULL
     GROUP BY "ownerBankAccountId", "variableSymbol"
     HAVING COUNT(*) > 1
-  ) THEN
-    RAISE EXCEPTION 'V21.3 migration stopped: duplicate historical variable symbols exist on the same owner bank account.';
+    LIMIT 10
+  ) x;
+
+  IF conflicts IS NOT NULL THEN
+    RAISE EXCEPTION 'V21.3 migration stopped: duplicate historical variable symbols: %', conflicts;
   END IF;
 END $$;
 
-DROP INDEX IF EXISTS "Lease_unitId_variableSymbol_key";
-CREATE UNIQUE INDEX "Lease_ownerBankAccountId_variableSymbol_key"
+-- Keep the original per-unit protection and add the stronger owner-account protection.
+CREATE UNIQUE INDEX IF NOT EXISTS "Lease_unitId_variableSymbol_key"
+  ON "Lease"("unitId", "variableSymbol");
+CREATE UNIQUE INDEX IF NOT EXISTS "Lease_ownerBankAccountId_variableSymbol_key"
   ON "Lease"("ownerBankAccountId", "variableSymbol");
-CREATE INDEX "Lease_unitId_startDate_idx" ON "Lease"("unitId", "startDate");
-CREATE INDEX "Lease_tenantId_startDate_idx" ON "Lease"("tenantId", "startDate");
+CREATE INDEX IF NOT EXISTS "Lease_unitId_startDate_idx" ON "Lease"("unitId", "startDate");
+CREATE INDEX IF NOT EXISTS "Lease_tenantId_startDate_idx" ON "Lease"("tenantId", "startDate");
 DROP INDEX IF EXISTS "Lease_tenantId_idx";
 
 CREATE EXTENSION IF NOT EXISTS btree_gist;
-ALTER TABLE "Lease"
-  ADD CONSTRAINT "Lease_unit_period_no_overlap"
-  EXCLUDE USING gist (
-    "unitId" WITH =,
-    (daterange("startDate"::date, LEAST("endDate", "terminatedOn")::date, '[]')) WITH &&
-  )
-  WHERE ("cancelledAt" IS NULL);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'Lease_unit_period_no_overlap'
+  ) THEN
+    ALTER TABLE "Lease"
+      ADD CONSTRAINT "Lease_unit_period_no_overlap"
+      EXCLUDE USING gist (
+        "unitId" WITH =,
+        (daterange("startDate"::date, LEAST("endDate", "terminatedOn")::date, '[]')) WITH &&
+      )
+      WHERE ("cancelledAt" IS NULL);
+  END IF;
+END $$;
 
 -- Synchronize legacy status caches once during migration.
 UPDATE "Lease"
@@ -85,11 +137,16 @@ SET "status" = CASE
 END;
 
 UPDATE "Unit" u
-SET "status" = CASE WHEN EXISTS (
-  SELECT 1
-  FROM "Lease" l
-  WHERE l."unitId" = u."id"
-    AND l."cancelledAt" IS NULL
-    AND l."startDate"::date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Prague')::date
-    AND (LEAST(l."endDate", l."terminatedOn") IS NULL OR LEAST(l."endDate", l."terminatedOn")::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Prague')::date)
-) THEN 'OCCUPIED'::"UnitStatus" ELSE 'VACANT'::"UnitStatus" END;
+SET "status" = CASE
+  WHEN u."operationalStatus" = 'RENOVATION' THEN 'RENOVATION'::"UnitStatus"
+  WHEN u."operationalStatus" = 'INACTIVE' THEN 'INACTIVE'::"UnitStatus"
+  WHEN EXISTS (
+    SELECT 1
+    FROM "Lease" l
+    WHERE l."unitId" = u."id"
+      AND l."cancelledAt" IS NULL
+      AND l."startDate"::date <= (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Prague')::date
+      AND (LEAST(l."endDate", l."terminatedOn") IS NULL OR LEAST(l."endDate", l."terminatedOn")::date >= (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Prague')::date)
+  ) THEN 'OCCUPIED'::"UnitStatus"
+  ELSE 'VACANT'::"UnitStatus"
+END;
