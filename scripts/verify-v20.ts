@@ -5,6 +5,7 @@ import { addCalendarMonths, leaseAlertsForProperties, nextLeaseAnniversary } fro
 
 const legacy = parseRbNotification({
   from: "Raiffeisenbank <informujme@rb.cz>",
+  authenticationResults: "mx.example; dmarc=pass; spf=pass; dkim=pass",
   subject: "Info o platbě",
   date: new Date("2026-08-24T10:00:00Z"),
   text: [
@@ -30,6 +31,7 @@ const htmlRaw = Buffer.from([
   "From: =?UTF-8?Q?Raiffeisenbank?= <informujme@rb.cz>",
   "Subject: =?UTF-8?Q?Informuj_m=C4=9B_-_p=C5=99=C3=ADchoz=C3=AD_platba?=",
   "Message-ID: <abc123@rb.cz>",
+  "Authentication-Results: mx.example; dmarc=pass; spf=pass; dkim=pass",
   "Date: Mon, 24 Aug 2026 12:00:00 +0200",
   "MIME-Version: 1.0",
   "Content-Type: text/html; charset=UTF-8",

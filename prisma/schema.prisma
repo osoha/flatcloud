@@ -687,11 +687,14 @@ model BankTransaction {
 model InboxPayment {
   id                  String             @id @default(cuid())
   source              String             @default("email")
-  bank                String             @default("RB")
+  bank                String             @default("UNKNOWN")
   messageId           String?            @unique
   imapUid             Int?
   subject             String?
   sender              String?
+  returnPath          String?
+  authenticationResults String?
+  sourceTrusted       Boolean            @default(false)
   receivedAt          DateTime           @default(now())
   bookedAt            DateTime?
   amountCents         Int?

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { allocateTransactionToLease, processTransaction } from "@/lib/matching";
-import { bankAccountMatches, normalizeBankAccount } from "@/lib/inbound-bank/rb";
+import { bankAccountMatches, bankNameForCode, normalizeBankAccount } from "@/lib/inbound-bank/bank-email";
 import { touchPropertyPaymentNotification, tryVerifyNotificationPayment } from "@/lib/bank-email-verification";
 
 function normalizedVs(value?: string | null) {
@@ -70,17 +70,23 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
   return { propertyId: null, leaseId: null, ownerId: null, reason: "nelze jednoznačně určit objekt" };
 }
 
-async function emailBankAccount(propertyId: string, recipientAccount?: string | null, ownerId?: string | null) {
+function bankDisplayName(bank?: string | null) {
+  const name = bankNameForCode(bank);
+  return name === "Neznámá banka" ? "Bankovní účet" : name;
+}
+
+async function emailBankAccount(propertyId: string, recipientAccount?: string | null, ownerId?: string | null, bank?: string | null) {
   const fingerprint = createHash("sha256").update(normalizeBankAccount(recipientAccount) || "unknown").digest("hex").slice(0, 20);
-  const externalAccountId = `rb-email:${propertyId}:${fingerprint}`;
+  const externalAccountId = `bank-email:${propertyId}:${fingerprint}`;
+  const bankName = `${bankDisplayName(bank)} · e-mail`;
   return prisma.bankAccount.upsert({
-    where: { provider_externalAccountId: { provider: "rb-email", externalAccountId } },
-    update: { bankName: "Raiffeisenbank · e-mail", ibanMasked: maskedAccount(recipientAccount), ...(ownerId ? { ownerId } : {}) },
+    where: { provider_externalAccountId: { provider: "bank-email", externalAccountId } },
+    update: { bankName, ibanMasked: maskedAccount(recipientAccount), ...(ownerId ? { ownerId } : {}) },
     create: {
       propertyId,
       ownerId: ownerId || undefined,
-      provider: "rb-email",
-      bankName: "Raiffeisenbank · e-mail",
+      provider: "bank-email",
+      bankName,
       accountName: "Sběrný e-mail bankovních notifikací",
       iban: normalizeBankAccount(recipientAccount).startsWith("CZ") ? normalizeBankAccount(recipientAccount) : undefined,
       ibanMasked: maskedAccount(recipientAccount),
@@ -115,7 +121,7 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   }
 
   await touchPropertyPaymentNotification(route.propertyId, inbox.recipientAccount, inbox.receivedAt);
-  const account = await emailBankAccount(route.propertyId, inbox.recipientAccount, route.ownerId);
+  const account = await emailBankAccount(route.propertyId, inbox.recipientAccount, route.ownerId, inbox.bank);
   const transaction = await prisma.bankTransaction.upsert({
     where: { bankAccountId_externalId: { bankAccountId: account.id, externalId: `email:${inbox.id}` } },
     update: {},
@@ -130,13 +136,13 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
       recipientAccount: inbox.recipientAccount,
       variableSymbol: inbox.variableSymbol,
       message: inbox.message || inbox.subject,
-      source: "email-rb",
+      source: "email-bank",
       matchNote: `Import ze sběrného e-mailu; směrování: ${route.reason}.`,
     },
   });
 
   if (explicitLeaseId || route.leaseId) {
-    await allocateTransactionToLease(transaction.id, explicitLeaseId || route.leaseId!, `RB e-mail: ${route.reason}.`);
+    await allocateTransactionToLease(transaction.id, explicitLeaseId || route.leaseId!, `Bankovní e-mail: ${route.reason}.`);
   } else {
     await processTransaction(transaction.id);
   }

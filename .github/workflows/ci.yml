@@ -6,7 +6,7 @@ on:
   push:
     branches:
       - main
-      - v21-1-ux-polish
+      - v21-2-universal-bank-email
 
 jobs:
   build:
@@ -41,4 +41,5 @@ jobs:
       - run: npm run verify:v20
       - run: npm run verify:v21
       - run: npm run verify:v21.1
+      - run: npm run verify:v21.2
       - run: npm run build

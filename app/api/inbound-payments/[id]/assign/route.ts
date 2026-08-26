@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const result = await materializeInboxPayment(id, leaseId);
     if (!result.imported) throw new Error(result.reason || "Platbu se nepodařilo importovat.");
     await audit(user.id, "INBOUND_PAYMENT_ASSIGNED", "InboxPayment", id, { leaseId, transactionId: result.transactionId, propertyId: result.propertyId });
-    return goWithMessage(request, "/platby/nesparovane", "ok", "RB platba byla přiřazena a zaúčtována.");
+    return goWithMessage(request, "/platby/nesparovane", "ok", "Bankovní platba byla přiřazena a zaúčtována.");
   } catch (error) {
     return goWithMessage(request, `/platby/nesparovane/email/${id}`, "error", error instanceof Error ? error.message : "Platbu se nepodařilo přiřadit.");
   }

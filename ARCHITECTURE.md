@@ -1,4 +1,4 @@
-# FlatCloud Rent V21.1 – architektura
+# FlatCloud Rent V21.2 – architektura
 
 ## 1. Cíl aplikace
 
@@ -41,7 +41,7 @@ V21 nepoužívá přímé bankovní API ani autorizační consent workflow.
 5. e-mail se materializuje do technického `BankTransaction`,
 6. platba se alokuje na nejstarší otevřené předpisy smlouvy.
 
-`BankAccount` je ve V21 pouze technický ledger/source pro standardní transakce (`email-rb`, `manual`); neobsahuje bankovní credentials, consent, API synchronizaci ani stav přihlášení banky.
+`BankAccount` je ve V21 pouze technický ledger/source pro standardní transakce (`email-bank`, `manual`); neobsahuje bankovní credentials, consent, API synchronizaci ani stav přihlášení banky.
 
 ### Jedinečnost VS
 
@@ -140,7 +140,13 @@ npx prisma migrate deploy
 npm run verify:v20
 npm run verify:v21
 npm run verify:v21.1
+npm run verify:v21.2
 npm run build
 ```
 
 V21 je v sandbox režimu a migrace `20260825103000_v21_operations_foundation` proto smí odstranit nepoužívaný starý bankovní API model.
+
+
+### Multi-bank e-mail V21.2
+
+Příchozí e-mail prochází bank-agnostickou extrakcí platebních údajů. Banka se určí primárně podle kódu cílového účtu / IBANu a pojmenuje podle vestavěného číselníku ČNB. Rozpoznání platby je oddělené od důvěryhodnosti zdroje: banky bez ověřeného sender adaptéru fungují přes ruční frontu, zatímco automatický import je povolen jen pro ověřený zdroj. Testovací 1 Kč ověřuje `PropertyPaymentAccount`, nikoliv nájemní smlouvu.

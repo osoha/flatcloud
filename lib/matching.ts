@@ -1,6 +1,6 @@
 import { MatchRuleAction, PaymentStatus } from "@prisma/client";
 import { prisma } from "./db";
-import { bankAccountMatches, normalizeBankAccount } from "./inbound-bank/rb";
+import { bankAccountMatches, normalizeBankAccount } from "./inbound-bank/bank-email";
 import { resolveCollectionTasksIfSettled } from "./tasks";
 
 export function normalizeIban(value?: string | null) {

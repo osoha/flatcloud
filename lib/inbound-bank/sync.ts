@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { appSettings } from "@/lib/settings";
 import { openSecret } from "@/lib/secret";
 import { fetchImapMessages, parseRawEmail } from "@/lib/inbound-bank/imap";
-import { parseRbNotification } from "@/lib/inbound-bank/rb";
+import { parseBankNotification } from "@/lib/inbound-bank/bank-email";
 import { materializeInboxPayment } from "@/lib/inbound-bank/process";
 
 function fallbackMessageId(uid: number, source: Buffer) {
@@ -33,14 +33,14 @@ export async function syncInboundMailbox() {
     let parsedMessageId: string | undefined;
     try {
       const mail = parseRawEmail(rawMessage.source);
-      const parsedPayment = parseRbNotification({ ...mail, messageId: mail.messageId || fallbackMessageId(rawMessage.uid, rawMessage.source) });
+      const parsedPayment = parseBankNotification({ ...mail, messageId: mail.messageId || fallbackMessageId(rawMessage.uid, rawMessage.source) });
       parsedMessageId = parsedPayment.messageId;
       const existing = await prisma.inboxPayment.findUnique({ where: { messageId: parsedPayment.messageId } });
       if (existing) {
         safeLastUid = Math.max(safeLastUid, rawMessage.uid);
         continue;
       }
-      if (parsedPayment.validPayment) recognized += 1;
+      if (parsedPayment.recognizedPayment) recognized += 1;
       const inbox = await prisma.inboxPayment.create({
         data: {
           source: "email",
@@ -49,6 +49,9 @@ export async function syncInboundMailbox() {
           imapUid: rawMessage.uid,
           subject: parsedPayment.subject,
           sender: parsedPayment.sender,
+          returnPath: mail.returnPath,
+          authenticationResults: mail.authenticationResults,
+          sourceTrusted: parsedPayment.trustedSource,
           receivedAt: parsedPayment.receivedAt,
           bookedAt: parsedPayment.bookedAt,
           amountCents: parsedPayment.amountCents,
@@ -61,13 +64,18 @@ export async function syncInboundMailbox() {
           constantSymbol: parsedPayment.constantSymbol,
           message: parsedPayment.message,
           rawExcerpt: parsedPayment.rawExcerpt,
-          status: parsedPayment.validPayment ? "RECEIVED" : "ERROR",
+          status: parsedPayment.recognizedPayment ? "RECEIVED" : "ERROR",
           parseNote: parsedPayment.parseNote,
         },
       });
       inboxId = inbox.id;
-      if (!parsedPayment.validPayment) {
+      if (!parsedPayment.recognizedPayment) {
         errors += 1;
+        safeLastUid = Math.max(safeLastUid, rawMessage.uid);
+        continue;
+      }
+      if (!parsedPayment.autoProcessEligible) {
+        unmatched += 1;
         safeLastUid = Math.max(safeLastUid, rawMessage.uid);
         continue;
       }
@@ -88,10 +96,11 @@ export async function syncInboundMailbox() {
             update: { status: "ERROR", parseNote: `Chyba zpracování: ${message}` },
             create: {
               source: "email",
-              bank: "RB",
+              bank: "UNKNOWN",
               messageId,
               imapUid: rawMessage.uid,
               receivedAt: new Date(),
+              sourceTrusted: false,
               rawExcerpt: rawMessage.source.toString("utf8").slice(0, 4000),
               status: "ERROR",
               parseNote: `Chyba zpracování: ${message}`,
@@ -107,7 +116,7 @@ export async function syncInboundMailbox() {
     }
   }
 
-  const summary = `E-mail: načteno ${fetched}; RB platby ${recognized}; importováno ${imported}; čeká ${unmatched}; chyby ${errors}.`;
+  const summary = `E-mail: načteno ${fetched}; bankovní platby ${recognized}; importováno ${imported}; čeká ${unmatched}; chyby ${errors}.`;
   await prisma.appSetting.update({ where: { id: "global" }, data: { inboundMailLastUid: safeLastUid, inboundMailLastCheckedAt: checkedAt, inboundMailLastSummary: summary } });
   return { enabled: true, fetched, recognized, imported, unmatched, errors, summary };
 }
