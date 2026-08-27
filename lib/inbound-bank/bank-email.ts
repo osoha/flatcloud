@@ -7,6 +7,7 @@ export type ParsedBankPayment = {
   trustedSource: boolean;
   recognizedPayment: boolean;
   autoProcessEligible: boolean;
+  bankLike: boolean;
   messageId: string;
   subject?: string;
   sender?: string;
@@ -264,6 +265,10 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   const positiveAmount = typeof amountCents === "number" && amountCents > 0;
   const recognizedPayment = positiveAmount && Boolean(recipientAccount);
   const autoProcessEligible = recognizedPayment && trustedSource;
+  const paymentWording = /(?:příchoz|prijata|přips|prips|platb|účet|ucet|bankovn|transakc|částk|castk|payment|credited|beneficiary|payer|iban|variabilní symbol|variabilni symbol|\bVS\s*[:\-]?\s*\d|\bSS\s*[:\-]?\s*\d|\bKS\s*[:\-]?\s*\d|\bCZK\b|\bKč\b|\bEUR\b|€)/i.test(combined);
+  // Sender trust helps, but is never required: bank notifications are often forwarded
+  // from the account owner's mailbox. Ambiguous bank-like mail stays in manual review.
+  const bankLike = trustedSource || bank.code !== "UNKNOWN" || paymentWording || amountCents !== undefined || Boolean(recipientAccount || counterpartyAccount || variableSymbol || specificSymbol || constantSymbol);
   const missing = [!amountCents && "částka", !recipientAccount && "cílový účet", !variableSymbol && "VS"].filter(Boolean);
 
   let parseNote: string;
@@ -286,6 +291,7 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
     trustedSource,
     recognizedPayment,
     autoProcessEligible,
+    bankLike,
     messageId,
     subject: subject || undefined,
     sender: input.from?.trim() || undefined,

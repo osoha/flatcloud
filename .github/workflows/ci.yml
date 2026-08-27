@@ -45,4 +45,5 @@ jobs:
       - run: npm run verify:v21.3
       - run: npm run verify:v21.3.4
       - run: npm run verify:v21.3.5
+      - run: npm run verify:v21.3.6
       - run: npm run build
