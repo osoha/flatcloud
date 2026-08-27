@@ -401,8 +401,13 @@ model AppSetting {
   inboundMailPasswordEncrypted String?
   inboundMailMailbox          String    @default("INBOX")
   inboundMailLastUid          Int       @default(0)
+  inboundMailUidValidity      String?
   inboundMailLastCheckedAt    DateTime?
   inboundMailLastSummary      String?
+  inboundMailResolvedRetentionDays   Int       @default(30)
+  inboundMailUnresolvedRetentionDays Int       @default(90)
+  inboundMailLastCleanupAt    DateTime?
+  inboundMailLastCleanupSummary String?
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 }
@@ -704,6 +709,8 @@ model InboxPayment {
   bank                String             @default("UNKNOWN")
   messageId           String?            @unique
   imapUid             Int?
+  imapUidValidity     String?
+  imapMailboxIdentity String?
   subject             String?
   sender              String?
   returnPath          String?
@@ -727,6 +734,7 @@ model InboxPayment {
   property            Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   transactionId       String?             @unique
   transaction         BankTransaction?    @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  mailboxDeletedAt     DateTime?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 

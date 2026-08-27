@@ -3,7 +3,7 @@ import tls from "node:tls";
 
 export type RawImapMessage = { uid: number; source: Buffer };
 
-type ImapOptions = { host: string; port: number; secure: boolean; user: string; pass: string; mailbox: string };
+export type ImapOptions = { host: string; port: number; secure: boolean; user: string; pass: string; mailbox: string };
 
 function quoted(value: string) {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
@@ -205,7 +205,10 @@ function createImapSession(options: ImapOptions) {
   async function loginAndSelect() {
     await waitForLine((line) => /^\* OK/i.test(line));
     await command("A001", `LOGIN ${quoted(options.user)} ${quoted(options.pass)}`);
-    await command("A002", `SELECT ${quoted(options.mailbox || "INBOX")}`);
+    const capability = await command("A002", "CAPABILITY");
+    const select = await command("A003", `SELECT ${quoted(options.mailbox || "INBOX")}`);
+    const uidValidity = select.toString("latin1").match(/\* OK \[UIDVALIDITY\s+(\d+)\]/i)?.[1] || null;
+    return { uidValidity, supportsUidExpunge: /UIDPLUS/i.test(capability.toString("latin1")) };
   }
   function close() {
     if (!socket.destroyed) socket.destroy();
@@ -223,10 +226,10 @@ export async function testImapConnection(options: ImapOptions): Promise<{ ok: tr
   }
 }
 
-export async function fetchImapMessages(options: ImapOptions, afterUid: number): Promise<{ messages: RawImapMessage[]; maxUid: number }> {
+export async function fetchImapMessages(options: ImapOptions, afterUid: number): Promise<{ messages: RawImapMessage[]; maxUid: number; uidValidity: string | null }> {
   const session = createImapSession(options);
   try {
-    await session.loginAndSelect();
+    const selected = await session.loginAndSelect();
     const search = await session.command("A003", `UID SEARCH UID ${Math.max(1, afterUid + 1)}:*`);
     const searchText = search.toString("latin1");
     const ids: number[] = [...new Set<number>((searchText.match(/^\* SEARCH\s*(.*)$/mi)?.[1] || "").trim().split(/\s+/).map(Number).filter((n) => Number.isInteger(n) && n > afterUid))].sort((a, b) => a - b);
@@ -246,7 +249,24 @@ export async function fetchImapMessages(options: ImapOptions, afterUid: number):
       messages.push({ uid, source });
       maxUid = Math.max(maxUid, uid);
     }
-    return { messages, maxUid };
+    return { messages, maxUid, uidValidity: selected.uidValidity };
+  } finally {
+    session.close();
+  }
+}
+
+export async function deleteImapMessages(options: ImapOptions, uidValidity: string, uids: number[]) {
+  if (!uids.length) return 0;
+  const session = createImapSession(options);
+  try {
+    const selected = await session.loginAndSelect();
+    if (!selected.uidValidity || selected.uidValidity !== uidValidity) throw new Error("UIDVALIDITY schránky se změnila; mazání bylo bezpečně přeskočeno.");
+    if (!selected.supportsUidExpunge) throw new Error("IMAP server nepodporuje bezpečný selektivní UID EXPUNGE; retence byla přeskočena.");
+    const uidSet = [...new Set(uids)].filter((uid) => Number.isInteger(uid) && uid > 0).join(",");
+    if (!uidSet) return 0;
+    await session.command("A004", `UID STORE ${uidSet} +FLAGS.SILENT (\\Deleted)`);
+    await session.command("A005", `UID EXPUNGE ${uidSet}`);
+    return uids.length;
   } finally {
     session.close();
   }

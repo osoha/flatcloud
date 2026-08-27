@@ -50,9 +50,13 @@ assert.match(unitEdit, /operationalStatus/);
 const tenantEdit = readFileSync("app/nemovitosti/[id]/najemnici/[tenantId]/upravit/page.tsx", "utf8");
 assert.doesNotMatch(tenantEdit, /name=["']active["']/);
 
-const createLease = readFileSync("app/api/properties/[id]/leases/route.ts", "utf8");
-assert.match(createLease, /assertNoLeaseOverlap/);
-assert.doesNotMatch(createLease, /text\(form,\s*["']status["']/);
+const createLeaseRoute = readFileSync("app/api/properties/[id]/leases/route.ts", "utf8");
+assert.match(createLeaseRoute, /createLeaseFromForm/);
+assert.doesNotMatch(createLeaseRoute, /text\(form,\s*["']status["']/);
+
+const sharedLeaseCreate = readFileSync("lib/lease-create.ts", "utf8");
+assert.match(sharedLeaseCreate, /assertNoLeaseOverlap/);
+assert.doesNotMatch(sharedLeaseCreate, /text\(form,\s*["']status["']/);
 
 const unitDetail = readFileSync("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx", "utf8");
 assert.doesNotMatch(unitDetail, /\|\|\s*unit\.leases\[0\]/);

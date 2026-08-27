@@ -58,7 +58,6 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
       <nav className="nav v21-nav">
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
-        <Nav href="/portfolio#nemovitosti" icon={<Building2 size={17}/>} label="Nemovitosti"/>
 
         <div className="nav-label">Provoz</div>
         <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
@@ -70,11 +69,11 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
 
         <div className="nav-label">Evidence</div>
+        <Nav href="/najemnici" icon={<Users size={17}/>} label="Nájemníci"/>
         <Nav href="/smlouvy/upozorneni" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
         {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
 
         <div className="nav-label">Správa</div>
-        <Nav href="/reporty/nemovitosti" icon={<BarChart3 size={17}/>} label="Reporty"/>
         {superAdmin && <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>}
         {superAdmin && <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>}
       </nav>

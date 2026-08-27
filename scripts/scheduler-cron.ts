@@ -1,5 +1,6 @@
 import { prisma } from "../lib/db";
 import { syncInboundMailbox } from "../lib/inbound-bank/sync";
+import { cleanupInboundMailbox } from "../lib/inbound-bank/retention";
 import { runRentNotifications } from "../lib/rent-notifications";
 import { runChargeAutomation } from "../lib/charge-automation";
 import { syncLifecycleCaches } from "../lib/lease-lifecycle";
@@ -34,6 +35,13 @@ async function main() {
     const message = messageOf(error);
     if (isMailboxSetupSkip(message)) steps.push({ name: "bank-email", status: "skipped", summary: `${message} Krok byl bezpečně přeskočen.` });
     else { steps.push({ name: "bank-email", status: "failed", summary: message }); hardFailure = true; }
+  }
+
+  try {
+    const retention = await cleanupInboundMailbox();
+    steps.push({ name: "mailbox-retention", status: retention.enabled ? "ok" : "skipped", summary: retention.summary });
+  } catch (error) {
+    steps.push({ name: "mailbox-retention", status: "failed", summary: messageOf(error) });
   }
 
   try {

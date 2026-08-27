@@ -72,6 +72,23 @@ export function unitAccessWhere(user:{id:string;role:string;allProperties?:boole
   return {propertyId,...(hasAllPropertyAccess(user)?{}:{OR:[{property:{memberships:{some:{userId:user.id}}}},{userAccesses:{some:{userId:user.id}}}]})};
 }
 
+export function leaseAccessWhere(user:{id:string;role:string;allProperties?:boolean}, propertyId?: string): Prisma.LeaseWhereInput {
+  return {
+    ...(hasAllPropertyAccess(user) ? {} : { unit: { ...(propertyId ? { propertyId } : {}), OR: [
+      { property: { memberships: { some: { userId: user.id } } } },
+      { userAccesses: { some: { userId: user.id } } },
+    ] } }),
+    ...(hasAllPropertyAccess(user) && propertyId ? { unit: { propertyId } } : {}),
+  };
+}
+
+export function tenantAccessWhere(user:{id:string;role:string;allProperties?:boolean}): Prisma.TenantWhereInput {
+  return hasAllPropertyAccess(user) ? {} : { leases: { some: { unit: { OR: [
+    { property: { memberships: { some: { userId: user.id } } } },
+    { userAccesses: { some: { userId: user.id } } },
+  ] } } } };
+}
+
 export function editableUnitWhere(user:{id:string;role:string;allProperties?:boolean},propertyId?:string){
   return {
     ...(propertyId?{propertyId}:{}),

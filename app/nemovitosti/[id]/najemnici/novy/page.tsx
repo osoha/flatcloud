@@ -33,7 +33,7 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
       <TenantFields/>
       <Textarea label="Známé účty plátce" name="payerAccounts" placeholder="Jeden účet na řádek nebo oddělený čárkou"/>
       <h2 className="form-section-title field-full">Nájemní smlouva</h2>
-      <LeaseCoreFields unitOptions={availableUnits.map((unit) => [unit.id, `${unit.label}${unit.floor ? ` · ${unit.floor}` : ""}`])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit}/>
+      <LeaseCoreFields unitOptions={availableUnits.map((unit) => [unit.id, `${unit.label}${unit.floor ? ` · ${unit.floor}` : ""}`])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit} showGenerateCharges/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
       <Field label="Zálohy na služby Kč / měsíc" name="services" type="number" step="0.01" min={0}/>
       <Field label="Kauce Kč" name="deposit" type="number" step="0.01" min={0}/>
