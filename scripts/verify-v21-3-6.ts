@@ -67,7 +67,7 @@ assert.match(queue, /status: \{ in: \["RECEIVED", "UNMATCHED", "ERROR"\] \}/);
 assert.match(queue, /Nerelevantní e-maily/);
 assert.match(queue, /take: 100/);
 assert.match(queue, /transactions\.length \+ inbox\.length/);
-assert.match(detail, /Znovu zpracovat \/ vrátit ke kontrole/);
+assert.match(detail, /Znovu zpracovat parserem \/ vrátit ke kontrole/);
 
 assert.match(property, /google\.com\/maps\/search\/\?api=1&query=\$\{encodeURIComponent/);
 assert.match(property, /Správce budovy/);
