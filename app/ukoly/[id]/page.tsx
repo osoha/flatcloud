@@ -20,7 +20,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   const user=await requireUser();
   const {id}=await params;
   const query=await searchParams;
-  const task=await prisma.task.findUnique({where:{id},include:{property:true,unit:true,lease:{include:{charges:{where:{active:true},include:{allocations:true}}}},tenant:true,assignee:true,createdBy:true,entries:{include:{author:true},orderBy:{createdAt:"asc"}}}});
+  const task=await prisma.task.findUnique({where:{id},include:{property:true,unit:true,lease:{include:{charges:{where:{active:true},include:{allocations:true}}}},tenant:true,assignee:true,createdBy:true,entries:{include:{author:true},orderBy:{createdAt:"desc"}}}});
   if(!task)notFound();
   const property=await requirePropertyAccess(user,task.propertyId);
   if(!property)notFound();
@@ -29,10 +29,10 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   const canManage=await hasPropertyPermission(user,task.propertyId,"EDIT");
   const managers=canManage?await prisma.user.findMany({where:{active:true,OR:[{allProperties:true},{role:{in:["SUPER_ADMIN","MANAGER"]}},{memberships:{some:{propertyId:task.propertyId,permission:{in:["EDIT","ADMIN"]}}}}]},orderBy:{name:"asc"}}):[];
   const debt=task.lease?.charges.reduce((sum,charge)=>sum+overdueDebtCents(charge),0)??0;
-  const latestPromise=[...task.entries].reverse().find((entry)=>entry.kind==="PROMISE");
+  const latestPromise=task.entries.find((entry)=>entry.kind==="PROMISE");
   const promiseDate=latestPromise?.promisedPaymentDate||task.lease?.promisedPaymentDate||null;
   const promiseAmount=latestPromise?.promisedAmountCents||task.lease?.promisedAmountCents||null;
-  const lastActivity=task.entries.at(-1)?.createdAt||task.updatedAt;
+  const lastActivity=task.entries[0]?.createdAt||task.updatedAt;
   const statusLabel=task.category==="COLLECTION"&&task.status==="WAITING"?"Čeká na úhradu":taskStatuses[task.status];
 
   return <Shell user={user} taskPropertyId={task.propertyId} taskLeaseId={task.leaseId||undefined}><div className="page task-case-page">
@@ -42,7 +42,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
 
     <div className="detail-grid case-layout">
       <div className="card col-8 case-thread-card">
-        <div className="card-head"><div><h2>Vlákno případu</h2><p className="muted-copy">Komunikace a automatické události v jednom chronologickém přehledu. Vlastník vidí stejný průběh v režimu pouze pro čtení.</p></div></div>
+        <div className="card-head"><div><h2>Vlákno případu</h2><p className="muted-copy">Nejnovější komunikace a automatické události jsou nahoře. Vlastník vidí stejný průběh v režimu pouze pro čtení.</p></div></div>
         <div className="discussion-thread">{task.entries.length?task.entries.map((entry)=><article className={`discussion-entry kind-${entry.kind.toLowerCase()}`} key={entry.id}>
           <div className="discussion-avatar">{entry.author?<UserAvatar user={entry.author} size="sm"/>:<div className="system-avatar">FC</div>}</div>
           <div className="discussion-content"><div className="discussion-head"><div><strong>{entry.author?.name||"FlatCloud"}</strong><span className="entry-kind">{taskEntryKinds[entry.kind]}</span></div><time>{entry.createdAt.toLocaleString("cs-CZ",{dateStyle:"medium",timeStyle:"short"})}</time></div><p>{entry.body}</p>{entry.kind==="PROMISE"&&(entry.promisedPaymentDate||entry.promisedAmountCents)&&<div className="promise-summary"><Clock3 size={15}/><div><strong>Příslib úhrady</strong><span>{entry.promisedPaymentDate?date(entry.promisedPaymentDate):"Datum neuvedeno"}{entry.promisedAmountCents?` · ${money(entry.promisedAmountCents)}`:""}</span></div></div>}</div>

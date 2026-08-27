@@ -37,9 +37,10 @@ const propertyInclude = {
   },
 } satisfies Prisma.PropertyInclude;
 
-export async function accessibleProperties(user:{id:string;role:string;allProperties?:boolean}){
+export async function accessibleProperties(user:{id:string;role:string;allProperties?:boolean}, options: { includeInactive?: boolean } = {}){
+  const includeInactive = Boolean(options.includeInactive && ["SUPER_ADMIN", "MANAGER", "PROPERTY_MANAGER"].includes(user.role));
   const properties = await prisma.property.findMany({
-    where: { ...(hasAllPropertyAccess(user) ? {} : { OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}}] }), active: true },
+    where: { ...(hasAllPropertyAccess(user) ? {} : { OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}}] }), ...(includeInactive ? {} : { active: true }) },
     include: propertyInclude,
     orderBy:{name:"asc"}
   });

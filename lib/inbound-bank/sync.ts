@@ -13,10 +13,10 @@ function fallbackMessageId(uid: number, source: Buffer) {
 export async function syncInboundMailbox() {
   const settings = await appSettings();
   const checkedAt = new Date();
-  if (!settings.inboundMailEnabled) return { enabled: false, fetched: 0, recognized: 0, imported: 0, unmatched: 0, errors: 0 };
+  if (!settings.inboundMailEnabled) return { enabled: false, fetched: 0, recognized: 0, imported: 0, unmatched: 0, ignored: 0, errors: 0 };
   if (!settings.inboundMailHost || !settings.inboundMailUser || !settings.inboundMailPasswordEncrypted) throw new Error("Sběrný e-mail je zapnutý, ale chybí IMAP server, uživatel nebo heslo.");
 
-  let fetched = 0, recognized = 0, imported = 0, unmatched = 0, errors = 0;
+  let fetched = 0, recognized = 0, imported = 0, unmatched = 0, ignored = 0, errors = 0;
   let safeLastUid = settings.inboundMailLastUid || 0;
   const result = await fetchImapMessages({
     host: settings.inboundMailHost,
@@ -80,7 +80,7 @@ export async function syncInboundMailbox() {
         continue;
       }
       const importedResult = await materializeInboxPayment(inbox.id);
-      if (importedResult.imported) imported += 1; else unmatched += 1;
+      if (importedResult.imported) imported += 1; else if (importedResult.ignored) ignored += 1; else unmatched += 1;
       safeLastUid = Math.max(safeLastUid, rawMessage.uid);
     } catch (error) {
       errors += 1;
@@ -116,7 +116,7 @@ export async function syncInboundMailbox() {
     }
   }
 
-  const summary = `E-mail: načteno ${fetched}; bankovní platby ${recognized}; importováno ${imported}; čeká ${unmatched}; chyby ${errors}.`;
+  const summary = `E-mail: načteno ${fetched}; bankovní platby ${recognized}; importováno ${imported}; mimo nájmy ${ignored}; čeká ${unmatched}; chyby ${errors}.`;
   await prisma.appSetting.update({ where: { id: "global" }, data: { inboundMailLastUid: safeLastUid, inboundMailLastCheckedAt: checkedAt, inboundMailLastSummary: summary } });
-  return { enabled: true, fetched, recognized, imported, unmatched, errors, summary };
+  return { enabled: true, fetched, recognized, imported, unmatched, ignored, errors, summary };
 }

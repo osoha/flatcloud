@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { allocateTransactionToLease, processTransaction } from "@/lib/matching";
+import { MatchRuleAction } from "@prisma/client";
 import { bankAccountMatches, bankNameForCode, normalizeBankAccount } from "@/lib/inbound-bank/bank-email";
 import { touchPropertyPaymentNotification, tryVerifyNotificationPayment } from "@/lib/bank-email-verification";
 
@@ -27,7 +28,7 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
   const ownerAccountIds = await ownerAccountIdsForRecipient(input.recipientAccount);
   const vs = normalizedVs(input.variableSymbol);
 
-  if (vs) {
+  if (ownerAccountIds.length && vs) {
     const leases = await prisma.lease.findMany({
       where: {
         ...(ownerAccountIds.length ? { ownerBankAccountId: { in: ownerAccountIds } } : {}),
@@ -35,10 +36,10 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
       include: { unit: true, ownerBankAccount: true, tenant: true },
     });
     const exact = leases.filter((lease) => normalizedVs(lease.variableSymbol) === vs);
-    if (exact.length === 1) return { propertyId: exact[0].unit.propertyId, leaseId: exact[0].id, ownerId: exact[0].ownerBankAccount?.ownerId || null, reason: "cílový účet + VS" };
+    if (exact.length === 1) return { propertyId: exact[0].unit.propertyId, leaseId: exact[0].id, ownerId: exact[0].ownerBankAccount?.ownerId || null, reason: "cílový účet + VS", strong: true };
   }
 
-  if (input.counterpartyAccount) {
+  if (ownerAccountIds.length && input.counterpartyAccount) {
     const payer = normalizeBankAccount(input.counterpartyAccount);
     const leases = await prisma.lease.findMany({
       where: {},
@@ -49,7 +50,7 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
       const aliases = [lease.tenantBankAccount, ...lease.tenant.payerAccounts].map(normalizeBankAccount).filter(Boolean);
       return aliases.includes(payer);
     });
-    if (exact.length === 1) return { propertyId: exact[0].unit.propertyId, leaseId: exact[0].id, ownerId: exact[0].ownerBankAccount?.ownerId || null, reason: "cílový účet + známý účet plátce" };
+    if (exact.length === 1) return { propertyId: exact[0].unit.propertyId, leaseId: exact[0].id, ownerId: exact[0].ownerBankAccount?.ownerId || null, reason: "cílový účet + známý účet plátce", strong: true };
   }
 
   if (ownerAccountIds.length) {
@@ -62,11 +63,35 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
     if (propertyIds.size === 1) {
       const propertyId = [...propertyIds][0];
       const ownerId = propertyLinks.find((row)=>row.propertyId===propertyId)?.ownerBankAccount.ownerId || leaseRows.find((row) => row.unit.propertyId === propertyId)?.ownerBankAccount?.ownerId || ownershipRows.find((row) => row.unit.propertyId === propertyId)?.ownerBankAccount?.ownerId || null;
-      return { propertyId, leaseId: null, ownerId, reason: "jednoznačný cílový účet objektu" };
+      return { propertyId, leaseId: null, ownerId, reason: "příjem na známý účet bez vazby na nájemní evidenci", strong: false };
     }
   }
 
-  return { propertyId: null, leaseId: null, ownerId: null, reason: "nelze jednoznačně určit objekt" };
+  return { propertyId: null, leaseId: null, ownerId: null, reason: "nelze jednoznačně určit objekt", strong: false };
+}
+
+function inboxRuleMatches(rule: { bankAccount: { propertyId: string; provider: string; externalAccountId: string; iban: string | null } | null; counterpartyIban: string | null; counterpartyNameContains: string | null; variableSymbol: string | null; messageContains: string | null; amountCents: number | null }, inbox: { recipientAccount: string | null; counterpartyAccount: string | null; counterpartyName: string | null; variableSymbol: string | null; message: string | null; subject: string | null; amountCents: number | null }) {
+  if (rule.bankAccount) {
+    const normalizedRecipient = normalizeBankAccount(inbox.recipientAccount);
+    const fingerprint = createHash("sha256").update(normalizedRecipient || "unknown").digest("hex").slice(0, 20);
+    const syntheticAccountMatches = rule.bankAccount.provider === "bank-email"
+      && rule.bankAccount.externalAccountId === `bank-email:${rule.bankAccount.propertyId}:${fingerprint}`;
+    const identifiableProviderAccountMatches = rule.bankAccount.provider !== "bank-email"
+      && Boolean(rule.bankAccount.iban)
+      && bankAccountMatches({ iban: rule.bankAccount.iban }, inbox.recipientAccount);
+    if (!syntheticAccountMatches && !identifiableProviderAccountMatches) return false;
+  }
+  if (rule.counterpartyIban && normalizeBankAccount(rule.counterpartyIban) !== normalizeBankAccount(inbox.counterpartyAccount)) return false;
+  if (rule.counterpartyNameContains && !(inbox.counterpartyName || "").toLocaleLowerCase("cs-CZ").includes(rule.counterpartyNameContains.toLocaleLowerCase("cs-CZ"))) return false;
+  if (rule.variableSymbol && normalizedVs(rule.variableSymbol) !== normalizedVs(inbox.variableSymbol)) return false;
+  if (rule.messageContains && !`${inbox.message || ""} ${inbox.subject || ""}`.toLocaleLowerCase("cs-CZ").includes(rule.messageContains.toLocaleLowerCase("cs-CZ"))) return false;
+  if (rule.amountCents !== null && rule.amountCents !== inbox.amountCents) return false;
+  return true;
+}
+
+async function matchingRuleForInbox(propertyId: string, inbox: Parameters<typeof inboxRuleMatches>[1]) {
+  const rules = await prisma.bankMatchingRule.findMany({ where: { propertyId, active: true }, include: { bankAccount: true }, orderBy: [{ priority: "asc" }, { createdAt: "asc" }] });
+  return rules.find((rule) => inboxRuleMatches(rule, inbox)) || null;
 }
 
 function bankDisplayName(bank?: string | null) {
@@ -112,7 +137,7 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   if (explicitLeaseId) {
     const lease = await prisma.lease.findUnique({ where: { id: explicitLeaseId }, include: { unit: true, ownerBankAccount: true } });
     if (!lease) return { imported: false, reason: "Vybraná smlouva nebyla nalezena." };
-    route = { propertyId: lease.unit.propertyId, leaseId: lease.id, ownerId: lease.ownerBankAccount?.ownerId || null, reason: "ruční potvrzení hlavním administrátorem" };
+    route = { propertyId: lease.unit.propertyId, leaseId: lease.id, ownerId: lease.ownerBankAccount?.ownerId || null, reason: "ruční potvrzení hlavním administrátorem", strong: true };
   }
   if (!route.propertyId) {
     await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "UNMATCHED", parseNote: `${inbox.parseNote || ""} ${route.reason}.`.trim() } });
@@ -120,6 +145,18 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   }
 
   await touchPropertyPaymentNotification(route.propertyId, inbox.recipientAccount, inbox.receivedAt);
+  const matchingRule = explicitLeaseId ? null : await matchingRuleForInbox(route.propertyId, inbox);
+  if (matchingRule?.action === MatchRuleAction.IGNORE) {
+    const reason = `Ignorováno pravidlem: ${matchingRule.name}.`;
+    await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IGNORED", propertyId: route.propertyId, parseNote: reason } });
+    return { imported: false, ignored: true, propertyId: route.propertyId, reason };
+  }
+  if (!explicitLeaseId && !route.strong && !matchingRule) {
+    const reason = "Příjem na známý účet bez vazby na nájemní evidenci.";
+    await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IGNORED", propertyId: route.propertyId, parseNote: reason } });
+    return { imported: false, ignored: true, propertyId: route.propertyId, reason };
+  }
+
   const account = await emailBankAccount(route.propertyId, inbox.recipientAccount, route.ownerId, inbox.bank);
   const transaction = await prisma.bankTransaction.upsert({
     where: { bankAccountId_externalId: { bankAccountId: account.id, externalId: `email:${inbox.id}` } },
