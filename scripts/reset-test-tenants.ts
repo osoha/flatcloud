@@ -27,10 +27,18 @@ async function main() {
     await tx.lease.deleteMany({ where: { id: { in: leaseIds } } });
     await tx.tenant.deleteMany({ where: { id: { in: tenantIds } } });
     for (const transactionId of transactionIds) {
+      const transaction = await tx.bankTransaction.findUnique({ where: { id: transactionId }, select: { amountCents: true } });
+      if (!transaction) continue;
       const allocations = await tx.paymentAllocation.findMany({ where: { transactionId }, select: { amountCents: true, charge: { select: { amountCents: true } } } });
       const allocated = allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0);
-      const due = allocations.reduce((sum, allocation) => sum + allocation.charge.amountCents, 0);
-      await tx.bankTransaction.update({ where: { id: transactionId }, data: { status: allocations.length === 0 ? "UNMATCHED" : allocated >= due ? "MATCHED" : "PARTIAL" } });
+      const status = allocated === 0
+        ? "UNMATCHED"
+        : allocated < transaction.amountCents
+          ? "OVERPAYMENT"
+          : allocations.some((allocation) => allocation.amountCents < allocation.charge.amountCents)
+            ? "PARTIAL"
+            : "MATCHED";
+      await tx.bankTransaction.update({ where: { id: transactionId }, data: { status, suggestedLeaseId: null, matchedRuleId: null, matchNote: "Stav byl přepočten po selektivním test resetu." } });
     }
     for (const unitId of affectedUnits) await syncUnitOccupancyCache(tx, unitId);
     await tx.auditLog.create({ data: { action: "TEST_TENANTS_RESET", entityType: "Tenant", entityId: tenantIds.join(","), details: { tenantIds, leaseIds, affectedTransactionIds: transactionIds, affectedUnitIds: affectedUnits } } });

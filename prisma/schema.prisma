@@ -710,6 +710,7 @@ model InboxPayment {
   messageId           String?            @unique
   imapUid             Int?
   imapUidValidity     String?
+  imapMailboxIdentity String?
   subject             String?
   sender              String?
   returnPath          String?

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { tenantAccessWhere } from "@/lib/access";
+import { leaseAccessWhere } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Shell } from "@/components/Shell";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export default async function TenantsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const user = await requireUser();
   const query = await searchParams;
-  const tenants = await prisma.tenant.findMany({ where: tenantAccessWhere(user), include: { leases: { include: { unit: { include: { property: true } } } } }, orderBy: { name: "asc" } });
+  const tenants = await prisma.tenant.findMany({ where: tenantAccessWhere(user), include: { leases: { where: leaseAccessWhere(user), include: { unit: { include: { property: true } } } } }, orderBy: { name: "asc" } });
   const rows = tenants.map((tenant) => {
     const statuses = tenant.leases.map((lease) => leaseStatusAt(lease));
     const status = statuses.includes("ACTIVE") ? "ACTIVE" : statuses.includes("FUTURE") ? "FUTURE" : "ENDED";

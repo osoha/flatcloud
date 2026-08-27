@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { appSettings } from "@/lib/settings";
 import { openSecret } from "@/lib/secret";
 import { deleteImapMessages } from "@/lib/inbound-bank/imap";
+import { mailboxIdentity } from "@/lib/inbound-bank/mailbox-identity";
 
 export async function cleanupInboundMailbox() {
   const settings = await appSettings();
@@ -12,11 +13,14 @@ export async function cleanupInboundMailbox() {
   const now = new Date();
   const resolvedCutoff = new Date(now.getTime() - settings.inboundMailResolvedRetentionDays * 86_400_000);
   const unresolvedCutoff = new Date(now.getTime() - settings.inboundMailUnresolvedRetentionDays * 86_400_000);
+  const imapOptions = { host: settings.inboundMailHost, port: settings.inboundMailPort, secure: settings.inboundMailSecure, user: settings.inboundMailUser, pass: openSecret(settings.inboundMailPasswordEncrypted)!, mailbox: settings.inboundMailMailbox || "INBOX" };
+  const currentMailboxIdentity = mailboxIdentity(imapOptions);
   const candidates = await prisma.inboxPayment.findMany({
     where: {
       mailboxDeletedAt: null,
       imapUid: { not: null },
       imapUidValidity: settings.inboundMailUidValidity,
+      imapMailboxIdentity: currentMailboxIdentity,
       OR: [
         { status: { in: ["IMPORTED", "IGNORED"] }, receivedAt: { lt: resolvedCutoff } },
         { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] }, receivedAt: { lt: unresolvedCutoff } },
@@ -33,7 +37,7 @@ export async function cleanupInboundMailbox() {
     return { enabled: true, deleted: 0, summary };
   }
 
-  const deleted = await deleteImapMessages({ host: settings.inboundMailHost, port: settings.inboundMailPort, secure: settings.inboundMailSecure, user: settings.inboundMailUser, pass: openSecret(settings.inboundMailPasswordEncrypted)!, mailbox: settings.inboundMailMailbox || "INBOX" }, settings.inboundMailUidValidity, uids);
+  const deleted = await deleteImapMessages(imapOptions, settings.inboundMailUidValidity, uids);
   await prisma.inboxPayment.updateMany({ where: { id: { in: candidates.map((candidate) => candidate.id) }, mailboxDeletedAt: null }, data: { mailboxDeletedAt: now } });
   const summary = `Retence: odstraněno ${deleted} e-mailů z IMAP; InboxPayment v DB zachovány.`;
   await prisma.appSetting.update({ where: { id: "global" }, data: { inboundMailLastCleanupAt: now, inboundMailLastCleanupSummary: summary } });

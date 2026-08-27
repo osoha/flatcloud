@@ -7,4 +7,5 @@ ALTER TABLE "AppSetting"
 
 ALTER TABLE "InboxPayment"
   ADD COLUMN IF NOT EXISTS "imapUidValidity" TEXT,
+  ADD COLUMN IF NOT EXISTS "imapMailboxIdentity" TEXT,
   ADD COLUMN IF NOT EXISTS "mailboxDeletedAt" TIMESTAMP(3);

@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       inboundMailUser,
       inboundMailMailbox,
       ...(password ? { inboundMailPasswordEncrypted: sealSecret(password) } : {}),
-      ...(mailboxChanged ? { inboundMailLastUid: 0, inboundMailLastSummary: "Konfigurace schránky byla změněna; UID checkpoint byl resetován." } : {}),
+      ...(mailboxChanged ? { inboundMailLastUid: 0, inboundMailUidValidity: null, inboundMailLastSummary: "Konfigurace schránky byla změněna; UID checkpoint byl resetován." } : {}),
     };
     await prisma.appSetting.upsert({ where: { id: "global" }, update: data, create: { id: "global", ...data } });
     await audit(user.id, "INBOUND_MAIL_SETTINGS_UPDATED", "AppSetting", "global", { enabled: inboundMailEnabled, host: inboundMailHost, port: inboundMailPort, mailbox: inboundMailMailbox, secure: inboundMailSecure, passwordChanged: Boolean(password), uidReset: mailboxChanged, resolvedRetentionDays: inboundMailResolvedRetentionDays, unresolvedRetentionDays: inboundMailUnresolvedRetentionDays });
