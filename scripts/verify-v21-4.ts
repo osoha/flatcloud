@@ -18,12 +18,14 @@ const tenantDetail = read("app/najemnici/[tenantId]/page.tsx");
 const newTenant = read("app/nemovitosti/[id]/najemnici/novy/page.tsx");
 const settingsRoute = read("app/api/settings/inbound-mail/route.ts");
 const migration = read("prisma/migrations/20260827100000_v21_4_inbound_mail_retention/migration.sql");
+const ci = read(".github/workflows/ci.yml");
 
 assert.equal(packageJson.version, "1.21.4");
 assert.equal(lock.version, "1.21.4");
 assert.equal(lock.packages[""].version, "1.21.4");
 assert.equal(packageJson.scripts["verify:v21.3.6"], "tsx scripts/verify-v21-3-6.ts");
 assert.equal(packageJson.scripts["verify:v21.4"], "tsx scripts/verify-v21-4.ts");
+assert.match(ci, /npm run verify:v21\.4/);
 for (const field of ["inboundMailResolvedRetentionDays", "inboundMailUnresolvedRetentionDays", "inboundMailUidValidity", "inboundMailLastCleanupAt", "inboundMailLastCleanupSummary", "imapUidValidity", "mailboxDeletedAt"]) assert.match(schema, new RegExp(field));
 assert.match(tenantRoute, /createLeaseFromForm/);
 assert.match(leaseRoute, /createLeaseFromForm/);
