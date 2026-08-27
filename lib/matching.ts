@@ -161,10 +161,9 @@ export async function processTransaction(transactionId: string) {
 
   if (recipient && await choose(scored.filter((row) => row.ownerAccount && row.vs && row.exactAmount), "Automaticky: cílový účet vlastníka + VS + přesná částka.")) return;
   if (recipient && await choose(scored.filter((row) => row.ownerAccount && row.vs), "Automaticky: cílový účet vlastníka + VS.")) return;
-  if (await choose(scored.filter((row) => row.vs && row.exactAmount), "Automaticky: VS + přesná částka.")) return;
+  if (recipient && await choose(scored.filter((row) => row.ownerAccount && row.payer && row.exactAmount), "Automaticky: cílový účet vlastníka + známý účet plátce + přesná částka.")) return;
   if (await choose(scored.filter((row) => row.payer && row.exactAmount), "Automaticky: známý účet plátce + přesná částka.")) return;
-  if (await choose(scored.filter((row) => row.vs), "Automaticky podle jednoznačného variabilního symbolu.")) return;
-  if (await choose(scored.filter((row) => row.payer), "Návrh podle známého účtu plátce; částka nesouhlasí přesně s otevřeným předpisem.", true)) return;
+  if (recipient && await choose(scored.filter((row) => row.ownerAccount && row.payer), "Návrh podle cílového účtu vlastníka a známého účtu plátce; částka nesouhlasí přesně s otevřeným předpisem.", true)) return;
 
   await prisma.bankTransaction.update({ where: { id: transaction.id }, data: { status: PaymentStatus.UNMATCHED, matchNote: "Nenalezeno jednoznačné pravidlo. Platba je v globální frontě hlavního administrátora." } });
 }

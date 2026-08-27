@@ -1,6 +1,6 @@
 {
   "name": "flatcloud-rent-production",
-  "version": "1.21.3-hotfix.4",
+  "version": "1.21.3-hotfix.5",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -15,7 +15,8 @@
     "verify:v21.1": "tsx scripts/verify-v21-1.ts",
     "verify:v21.2": "tsx scripts/verify-v21-2.ts",
     "verify:v21.3": "tsx scripts/verify-v21-3.ts",
-    "verify:v21.3.4": "tsx scripts/verify-v21-3-4.ts"
+    "verify:v21.3.4": "tsx scripts/verify-v21-3-4.ts",
+    "verify:v21.3.5": "tsx scripts/verify-v21-3-5.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

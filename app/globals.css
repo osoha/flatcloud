@@ -251,3 +251,21 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .thread-composer-v211{border-top:1px solid var(--line);padding:15px 20px 18px;background:#fbfcff}.composer-tabs{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:11px}.composer-tabs button{height:30px;border:1px solid var(--line);background:#fff;border-radius:8px;padding:0 9px;font-size:9px;color:#5f6d83}.composer-tabs button.active{background:var(--blue-soft);border-color:#c5d4f5;color:var(--blue);font-weight:800}.promise-fields{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:9px}.composer-body textarea{min-height:92px}.composer-actions{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-top:10px}.composer-actions small{color:var(--muted);font-size:8px}.case-sidebar{align-self:start}.case-summary-card{position:sticky;top:82px}.case-description{margin-top:12px;padding:11px;border-radius:9px;background:#f7f9fc}.case-description strong{font-size:9px}.case-description p{font-size:9px;line-height:1.55;margin:5px 0 0;white-space:pre-wrap}.case-edit-panel>summary{cursor:pointer;list-style:none;color:var(--blue);font-size:10px;font-weight:800}.case-edit-panel>summary::-webkit-details-marker{display:none}.case-edit-panel[open]>summary{margin-bottom:13px;padding-bottom:10px;border-bottom:1px solid var(--line)}
 @media(max-width:900px){.case-summary-card{position:static}.composer-actions{align-items:flex-end}.top-action span{display:none}}
 @media(max-width:700px){.discussion-head{flex-direction:column;gap:4px}.promise-fields{grid-template-columns:1fr}.composer-actions{flex-direction:column;align-items:stretch}.composer-actions .primary{justify-content:center}.case-context{align-items:flex-start}}
+
+/* V21.3.5 typography, archive and bank-notification polish */
+:root{--muted:#5f6c83}
+.v21-nav a{font-size:13px}.v21-nav .nav-label{font-size:10px}.v21-nav .nav-count{font-size:10px}
+.compact-scope small,.compact-scope span{font-size:11px}.compact-scope strong,.sidebar-footer .user-card strong{font-size:12px}.sidebar-footer .user-card small{font-size:11px;color:#b3c1da}
+.v21-topbar .search,.account-chip,.global-search input{font-size:13px}
+.v21-shell .card h2,.table-toolbar h2{font-size:16px}.muted-copy,.table-toolbar p,.v21-shell .page-title p{font-size:12px;line-height:1.5}
+.v21-stat-grid .stat span{font-size:12px}.v21-stat-grid .stat small{font-size:11px}
+.attention-item strong{font-size:13px}.attention-item small,.calm-state span{font-size:11px;line-height:1.4}
+.summary-list span,.summary-list strong{font-size:13px}
+.v21-shell th{font-size:10px}.v21-shell td{font-size:13px}.property-cell strong{font-size:14px}.property-cell small,.owner-sub{font-size:11px}
+.status,.large-status{font-size:11px}.field>span,.field small{font-size:11px}.field input,.field select,.field textarea{font-size:13px}
+.discussion-head strong{font-size:13px}.discussion-head time,.entry-kind{font-size:11px}.discussion-content>p{font-size:14px;line-height:1.65}.promise-summary strong,.promise-summary span{font-size:12px}.composer-tabs button,.composer-actions small{font-size:11px}.case-description strong{font-size:12px}.case-description p{font-size:13px;line-height:1.6}
+.archive-section-row td{padding-top:26px;padding-bottom:11px;background:#f2f4f7;color:#4f5d73;font-size:12px;font-weight:850;text-transform:uppercase;letter-spacing:.45px;border-top:14px solid #fff}
+.archived-property-row{background:#f8f9fb;color:#667085}.archived-property-row .property-thumb{filter:grayscale(1);opacity:.65}.archived-property-row .property-cell small,.archived-property-row .owner-label{color:#748096}.archived-property-row:hover{background:#f2f4f8!important}
+.status.archived{color:#667085;background:#eef0f3}
+.ignored-bank-section{margin-top:28px;padding-top:18px;border-top:1px solid #dfe4ec}.ignored-bank-section .card{box-shadow:none}.ignored-bank-row{color:#667085;background:#fafbfc}
+@media(max-width:700px){.v21-shell td{font-size:12px}.discussion-content>p{font-size:13px}}
