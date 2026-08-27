@@ -10,6 +10,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!user || user.role !== "SUPER_ADMIN") return go(request, "/login");
   const { id } = await params;
   try {
+    const form = await request.formData();
+    const forceReview = form.get("forceReview") === "1";
     const row = await prisma.inboxPayment.findUnique({ where: { id } });
     if (!row) throw new Error("Bankovní e-mail nebyl nalezen.");
     if (row.transactionId) throw new Error("Tento e-mail už byl importován jako bankovní transakce.");
@@ -24,6 +26,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       text: row.rawExcerpt,
     });
 
+    const status = parsed.recognizedPayment ? "RECEIVED" : forceReview || parsed.bankLike ? "ERROR" : "IGNORED";
+    const parseNote = !parsed.recognizedPayment && !parsed.bankLike && !forceReview
+      ? "Nerelevantní e-mail: zpráva neobsahuje smysluplné bankovní ani platební údaje."
+      : forceReview && !parsed.recognizedPayment
+        ? `Vráceno hlavním administrátorem ke kontrole. ${parsed.parseNote}`
+        : parsed.parseNote;
     await prisma.inboxPayment.update({
       where: { id },
       data: {
@@ -39,8 +47,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         specificSymbol: parsed.specificSymbol,
         constantSymbol: parsed.constantSymbol,
         message: parsed.message,
-        status: parsed.recognizedPayment ? "RECEIVED" : "ERROR",
-        parseNote: parsed.parseNote,
+        status,
+        parseNote,
       },
     });
 
@@ -51,7 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       autoProcessEligible: parsed.autoProcessEligible,
     });
 
-    if (!parsed.recognizedPayment) return goWithMessage(request, `/platby/nesparovane/email/${id}`, "error", parsed.parseNote);
+    if (!parsed.recognizedPayment) return goWithMessage(request, `/platby/nesparovane/email/${id}`, "ok", forceReview ? "E-mail byl vrácen do ruční pracovní fronty." : parsed.parseNote);
 
     if (parsed.autoProcessEligible) {
       const result = await materializeInboxPayment(id);

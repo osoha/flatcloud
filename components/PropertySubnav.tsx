@@ -11,7 +11,7 @@ const fullSections = [
   ["technicke-udaje", "Technické údaje"],
   ["nastaveni", "Nastavení"],
 ];
-const unitSections = [["prehled","Přehled"],["jednotky","Moje jednotky"],["najemnici","Nájemníci"],["smlouvy","Smlouvy"],["platby","Platby"],["dluznici","Saldo"]];
+const unitSections = [["prehled","Přehled"],["jednotky","Moje jednotky"],["najemnici","Nájemníci"],["smlouvy","Smlouvy"],["platby","Platby"],["dluznici","Saldo"],["banka","Bankovní účet"]];
 
 export function PropertySubnav({ propertyId, active, unitLimited=false }: { propertyId: string; active: string; unitLimited?: boolean }) {
   const sections=unitLimited?unitSections:fullSections;

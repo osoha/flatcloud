@@ -72,7 +72,7 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
           {row.amountCents && row.amountCents > 0 ? <form className="compact-form" action={`/api/inbound-payments/${row.id}/assign`} method="post"><label className="field"><span>Smlouva</span><select name="leaseId" required defaultValue=""><option value="" disabled>Vyberte objekt / jednotku / nájemníka</option>{leases.map((lease) => <option value={lease.id} key={lease.id}>{lease.unit.property.name} · {lease.unit.label} · {lease.tenant.name} · VS {lease.variableSymbol}</option>)}</select></label><button className="primary" type="submit">Přiřadit a zaúčtovat</button></form> : <div className="notice">E-mail nemá rozpoznanou kladnou částku a nelze ho zaúčtovat.</div>}
         </>}
 
-        {!row.transactionId && row.status !== "IGNORED" ? <form action={`/api/inbound-payments/${row.id}/reprocess`} method="post" style={{marginTop:14}}><button className="secondary" type="submit">Znovu zpracovat parserem</button></form> : null}
+        {!row.transactionId ? <form action={`/api/inbound-payments/${row.id}/reprocess`} method="post" style={{marginTop:14}}><input type="hidden" name="forceReview" value={row.status==="IGNORED"?"1":"0"}/><button className="secondary" type="submit">Znovu zpracovat / vrátit ke kontrole</button></form> : null}
         <form action={`/api/inbound-payments/${row.id}/ignore`} method="post" style={{marginTop:14}}><button className="danger-button" type="submit">Označit jako nerelevantní</button></form>
       </div>
 

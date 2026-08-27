@@ -64,13 +64,13 @@ export async function syncInboundMailbox() {
           constantSymbol: parsedPayment.constantSymbol,
           message: parsedPayment.message,
           rawExcerpt: parsedPayment.rawExcerpt,
-          status: parsedPayment.recognizedPayment ? "RECEIVED" : "ERROR",
-          parseNote: parsedPayment.parseNote,
+          status: parsedPayment.recognizedPayment ? "RECEIVED" : parsedPayment.bankLike ? "ERROR" : "IGNORED",
+          parseNote: parsedPayment.bankLike ? parsedPayment.parseNote : "Nerelevantní e-mail: zpráva neobsahuje smysluplné bankovní ani platební údaje.",
         },
       });
       inboxId = inbox.id;
       if (!parsedPayment.recognizedPayment) {
-        errors += 1;
+        if (parsedPayment.bankLike) errors += 1; else ignored += 1;
         safeLastUid = Math.max(safeLastUid, rawMessage.uid);
         continue;
       }
