@@ -26,6 +26,13 @@ export async function syncInboundMailbox() {
     pass: openSecret(settings.inboundMailPasswordEncrypted)!,
     mailbox: settings.inboundMailMailbox || "INBOX",
   }, safeLastUid);
+  if (!result.uidValidity) throw new Error("IMAP server neposkytl UIDVALIDITY; synchronizace byla bezpečně zastavena.");
+  if (settings.inboundMailUidValidity && settings.inboundMailUidValidity !== result.uidValidity) {
+    safeLastUid = 0;
+    await prisma.appSetting.update({ where: { id: "global" }, data: { inboundMailUidValidity: result.uidValidity, inboundMailLastUid: 0, inboundMailLastSummary: "UIDVALIDITY schránky se změnila; checkpoint byl bezpečně resetován." } });
+    return { enabled: true, fetched: 0, recognized: 0, imported: 0, unmatched: 0, ignored: 0, errors: 0, summary: "UIDVALIDITY schránky se změnila; checkpoint byl resetován, další běh načte nové zprávy." };
+  }
+  if (!settings.inboundMailUidValidity) await prisma.appSetting.update({ where: { id: "global" }, data: { inboundMailUidValidity: result.uidValidity } });
   fetched = result.messages.length;
 
   for (const rawMessage of result.messages) {
@@ -47,6 +54,7 @@ export async function syncInboundMailbox() {
           bank: parsedPayment.bank,
           messageId: parsedPayment.messageId,
           imapUid: rawMessage.uid,
+          imapUidValidity: result.uidValidity,
           subject: parsedPayment.subject,
           sender: parsedPayment.sender,
           returnPath: mail.returnPath,
@@ -99,6 +107,7 @@ export async function syncInboundMailbox() {
               bank: "UNKNOWN",
               messageId,
               imapUid: rawMessage.uid,
+              imapUidValidity: result.uidValidity,
               receivedAt: new Date(),
               sourceTrusted: false,
               rawExcerpt: rawMessage.source.toString("utf8").slice(0, 4000),

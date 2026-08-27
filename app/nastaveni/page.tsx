@@ -30,13 +30,15 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <label className="field"><span>Heslo</span><input type="password" name="inboundMailPassword" autoComplete="new-password" placeholder={settings.inboundMailPasswordEncrypted?"Nastaveno – vyplňte jen při změně":""}/></label>
           <label className="field"><span>Složka</span><input name="inboundMailMailbox" defaultValue={settings.inboundMailMailbox||"INBOX"}/></label>
           <label className="checkbox-field"><input type="checkbox" name="inboundMailSecure" defaultChecked={settings.inboundMailSecure}/><span>TLS / SSL (doporučeno, obvykle port 993)</span></label>
+          <label className="field"><span>Retence zpracovaných / ignorovaných e-mailů (dny)</span><input type="number" name="inboundMailResolvedRetentionDays" min={1} max={3650} defaultValue={settings.inboundMailResolvedRetentionDays}/></label>
+          <label className="field"><span>Retence čekajících / chybných e-mailů (dny)</span><input type="number" name="inboundMailUnresolvedRetentionDays" min={1} max={3650} defaultValue={settings.inboundMailUnresolvedRetentionDays}/></label>
         </div>
         <div className="form-actions"><button className="primary" type="submit">Uložit sběrný e-mail</button></div>
       </form>
 
       <div className="card col-4 settings-status-card">
         <div className="card-head"><div><h2>Stav příjmu plateb</h2><p className="muted-copy">Poslední známý stav centrální schránky.</p></div><ShieldCheck size={20}/></div>
-        <div className="summary-list"><div><span>Poslední kontrola</span><strong>{settings.inboundMailLastCheckedAt?.toLocaleString("cs-CZ")||"Zatím neběhla"}</strong></div><div><span>Poslední UID</span><strong>{settings.inboundMailLastUid||0}</strong></div><div><span>Výsledek</span><strong>{settings.inboundMailLastSummary||"—"}</strong></div></div>
+        <div className="summary-list"><div><span>Poslední kontrola</span><strong>{settings.inboundMailLastCheckedAt?.toLocaleString("cs-CZ")||"Zatím neběhla"}</strong></div><div><span>Poslední UID</span><strong>{settings.inboundMailLastUid||0}</strong></div><div><span>Poslední cleanup</span><strong>{settings.inboundMailLastCleanupAt?.toLocaleString("cs-CZ")||"Zatím neběhl"}</strong></div><div><span>Výsledek cleanupu</span><strong>{settings.inboundMailLastCleanupSummary||"—"}</strong></div><div><span>Výsledek</span><strong>{settings.inboundMailLastSummary||"—"}</strong></div></div>
         <div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/inbound-mail/test" method="post"><button className="primary full-button" type="submit"><ShieldCheck size={14}/> Otestovat IMAP připojení</button></form><form action="/api/settings/inbound-mail/run" method="post"><button className="secondary full-button" type="submit"><RefreshCw size={14}/> Zkontrolovat schránku nyní</button></form><Link className="secondary full-button" href="/platby/nesparovane">Otevřít nespárované platby</Link></div>
       </div>
     </div>
