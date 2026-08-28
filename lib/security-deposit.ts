@@ -1,7 +1,7 @@
 import { prisma } from "./db";
 import { leaseAccessWhere } from "./access";
 import { calculateSecurityDepositSnapshot } from "./security-deposit-core";
-import { pragueDateKey } from "./lease-lifecycle-core";
+import { effectiveLeaseEnd, pragueDateKey } from "./lease-lifecycle-core";
 
 export const securityDepositLeaseInclude = {
   tenant: true,
@@ -20,5 +20,7 @@ export function securityDepositDateAsOf(asOf: Date) {
 
 export function securityDepositSnapshot(lease: { depositCents: number; endDate: Date | null; terminatedOn?: Date | null; securityDepositTerms: Parameters<typeof calculateSecurityDepositSnapshot>[0]["terms"]; securityDepositMovements: Parameters<typeof calculateSecurityDepositSnapshot>[0]["movements"] }, asOf = new Date()) {
   const dateAsOf = securityDepositDateAsOf(asOf);
-  return calculateSecurityDepositSnapshot({ depositCents: lease.depositCents, terms: lease.securityDepositTerms, movements: lease.securityDepositMovements, asOf: dateAsOf, leaseEnded: Boolean(lease.terminatedOn || lease.endDate && lease.endDate <= dateAsOf) });
+  const effectiveEnd = effectiveLeaseEnd(lease);
+  const leaseEnded = Boolean(effectiveEnd && pragueDateKey(asOf) > pragueDateKey(effectiveEnd));
+  return calculateSecurityDepositSnapshot({ depositCents: lease.depositCents, terms: lease.securityDepositTerms, movements: lease.securityDepositMovements, asOf: dateAsOf, leaseEnded });
 }

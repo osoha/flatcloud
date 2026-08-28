@@ -3,9 +3,10 @@ import { calculateSecurityDepositSnapshot, validateSecurityDepositTimeline } fro
 import { securityDepositSnapshot } from "../lib/security-deposit";
 
 const movementDate = new Date("2026-08-28T12:00:00.000Z");
-const lease = (movements: Parameters<typeof calculateSecurityDepositSnapshot>[0]["movements"] = [], terms: Parameters<typeof calculateSecurityDepositSnapshot>[0]["terms"] = []) => ({
+const lease = (movements: Parameters<typeof calculateSecurityDepositSnapshot>[0]["movements"] = [], terms: Parameters<typeof calculateSecurityDepositSnapshot>[0]["terms"] = [], lifecycle: { endDate?: Date | null; terminatedOn?: Date | null } = {}) => ({
   depositCents: 1_000_000,
-  endDate: null,
+  endDate: lifecycle.endDate ?? null,
+  terminatedOn: lifecycle.terminatedOn,
   securityDepositTerms: terms,
   securityDepositMovements: movements,
 });
@@ -30,6 +31,17 @@ checks.push(["same-day term sets annual rate", term.currentAnnualRateBps === 500
 const afterPragueMidnight = securityDepositSnapshot(lease([received]), new Date("2026-08-27T22:30:00.000Z"));
 checks.push(["Prague calendar day is used around UTC midnight", afterPragueMidnight.heldPrincipalCents === 1_000_000 && afterPragueMidnight.status === "FUNDED"]);
 
+const endDate = new Date("2026-08-28T12:00:00.000Z");
+const onEndDate = securityDepositSnapshot(lease([received], [], { endDate }), new Date("2026-08-28T08:00:00.000Z"));
+const afterEndDate = securityDepositSnapshot(lease([received], [], { endDate }), new Date("2026-08-29T08:00:00.000Z"));
+checks.push(["lease stays FUNDED through endDate and settles next day", onEndDate.status === "FUNDED" && afterEndDate.status === "TO_SETTLE"]);
+
+const laterEndDate = new Date("2026-08-30T12:00:00.000Z");
+const terminatedOn = new Date("2026-08-28T12:00:00.000Z");
+const onTerminationDate = securityDepositSnapshot(lease([received], [], { endDate: laterEndDate, terminatedOn }), new Date("2026-08-28T08:00:00.000Z"));
+const afterTerminationDate = securityDepositSnapshot(lease([received], [], { endDate: laterEndDate, terminatedOn }), new Date("2026-08-29T08:00:00.000Z"));
+checks.push(["earlier terminatedOn stays active all day and settles next day", onTerminationDate.status === "FUNDED" && afterTerminationDate.status === "TO_SETTLE"]);
+
 let exactTimestampValidationRejected = false;
 try {
   validateSecurityDepositTimeline({
@@ -47,6 +59,9 @@ checks.push(["core validation preserves exact timestamp ordering", exactTimestam
 const leaseDetail = readFileSync("app/smlouvy/[leaseId]/page.tsx", "utf8");
 const depositReport = readFileSync("app/kauce/page.tsx", "utf8");
 checks.push(["both UI callers use shared snapshot", leaseDetail.includes("securityDepositSnapshot(lease)") && depositReport.includes("securityDepositSnapshot(lease)") && !leaseDetail.includes("calculateSecurityDepositSnapshot") && !depositReport.includes("calculateSecurityDepositSnapshot")]);
+
+const ci = readFileSync(".github/workflows/ci.yml", "utf8");
+checks.push(["CI runs V21.6.1 verification", ci.includes("npm run verify:v21.6.1")]);
 
 const failures = checks.filter(([, passed]) => !passed);
 if (failures.length) throw new Error(failures.map(([name]) => `FAIL: ${name}`).join("\n"));

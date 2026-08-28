@@ -20,7 +20,7 @@ export function pragueDateKey(value: Date) {
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-export function effectiveLeaseEnd(lease: LeaseLifecycleInput) {
+export function effectiveLeaseEnd(lease: Pick<LeaseLifecycleInput, "endDate" | "terminatedOn">) {
   if (lease.endDate && lease.terminatedOn) {
     return pragueDateKey(lease.terminatedOn) < pragueDateKey(lease.endDate) ? lease.terminatedOn : lease.endDate;
   }
