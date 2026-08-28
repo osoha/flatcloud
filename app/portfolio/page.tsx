@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { AlertCircle, Building2, CalendarCheck2, CheckCircle2, ClipboardCheck, ListChecks, WalletCards } from "lucide-react";
+import { AlertCircle, CalendarCheck2, CheckCircle2, ClipboardCheck, ListChecks, WalletCards } from "lucide-react";
+import { PropertyIcon } from "@/components/PropertyIcon";
+import { Building2 } from "lucide-react";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { accessibleProperties } from "@/lib/access";
 import { money, date } from "@/lib/format";
 import { currentPeriod } from "@/lib/period";
-import { overdueDebtCents } from "@/lib/charges";
+import { overdueDebtCents, paidCents } from "@/lib/charges";
 import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { leaseAlertsForProperties } from "@/lib/lease-alerts";
@@ -39,7 +41,7 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
     for (const unit of property.units) {
       for (const lease of unit.leases) {
         for (const charge of lease.charges) {
-          if (charge.period === period && charge.active) { expected += charge.amountCents; paid += charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0); }
+          if (charge.period === period && charge.active) { expected += charge.amountCents; paid += paidCents(charge); }
           debt += overdueDebtCents(charge);
         }
       }

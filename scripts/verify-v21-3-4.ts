@@ -7,7 +7,7 @@ const coverage = bankVerificationCoverage([
   { id: "u1", label: "BJ 1", ownerships: [{ ownerBankAccountId: "acc-1" }] },
   { id: "u2", label: "BJ 2", ownerships: [{ ownerBankAccountId: "acc-2" }] },
   { id: "u3", label: "BJ 3", ownerships: [{ ownerBankAccountId: "acc-3" }] },
-], [{ ownerBankAccountId: "acc-3", notificationVerifiedAt: new Date("2026-08-26T12:00:00Z") }]);
+], [{ ownerBankAccountId: "acc-3", ownerBankAccount: { notificationVerifiedAt: new Date("2026-08-26T12:00:00Z") } }]);
 assert.equal(coverage.verifiedUnits, 1);
 assert.equal(coverage.totalUnits, 3);
 assert.equal(coverage.allVerified, false);

@@ -4,6 +4,7 @@ import { requireManagedProperty, audit } from "@/lib/management";
 import { recomputeTransactionStatus } from "@/lib/matching";
 import { resolveCollectionTasksIfSettled } from "@/lib/tasks";
 import { go, goWithMessage } from "@/lib/route-response";
+import { outstandingCents } from "@/lib/charges";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; transactionId: string }> }) {
   const { id, transactionId } = await params;
@@ -12,14 +13,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const form = await request.formData();
     const chargeId = text(form, "chargeId", true)!;
-    const transaction = await prisma.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true } });
-    const charge = await prisma.charge.findFirst({ where: { id: chargeId, lease: { unit: { propertyId: id } } }, include: { allocations: true } });
+    const transaction = await prisma.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true, securityDepositReceipts: true } });
+    const charge = await prisma.charge.findFirst({ where: { id: chargeId, lease: { unit: { propertyId: id } } }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true } });
     if (!transaction || !charge) throw new Error("Platba nebo předpis nebyly nalezeny.");
     if (transaction.amountCents <= 0) throw new Error("Odchozí platbu nelze přiřadit k nájemnému.");
-    const allocated = transaction.allocations.reduce((sum, row) => sum + row.amountCents, 0);
+    const allocated = transaction.allocations.reduce((sum, row) => sum + row.amountCents, 0) + transaction.securityDepositReceipts.filter((row)=>row.type==="RECEIVED").reduce((sum,row)=>sum+row.amountCents,0);
     const remainingTransaction = transaction.amountCents - allocated;
-    const chargePaid = charge.allocations.reduce((sum, row) => sum + row.amountCents, 0);
-    const remainingCharge = charge.amountCents - chargePaid;
+    const remainingCharge = outstandingCents(charge);
     const requested = text(form, "amount") ? moneyToCents(form, "amount") : Math.min(remainingTransaction, remainingCharge);
     if (requested <= 0 || requested > remainingTransaction || requested > remainingCharge) throw new Error("Částka přesahuje zůstatek platby nebo předpisu.");
     await prisma.paymentAllocation.upsert({

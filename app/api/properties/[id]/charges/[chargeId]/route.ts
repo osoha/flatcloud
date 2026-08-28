@@ -3,6 +3,7 @@ import { boolValue, dateValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { periodDueDate, periodStart } from "@/lib/period";
+import { paidCents } from "@/lib/charges";
 
 function endOfMonth(value: Date) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + 1, 0, 23, 59, 59, 999));
@@ -18,6 +19,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       where: { id: chargeId, lease: { unit: { propertyId: id } } },
       include: {
         allocations: true,
+        securityDepositOffsets: true,
+        creditApplications: true,
         items: true,
         lease: { include: { paymentItems: true } },
       },
@@ -25,7 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!existing) throw new Error("Měsíční předpis nebyl nalezen.");
     const form = await request.formData();
     const mode = text(form, "mode") || "save";
-    const paid = existing.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0);
+    const paid = paidCents(existing);
 
     if (mode === "reset") {
       if (paid > 0) throw new Error("U předpisu s již přiřazenou úhradou nelze ruční úpravy automaticky resetovat.");

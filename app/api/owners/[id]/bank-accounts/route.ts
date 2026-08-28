@@ -19,6 +19,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       iban: text(form, "iban"),
       currency: text(form, "currency") || "CZK",
     });
+    const duplicate = await prisma.ownerBankAccount.findFirst({ where: { ownerId: id, active: true, accountNumber: account.accountNumber, bankCode: account.bankCode, iban: account.iban } });
+    if (duplicate) throw new Error("Stejný aktivní bankovní účet tohoto vlastníka již existuje.");
     const created = await prisma.ownerBankAccount.create({ data: { ownerId: id, ...account, active: boolValue(form, "active") } });
     await audit(user.id, "OWNER_BANK_ACCOUNT_CREATED", "OwnerBankAccount", created.id, { ownerId: id });
     return goWithMessage(request, `/vlastnici/${id}`, "ok", "Bankovní účet vlastníka byl přidán.");

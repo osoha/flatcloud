@@ -11,17 +11,18 @@ import { Shell } from "@/components/Shell";
 import { PropertySubnav } from "@/components/PropertySubnav";
 import { Flash } from "@/components/FormUi";
 import { currentPeriod } from "@/lib/period";
-import { overdueDebtCents } from "@/lib/charges";
+import { overdueDebtCents, paidCents } from "@/lib/charges";
 import { complianceResults, contactCategories, leaseStatuses, matchingRuleActions, paymentStatuses, propertyPermissions, taskCategories, taskPriorities, taskStatuses, unitOperationalStatuses, unitTypes } from "@/lib/labels";
 import { buildingTypeOptions, constructionTypeOptions, energyRatingOptions, optionLabel, readPropertyTechnicalData } from "@/lib/property-technical";
 import { UserAvatar } from "@/components/UserAvatar";
 import { leaseAlertsForProperties } from "@/lib/lease-alerts";
 import { appSettings } from "@/lib/settings";
 import { complianceState, openTaskStatuses } from "@/lib/operations";
-import { verificationCodeForLink } from "@/lib/bank-email-verification";
+import { verificationCodeForAccount, verificationCodeForLink } from "@/lib/bank-email-verification";
 import { bankVerificationCoverage } from "@/lib/bank-verification-scope";
 import { currentLeaseForUnit, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { ownerSelfServiceScope } from "@/lib/owner-self-service";
+import { PropertyIcon } from "@/components/PropertyIcon";
 
 export const dynamic = "force-dynamic";
 
@@ -56,8 +57,8 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   const canAdmin = hasAllPropertyAccess(user) || membership?.permission === "ADMIN";
   const period = currentPeriod();
   const leases = p.units.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unit })));
-  const currentCharges = leases.flatMap((lease) => lease.charges.filter((charge) => charge.period === period && charge.active).map((charge) => ({ lease, charge, paid: charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0) })));
-  const allCharges = leases.flatMap((lease) => lease.charges.map((charge) => ({ lease, charge, paid: charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0) }))).sort((a, b) => b.charge.dueDate.getTime() - a.charge.dueDate.getTime());
+  const currentCharges = leases.flatMap((lease) => lease.charges.filter((charge) => charge.period === period && charge.active).map((charge) => ({ lease, charge, paid: paidCents(charge) })));
+  const allCharges = leases.flatMap((lease) => lease.charges.map((charge) => ({ lease, charge, paid: paidCents(charge) }))).sort((a, b) => b.charge.dueDate.getTime() - a.charge.dueDate.getTime());
   const expected = currentCharges.reduce((sum, row) => sum + row.charge.amountCents, 0);
   const paid = currentCharges.reduce((sum, row) => sum + row.paid, 0);
   const txs = await prisma.bankTransaction.findMany({
@@ -74,7 +75,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   const propertyContractAlerts = leaseAlertsForProperties([{ id: p.id, name: p.name, units: p.units }]);
 
   const propertyPaymentLinks = p.paymentAccounts;
-  const propertyPaymentAccounts = propertyPaymentLinks.map((link) => ({ ...link.ownerBankAccount, link }));
+  const propertyPaymentAccounts = propertyPaymentLinks.map((link) => ({ ...link.ownerBankAccount, link: { ...link, id: link.ownerBankAccountId, notificationVerifiedAt: link.ownerBankAccount.notificationVerifiedAt } }));
   const bankCoverage = bankVerificationCoverage(p.units, propertyPaymentLinks);
   const allPaymentLinksVerified = bankCoverage.allVerified;
   const bankEmailPropertyLabel = bankCoverage.totalUnits === 0
@@ -124,8 +125,9 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   return <Shell user={user} taskPropertyId={id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>{p.name}</span></div>
     <div className="property-header">
-      <div className="property-big-icon">⌂</div>
+      <div className="property-big-icon"><PropertyIcon technicalData={p.technicalData} unitCount={p.units.length} size={26}/></div>
       <div><h1>{p.name}</h1><a className="property-map-link" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.address}, ${p.postalCode ? `${p.postalCode} ` : ""}${p.city}`)}`} target="_blank" rel="noreferrer"><MapPin size={12}/>{p.address}, {p.postalCode ? `${p.postalCode} ` : ""}{p.city}<ExternalLink size={11}/></a><div className="property-meta"><span className="meta-pill">{propertyOwnerNames}</span><span className="meta-pill">{p.units.length} jednotek</span><span className={`meta-pill ${allPaymentLinksVerified?"verified-pill":""}`}>{bankEmailPropertyLabel}</span></div></div>
+      {canManage&&<div className="property-header-actions"><Link className="secondary" href={`/nemovitosti/${id}/najemnici/novy`}><Plus size={15}/> Nový nájemník</Link><Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova`}><Plus size={15}/> Nová smlouva</Link></div>}
       <Link className="property-header-right property-header-report" href={`/reporty/saldo?propertyId=${id}`}><span>Dluh po splatnosti</span><strong className={overdueDebt ? "negative" : "positive"}>{money(overdueDebt)}</strong></Link>
     </div>
     <PropertySubnav propertyId={id} active={section} unitLimited={!propertyWide}/><Flash ok={query.ok} error={query.error}/>

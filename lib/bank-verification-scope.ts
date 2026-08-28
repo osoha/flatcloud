@@ -1,7 +1,4 @@
-type VerificationLinkLike = {
-  ownerBankAccountId: string;
-  notificationVerifiedAt?: Date | string | null;
-};
+type VerificationLinkLike = { ownerBankAccountId: string; notificationVerifiedAt?: Date | string | null; ownerBankAccount?: { notificationVerifiedAt?: Date | string | null } | null };
 
 type UnitOwnershipLike = {
   ownerBankAccountId?: string | null;
@@ -42,7 +39,7 @@ export function bankVerificationCoverage(units: UnitLike[], links: VerificationL
       ownerName: ownership?.owner?.name ?? null,
       ownerBankAccountId,
       configured: Boolean(ownerBankAccountId),
-      verified: Boolean(link?.notificationVerifiedAt),
+      verified: Boolean(link?.ownerBankAccount?.notificationVerifiedAt),
     };
   });
 

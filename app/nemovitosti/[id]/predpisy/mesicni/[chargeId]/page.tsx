@@ -8,6 +8,7 @@ import { Checkbox, Field, Flash, FormPage, Select, Textarea } from "@/components
 import { dateInput, moneyInput } from "@/lib/forms";
 import { money } from "@/lib/format";
 import { chargeCategories } from "@/lib/labels";
+import { outstandingCents, paidCents } from "@/lib/charges";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +19,12 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
     requirePropertyAccess(user, id),
     prisma.charge.findFirst({
       where: { id: chargeId, lease: { unit: unitAccessWhere(user, id) } },
-      include: { items: true, allocations: true, lease: { include: { tenant: true, unit: true } } },
+      include: { items: true, allocations: true, securityDepositOffsets: true, creditApplications: true, lease: { include: { tenant: true, unit: true } } },
     }),
     searchParams,
   ]);
   if (!property || !charge) notFound();
-  const paid = charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0);
+  const paid = paidCents(charge);
   const itemTotal = charge.items.reduce((sum, item) => sum + item.amountCents, 0);
 
   return <Shell user={user}><FormPage
@@ -67,7 +68,7 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
       <div className="col-4 side-stack">
         <div className="card">
           <div className="card-head"><h2>Souhrn</h2></div>
-          <div className="summary-list"><div><span>Součet položek</span><strong>{money(itemTotal)}</strong></div><div className="summary-total"><span>Předepsáno</span><strong>{money(charge.amountCents)}</strong></div><div><span>Uhrazeno</span><strong>{money(paid)}</strong></div><div><span>Zbývá</span><strong className={Math.max(0, charge.amountCents - paid) ? "negative" : "positive"}>{money(Math.max(0, charge.amountCents - paid))}</strong></div></div>
+          <div className="summary-list"><div><span>Součet položek</span><strong>{money(itemTotal)}</strong></div><div className="summary-total"><span>Předepsáno</span><strong>{money(charge.amountCents)}</strong></div><div><span>Uhrazeno</span><strong>{money(paid)}</strong></div><div><span>Zbývá</span><strong className={outstandingCents(charge) ? "negative" : "positive"}>{money(outstandingCents(charge))}</strong></div></div>
           {itemTotal !== charge.amountCents && <div className="notice" style={{marginTop:12}}>Součet položek se liší od uložené celkové částky. Upravte některou položku; nový součet se automaticky sjednotí.</div>}
         </div>
 

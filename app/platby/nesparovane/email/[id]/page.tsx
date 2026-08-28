@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { bankAccountMatches, bankNameForCode } from "@/lib/inbound-bank/bank-email";
-import { verificationCodeForLink } from "@/lib/bank-email-verification";
+import { verificationCodeForAccount, verificationCodeForLink } from "@/lib/bank-email-verification";
 import { linkIsUsedByUnit } from "@/lib/bank-verification-scope";
 import { Shell } from "@/components/Shell";
 import { Flash, FormPage } from "@/components/FormUi";

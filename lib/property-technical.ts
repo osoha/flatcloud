@@ -84,8 +84,13 @@ export const buildingTypeOptions: [string, string][] = [
   ["COMMERCIAL", "Komerční objekt"],
   ["MIXED", "Smíšený objekt"],
   ["FAMILY_HOUSE", "Rodinný dům"],
+  ["UNIT_ONLY", "Samostatná bytová jednotka"],
   ["OTHER", "Jiný typ"],
 ];
+
+export function safeBuildingType(value: string | null | undefined) {
+  return buildingTypeOptions.some(([key]) => key === value) ? value : "";
+}
 
 export const constructionTypeOptions: [string, string][] = [
   ["", "Neuvedeno"],

@@ -30,7 +30,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       iban: text(form, "iban"),
       currency: text(form, "currency") || "CZK",
     });
-    const updated = await prisma.ownerBankAccount.update({ where: { id: accountId }, data: { ...account, active: boolValue(form, "active") } });
+    const identityChanged = existing.accountNumber !== account.accountNumber || existing.bankCode !== account.bankCode || existing.iban !== account.iban;
+    const duplicate = await prisma.ownerBankAccount.findFirst({ where: { ownerId: id, id: { not: accountId }, active: true, accountNumber: account.accountNumber, bankCode: account.bankCode, iban: account.iban } });
+    if (duplicate) throw new Error("Stejný aktivní bankovní účet tohoto vlastníka již existuje.");
+    const updated = await prisma.ownerBankAccount.update({ where: { id: accountId }, data: { ...account, active: boolValue(form, "active"), ...(identityChanged ? { notificationVerifiedAt: null } : {}) } });
     await audit(user.id, "OWNER_BANK_ACCOUNT_UPDATED", "OwnerBankAccount", updated.id, { ownerId: id, active: updated.active });
     return goWithMessage(request, `/vlastnici/${id}`, "ok", "Bankovní účet byl upraven.");
   } catch (error) {

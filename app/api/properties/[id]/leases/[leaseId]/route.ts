@@ -25,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const access = await requireManagedProperty(id);
   if (!access) return go(request, "/login");
   try {
-    const existing = await prisma.lease.findFirst({ where: { id: leaseId, unit: { propertyId: id } } });
+    const existing = await prisma.lease.findFirst({ where: { id: leaseId, unit: { propertyId: id } }, include: { securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] } } });
     if (!existing) throw new Error("Smlouva nebyla nalezena.");
 
     const form = await request.formData();
@@ -53,6 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
     const rentCents = moneyToCents(form, "rent");
     const servicesCents = moneyToCents(form, "services");
+    const depositCents = moneyToCents(form, "deposit");
     const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
     const autoChargesEnabled = boolValue(form, "autoChargesEnabled");
     const indexationEnabled = boolValue(form, "indexationEnabled");
@@ -76,6 +77,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
       if (rentCents !== existing.rentCents) await replaceRecurringAmount(tx, leaseId, "RENT", rentCents, effectiveFrom);
       if (servicesCents !== existing.servicesCents) await replaceRecurringAmount(tx, leaseId, "SERVICES", servicesCents, effectiveFrom);
+      if (depositCents !== existing.depositCents) await tx.securityDepositTerm.create({ data: { leaseId, agreedAmountCents: depositCents, annualRateBps: existing.securityDepositTerms.at(-1)?.annualRateBps || 0, effectiveFrom, createdById: access.user.id, note: "Aktualizováno z editace smlouvy." } });
 
       const updated = await tx.lease.update({
         where: { id: leaseId },
@@ -92,7 +94,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           rentTiming,
           rentCents,
           servicesCents,
-          depositCents: moneyToCents(form, "deposit"),
+          depositCents,
           note: text(form, "note"),
           remindersPausedUntil: dateValue(form, "remindersPausedUntil"),
           reminderPauseReason: text(form, "reminderPauseReason"),

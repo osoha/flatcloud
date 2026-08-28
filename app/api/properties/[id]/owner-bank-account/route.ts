@@ -35,9 +35,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const saved = await prisma.$transaction(async (tx) => {
       const savedAccount = accountId
-        ? await tx.ownerBankAccount.update({ where: { id: accountId, ownerId: scope.id }, data: { ...account, active: true } })
+        ? await tx.ownerBankAccount.update({ where: { id: accountId, ownerId: scope.id }, data: { ...account, active: true, ...(identityChanged ? { notificationVerifiedAt: null } : {}) } })
         : await tx.ownerBankAccount.create({ data: { ownerId: scope.id, ...account, active: true } });
-      if (identityChanged) await tx.propertyPaymentAccount.updateMany({ where: { ownerBankAccountId: savedAccount.id }, data: { notificationVerifiedAt: null } });
 
       for (const unitId of selectedUnitIds) {
         const ownership = authorizedByUnitId.get(unitId);
