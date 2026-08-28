@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { PropertyPermission, UserRole } from "@prisma/client";
 import { addPragueCalendarMonths, isLeaseExpiring, leaseMatchesQuery, leaseMatchesView } from "../lib/lease-catalog";
-import { strongerPermission, strongerRole } from "../lib/user-access-management";
+import { canonicalizeAccessScope, isPropertyLocalInvitation, shouldRevokeInvitationOnCreate, strongerPermission, strongerRole } from "../lib/user-access-management";
+import { bankTransactionAccessWhere, taskAccessWhere } from "../lib/access";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const checks: Array<[string, boolean]> = [];
@@ -35,8 +36,8 @@ checks.push(["unit deposit link", unit.includes("#kauce") && unit.includes("Kauc
 checks.push(["unit access deposit include", access.includes("securityDepositTerms") && access.includes("securityDepositMovements")]);
 checks.push(["deposit registry scoped clickable rows", deposit.includes("findVisibleSecurityDepositLeases(user)") && deposit.includes("clickable-table-row") && deposit.includes("row-cell-link")]);
 checks.push(["invitation role schema", schema.includes("role          UserRole") && schema.includes("@default(OWNER_VIEWER)")]);
-checks.push(["new invited account uses requested role", accept.includes("role: invitation.role")]);
-checks.push(["role never downgrades", strongerRole(UserRole.SUPER_ADMIN, UserRole.OWNER_VIEWER) === UserRole.SUPER_ADMIN && accept.includes("strongerRole(user.role, invitation.role)")]);
+checks.push(["new invited account uses requested role", accept.includes("role: scope.role")]);
+checks.push(["role never downgrades", strongerRole(UserRole.SUPER_ADMIN, UserRole.OWNER_VIEWER) === UserRole.SUPER_ADMIN && accept.includes("strongerRole(currentUser.role, scope.role)")]);
 checks.push(["permissions never downgrade", strongerPermission(PropertyPermission.ADMIN, PropertyPermission.VIEW) === PropertyPermission.ADMIN]);
 checks.push(["existing active user direct grant", create.includes("grantUserAccess(existing") && !create.includes("prisma.user.create")]);
 checks.push(["inactive user blocked", create.includes("Uživatel je deaktivovaný") && propertyCreate.includes("Uživatel je deaktivovaný")]);
@@ -53,6 +54,33 @@ checks.push(["single V21.7 migration", read("prisma/migrations/20260828170000_v2
 checks.push(["same-day deposit guard retained", read("lib/security-deposit.ts").includes("securityDepositDateAsOf")]);
 checks.push(["advanced account creation de-emphasized", users.includes("Pokročilé: vytvořit účet bez pozvánky")]);
 checks.push(["property add-member wording", propertyUsers.includes("Přidat člena")]);
+
+const localA = { email: "jan@example.cz", propertyId: "A", propertyIds: ["A"], unitIds: [], allProperties: false, role: UserRole.OWNER_VIEWER };
+const localB = { ...localA, propertyId: "B", propertyIds: ["B"] };
+checks.push(["property B create preserves property A invite", !shouldRevokeInvitationOnCreate(localA, "PROPERTY_LOCAL", localA.email, "B") && shouldRevokeInvitationOnCreate(localB, "PROPERTY_LOCAL", localA.email, "B")]);
+checks.push(["property-local accepts legacy empty propertyIds", isPropertyLocalInvitation({ ...localA, propertyIds: [] }, "A")]);
+checks.push(["property-local rejects all-properties", !isPropertyLocalInvitation({ ...localA, allProperties: true }, "A")]);
+checks.push(["property-local rejects multi-property", !isPropertyLocalInvitation({ ...localA, propertyIds: ["A", "B"] }, "A")]);
+checks.push(["property-local rejects global roles", !isPropertyLocalInvitation({ ...localA, role: UserRole.MANAGER }, "A") && !isPropertyLocalInvitation({ ...localA, role: UserRole.SUPER_ADMIN }, "A")]);
+checks.push(["property routes enforce local predicate", rotate.includes("isPropertyLocalInvitation(old, old.propertyId)") && read("app/api/invitations/[inviteId]/revoke/route.ts").includes("isPropertyLocalInvitation(invitation, invitation.propertyId)")]);
+checks.push(["property UI filters non-local invitations", propertyUsers.includes('isPropertyLocalInvitation(invite, id)')]);
+const accessHelper = read("lib/user-access-management.ts");
+checks.push(["replace requires one pending row", accessHelper.includes('status: "PENDING"') && accessHelper.includes("replaced.count !== 1") && accessHelper.includes("Pozvánka už byla změněna nebo zrušena")]);
+checks.push(["accept mutations are one transaction", accept.includes("await prisma.$transaction") && accept.indexOf("tx.user.update") > accept.indexOf("await prisma.$transaction") && accept.indexOf("tx.userInvitation.updateMany") > accept.indexOf("await prisma.$transaction") && !accept.includes("prisma.user.update") && !accept.includes("prisma.user.create") && accept.indexOf("await createSession") > accept.indexOf("return { userId")]);
+const managerScope = canonicalizeAccessScope({ role: UserRole.MANAGER, permission: PropertyPermission.VIEW, allProperties: false, propertyIds: ["A"], unitIds: ["U"] });
+const superScope = canonicalizeAccessScope({ role: UserRole.SUPER_ADMIN, permission: PropertyPermission.ADMIN, allProperties: false, propertyIds: ["A"], unitIds: ["U"] });
+const propertyManagerScope = canonicalizeAccessScope({ role: UserRole.PROPERTY_MANAGER, permission: PropertyPermission.EDIT, allProperties: false, propertyIds: ["A"], unitIds: [] });
+checks.push(["MANAGER canonical global scope", managerScope.allProperties && managerScope.propertyIds.length === 0 && managerScope.unitIds.length === 0]);
+checks.push(["SUPER_ADMIN canonical global scope", superScope.allProperties && superScope.propertyIds.length === 0 && superScope.unitIds.length === 0]);
+checks.push(["PROPERTY_MANAGER remains scoped", !propertyManagerScope.allProperties && propertyManagerScope.propertyIds[0] === "A"]);
+const unitUser = { id: "unit-user", role: "OWNER_VIEWER", allProperties: false };
+const taskScope = JSON.stringify(taskAccessWhere(unitUser));
+const bankScope = JSON.stringify(bankTransactionAccessWhere(unitUser));
+checks.push(["unit-only task scope excludes generic property tasks", taskScope.includes("memberships") && taskScope.includes("unit") && !taskScope.includes("propertyId")]);
+checks.push(["unit-only bank scope uses visible unit relations", bankScope.includes("suggestedLease") && bankScope.includes("allocations") && bankScope.includes("userAccesses")]);
+checks.push(["deposit receipts included in bank scope", bankScope.includes("securityDepositReceipts")]);
+checks.push(["global search uses shared transaction/task scopes", search.includes("taskAccessWhere(user)") && search.includes("bankTransactionAccessWhere(user)") && !search.includes("bankAccount: { propertyId: { in: propertyIds }")]);
+checks.push(["catalog displays effective lease end", catalog.includes("effectiveLeaseEnd(lease)") && catalog.includes("date(effectiveEnd)")]);
 
 const failures = checks.filter(([, ok]) => !ok);
 if (failures.length) throw new Error(failures.map(([name]) => `FAIL: ${name}`).join("\n"));

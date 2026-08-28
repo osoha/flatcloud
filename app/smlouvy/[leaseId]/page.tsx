@@ -7,7 +7,7 @@ import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { date, money } from "@/lib/format";
 import { dateInput, moneyInput } from "@/lib/forms";
-import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
+import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { leaseStatuses } from "@/lib/labels";
 import { securityDepositSnapshot } from "@/lib/security-deposit";
 import { outstandingCents } from "@/lib/charges";
@@ -29,6 +29,7 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
   } }), searchParams]);
   if (!lease) notFound();
   const snapshot = securityDepositSnapshot(lease);
+  const effectiveEnd = effectiveLeaseEnd(lease);
   const canEdit = Boolean(await prisma.unit.findFirst({ where: { id: lease.unitId, ...editableUnitWhere(user, lease.unit.propertyId) }, select: { id: true } }));
   const today = dateInput(new Date());
   const openCharges = lease.charges.filter((charge) => outstandingCents(charge) > 0);
@@ -37,7 +38,7 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${lease.unit.propertyId}/prehled`}>{lease.unit.property.name}</Link><span>›</span><Link href={`/nemovitosti/${lease.unit.propertyId}/jednotky/${lease.unitId}`}>{lease.unit.label}</Link><span>›</span><span>{lease.contractNumber || "Smlouva"}</span></div>
     <div className="page-title"><div><h1>{lease.contractNumber || "Smlouva"}</h1><p>{lease.tenant.name} · {lease.unit.property.name} · {lease.unit.label}</p></div>{canEdit&&<Link className="primary" href={`/nemovitosti/${lease.unit.propertyId}/smlouvy/${lease.id}/upravit`}>Upravit smlouvu</Link>}</div>
     <Flash ok={query.ok} error={query.error}/><div className="detail-grid">
-      <div className="card col-6"><h2>Vztah a smlouva</h2><div className="summary-list"><div><span>Nájemník</span><strong><Link href={`/najemnici/${lease.tenantId}`}>{lease.tenant.name}</Link></strong></div><div><span>Nemovitost</span><strong><Link href={`/nemovitosti/${lease.unit.propertyId}/prehled`}>{lease.unit.property.name}</Link></strong></div><div><span>Jednotka</span><strong>{lease.unit.label}</strong></div><div><span>Stav</span><strong>{leaseStatuses[leaseStatusAt(lease)]}</strong></div><div><span>Období</span><strong>{date(lease.startDate)} – {lease.endDate ? date(lease.endDate) : "neurčito"}</strong></div></div></div>
+      <div className="card col-6"><h2>Vztah a smlouva</h2><div className="summary-list"><div><span>Nájemník</span><strong><Link href={`/najemnici/${lease.tenantId}`}>{lease.tenant.name}</Link></strong></div><div><span>Nemovitost</span><strong><Link href={`/nemovitosti/${lease.unit.propertyId}/prehled`}>{lease.unit.property.name}</Link></strong></div><div><span>Jednotka</span><strong>{lease.unit.label}</strong></div><div><span>Stav</span><strong>{leaseStatuses[leaseStatusAt(lease)]}</strong></div><div><span>Období</span><strong>{date(lease.startDate)} – {effectiveEnd ? date(effectiveEnd) : "neurčito"}</strong></div></div></div>
       <div className="card col-6 deposit-card" id="kauce"><div className="card-head"><h2>Kauce</h2><span className="deposit-status">{depositStatuses[snapshot.status]}</span></div>
         <div className="deposit-kpis"><Kpi label="Sjednáno" value={money(snapshot.agreedAmountCents)}/><Kpi label="Drženo" value={money(snapshot.heldPrincipalCents)}/><Kpi label="Chybí doplatit / přebytek" value={snapshot.excessDepositCents?`+ ${money(snapshot.excessDepositCents)}`:money(snapshot.missingDepositCents)}/><Kpi label="Úrok p.a." value={`${(snapshot.currentAnnualRateBps/100).toLocaleString("cs-CZ")} %`}/><Kpi label="Naběhlý úrok" value={money(snapshot.accruedInterestCents)}/><Kpi label="Vyplacený úrok" value={money(snapshot.interestPaidCents)}/><Kpi label="Započteno" value={money(snapshot.offsetCents)}/><Kpi label="Vráceno" value={money(snapshot.returnedCents)}/><Kpi label="K vrácení dnes" value={money(snapshot.amountToReturnCents)}/><Kpi label="Stav" value={depositStatuses[snapshot.status]}/></div>
         {snapshot.agreedAmountCents>0&&snapshot.receivedCents===0&&<p className="notice">Sjednaná kauce je evidována, ale skutečné složení není potvrzeno pohybem Přijato.</p>}

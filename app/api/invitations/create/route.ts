@@ -6,7 +6,7 @@ import { propertyPermissions } from "@/lib/labels";
 import { redirectUrl } from "@/lib/redirect-url";
 import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
-import { grantUserAccess, rotateInvitation } from "@/lib/user-access-management";
+import { canonicalizeAccessScope, grantUserAccess, rotateInvitation } from "@/lib/user-access-management";
 
 export async function POST(request: Request) {
   const admin = await currentUser();
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     ]);
     if (properties.length !== propertyIds.length || units.length !== unitIds.length) throw new Error("Některý vybraný objekt nebo jednotka neexistuje.");
     if (existing && !existing.active) throw new Error("Uživatel je deaktivovaný. Nejprve účet znovu aktivujte.");
-    const scope = { role, permission, allProperties, propertyIds, unitIds };
+    const scope = canonicalizeAccessScope({ role, permission, allProperties, propertyIds, unitIds });
     if (existing) {
       const result = await grantUserAccess(existing, scope);
       await audit(admin.id, "USER_ACCESS_GRANTED", "User", existing.id, { email, ...scope });
@@ -37,11 +37,11 @@ export async function POST(request: Request) {
     }
     const primary = properties[0] || units[0]?.property || await prisma.property.findFirst({ where: { active: true }, select: { id: true, name: true } });
     if (!primary) throw new Error("Nejprve vytvořte nemovitost.");
-    const { invitation, token } = await rotateInvitation({ email, name, propertyId: primary.id, propertyIds, unitIds, allProperties, permission, role, invitedById: admin.id });
+    const { invitation, token } = await rotateInvitation({ createMode: "GLOBAL_EMAIL", email, name, propertyId: primary.id, ...scope, invitedById: admin.id });
     const inviteUrl = redirectUrl(`/pozvanka/${token}`, request).toString();
-    const propertyName = allProperties ? "všem nemovitostem FlatCloud" : [...properties.map((p) => p.name), ...units.map((u) => `${u.property.name} / ${u.label}`)].join(", ");
+    const propertyName = scope.allProperties ? "všem nemovitostem FlatCloud" : [...properties.map((p) => p.name), ...units.map((u) => `${u.property.name} / ${u.label}`)].join(", ");
     const result = await sendInvitationEmail({ to: email, inviterName: admin.name, propertyName, permissionLabel: propertyPermissions[permission], inviteUrl });
-    await audit(admin.id, "USER_INVITED", "UserInvitation", invitation.id, { email, role, propertyIds, unitIds, allProperties, permission, sent: result.sent });
+    await audit(admin.id, "USER_INVITED", "UserInvitation", invitation.id, { email, ...scope, sent: result.sent });
     const message = result.sent ? `Pozvánka byla odeslána na ${email}.` : "Pozvánka byla vytvořena; SMTP není nakonfigurováno.";
     return go(request, `/uzivatele?ok=${encodeURIComponent(message)}${result.sent ? "" : `&invite=${encodeURIComponent(inviteUrl)}`}`);
   } catch (error) { return goWithMessage(request, "/uzivatele", "error", error instanceof Error ? error.message : "Přístup se nepodařilo přidat."); }

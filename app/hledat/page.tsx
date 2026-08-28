@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { accessibleProperties, leaseAccessWhere } from "@/lib/access";
+import { accessibleProperties, bankTransactionAccessWhere, leaseAccessWhere, taskAccessWhere } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { money, date } from "@/lib/format";
 import { Shell } from "@/components/Shell";
@@ -36,16 +36,16 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   const [tasks, transactions, leases] = q ? await Promise.all([
     prisma.task.findMany({
-      where: { propertyId: { in: propertyIds }, OR: [{ title: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }] },
+      where: { AND: [taskAccessWhere(user), { OR: [{ title: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }] }] },
       include: { property: true }, orderBy: { updatedAt: "desc" }, take: 15,
     }),
     prisma.bankTransaction.findMany({
-      where: { bankAccount: { propertyId: { in: propertyIds } }, OR: [
+      where: { AND: [bankTransactionAccessWhere(user), { OR: [
         { variableSymbol: { contains: q, mode: "insensitive" } },
         { counterpartyName: { contains: q, mode: "insensitive" } },
         { counterpartyIban: { contains: q, mode: "insensitive" } },
         { message: { contains: q, mode: "insensitive" } },
-      ] },
+      ] }] },
       include: { bankAccount: { include: { property: true } } }, orderBy: { bookedAt: "desc" }, take: 15,
     }),
     prisma.lease.findMany({ where: { ...leaseAccessWhere(user), OR: [{ contractNumber: { contains: q, mode: "insensitive" } }, { variableSymbol: { contains: q, mode: "insensitive" } }, { tenant: { name: { contains: q, mode: "insensitive" } } }, { unit: { label: { contains: q, mode: "insensitive" } } }, { unit: { property: { name: { contains: q, mode: "insensitive" } } } }] }, include: { tenant: true, unit: { include: { property: true } } }, orderBy: { startDate: "desc" }, take: 15 }),

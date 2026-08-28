@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await audit(access.user.id, "USER_ACCESS_GRANTED", "User", existing.id, { propertyId: id, email, permission }, id);
       return goWithMessage(request, `/nemovitosti/${id}/uzivatele`, "ok", result.changed ? "Uživatel již měl účet; požadovaný přístup byl přidán." : "Uživatel již má požadovaný přístup.");
     }
-    const { invitation, token } = await rotateInvitation({ email, name, propertyId: id, propertyIds: [id], unitIds: [], allProperties: false, permission, role: UserRole.OWNER_VIEWER, invitedById: access.user.id });
+    const { invitation, token } = await rotateInvitation({ createMode: "PROPERTY_LOCAL", email, name, propertyId: id, propertyIds: [id], unitIds: [], allProperties: false, permission, role: UserRole.OWNER_VIEWER, invitedById: access.user.id });
     const inviteUrl = redirectUrl(`/pozvanka/${token}`, request).toString();
     const result = await sendInvitationEmail({ to: email, inviterName: access.user.name, propertyName: property.name, permissionLabel: propertyPermissions[permission], inviteUrl });
     await audit(access.user.id, "USER_INVITED", "UserInvitation", invitation.id, { propertyId: id, email, permission, sent: result.sent }, id);

@@ -2,6 +2,7 @@ import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { requirePropertyAdmin, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { isPropertyLocalInvitation } from "@/lib/user-access-management";
 
 function safeReturnTo(value: FormDataEntryValue | null, propertyId: string) {
   const candidate = String(value || "");
@@ -19,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ inv
   if (!user) return go(request, "/login");
   if (user.role !== "SUPER_ADMIN") {
     const access = await requirePropertyAdmin(invitation.propertyId);
-    if (!access || access.user.id !== user.id) return go(request, "/portfolio");
+    if (!access || access.user.id !== user.id || !isPropertyLocalInvitation(invitation, invitation.propertyId)) return go(request, "/portfolio");
   }
 
   const form = await request.formData();

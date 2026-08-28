@@ -82,6 +82,25 @@ export function leaseAccessWhere(user:{id:string;role:string;allProperties?:bool
   };
 }
 
+export function taskAccessWhere(user: { id: string; role: string; allProperties?: boolean }): Prisma.TaskWhereInput {
+  if (hasAllPropertyAccess(user)) return {};
+  return { OR: [
+    { property: { memberships: { some: { userId: user.id } } } },
+    { unit: { userAccesses: { some: { userId: user.id } } } },
+  ] };
+}
+
+export function bankTransactionAccessWhere(user: { id: string; role: string; allProperties?: boolean }): Prisma.BankTransactionWhereInput {
+  if (hasAllPropertyAccess(user)) return {};
+  const visibleUnit = { userAccesses: { some: { userId: user.id } } };
+  return { OR: [
+    { bankAccount: { property: { memberships: { some: { userId: user.id } } } } },
+    { suggestedLease: { unit: visibleUnit } },
+    { allocations: { some: { charge: { lease: { unit: visibleUnit } } } } },
+    { securityDepositReceipts: { some: { lease: { unit: visibleUnit } } } },
+  ] };
+}
+
 export function tenantAccessWhere(user:{id:string;role:string;allProperties?:boolean}): Prisma.TenantWhereInput {
   return hasAllPropertyAccess(user) ? {} : { leases: { some: { unit: { OR: [
     { property: { memberships: { some: { userId: user.id } } } },
