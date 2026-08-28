@@ -1,6 +1,6 @@
 {
   "name": "flatcloud-rent-production",
-  "version": "1.21.6.1",
+  "version": "1.21.7",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -21,6 +21,7 @@
     "verify:v21.4": "tsx scripts/verify-v21-4.ts",
     "verify:v21.6": "tsx scripts/verify-v21-6.ts",
     "verify:v21.6.1": "tsx scripts/verify-v21-6-1.ts",
+    "verify:v21.7": "tsx scripts/verify-v21-7.ts",
     "repair:payment-statuses": "tsx scripts/recompute-payment-statuses.ts"
   },
   "dependencies": {

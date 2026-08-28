@@ -376,6 +376,7 @@ model UserInvitation {
   allProperties Boolean            @default(false)
   property      Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   permission    PropertyPermission @default(VIEW)
+  role          UserRole           @default(OWNER_VIEWER)
   invitedById   String
   invitedBy     User               @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
   status        InvitationStatus   @default(PENDING)

@@ -20,9 +20,9 @@ const settingsRoute = read("app/api/settings/inbound-mail/route.ts");
 const migration = read("prisma/migrations/20260827100000_v21_4_inbound_mail_retention/migration.sql");
 const ci = read(".github/workflows/ci.yml");
 
-assert.equal(packageJson.version, "1.21.6.1");
-assert.equal(lock.version, "1.21.6.1");
-assert.equal(lock.packages[""].version, "1.21.6.1");
+assert.equal(packageJson.version, "1.21.7");
+assert.equal(lock.version, "1.21.7");
+assert.equal(lock.packages[""].version, "1.21.7");
 assert.equal(packageJson.scripts["verify:v21.3.6"], "tsx scripts/verify-v21-3-6.ts");
 assert.equal(packageJson.scripts["verify:v21.4"], "tsx scripts/verify-v21-4.ts");
 assert.match(ci, /npm run verify:v21\.4/);

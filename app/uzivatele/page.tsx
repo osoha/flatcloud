@@ -45,8 +45,9 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     {query.invite && <div className="invite-link-box"><strong>Odkaz k ručnímu předání</strong><input readOnly value={query.invite}/></div>}
 
     <div className="detail-grid users-create-grid">
-      <div className="card col-6">
-        <h2>Vytvořit uživatele</h2>
+      <details className="card col-12">
+        <summary><strong>Pokročilé: vytvořit účet bez pozvánky</strong></summary>
+        <p className="muted-copy">Používejte pouze pro servisní/importní účty nebo když uživatel nemůže převzít e-mailovou pozvánku.</p>
         <form className="compact-form" action="/api/users/create" method="post">
           <label className="field"><span>Jméno a příjmení</span><input name="name" required/></label>
           <label className="field"><span>E-mail</span><input name="email" type="email" required/></label>
@@ -58,18 +59,19 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           <label className="field"><span>Oprávnění pro vybrané objekty</span><select name="permission" defaultValue="VIEW"><option value="VIEW">Pouze zobrazení</option><option value="EDIT">Zobrazení a editace</option><option value="ADMIN">Správa objektu a uživatelů</option></select></label>
           <button className="primary" type="submit">Vytvořit účet</button>
         </form>
-      </div>
+      </details>
 
-      <div className="card col-6">
-        <h2>Poslat e-mailovou pozvánku</h2>
+      <div className="card col-12">
+        <h2>Přidat uživatele</h2><p className="muted-copy">Existujícímu aktivnímu účtu přístup rovnou rozšíříme; novému uživateli pošleme pozvánku k nastavení hesla.</p>
         <form className="compact-form" action="/api/invitations/create" method="post">
           <label className="field"><span>Jméno a příjmení</span><input name="name" required/></label>
           <label className="field"><span>E-mail</span><input name="email" type="email" required/></label>
+          <label className="field"><span>Role</span><select name="role" defaultValue="OWNER_VIEWER"><option value="OWNER_VIEWER">Vlastník / člen</option><option value="PROPERTY_MANAGER">Správce nemovitosti</option><option value="MANAGER">Generální správce</option><option value="SUPER_ADMIN">Hlavní administrátor</option></select></label>
           <label className="checkbox-field"><input type="checkbox" name="allProperties"/><span>Všechny současné i budoucí nemovitosti</span></label>
           <label className="field"><span>Celé nemovitosti</span><select name="propertyIds" multiple size={Math.min(7, Math.max(3, properties.length))}>{properties.map((property) => <option key={property.id} value={property.id}>{property.name} – {property.address}</option>)}</select></label>
           <div className="field unit-access-picker"><span>Jen vybrané jednotky</span>{properties.map((property) => <details key={property.id}><summary>{property.name}</summary>{property.units.map((unit) => <label className="checkbox-field" key={unit.id}><input type="checkbox" name="unitIds" value={unit.id}/><span>{unit.label}</span></label>)}</details>)}</div>
           <label className="field"><span>Oprávnění</span><select name="permission" defaultValue="VIEW"><option value="VIEW">Pouze zobrazení</option><option value="EDIT">Zobrazení a editace</option><option value="ADMIN">Správa objektu a uživatelů</option></select></label>
-          <button className="primary" type="submit">Odeslat pozvánku</button>
+          <button className="primary" type="submit">Přidat uživatele</button>
         </form>
       </div>
     </div>
@@ -99,7 +101,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     </div>
 
     <div className="card portfolio-table-card" style={{ marginTop: 16 }}>
-      <div className="table-toolbar"><div><h2>Čekající pozvánky</h2><p>Smazání pozvánku zneplatní; odeslaný odkaz už nepůjde přijmout.</p></div></div>
+      <div className="table-toolbar"><div><h2>Čekající pozvánky</h2><p>Nové odeslání nebo úprava vždy zneplatní předchozí odkaz.</p></div></div>
       <div className="table-wrap"><table>
         <thead><tr><th>Jméno / e-mail</th><th>Rozsah</th><th>Oprávnění</th><th>Pozval</th><th>Platnost</th><th></th></tr></thead>
         <tbody>{invitations.length ? invitations.map((invitation) => <tr key={invitation.id}>
@@ -108,7 +110,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           <td>{propertyPermissions[invitation.permission]}</td>
           <td>{invitation.invitedBy.name}</td>
           <td>{invitation.expiresAt.toLocaleDateString("cs-CZ")}</td>
-          <td><form action={`/api/invitations/${invitation.id}/revoke`} method="post"><input type="hidden" name="returnTo" value="/uzivatele"/><button className="danger-button" type="submit">Smazat</button></form></td>
+          <td><div className="pending-invite-actions"><form action={`/api/invitations/${invitation.id}/rotate`} method="post"><input type="hidden" name="returnTo" value="/uzivatele"/><button className="secondary" name="mode" value="resend" type="submit">Odeslat znovu</button></form><details><summary>Upravit oprávnění</summary><form className="compact-form" action={`/api/invitations/${invitation.id}/rotate`} method="post"><input type="hidden" name="returnTo" value="/uzivatele"/><input type="hidden" name="mode" value="edit"/><label className="checkbox-field"><input type="checkbox" name="allProperties" defaultChecked={invitation.allProperties}/><span>Všechny nemovitosti</span></label><label className="field"><span>Celé nemovitosti</span><select name="propertyIds" multiple defaultValue={invitation.propertyIds}>{properties.map((property)=><option value={property.id} key={property.id}>{property.name}</option>)}</select></label><div className="field unit-access-picker"><span>Jen vybrané jednotky</span>{properties.map((property)=><details key={property.id}><summary>{property.name}</summary>{property.units.map((unit)=><label className="checkbox-field" key={unit.id}><input type="checkbox" name="unitIds" value={unit.id} defaultChecked={invitation.unitIds.includes(unit.id)}/><span>{unit.label}</span></label>)}</details>)}</div><label className="field"><span>Role</span><select name="role" defaultValue={invitation.role}>{Object.entries(userRoles).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>Oprávnění</span><select name="permission" defaultValue={invitation.permission}>{Object.entries(propertyPermissions).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><button className="secondary">Uložit a odeslat novou</button></form></details><form action={`/api/invitations/${invitation.id}/revoke`} method="post"><input type="hidden" name="returnTo" value="/uzivatele"/><button className="danger-button" type="submit">Zrušit</button></form></div></td>
         </tr>) : <tr><td colSpan={6} className="table-empty">Bez čekajících pozvánek</td></tr>}</tbody>
       </table></div>
     </div>

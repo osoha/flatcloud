@@ -1,0 +1,2 @@
+ALTER TABLE "UserInvitation"
+ADD COLUMN "role" "UserRole" NOT NULL DEFAULT 'OWNER_VIEWER';

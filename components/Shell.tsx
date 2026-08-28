@@ -7,6 +7,8 @@ import { openTaskStatuses } from "@/lib/operations";
 import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
 import { UserAvatar } from "@/components/UserAvatar";
 import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
+import { leaseAccessWhere } from "@/lib/access";
+import { isLeaseExpiring } from "@/lib/lease-catalog";
 
 type ShellUser = {
   id: string;
@@ -32,14 +34,14 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
       prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
       prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
     ]).then((values) => values.reduce((sum, value) => sum + value, 0)) : Promise.resolve(0),
-    prisma.lease.findMany({ where: { ...(fullAccess ? {} : { unit: { property: { memberships: { some: { userId: user.id } } } } }) }, select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
+    prisma.lease.findMany({ where: leaseAccessWhere(user), select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
   ]);
   const today = new Date();
   const leaseHorizon = addCalendarMonths(today, 3);
   const leaseAlertCount = leaseRows.reduce((count, lease) => {
     if (leaseStatusAt(lease, today) !== "ACTIVE") return count;
     const end = effectiveLeaseEnd(lease);
-    const expiry = end && end >= today && end <= leaseHorizon ? 1 : 0;
+    const expiry = isLeaseExpiring(lease, today) ? 1 : 0;
     const anniversary = nextLeaseAnniversary(lease.startDate, today);
     const anniversaryHit = anniversary <= leaseHorizon && (!end || anniversary <= end) ? 1 : 0;
     return count + expiry + anniversaryHit;
@@ -71,7 +73,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
 
         <div className="nav-label">Evidence</div>
         <Nav href="/najemnici" icon={<Users size={17}/>} label="Nájemníci"/>
-        <Nav href="/smlouvy/upozorneni" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
+        <Nav href="/smlouvy" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
         {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
 
         <div className="nav-label">Správa</div>
@@ -88,7 +90,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
     </aside>
     <main className="main">
       <header className="topbar v21-topbar">
-        <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, platbu nebo úkol…"/></form>
+        <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
           {canAddManualPayment && <Link className="secondary top-action" href="/platby/nova"><Plus size={15}/><span>Ruční platba</span></Link>}

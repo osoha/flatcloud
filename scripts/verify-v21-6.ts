@@ -13,7 +13,7 @@ const checks: Array<[string, boolean]> = [
   ["UNIT_ONLY", read("lib/property-technical.ts").includes("UNIT_ONLY")],
   ["deposit schema", read("prisma/schema.prisma").includes("model SecurityDepositTerm") && read("prisma/schema.prisma").includes("model SecurityDepositMovement")],
   ["deposit migration checks", read("prisma/migrations/20260828080000_v21_6_security_deposits/migration.sql").includes("amountCents_check")],
-  ["version", JSON.parse(read("package.json")).version === "1.21.6.1"],
+  ["version", JSON.parse(read("package.json")).version === "1.21.7"],
   ["CI", read(".github/workflows/ci.yml").includes("verify:v21.6")],
   ["deposit APIs", existsSync("app/api/properties/[id]/leases/[leaseId]/deposit/terms/route.ts") && existsSync("app/api/properties/[id]/leases/[leaseId]/deposit/movements/route.ts")],
   ["settlement APIs", existsSync("app/api/properties/[id]/leases/[leaseId]/settlement/route.ts") && existsSync("app/api/properties/[id]/leases/[leaseId]/settlement/apply/route.ts")],

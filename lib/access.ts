@@ -64,7 +64,7 @@ export async function requirePropertyAccess(user:{id:string;role:string;allPrope
 export async function requireUnitAccess(user:{id:string;role:string;allProperties?:boolean},propertyId:string,unitId:string){
   return prisma.unit.findFirst({
     where:{id:unitId,propertyId,...(hasAllPropertyAccess(user)?{}:{OR:[{property:{memberships:{some:{userId:user.id}}}},{userAccesses:{some:{userId:user.id}}}]})},
-    include:{ownerships:{include:{owner:true,ownerBankAccount:true}},userAccesses:true,meters:{orderBy:[{active:"desc"},{type:"asc"},{createdAt:"asc"}],include:{readings:{orderBy:{readAt:"desc"},include:{lease:{include:{tenant:true}}}}}},leases:{orderBy:{startDate:"desc"},include:{tenant:true,ownerBankAccount:true,occupants:{orderBy:[{active:"desc"},{name:"asc"}]},paymentItems:true,charges:{include:{allocations:{include:{transaction:true}},securityDepositOffsets:true,creditApplications:true,items:true},orderBy:{period:"desc"}},notifications:{orderBy:{createdAt:"desc"},take:50}}}}
+    include:{ownerships:{include:{owner:true,ownerBankAccount:true}},userAccesses:true,meters:{orderBy:[{active:"desc"},{type:"asc"},{createdAt:"asc"}],include:{readings:{orderBy:{readAt:"desc"},include:{lease:{include:{tenant:true}}}}}},leases:{orderBy:{startDate:"desc"},include:{tenant:true,ownerBankAccount:true,securityDepositTerms:{orderBy:[{effectiveFrom:"asc"},{createdAt:"asc"}]},securityDepositMovements:{orderBy:[{effectiveAt:"asc"},{createdAt:"asc"}]},occupants:{orderBy:[{active:"desc"},{name:"asc"}]},paymentItems:true,charges:{include:{allocations:{include:{transaction:true}},securityDepositOffsets:true,creditApplications:true,items:true},orderBy:{period:"desc"}},notifications:{orderBy:{createdAt:"desc"},take:50}}}}
   });
 }
 

@@ -32,5 +32,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ inv
     email: invitation.email,
     source: returnTo === "/uzivatele" ? "global-user-list" : "property-user-list",
   });
-  return goWithMessage(request, returnTo, "ok", "Pozvánka byla smazána ze seznamu a její odkaz byl zneplatněn.");
+  return goWithMessage(request, returnTo, "ok", "Pozvánka byla zrušena a její odkaz byl zneplatněn.");
 }
