@@ -1,0 +1,3 @@
+import type {FileStorage} from "./types";import {StorageDisabledError} from "./types";import {LocalFileStorage} from "./local";import {S3FileStorage} from "./s3";
+class DisabledStorage implements FileStorage {private fail():never{throw new StorageDisabledError()}putObject():Promise<void>{this.fail()}deleteObject():Promise<void>{this.fail()}getSignedDownloadUrl():Promise<string>{this.fail()}exists():Promise<boolean>{this.fail()}}
+export function createFileStorage(driver=process.env.FILE_STORAGE_DRIVER||"disabled"):FileStorage{if(driver==="disabled")return new DisabledStorage();if(driver==="local")return new LocalFileStorage();if(driver==="s3")return new S3FileStorage();throw new Error(`Unknown FILE_STORAGE_DRIVER: ${driver}`)}

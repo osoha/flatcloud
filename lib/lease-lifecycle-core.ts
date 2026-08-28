@@ -7,18 +7,8 @@ export type LeaseLifecycleInput = {
   cancelledAt?: Date | null;
 };
 
-const PRAGUE_TIME_ZONE = "Europe/Prague";
-const pragueDateFormatter = new Intl.DateTimeFormat("en", {
-  timeZone: PRAGUE_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-export function pragueDateKey(value: Date) {
-  const parts = Object.fromEntries(pragueDateFormatter.formatToParts(value).map((part) => [part.type, part.value]));
-  return `${parts.year}-${parts.month}-${parts.day}`;
-}
+import { businessDateKey } from "./calendar";
+export const pragueDateKey = businessDateKey;
 
 export function effectiveLeaseEnd(lease: Pick<LeaseLifecycleInput, "endDate" | "terminatedOn">) {
   if (lease.endDate && lease.terminatedOn) {

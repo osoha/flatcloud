@@ -1,5 +1,6 @@
 import type { RentTiming } from "@prisma/client";
-export function currentPeriod(){const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`}
+import { businessMonthKey } from "./calendar";
+export function currentPeriod(now=new Date()){return businessMonthKey(now)}
 export function periodStart(period:string){if(!/^\d{4}-\d{2}$/.test(period))throw new Error("Období musí být ve formátu RRRR-MM.");const[y,m]=period.split("-").map(Number);if(m<1||m>12)throw new Error("Neplatný měsíc.");return new Date(Date.UTC(y,m-1,1,12))}
 export function periodDueDate(period:string,dueDay:number,timing:RentTiming="ADVANCE"){const start=periodStart(period);const month=start.getUTCMonth()+(timing==="ARREARS"?1:0);const year=start.getUTCFullYear();const maxDay=new Date(Date.UTC(year,month+1,0,12)).getUTCDate();return new Date(Date.UTC(year,month,Math.min(Math.max(dueDay,1),maxDay),12))}
 export function periodLabel(period:string){return new Intl.DateTimeFormat("cs-CZ",{month:"long",year:"numeric"}).format(periodStart(period))}

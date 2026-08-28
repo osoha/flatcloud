@@ -1,157 +1,49 @@
-# FlatCloud Rent V21.3 – architektura
+# FlatCloud – current architecture
 
-## 1. Cíl aplikace
+FlatCloud is a Next.js 16 / React 19 / TypeScript application backed by Prisma 6 and PostgreSQL. It separates transactional rent operations from reproducible reporting and immutable publication inputs.
 
-FlatCloud je interní property-management nástroj pro vlastníka a správce nájemních nemovitostí. UI je orientované na pracovní stav a výjimky: co vyžaduje pozornost, kdo případ řeší, do kdy a jaký je průběh.
+## Access and application contexts
 
-Technologie: Next.js 16 / React 19 / TypeScript / Prisma 6 / PostgreSQL / Render.
+Rent access is the intersection of the requested context and the user's grants. `SUPER_ADMIN`, `MANAGER` and explicitly configured global access use the global path; `UserProperty` grants property-wide `VIEW/EDIT/ADMIN`; `UserUnit` grants only named units. Every server-side read and mutation scopes the target again. Unit-only access never expands to another unit or to property-level content.
 
-## 2. Oprávnění
+Shareholder reporting is independent. `ReportingGroupMember` grants `VIEW/EDIT/ADMIN` only inside a `ReportingGroup`; it does not grant access to Property, Unit, Lease, rent transactions or documents. Conversely `OWNER_VIEWER`, `UserProperty` and `UserUnit` do not imply reporting-group membership. A user may therefore have the `RENT` context, `SHAREHOLDER_REPORTING`, or both. There is deliberately no `UserRole.SHAREHOLDER`.
 
-- `SUPER_ADMIN` – celé portfolio, administrace aplikace, globální nespárované e-mailové platby.
-- `MANAGER` / uživatel s `allProperties` – portfolio dle rozsahu role.
-- property membership `VIEW / EDIT / ADMIN` – přístup k celé nemovitosti.
-- unit membership `VIEW / EDIT / ADMIN` – omezený přístup ke konkrétním jednotkám.
-- `OWNER_VIEWER` může číst úkolová vlákna a stav řešení, ale bez `EDIT` je nemůže měnit.
+## Rent, lifecycle and finance
 
-Každý zápis přes API znovu ověřuje oprávnění a scope entity; nespoléhá pouze na skrytí tlačítka ve frontendu.
+The core chain is `Property → Unit → Lease → Charge`; ownership and account assignment are separate (`PropertyOwnership`, `UnitOwnership`, `OwnerBankAccount`, `PropertyPaymentAccount`). Lease lifecycle is derived from dates by shared lifecycle helpers, not from legacy `Lease.status`. The final Prague calendar day remains active and the lease becomes ended on the following Prague date.
 
-## 3. Hlavní domény
+V21.6 introduced append-only security-deposit terms and movements. `securityDepositSnapshot(lease, asOf)` is the single ledger calculation; an event effective on the as-of Prague date is included. Credits remain `LeaseCredit`; applying one creates `LeaseCreditApplication` with explicit `effectiveAt`.
 
-### Nemovitost a jednotky
+Current charge state uses all allocations. Historical reporting uses `paidCentsAsOf`, `outstandingCentsAsOf` and `overdueDebtCentsAsOf`. Allocation time comes from `BankTransaction.bookedAt`, deposit offsets from movement `effectiveAt`, and credit application from its own `effectiveAt`.
 
-`Property` → `Unit` → `Lease` → `Charge` → `PaymentAllocation`.
+## Business calendar and operational history
 
-Vlastnictví je oddělené přes `PropertyOwnership` a `UnitOwnership`. Platební účet vlastníka je číselník `OwnerBankAccount`.
+`lib/calendar.ts` owns business date/month/quarter/range semantics in `Europe/Prague`. Business concepts use date keys; deterministic noon-UTC instants are used only where DateTime is required, avoiding server timezone and DST drift.
 
+`Unit.operationalStatus` is the current cache. Historical occupancy reads append-only `UnitOperationalStatusEvent`. V22 creates a `SYSTEM_BASELINE` at rollout for each existing unit and does not claim the state existed earlier. Before the first event the result is `UNKNOWN_BEFORE_HISTORY` until a `MANUAL_BASELINE` is supplied. Create/change updates cache and event atomically; unchanged edits add no event.
 
-### Lifecycle nájemního vztahu V21.3
+## Reporting and snapshots
 
-`Lease.startDate`, `Lease.endDate`, `Lease.terminatedOn` a `Lease.cancelledAt` tvoří zdroj pravdy pro lifecycle smlouvy. `ACTIVE / FUTURE / ENDED` se odvozuje v `lib/lease-lifecycle-core.ts`. Obsazenost jednotky je odvozena existencí aktuálně platné smlouvy; `Unit.operationalStatus` je samostatný provozní stav. Legacy `Lease.status` a `Unit.status` zůstávají pouze jako dočasná kompatibilní cache. Překryvu smluv brání API validace s advisory lockem a PostgreSQL exclusion constraint.
+Live reports can be recalculated. `QuarterSnapshot` is app-level immutable: recalculation creates a revision and never updates an old record. Data and quality JSON are strictly validated and identify schema/calculator versions. `CALCULATED` requires automatic KPIs; `MANUAL_BASELINE` permits only the sourced historical subset. KPI semantics are normative in `REPORTING-V22.md`.
 
-### Účty pro nájemné
+Targeted snapshot loaders fetch operational events, leases/payment items, charges/items/allocations/transactions, deposits and credits in bounded relation queries. They do not use the UI `accessibleProperties()` tree or query per unit.
 
-`PropertyPaymentAccount` je explicitní vazba **nemovitost ↔ OwnerBankAccount**. Jeden účet může být použit u více nemovitostí a jedna nemovitost může mít více účtů.
+`ReportingGroupProperty` has effective dates. `QuarterlyReport` is revisioned and progresses through `DRAFT`, `REVIEW`, `PUBLISHED`; every `QuarterlyPropertyReport` must reference its exact immutable snapshot. Future publication creates immutable publication revisions/media.
 
-`UnitOwnership.ownerBankAccountId` a `Lease.ownerBankAccountId` určují, na jaký účet platí konkrétní smlouva. Při použití účtu na jednotce/smlouvě se vazba `PropertyPaymentAccount` automaticky založí/aktivuje.
+## Documents and private file storage
 
-### Bankovní platby přes e-mail
+`FileAsset` is immutable binary metadata with random storage keys and checksum; it has no public URL. `Document` supplies mandatory property-anchored metadata and optional unit, lease, task, task-entry or compliance context. The service verifies all contextual entities belong to the same property. `ComplianceRecord.documentUrl` remains legacy compatibility; new attachments use `Document`.
 
-V21 nepoužívá přímé bankovní API ani autorizační consent workflow.
+Property members see non-deleted property documents. Unit-only users see only documents resolving to their unit through unit, lease, task or task entry; they cannot see property-level/compliance documents. Reporting membership grants no document access. Downloads are authorized by Document, never asset ID alone.
 
-1. banka odešle notifikaci příchozí platby do centrální IMAP schránky,
-2. `InboxPayment` uchová parser/staging výsledek,
-3. cílový účet se porovná s `OwnerBankAccount`,
-4. VS určí aktivní/budoucí smlouvu v rámci daného účtu,
-5. e-mail se materializuje do technického `BankTransaction`,
-6. platba se alokuje na nejstarší otevřené předpisy smlouvy.
+Storage is private behind `FileStorage`. `s3` supports AWS S3, R2 and compatible endpoints with signed downloads. `local` uses OS temp and is development/test only. Default is `disabled`; production never silently uses Render/project disk. Validation checks size, MIME and common signatures, sanitizes display names, creates UUID keys and SHA-256. Images receive aspect-preserving WebP preview/thumbnail. DB failure triggers best-effort binary cleanup; cleanup failure belongs in operational logging.
 
-`BankAccount` je ve V21 pouze technický ledger/source pro standardní transakce (`email-bank`, `manual`); neobsahuje bankovní credentials, consent, API synchronizaci ani stav přihlášení banky.
+## Workspace, audit and bank verification
 
-### Jedinečnost VS
+V21.7 consolidated scoped workspace/security checks. `TaskEntry` is an append-only conversation and Document already supports task/task-entry attachments without coupling FileAsset lifetime to task cascade. `AuditLog` remains an independent scoped mutation trail.
 
-VS je unikátní mezi `ACTIVE` / `FUTURE` smlouvami na stejném `OwnerBankAccount`. Stejný VS může existovat na jiném cílovém účtu.
+Bank notification email enters `InboxPayment`, trusted input materializes as technical `BankTransaction`, and allocations use destination account plus variable symbol. No bank credentials/consent are stored. Current verification source of truth is `OwnerBankAccount.notificationVerifiedAt`; `PropertyPaymentAccount.notificationVerifiedAt` is compatibility/property-link history. Ambiguous payments remain reviewable.
 
-### Ověření e-mailových notifikací
+## Delivery
 
-Ověření se ukládá na `PropertyPaymentAccount`, nikoli globálně na účtu. Každá vazba má deterministický 8místný testovací VS. Platba přesně 1,00 Kč s tímto VS:
-
-- označí vazbu účet ↔ nemovitost jako ověřenou,
-- aktualizuje `lastNotificationAt`,
-- vytvoří auditní záznam,
-- zůstane jako `InboxPayment` ve stavu `IGNORED` a nikdy se nezaúčtuje jako nájemné.
-
-Pokud jeden účet používá více nemovitostí, každá vazba má jiný testovací VS.
-
-### Párování
-
-Priorita běžného párování:
-
-1. ruční pokročilé pravidlo má přednost,
-2. cílový účet + VS → konkrétní smlouva,
-3. částka se rozloží na otevřené předpisy (plná / částečná úhrada / přeplatek),
-4. známý účet plátce pomáhá při chybějícím/chybném VS,
-5. nejednoznačný případ zůstává `UNMATCHED` / `SUGGESTED`.
-
-Neznámá platba se nikdy automaticky nezahodí.
-
-## 4. Úkoly a případová vlákna
-
-`Task` obsahuje scope, kategorii, prioritu, stav, odpovědnou osobu a termín. `TaskEntry` je chronologické vlákno (`COMMENT`, `CALL`, `EMAIL`, `PROMISE`, `STATUS`, `SYSTEM`). Příslib úhrady ukládá do konkrétního záznamu také datum a částku, takže historie příslibů zůstává čitelná i po jejich změně.
-
-### Upomínkové případy
-
-Automatické upomínky vytvářejí deduplikovaný případ:
-
-`collection:<leaseId>:<period>` → `Upomínka M/RR · jednotka · nájemník`.
-
-Do vlákna se zapisují automatické e-maily i ruční komunikace. `PROMISE` přenese příslib úhrady na smlouvu a přepne úkol na `WAITING`. Jakmile je po spárování plateb dluh smlouvy nulový, otevřený collection task se automaticky uzavře.
-
-## 5. Revize a povinné kontroly
-
-`ComplianceItem` drží typ kontroly, periodicitu, další termín, kontakt/technika a stav. `ComplianceRecord` uchovává historii provedení, výsledek, poznámku, dokument URL a další termín.
-
-Stavy jsou dynamicky odvozené podle data: po termínu / dnes / brzy / nadcházející / v pořádku / neaktivní.
-
-## 6. Důležité kontakty
-
-`PropertyContact` eviduje provozní kontakty nemovitosti (správce, havárie, elektro, voda, topení, výtah, PO, revizní technik, pojišťovna, úklid, utility atd.). Kontakt může být navázán na revizi.
-
-## 7. Audit a provozní deník
-
-`AuditLog` je property-scoped auditní stopa se systémovou akcí, entitou, uživatelem, časem a JSON detailem. Ruční provozní poznámka je auditní událost `PROPERTY_LOG_NOTE`. Audit se nemaže úpravou běžných entit.
-
-## 8. Dashboardy
-
-### Portfolio
-
-KPI: inkaso, dluh, otevřené úkoly, revize, smluvní termíny, nespárované platby. Sekce „Vyžaduje pozornost“ slučuje finance, úkoly, revize a smlouvy do jedné fronty.
-
-### Nemovitost
-
-KPI: inkaso, dluh, nespárované, smlouvy, revize, úkoly. Přehled obsahuje „Vyžaduje pozornost“, stav objektu, poslední platby a důležité kontakty.
-
-Sekce `Provoz` obsahuje úkoly, revize, kontakty a aktivitu.
-
-## 9. Automatizace
-
-Render používá jediný hodinový cron `flatcloud-rent-scheduler`. V jednom běhu postupně:
-
-1. načte bankovní e-mailové notifikace (pokud je IMAP zapnutý a nastavený),
-2. doplní / synchronizuje automatické předpisy a provede splatnou pevnou indexaci,
-3. vyhodnotí platební zprávy, upomínky a interní eskalace.
-
-Nenastavený sběrný e-mail je bezpečný stav `skipped`; scheduler kvůli němu nespadne. Přímý bankovní API cron neexistuje.
-
-### Automatické předpisy
-
-`Lease.autoChargesEnabled` zapíná plán předpisů. Doba určitá se generuje do konce smlouvy, doba neurčitá udržuje rolling horizont 12 měsíců. `Charge` má unikátní kombinaci `leaseId + period`, takže opakovaný scheduler nevytváří duplicity. Synchronizace nikdy nepřepisuje předpis, který už má alokovanou platbu. Historické sazby pravidelných položek zůstávají přes `validFrom` / `validTo`.
-
-Pevná indexace používá `indexationEnabled`, `indexationPercentBps` a `nextIndexationAt`. Při výročí vznikne nová verze položky Nájemné a budoucí neuhrazené předpisy se synchronizují.
-
-## 10. Bezpečnost tajemství
-
-IMAP a SMTP hesla jsou šifrovaná pomocí společného `BANK_TOKEN_ENCRYPTION_KEY` (historický název env proměnné zůstává kvůli kompatibilitě nasazení). Bankovní přihlašovací údaje se v aplikaci neukládají, protože nejsou potřeba.
-
-## 11. CI / release
-
-CI nad čistým PostgreSQL spouští:
-
-```bash
-npm ci
-npx prisma generate
-npx prisma validate
-npx prisma migrate deploy
-npm run verify:v20
-npm run verify:v21
-npm run verify:v21.1
-npm run verify:v21.2
-npm run build
-```
-
-V21 je v sandbox režimu a migrace `20260825103000_v21_operations_foundation` proto smí odstranit nepoužívaný starý bankovní API model.
-
-
-### Multi-bank e-mail V21.2
-
-Příchozí e-mail prochází bank-agnostickou extrakcí platebních údajů. Banka se určí primárně podle kódu cílového účtu / IBANu a pojmenuje podle vestavěného číselníku ČNB. Rozpoznání platby je oddělené od důvěryhodnosti zdroje: banky bez ověřeného sender adaptéru fungují přes ruční frontu, zatímco automatický import je povolen jen pro ověřený zdroj. Testovací 1 Kč ověřuje `PropertyPaymentAccount`, nikoliv nájemní smlouvu.
+CI installs exact dependencies, generates/validates Prisma, deploys migrations to PostgreSQL, runs V20–V22 verifiers and builds. Historical migrations are immutable; V22 foundation is one additive/backfill migration without data loss.

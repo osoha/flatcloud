@@ -1,6 +1,6 @@
 {
   "name": "flatcloud-rent-production",
-  "version": "1.21.7",
+  "version": "1.22.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -22,9 +22,12 @@
     "verify:v21.6": "tsx scripts/verify-v21-6.ts",
     "verify:v21.6.1": "tsx scripts/verify-v21-6-1.ts",
     "verify:v21.7": "tsx scripts/verify-v21-7.ts",
+    "verify:v22": "tsx scripts/verify-v22.ts",
     "repair:payment-statuses": "tsx scripts/recompute-payment-statuses.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.879.0",
+    "@aws-sdk/s3-request-presigner": "3.879.0",
     "@prisma/client": "6.19.3",
     "bcryptjs": "3.0.2",
     "jose": "6.1.0",

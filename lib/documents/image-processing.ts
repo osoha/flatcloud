@@ -1,0 +1,2 @@
+import sharp from "sharp";export const IMAGE_PREVIEW_MAX=1920,IMAGE_THUMBNAIL_MAX=480;
+export async function createImageVariants(bytes:Uint8Array){const preview=await sharp(bytes).rotate().resize({width:IMAGE_PREVIEW_MAX,height:IMAGE_PREVIEW_MAX,fit:"inside",withoutEnlargement:true}).webp({quality:82}).toBuffer();const thumbnail=await sharp(bytes).rotate().resize({width:IMAGE_THUMBNAIL_MAX,height:IMAGE_THUMBNAIL_MAX,fit:"inside",withoutEnlargement:true}).webp({quality:76}).toBuffer();return {preview,thumbnail}}

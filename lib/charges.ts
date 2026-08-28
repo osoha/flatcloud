@@ -1,9 +1,4 @@
-const PRAGUE_DATE = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Europe/Prague",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
+import { businessDateKey, businessTodayKey } from "./calendar";
 
 type AllocationLike = { amountCents: number };
 type OffsetLike = { amountCents: number };
@@ -28,11 +23,11 @@ export function outstandingCents(charge: Pick<ChargeLike, "amountCents" | "alloc
 }
 
 export function dateKey(value: Date) {
-  return value.toISOString().slice(0, 10);
+  return businessDateKey(value);
 }
 
 export function todayKey(now = new Date()) {
-  return PRAGUE_DATE.format(now);
+  return businessTodayKey(now);
 }
 
 export function isPastDue(dueDate: Date, now = new Date()) {

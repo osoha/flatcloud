@@ -203,33 +203,92 @@ enum LeaseCreditType {
   MANUAL_ADJUSTMENT
 }
 
+enum UnitOperationalStatusEventSource {
+  SYSTEM_BASELINE
+  USER_CHANGE
+  MANUAL_BASELINE
+}
+
+enum ReportingGroupPermission {
+  VIEW
+  EDIT
+  ADMIN
+}
+
+enum QuarterSnapshotSource {
+  CALCULATED
+  MANUAL_BASELINE
+}
+
+enum QuarterlyReportStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+}
+
+enum PropertyReportingStatus {
+  STABILIZED
+  RENOVATION
+  DEVELOPMENT
+  EXIT
+}
+
+enum DocumentCategory {
+  CONTRACT
+  CONTRACT_ADDENDUM
+  HANDOVER_PROTOCOL
+  INSPECTION_PROTOCOL
+  PHOTO
+  TECHNICAL_DOCUMENT
+  INVOICE
+  OFFER
+  ENERGY_CERTIFICATE
+  INSURANCE
+  LEGAL
+  OTHER
+}
+
+enum DocumentPhotoStage {
+  BEFORE
+  AFTER
+  GENERAL
+}
+
 model User {
-  id                          String              @id @default(cuid())
-  email                       String              @unique
-  name                        String
-  passwordHash                String
-  role                        UserRole            @default(OWNER_VIEWER)
-  active                      Boolean             @default(true)
-  allProperties               Boolean             @default(false)
-  phone                       String?
-  title                       String?
-  avatarData                  Bytes?
-  avatarMimeType              String?
-  memberships                 UserProperty[]
-  unitMemberships             UserUnit[]
-  invitationsSent             UserInvitation[]    @relation("InvitationSender")
-  managedProperties           Property[]          @relation("PropertyManager")
-  auditLogs                   AuditLog[]
-  tasksCreated                Task[]               @relation("TaskCreator")
-  tasksAssigned               Task[]               @relation("TaskAssignee")
-  taskEntries                 TaskEntry[]
-  complianceRecordsCreated    ComplianceRecord[]   @relation("ComplianceRecordCreator")
-  securityDepositTermsCreated SecurityDepositTerm[] @relation("SecurityDepositTermCreator")
-  securityDepositMovementsCreated SecurityDepositMovement[] @relation("SecurityDepositMovementCreator")
-  leaseCreditsCreated         LeaseCredit[]        @relation("LeaseCreditCreator")
-  leaseCreditApplicationsCreated LeaseCreditApplication[] @relation("LeaseCreditApplicationCreator")
-  createdAt                   DateTime            @default(now())
-  updatedAt                   DateTime            @updatedAt
+  id                              String                       @id @default(cuid())
+  email                           String                       @unique
+  name                            String
+  passwordHash                    String
+  role                            UserRole                     @default(OWNER_VIEWER)
+  active                          Boolean                      @default(true)
+  allProperties                   Boolean                      @default(false)
+  phone                           String?
+  title                           String?
+  avatarData                      Bytes?
+  avatarMimeType                  String?
+  memberships                     UserProperty[]
+  unitMemberships                 UserUnit[]
+  invitationsSent                 UserInvitation[]             @relation("InvitationSender")
+  managedProperties               Property[]                   @relation("PropertyManager")
+  auditLogs                       AuditLog[]
+  tasksCreated                    Task[]                       @relation("TaskCreator")
+  tasksAssigned                   Task[]                       @relation("TaskAssignee")
+  taskEntries                     TaskEntry[]
+  complianceRecordsCreated        ComplianceRecord[]           @relation("ComplianceRecordCreator")
+  securityDepositTermsCreated     SecurityDepositTerm[]        @relation("SecurityDepositTermCreator")
+  securityDepositMovementsCreated SecurityDepositMovement[]    @relation("SecurityDepositMovementCreator")
+  leaseCreditsCreated             LeaseCredit[]                @relation("LeaseCreditCreator")
+  leaseCreditApplicationsCreated  LeaseCreditApplication[]     @relation("LeaseCreditApplicationCreator")
+  operationalStatusEventsCreated  UnitOperationalStatusEvent[]
+  reportingGroupMemberships       ReportingGroupMember[]
+  quarterSnapshotsCreated         QuarterSnapshot[]
+  quarterlyReportsCreated         QuarterlyReport[]            @relation("QuarterlyReportCreator")
+  quarterlyReportsReviewed        QuarterlyReport[]            @relation("QuarterlyReportReviewer")
+  quarterlyReportsPublished       QuarterlyReport[]            @relation("QuarterlyReportPublisher")
+  fileAssetsUploaded              FileAsset[]                  @relation("FileAssetUploader")
+  documentsCreated                Document[]                   @relation("DocumentCreator")
+  createdAt                       DateTime                     @default(now())
+  updatedAt                       DateTime                     @updatedAt
 }
 
 model Owner {
@@ -253,75 +312,78 @@ model Owner {
 }
 
 model OwnerBankAccount {
-  id             String          @id @default(cuid())
-  ownerId        String
-  owner          Owner           @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  label          String?
-  accountNumber  String?
-  bankCode       String?
-  iban           String?
-  currency                   String          @default("CZK")
-  active                     Boolean         @default(true)
-  lastNotificationAt         DateTime?
-  notificationVerifiedAt     DateTime?
-  unitOwnerships             UnitOwnership[]
-  leases         Lease[]
-  propertyLinks  PropertyPaymentAccount[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                     String                   @id @default(cuid())
+  ownerId                String
+  owner                  Owner                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  label                  String?
+  accountNumber          String?
+  bankCode               String?
+  iban                   String?
+  currency               String                   @default("CZK")
+  active                 Boolean                  @default(true)
+  lastNotificationAt     DateTime?
+  notificationVerifiedAt DateTime?
+  unitOwnerships         UnitOwnership[]
+  leases                 Lease[]
+  propertyLinks          PropertyPaymentAccount[]
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
 
   @@index([ownerId, active])
 }
 
 model Property {
-  id                   String                @id @default(cuid())
-  name                 String
-  address              String
-  city                 String
-  postalCode           String?
-  note                 String?
-  technicalData        Json?
-  active               Boolean               @default(true)
-  ownerId              String
-  owner                Owner                 @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  ownershipMode        PropertyOwnershipMode @default(WHOLE_OBJECT)
-  communicationOwnerId String?
-  communicationOwner   Owner?                @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
-  managerId            String?
-  manager              User?                 @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
-  ownerships           PropertyOwnership[]
-  units                Unit[]
-  bankAccounts         BankAccount[]
-  matchingRules        BankMatchingRule[]
-  memberships          UserProperty[]
-  invitations          UserInvitation[]
-  inboxPayments        InboxPayment[]
-  paymentAccounts      PropertyPaymentAccount[]
-  tasks                Task[]
-  contacts             PropertyContact[]
-  complianceItems      ComplianceItem[]
-  auditLogs            AuditLog[]
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
+  id                       String                    @id @default(cuid())
+  name                     String
+  address                  String
+  city                     String
+  postalCode               String?
+  note                     String?
+  technicalData            Json?
+  active                   Boolean                   @default(true)
+  ownerId                  String
+  owner                    Owner                     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownershipMode            PropertyOwnershipMode     @default(WHOLE_OBJECT)
+  communicationOwnerId     String?
+  communicationOwner       Owner?                    @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  managerId                String?
+  manager                  User?                     @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
+  ownerships               PropertyOwnership[]
+  units                    Unit[]
+  bankAccounts             BankAccount[]
+  matchingRules            BankMatchingRule[]
+  memberships              UserProperty[]
+  invitations              UserInvitation[]
+  inboxPayments            InboxPayment[]
+  paymentAccounts          PropertyPaymentAccount[]
+  tasks                    Task[]
+  contacts                 PropertyContact[]
+  complianceItems          ComplianceItem[]
+  auditLogs                AuditLog[]
+  reportingGroups          ReportingGroupProperty[]
+  quarterSnapshots         QuarterSnapshot[]
+  quarterlyPropertyReports QuarterlyPropertyReport[]
+  documents                Document[]
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
 
   @@index([ownerId])
   @@index([communicationOwnerId])
   @@index([managerId])
 }
 
-
 model PropertyPaymentAccount {
-  id                 String           @id @default(cuid())
-  propertyId         String
-  property           Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  ownerBankAccountId String
-  ownerBankAccount   OwnerBankAccount @relation(fields: [ownerBankAccountId], references: [id], onDelete: Cascade)
+  id                     String           @id @default(cuid())
+  propertyId             String
+  property               Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerBankAccountId     String
+  ownerBankAccount       OwnerBankAccount @relation(fields: [ownerBankAccountId], references: [id], onDelete: Cascade)
   primary                Boolean          @default(false)
   active                 Boolean          @default(true)
   notificationVerifiedAt DateTime?
   lastNotificationAt     DateTime?
   createdAt              DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
+  updatedAt              DateTime         @updatedAt
 
   @@unique([propertyId, ownerBankAccountId])
   @@index([ownerBankAccountId, active])
@@ -390,71 +452,88 @@ model UserInvitation {
 }
 
 model AppSetting {
-  id                         String    @id @default("global")
-  smtpHost                   String?
-  smtpPort                   Int       @default(587)
-  smtpSecure                 Boolean   @default(false)
-  smtpUser                   String?
-  smtpPasswordEncrypted      String?
-  smtpFromName               String?
-  smtpFromEmail              String?
-  smtpReplyTo                String?
-  remindersEnabled           Boolean   @default(false)
-  reminderSendHour           Int       @default(8)
-  paymentNoticeDaysBefore    Int       @default(5)
-  firstReminderDaysAfter     Int       @default(3)
-  secondReminderDaysAfter    Int       @default(10)
-  managerAlertDaysAfter      Int       @default(20)
-  escalationDaysAfter        Int       @default(30)
-  paymentNoticeSubject       String    @default("Platební údaje k nájmu – {{property}} / {{unit}}")
-  paymentNoticeBody          String    @default("Dobrý den,\n\nzasíláme platební údaje k předpisu za období {{period}} se splatností {{dueDate}}.\n\nČástka: {{amount}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nDěkujeme za včasnou úhradu.")
-  firstReminderSubject       String    @default("Upozornění na neuhrazený předpis – {{property}} / {{unit}}")
-  firstReminderBody          String    @default("Dobrý den,\n\nk dnešnímu dni neevidujeme úplnou úhradu předpisu po splatnosti. Je možné, že platba ještě nebyla spárována.\n\nAktuální dluh: {{outstanding}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nProsíme o kontrolu platby nebo kontaktování správce.")
-  secondReminderSubject      String    @default("Druhá upomínka – {{property}} / {{unit}}")
-  secondReminderBody         String    @default("Dobrý den,\n\nani po předchozím upozornění neevidujeme úplnou úhradu závazků po splatnosti.\n\nAktuální dluh: {{outstanding}}\nNejstarší splatnost: {{oldestDueDate}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nProsíme o neprodlenou úhradu nebo kontaktování správce.")
-  lastReminderCronStartedAt  DateTime?
-  lastReminderCronFinishedAt DateTime?
-  lastReminderCronSummary    String?
-  inboundMailEnabled          Boolean   @default(false)
-  inboundMailHost             String?
-  inboundMailPort             Int       @default(993)
-  inboundMailSecure           Boolean   @default(true)
-  inboundMailUser             String?
-  inboundMailPasswordEncrypted String?
-  inboundMailMailbox          String    @default("INBOX")
-  inboundMailLastUid          Int       @default(0)
-  inboundMailUidValidity      String?
-  inboundMailLastCheckedAt    DateTime?
-  inboundMailLastSummary      String?
+  id                                 String    @id @default("global")
+  smtpHost                           String?
+  smtpPort                           Int       @default(587)
+  smtpSecure                         Boolean   @default(false)
+  smtpUser                           String?
+  smtpPasswordEncrypted              String?
+  smtpFromName                       String?
+  smtpFromEmail                      String?
+  smtpReplyTo                        String?
+  remindersEnabled                   Boolean   @default(false)
+  reminderSendHour                   Int       @default(8)
+  paymentNoticeDaysBefore            Int       @default(5)
+  firstReminderDaysAfter             Int       @default(3)
+  secondReminderDaysAfter            Int       @default(10)
+  managerAlertDaysAfter              Int       @default(20)
+  escalationDaysAfter                Int       @default(30)
+  paymentNoticeSubject               String    @default("Platební údaje k nájmu – {{property}} / {{unit}}")
+  paymentNoticeBody                  String    @default("Dobrý den,\n\nzasíláme platební údaje k předpisu za období {{period}} se splatností {{dueDate}}.\n\nČástka: {{amount}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nDěkujeme za včasnou úhradu.")
+  firstReminderSubject               String    @default("Upozornění na neuhrazený předpis – {{property}} / {{unit}}")
+  firstReminderBody                  String    @default("Dobrý den,\n\nk dnešnímu dni neevidujeme úplnou úhradu předpisu po splatnosti. Je možné, že platba ještě nebyla spárována.\n\nAktuální dluh: {{outstanding}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nProsíme o kontrolu platby nebo kontaktování správce.")
+  secondReminderSubject              String    @default("Druhá upomínka – {{property}} / {{unit}}")
+  secondReminderBody                 String    @default("Dobrý den,\n\nani po předchozím upozornění neevidujeme úplnou úhradu závazků po splatnosti.\n\nAktuální dluh: {{outstanding}}\nNejstarší splatnost: {{oldestDueDate}}\nČíslo účtu / IBAN: {{iban}}\nVariabilní symbol: {{variableSymbol}}\n\nProsíme o neprodlenou úhradu nebo kontaktování správce.")
+  lastReminderCronStartedAt          DateTime?
+  lastReminderCronFinishedAt         DateTime?
+  lastReminderCronSummary            String?
+  inboundMailEnabled                 Boolean   @default(false)
+  inboundMailHost                    String?
+  inboundMailPort                    Int       @default(993)
+  inboundMailSecure                  Boolean   @default(true)
+  inboundMailUser                    String?
+  inboundMailPasswordEncrypted       String?
+  inboundMailMailbox                 String    @default("INBOX")
+  inboundMailLastUid                 Int       @default(0)
+  inboundMailUidValidity             String?
+  inboundMailLastCheckedAt           DateTime?
+  inboundMailLastSummary             String?
   inboundMailResolvedRetentionDays   Int       @default(30)
   inboundMailUnresolvedRetentionDays Int       @default(90)
-  inboundMailLastCleanupAt    DateTime?
-  inboundMailLastCleanupSummary String?
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  inboundMailLastCleanupAt           DateTime?
+  inboundMailLastCleanupSummary      String?
+  createdAt                          DateTime  @default(now())
+  updatedAt                          DateTime  @updatedAt
 }
 
 model Unit {
-  id           String          @id @default(cuid())
-  label        String
-  floor        String?
-  type         UnitType        @default(APARTMENT)
-  status       UnitStatus      @default(VACANT)
-  operationalStatus UnitOperationalStatus @default(STANDARD)
-  areaM2       Float?
-  note         String?
-  propertyId   String
-  property     Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  ownerships   UnitOwnership[]
-  userAccesses UserUnit[]
-  leases       Lease[]
-  meters       Meter[]
-  tasks        Task[]
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  id                      String                       @id @default(cuid())
+  label                   String
+  floor                   String?
+  type                    UnitType                     @default(APARTMENT)
+  status                  UnitStatus                   @default(VACANT)
+  operationalStatus       UnitOperationalStatus        @default(STANDARD)
+  areaM2                  Float?
+  note                    String?
+  propertyId              String
+  property                Property                     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  ownerships              UnitOwnership[]
+  userAccesses            UserUnit[]
+  leases                  Lease[]
+  meters                  Meter[]
+  tasks                   Task[]
+  operationalStatusEvents UnitOperationalStatusEvent[]
+  documents               Document[]
+  createdAt               DateTime                     @default(now())
+  updatedAt               DateTime                     @updatedAt
 
   @@unique([propertyId, label])
   @@index([propertyId])
+}
+
+model UnitOperationalStatusEvent {
+  id          String                           @id @default(cuid())
+  unitId      String
+  unit        Unit                             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  status      UnitOperationalStatus
+  effectiveAt DateTime
+  source      UnitOperationalStatusEventSource
+  note        String?
+  createdById String?
+  createdBy   User?                            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime                         @default(now())
+
+  @@index([unitId, effectiveAt])
 }
 
 model UnitOwnership {
@@ -498,52 +577,53 @@ model Tenant {
 }
 
 model Lease {
-  id                    String             @id @default(cuid())
-  unitId                String
-  tenantId              String
-  unit                  Unit               @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  tenant                Tenant             @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  contractNumber        String?
-  startDate             DateTime
-  endDate               DateTime?
-  terminatedOn          DateTime?
-  terminationReason     String?
-  cancelledAt           DateTime?
-  cancellationReason    String?
-  dueDay                Int                @default(5)
-  variableSymbol        String
-  currency              String             @default("CZK")
-  rentTiming            RentTiming         @default(ADVANCE)
-  rentCents             Int
-  servicesCents         Int
-  depositCents          Int                @default(0)
-  note                  String?
-  status                LeaseStatus        @default(ACTIVE)
-  paymentItems          LeasePaymentItem[]
-  charges               Charge[]
-  matchingRules         BankMatchingRule[] @relation("RuleTargetLease")
-  suggestedTransactions BankTransaction[]  @relation("SuggestedLease")
-  occupants             Occupant[]
-  meterReadings         MeterReading[]
-  notifications         RentNotification[]
-  tasks                 Task[]
-  remindersPausedUntil  DateTime?
-  reminderPauseReason   String?
-  promisedPaymentDate   DateTime?
-  promisedAmountCents   Int?
-  collectionNote        String?
-  ownerBankAccountId    String?
-  ownerBankAccount      OwnerBankAccount?  @relation(fields: [ownerBankAccountId], references: [id], onDelete: SetNull)
-  tenantBankAccount     String?
-  autoChargesEnabled    Boolean            @default(true)
-  indexationEnabled     Boolean            @default(false)
-  indexationPercentBps  Int?
-  nextIndexationAt      DateTime?
-  securityDepositTerms  SecurityDepositTerm[]
+  id                       String                    @id @default(cuid())
+  unitId                   String
+  tenantId                 String
+  unit                     Unit                      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenant                   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  contractNumber           String?
+  startDate                DateTime
+  endDate                  DateTime?
+  terminatedOn             DateTime?
+  terminationReason        String?
+  cancelledAt              DateTime?
+  cancellationReason       String?
+  dueDay                   Int                       @default(5)
+  variableSymbol           String
+  currency                 String                    @default("CZK")
+  rentTiming               RentTiming                @default(ADVANCE)
+  rentCents                Int
+  servicesCents            Int
+  depositCents             Int                       @default(0)
+  note                     String?
+  status                   LeaseStatus               @default(ACTIVE)
+  paymentItems             LeasePaymentItem[]
+  charges                  Charge[]
+  matchingRules            BankMatchingRule[]        @relation("RuleTargetLease")
+  suggestedTransactions    BankTransaction[]         @relation("SuggestedLease")
+  occupants                Occupant[]
+  meterReadings            MeterReading[]
+  notifications            RentNotification[]
+  tasks                    Task[]
+  remindersPausedUntil     DateTime?
+  reminderPauseReason      String?
+  promisedPaymentDate      DateTime?
+  promisedAmountCents      Int?
+  collectionNote           String?
+  ownerBankAccountId       String?
+  ownerBankAccount         OwnerBankAccount?         @relation(fields: [ownerBankAccountId], references: [id], onDelete: SetNull)
+  tenantBankAccount        String?
+  autoChargesEnabled       Boolean                   @default(true)
+  indexationEnabled        Boolean                   @default(false)
+  indexationPercentBps     Int?
+  nextIndexationAt         DateTime?
+  securityDepositTerms     SecurityDepositTerm[]
   securityDepositMovements SecurityDepositMovement[]
-  credits               LeaseCredit[]
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  credits                  LeaseCredit[]
+  documents                Document[]
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
 
   @@unique([unitId, variableSymbol])
   @@unique([ownerBankAccountId, variableSymbol])
@@ -619,22 +699,22 @@ model LeasePaymentItem {
 }
 
 model Charge {
-  id            String              @id @default(cuid())
-  leaseId       String
-  lease         Lease               @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  period        String
-  dueDate       DateTime
-  amountCents   Int
-  note          String?
-  active        Boolean             @default(true)
-  manualOverride Boolean            @default(false)
-  items         ChargeItem[]
-  allocations   PaymentAllocation[]
+  id                     String                    @id @default(cuid())
+  leaseId                String
+  lease                  Lease                     @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  period                 String
+  dueDate                DateTime
+  amountCents            Int
+  note                   String?
+  active                 Boolean                   @default(true)
+  manualOverride         Boolean                   @default(false)
+  items                  ChargeItem[]
+  allocations            PaymentAllocation[]
   securityDepositOffsets SecurityDepositMovement[] @relation("SecurityDepositOffsetCharge")
-  creditApplications LeaseCreditApplication[]
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  notifications RentNotification[]
+  creditApplications     LeaseCreditApplication[]
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  notifications          RentNotification[]
 
   @@unique([leaseId, period])
   @@index([leaseId, dueDate])
@@ -653,17 +733,17 @@ model ChargeItem {
 }
 
 model BankAccount {
-  id                String            @id @default(cuid())
+  id                String             @id @default(cuid())
   propertyId        String
-  property          Property          @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   ownerId           String?
-  owner             Owner?            @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  owner             Owner?             @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   provider          String
   bankName          String
   accountName       String?
   iban              String?
   ibanMasked        String
-  currency          String            @default("CZK")
+  currency          String             @default("CZK")
   externalAccountId String
   transactions      BankTransaction[]
   matchingRules     BankMatchingRule[]
@@ -700,29 +780,29 @@ model BankMatchingRule {
 }
 
 model BankTransaction {
-  id               String              @id @default(cuid())
-  bankAccountId    String
-  bankAccount      BankAccount         @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
-  externalId       String
-  bookedAt         DateTime
-  amountCents      Int
-  currency         String              @default("CZK")
-  counterpartyName String?
-  counterpartyIban String?
-  variableSymbol   String?
-  message          String?
-  status           PaymentStatus       @default(UNMATCHED)
-  matchedRuleId    String?
-  matchedRule      BankMatchingRule?   @relation("MatchedRule", fields: [matchedRuleId], references: [id], onDelete: SetNull)
-  suggestedLeaseId String?
-  suggestedLease   Lease?              @relation("SuggestedLease", fields: [suggestedLeaseId], references: [id], onDelete: SetNull)
-  matchNote        String?
-  recipientAccount String?
-  source            String              @default("manual")
-  allocations      PaymentAllocation[]
+  id                      String                    @id @default(cuid())
+  bankAccountId           String
+  bankAccount             BankAccount               @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  externalId              String
+  bookedAt                DateTime
+  amountCents             Int
+  currency                String                    @default("CZK")
+  counterpartyName        String?
+  counterpartyIban        String?
+  variableSymbol          String?
+  message                 String?
+  status                  PaymentStatus             @default(UNMATCHED)
+  matchedRuleId           String?
+  matchedRule             BankMatchingRule?         @relation("MatchedRule", fields: [matchedRuleId], references: [id], onDelete: SetNull)
+  suggestedLeaseId        String?
+  suggestedLease          Lease?                    @relation("SuggestedLease", fields: [suggestedLeaseId], references: [id], onDelete: SetNull)
+  matchNote               String?
+  recipientAccount        String?
+  source                  String                    @default("manual")
+  allocations             PaymentAllocation[]
   securityDepositReceipts SecurityDepositMovement[]
-  inboxPayment      InboxPayment?
-  createdAt        DateTime            @default(now())
+  inboxPayment            InboxPayment?
+  createdAt               DateTime                  @default(now())
 
   @@unique([bankAccountId, externalId])
   @@index([bankAccountId, bookedAt])
@@ -731,35 +811,35 @@ model BankTransaction {
 }
 
 model SecurityDepositTerm {
-  id                 String   @id @default(cuid())
-  leaseId            String
-  lease              Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  agreedAmountCents  Int
-  annualRateBps      Int      @default(0)
-  effectiveFrom      DateTime
-  note               String?
-  createdById        String?
-  createdBy          User?    @relation("SecurityDepositTermCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt          DateTime @default(now())
+  id                String   @id @default(cuid())
+  leaseId           String
+  lease             Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  agreedAmountCents Int
+  annualRateBps     Int      @default(0)
+  effectiveFrom     DateTime
+  note              String?
+  createdById       String?
+  createdBy         User?    @relation("SecurityDepositTermCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
 
   @@index([leaseId, effectiveFrom])
 }
 
 model SecurityDepositMovement {
-  id                 String   @id @default(cuid())
-  leaseId            String
-  lease              Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  type               SecurityDepositMovementType
-  amountCents        Int
-  effectiveAt        DateTime
-  note               String?
-  bankTransactionId  String?
-  bankTransaction    BankTransaction? @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
-  offsetChargeId     String?
-  offsetCharge       Charge? @relation("SecurityDepositOffsetCharge", fields: [offsetChargeId], references: [id], onDelete: SetNull)
-  createdById        String?
-  createdBy          User?    @relation("SecurityDepositMovementCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt          DateTime @default(now())
+  id                String                      @id @default(cuid())
+  leaseId           String
+  lease             Lease                       @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  type              SecurityDepositMovementType
+  amountCents       Int
+  effectiveAt       DateTime
+  note              String?
+  bankTransactionId String?
+  bankTransaction   BankTransaction?            @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
+  offsetChargeId    String?
+  offsetCharge      Charge?                     @relation("SecurityDepositOffsetCharge", fields: [offsetChargeId], references: [id], onDelete: SetNull)
+  createdById       String?
+  createdBy         User?                       @relation("SecurityDepositMovementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime                    @default(now())
 
   @@index([leaseId, effectiveAt])
   @@index([bankTransactionId])
@@ -767,72 +847,72 @@ model SecurityDepositMovement {
 }
 
 model LeaseCredit {
-  id                String   @id @default(cuid())
-  leaseId           String
-  lease             Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
-  type              LeaseCreditType
-  amountCents       Int
-  effectiveAt       DateTime
-  description       String
-  note              String?
-  createdById       String?
-  createdBy         User?    @relation("LeaseCreditCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt         DateTime @default(now())
-  applications      LeaseCreditApplication[]
+  id           String                   @id @default(cuid())
+  leaseId      String
+  lease        Lease                    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  type         LeaseCreditType
+  amountCents  Int
+  effectiveAt  DateTime
+  description  String
+  note         String?
+  createdById  String?
+  createdBy    User?                    @relation("LeaseCreditCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt    DateTime                 @default(now())
+  applications LeaseCreditApplication[]
 
   @@index([leaseId, effectiveAt])
 }
 
 model LeaseCreditApplication {
-  id              String   @id @default(cuid())
-  creditId        String
-  credit          LeaseCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
-  chargeId        String
-  charge          Charge  @relation(fields: [chargeId], references: [id], onDelete: Cascade)
-  amountCents     Int
-  createdById     String?
-  createdBy       User?   @relation("LeaseCreditApplicationCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  createdAt       DateTime @default(now())
+  id          String      @id @default(cuid())
+  creditId    String
+  credit      LeaseCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  chargeId    String
+  charge      Charge      @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  amountCents Int
+  effectiveAt DateTime
+  createdById String?
+  createdBy   User?       @relation("LeaseCreditApplicationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now())
 
   @@index([creditId])
   @@index([chargeId])
 }
 
-
 model InboxPayment {
-  id                  String             @id @default(cuid())
-  source              String             @default("email")
-  bank                String             @default("UNKNOWN")
-  messageId           String?            @unique
-  imapUid             Int?
-  imapUidValidity     String?
-  imapMailboxIdentity String?
-  subject             String?
-  sender              String?
-  returnPath          String?
+  id                    String             @id @default(cuid())
+  source                String             @default("email")
+  bank                  String             @default("UNKNOWN")
+  messageId             String?            @unique
+  imapUid               Int?
+  imapUidValidity       String?
+  imapMailboxIdentity   String?
+  subject               String?
+  sender                String?
+  returnPath            String?
   authenticationResults String?
-  sourceTrusted       Boolean            @default(false)
-  receivedAt          DateTime           @default(now())
-  bookedAt            DateTime?
-  amountCents         Int?
-  currency            String             @default("CZK")
-  recipientAccount    String?
-  counterpartyName    String?
-  counterpartyAccount String?
-  variableSymbol      String?
-  specificSymbol      String?
-  constantSymbol      String?
-  message             String?
-  rawExcerpt          String?
-  status              InboxPaymentStatus @default(RECEIVED)
-  parseNote           String?
-  propertyId          String?
-  property            Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
-  transactionId       String?             @unique
-  transaction         BankTransaction?    @relation(fields: [transactionId], references: [id], onDelete: SetNull)
-  mailboxDeletedAt     DateTime?
-  createdAt           DateTime            @default(now())
-  updatedAt           DateTime            @updatedAt
+  sourceTrusted         Boolean            @default(false)
+  receivedAt            DateTime           @default(now())
+  bookedAt              DateTime?
+  amountCents           Int?
+  currency              String             @default("CZK")
+  recipientAccount      String?
+  counterpartyName      String?
+  counterpartyAccount   String?
+  variableSymbol        String?
+  specificSymbol        String?
+  constantSymbol        String?
+  message               String?
+  rawExcerpt            String?
+  status                InboxPaymentStatus @default(RECEIVED)
+  parseNote             String?
+  propertyId            String?
+  property              Property?          @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  transactionId         String?            @unique
+  transaction           BankTransaction?   @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  mailboxDeletedAt      DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
 
   @@index([status, receivedAt])
   @@index([propertyId, status])
@@ -897,6 +977,7 @@ model Task {
   closedAt    DateTime?
   dedupeKey   String?      @unique
   entries     TaskEntry[]
+  documents   Document[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -906,37 +987,38 @@ model Task {
 }
 
 model TaskEntry {
-  id        String        @id @default(cuid())
-  taskId    String
-  task      Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  authorId  String?
-  author    User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  kind      TaskEntryKind @default(COMMENT)
-  body                  String
-  promisedPaymentDate   DateTime?
-  promisedAmountCents   Int?
-  createdAt              DateTime      @default(now())
+  id                  String        @id @default(cuid())
+  taskId              String
+  task                Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorId            String?
+  author              User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  kind                TaskEntryKind @default(COMMENT)
+  body                String
+  promisedPaymentDate DateTime?
+  promisedAmountCents Int?
+  createdAt           DateTime      @default(now())
+  documents           Document[]
 
   @@index([taskId, createdAt])
   @@index([authorId, createdAt])
 }
 
 model PropertyContact {
-  id        String          @id @default(cuid())
-  propertyId String
-  property  Property        @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  category  ContactCategory @default(OTHER)
-  name      String
-  company   String?
-  phone     String?
-  email     String?
-  note      String?
-  emergency Boolean         @default(false)
-  active    Boolean         @default(true)
-  sortOrder Int             @default(100)
+  id              String           @id @default(cuid())
+  propertyId      String
+  property        Property         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  category        ContactCategory  @default(OTHER)
+  name            String
+  company         String?
+  phone           String?
+  email           String?
+  note            String?
+  emergency       Boolean          @default(false)
+  active          Boolean          @default(true)
+  sortOrder       Int              @default(100)
   complianceItems ComplianceItem[]
-  createdAt DateTime        @default(now())
-  updatedAt DateTime        @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   @@index([propertyId, active, sortOrder])
 }
@@ -975,22 +1057,181 @@ model ComplianceRecord {
   createdById      String?
   createdBy        User?            @relation("ComplianceRecordCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt        DateTime         @default(now())
+  documents        Document[]
 
   @@index([complianceItemId, performedAt])
   @@index([createdById, createdAt])
 }
 
+model ReportingGroup {
+  id               String                   @id @default(cuid())
+  name             String
+  description      String?
+  active           Boolean                  @default(true)
+  properties       ReportingGroupProperty[]
+  members          ReportingGroupMember[]
+  quarterlyReports QuarterlyReport[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+}
+
+model ReportingGroupProperty {
+  id               String         @id @default(cuid())
+  reportingGroupId String
+  reportingGroup   ReportingGroup @relation(fields: [reportingGroupId], references: [id], onDelete: Cascade)
+  propertyId       String
+  property         Property       @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  effectiveFrom    DateTime
+  effectiveTo      DateTime?
+  createdAt        DateTime       @default(now())
+
+  @@unique([reportingGroupId, propertyId, effectiveFrom])
+  @@index([reportingGroupId, effectiveFrom, effectiveTo])
+  @@index([propertyId])
+}
+
+model ReportingGroupMember {
+  reportingGroupId String
+  reportingGroup   ReportingGroup           @relation(fields: [reportingGroupId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission       ReportingGroupPermission @default(VIEW)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@id([reportingGroupId, userId])
+  @@index([userId, permission])
+}
+
+model QuarterSnapshot {
+  id                String                    @id @default(cuid())
+  propertyId        String
+  property          Property                  @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  asOfDate          DateTime
+  year              Int
+  quarter           Int
+  revision          Int
+  source            QuarterSnapshotSource
+  schemaVersion     Int
+  calculatorVersion String
+  data              Json
+  quality           Json
+  sourceNote        String?
+  createdById       String?
+  createdBy         User?                     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  propertyReports   QuarterlyPropertyReport[]
+  createdAt         DateTime                  @default(now())
+
+  @@unique([propertyId, asOfDate, revision])
+  @@index([propertyId, year, quarter])
+}
+
+model QuarterlyReport {
+  id               String                    @id @default(cuid())
+  reportingGroupId String
+  reportingGroup   ReportingGroup            @relation(fields: [reportingGroupId], references: [id], onDelete: Restrict)
+  year             Int
+  quarter          Int
+  revision         Int
+  status           QuarterlyReportStatus     @default(DRAFT)
+  asOfDate         DateTime
+  createdById      String
+  createdBy        User                      @relation("QuarterlyReportCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  reviewedById     String?
+  reviewedBy       User?                     @relation("QuarterlyReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  publishedById    String?
+  publishedBy      User?                     @relation("QuarterlyReportPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  publishedAt      DateTime?
+  propertyReports  QuarterlyPropertyReport[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  @@unique([reportingGroupId, year, quarter, revision])
+}
+
+model QuarterlyPropertyReport {
+  id                   String                   @id @default(cuid())
+  quarterlyReportId    String
+  quarterlyReport      QuarterlyReport          @relation(fields: [quarterlyReportId], references: [id], onDelete: Cascade)
+  propertyId           String
+  property             Property                 @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  snapshotId           String
+  snapshot             QuarterSnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  propertyStatus       PropertyReportingStatus?
+  managementCommentary String?
+  technicalSections    Json?
+  valuationRows        Json?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  @@unique([quarterlyReportId, propertyId])
+  @@index([snapshotId])
+}
+
+model FileAsset {
+  id                  String     @id @default(cuid())
+  storageKey          String     @unique
+  previewStorageKey   String?
+  thumbnailStorageKey String?
+  originalName        String
+  mimeType            String
+  sizeBytes           Int
+  sha256              String
+  uploadedById        String
+  uploadedBy          User       @relation("FileAssetUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  documents           Document[]
+  createdAt           DateTime   @default(now())
+  deletedAt           DateTime?
+
+  @@index([sha256])
+}
+
+model Document {
+  id                 String              @id @default(cuid())
+  propertyId         String
+  property           Property            @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  fileAssetId        String
+  fileAsset          FileAsset           @relation(fields: [fileAssetId], references: [id], onDelete: Restrict)
+  category           DocumentCategory
+  photoStage         DocumentPhotoStage?
+  title              String
+  description        String?
+  documentDate       DateTime?
+  unitId             String?
+  unit               Unit?               @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  leaseId            String?
+  lease              Lease?              @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  taskId             String?
+  task               Task?               @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskEntryId        String?
+  taskEntry          TaskEntry?          @relation(fields: [taskEntryId], references: [id], onDelete: SetNull)
+  complianceRecordId String?
+  complianceRecord   ComplianceRecord?   @relation(fields: [complianceRecordId], references: [id], onDelete: SetNull)
+  createdById        String
+  createdBy          User                @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt          DateTime            @default(now())
+  deletedAt          DateTime?
+
+  @@index([propertyId, deletedAt])
+  @@index([fileAssetId])
+  @@index([unitId])
+  @@index([leaseId])
+  @@index([taskId])
+  @@index([taskEntryId])
+  @@index([complianceRecordId])
+}
+
 model AuditLog {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   propertyId String?
   property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   action     String
   entityType String
   entityId   String?
   details    Json?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
 
   @@index([userId, createdAt])
   @@index([propertyId, createdAt])

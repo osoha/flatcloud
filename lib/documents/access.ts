@@ -1,0 +1,5 @@
+import {Prisma} from "@prisma/client";import {prisma} from "../db";import {hasAllPropertyAccess} from "../auth";
+type User={id:string;role:string;allProperties?:boolean};
+export function documentAccessWhere(user:User):Prisma.DocumentWhereInput{if(hasAllPropertyAccess(user))return {deletedAt:null};const ownUnit={userAccesses:{some:{userId:user.id}}};return {deletedAt:null,OR:[{property:{memberships:{some:{userId:user.id}}}},{unit:ownUnit},{lease:{unit:ownUnit}},{task:{OR:[{unit:ownUnit},{lease:{unit:ownUnit}}]}},{taskEntry:{task:{OR:[{unit:ownUnit},{lease:{unit:ownUnit}}]}}}]}}
+export async function requireDocumentAccess(user:User,id:string){return prisma.document.findFirst({where:{id,...documentAccessWhere(user)},include:{fileAsset:true}})}
+export async function requireDocumentEditAccess(user:User,id:string){if(hasAllPropertyAccess(user))return requireDocumentAccess(user,id);return prisma.document.findFirst({where:{id,deletedAt:null,OR:[{property:{memberships:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}}},{unit:{userAccesses:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}}}]},include:{fileAsset:true}})}

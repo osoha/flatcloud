@@ -1,7 +1,8 @@
 import { prisma } from "./db";
 import { leaseAccessWhere } from "./access";
 import { calculateSecurityDepositSnapshot } from "./security-deposit-core";
-import { effectiveLeaseEnd, pragueDateKey } from "./lease-lifecycle-core";
+import { effectiveLeaseEnd } from "./lease-lifecycle-core";
+import { businessDateEndInstant, businessDateKey } from "./calendar";
 
 export const securityDepositLeaseInclude = {
   tenant: true,
@@ -15,12 +16,12 @@ export async function findVisibleSecurityDepositLeases(user: { id: string; role:
 }
 
 export function securityDepositDateAsOf(asOf: Date) {
-  return new Date(`${pragueDateKey(asOf)}T23:59:59.999Z`);
+  return businessDateEndInstant(businessDateKey(asOf));
 }
 
 export function securityDepositSnapshot(lease: { depositCents: number; endDate: Date | null; terminatedOn?: Date | null; securityDepositTerms: Parameters<typeof calculateSecurityDepositSnapshot>[0]["terms"]; securityDepositMovements: Parameters<typeof calculateSecurityDepositSnapshot>[0]["movements"] }, asOf = new Date()) {
   const dateAsOf = securityDepositDateAsOf(asOf);
   const effectiveEnd = effectiveLeaseEnd(lease);
-  const leaseEnded = Boolean(effectiveEnd && pragueDateKey(asOf) > pragueDateKey(effectiveEnd));
+  const leaseEnded = Boolean(effectiveEnd && businessDateKey(asOf) > businessDateKey(effectiveEnd));
   return calculateSecurityDepositSnapshot({ depositCents: lease.depositCents, terms: lease.securityDepositTerms, movements: lease.securityDepositMovements, asOf: dateAsOf, leaseEnded });
 }

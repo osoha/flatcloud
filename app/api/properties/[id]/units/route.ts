@@ -24,16 +24,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         update: { active: true },
         create: { propertyId: id, ownerBankAccountId, active: true },
       });
+      const operationalStatus = (text(form, "operationalStatus") || "STANDARD") as UnitOperationalStatus;
       return tx.unit.create({
       data: {
         propertyId: id,
         label: text(form, "label", true)!,
         floor: text(form, "floor"),
         type: (text(form, "type") || "APARTMENT") as UnitType,
-        operationalStatus: (text(form, "operationalStatus") || "STANDARD") as UnitOperationalStatus,
+        operationalStatus,
         areaM2: floatValue(form, "areaM2"),
         note: text(form, "note"),
         ownerships: { create: { ownerId, ownerBankAccountId, shareBasisPoints: 10000 } },
+        operationalStatusEvents: { create: { status: operationalStatus, source: "USER_CHANGE", createdById: access.user.id, effectiveAt: new Date() } },
       },
       });
     });
