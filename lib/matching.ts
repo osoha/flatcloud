@@ -4,6 +4,23 @@ import { bankAccountMatches, normalizeBankAccount } from "./inbound-bank/bank-em
 import { resolveCollectionTasksIfSettled } from "./tasks";
 import { outstandingCents } from "./charges";
 
+type TransactionStatusInput = {
+  amountCents: number;
+  suggestedLeaseId?: string | null;
+  allocations: Array<{ amountCents: number; charge: { amountCents: number; allocations: Array<{ amountCents: number }>; securityDepositOffsets?: Array<{ amountCents: number }>; creditApplications?: Array<{ amountCents: number }> } }>;
+  securityDepositReceipts: Array<{ type: string; amountCents: number }>;
+};
+
+export function expectedTransactionStatus(transaction: TransactionStatusInput) {
+  const used = transaction.allocations.reduce((sum, row) => sum + row.amountCents, 0)
+    + transaction.securityDepositReceipts.filter((row) => row.type === "RECEIVED").reduce((sum, row) => sum + row.amountCents, 0);
+  if (used > transaction.amountCents) return { status: null, used, invalid: true } as const;
+  if (used === 0) return { status: transaction.suggestedLeaseId ? PaymentStatus.SUGGESTED : PaymentStatus.UNMATCHED, used, invalid: false } as const;
+  if (used < transaction.amountCents) return { status: PaymentStatus.OVERPAYMENT, used, invalid: false } as const;
+  const partial = transaction.allocations.some((row) => outstandingCents(row.charge) > 0);
+  return { status: partial ? PaymentStatus.PARTIAL : PaymentStatus.MATCHED, used, invalid: false } as const;
+}
+
 export function normalizeIban(value?: string | null) {
   return (value || "").replace(/\s+/g, "").toUpperCase();
 }
@@ -80,14 +97,9 @@ export async function recomputeTransactionStatus(transactionId: string) {
   const transaction = await prisma.bankTransaction.findUnique({ where: { id: transactionId }, include: { allocations: { include: { charge: { include: { allocations: true, securityDepositOffsets: true, creditApplications: true } } } }, securityDepositReceipts: true } });
   if (!transaction) return;
   if (transaction.status === PaymentStatus.IGNORED) return;
-  const allocated = transaction.allocations.reduce((sum, row) => sum + row.amountCents, 0) + transaction.securityDepositReceipts.filter((row) => row.type === "RECEIVED").reduce((sum, row) => sum + row.amountCents, 0);
-  if (allocated > transaction.amountCents) return;
-  let status: PaymentStatus = PaymentStatus.UNMATCHED;
-  if (allocated > 0) {
-    const partial = transaction.allocations.some((row) => outstandingCents(row.charge) > 0);
-    status = allocated < transaction.amountCents ? PaymentStatus.OVERPAYMENT : partial ? PaymentStatus.PARTIAL : PaymentStatus.MATCHED;
-  } else if (transaction.suggestedLeaseId) status = PaymentStatus.SUGGESTED;
-  await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status } });
+  const expected = expectedTransactionStatus(transaction);
+  if (expected.invalid || !expected.status) return;
+  await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status: expected.status } });
 }
 
 export async function processTransaction(transactionId: string) {

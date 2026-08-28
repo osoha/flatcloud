@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
-import { validateOwnerBankAccount } from "@/lib/owner-bank-account";
+import { samePhysicalBankAccount, validateOwnerBankAccount } from "@/lib/owner-bank-account";
 import { requirePortfolioManager, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 
@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       iban: text(form, "iban"),
       currency: text(form, "currency") || "CZK",
     });
-    const duplicate = await prisma.ownerBankAccount.findFirst({ where: { ownerId: id, active: true, accountNumber: account.accountNumber, bankCode: account.bankCode, iban: account.iban } });
+    const duplicate = (await prisma.ownerBankAccount.findMany({ where: { ownerId: id, active: true } })).find((existing) => samePhysicalBankAccount(existing, account));
     if (duplicate) throw new Error("Stejný aktivní bankovní účet tohoto vlastníka již existuje.");
     const created = await prisma.ownerBankAccount.create({ data: { ownerId: id, ...account, active: boolValue(form, "active") } });
     await audit(user.id, "OWNER_BANK_ACCOUNT_CREATED", "OwnerBankAccount", created.id, { ownerId: id });

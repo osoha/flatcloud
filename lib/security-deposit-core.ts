@@ -19,6 +19,7 @@ export type DepositMovement = {
   type: SecurityDepositMovementType;
   amountCents: number;
   effectiveAt: Date;
+  createdAt?: Date;
 };
 
 export type SecurityDepositSnapshot = {
@@ -64,11 +65,11 @@ export function calculateSecurityDepositSnapshot(input: {
 }): SecurityDepositSnapshot {
   const asOf = input.asOf || new Date();
   const terms = [...(input.terms || [])].filter((term) => term.effectiveFrom <= asOf).sort((a, b) => a.effectiveFrom.getTime() - b.effectiveFrom.getTime() || (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0));
-  const movements = [...(input.movements || [])].filter((movement) => movement.effectiveAt <= asOf).sort((a, b) => a.effectiveAt.getTime() - b.effectiveAt.getTime());
+  const movements = [...(input.movements || [])].filter((movement) => movement.effectiveAt <= asOf).sort((a, b) => a.effectiveAt.getTime() - b.effectiveAt.getTime() || (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0));
   const agreedAmountCents = terms.at(-1)?.agreedAmountCents ?? input.depositCents;
   const events = [...new Set([...terms.map((term) => term.effectiveFrom.getTime()), ...movements.map((movement) => movement.effectiveAt.getTime()), asOf.getTime()])].sort((a, b) => a - b);
   let principal = 0;
-  let accruedInterestCents = 0;
+  let interestNumerator = BigInt(0);
   let interestPaidCents = 0;
   let interestAdjustmentsCents = 0;
   let termIndex = -1;
@@ -81,18 +82,21 @@ export function calculateSecurityDepositSnapshot(input: {
       termIndex += 1;
       rateBps = terms[termIndex].annualRateBps;
     }
+    let principalDelta = 0;
     while (movementIndex < movements.length && movements[movementIndex].effectiveAt.getTime() === start.getTime()) {
       const movement = movements[movementIndex];
-      if (principalIncrease.has(movement.type)) principal += movement.amountCents;
-      if (principalDecrease.has(movement.type)) principal -= movement.amountCents;
+      if (principalIncrease.has(movement.type)) principalDelta += movement.amountCents;
+      if (principalDecrease.has(movement.type)) principalDelta -= movement.amountCents;
       if (movement.type === "INTEREST_PAID") interestPaidCents += movement.amountCents;
       if (interestIncrease.has(movement.type)) interestAdjustmentsCents += movement.amountCents;
       if (interestDecrease.has(movement.type)) interestAdjustmentsCents -= movement.amountCents;
-      if (principal < 0) throw new Error("Pohyb kauce by vytvořil zápornou drženou jistinu.");
       movementIndex += 1;
     }
-    if (end > start && principal > 0 && rateBps > 0) accruedInterestCents += roundDiv(BigInt(principal) * BigInt(rateBps) * BigInt(daysBetween(start, end)), BigInt(365 * 10000));
+    principal += principalDelta;
+    if (principal < 0) throw new Error("Pohyb kauce by vytvořil zápornou drženou jistinu.");
+    if (end > start && principal > 0 && rateBps > 0) interestNumerator += BigInt(principal) * BigInt(rateBps) * BigInt(daysBetween(start, end));
   }
+  const accruedInterestCents = roundDiv(interestNumerator, BigInt(365 * 10000));
   const receivedCents = movements.filter((movement) => movement.type === "RECEIVED").reduce((sum, movement) => sum + movement.amountCents, 0);
   const returnedCents = movements.filter((movement) => movement.type === "RETURNED").reduce((sum, movement) => sum + movement.amountCents, 0);
   const offsetCents = movements.filter((movement) => movement.type === "OFFSET").reduce((sum, movement) => sum + movement.amountCents, 0);
@@ -100,6 +104,18 @@ export function calculateSecurityDepositSnapshot(input: {
   const interestDueCents = Math.max(0, accruedInterestCents + interestAdjustmentsCents - interestPaidCents);
   const status = !terms.length && agreedAmountCents === 0 ? "NOT_CONFIGURED" : input.leaseEnded && (principal > 0 || interestDueCents > 0) ? "TO_SETTLE" : principal === 0 && interestDueCents === 0 && movements.length > 0 ? "SETTLED" : principal === 0 ? "UNPAID" : principal < agreedAmountCents ? "PARTIAL" : "FUNDED";
   return { agreedAmountCents, heldPrincipalCents: principal, receivedCents, returnedCents, offsetCents, principalAdjustmentsCents, currentAnnualRateBps: rateBps, accruedInterestCents, interestPaidCents, interestAdjustmentsCents, interestDueCents, amountToReturnCents: principal + interestDueCents, missingDepositCents: Math.max(0, agreedAmountCents - principal), excessDepositCents: Math.max(0, principal - agreedAmountCents), hasLedger: movements.length > 0, status };
+}
+
+export function validateSecurityDepositTimeline(input: Parameters<typeof calculateSecurityDepositSnapshot>[0]) {
+  const movements = [...(input.movements || [])].sort((a, b) => a.effectiveAt.getTime() - b.effectiveAt.getTime() || (a.createdAt?.getTime() || 0) - (b.createdAt?.getTime() || 0));
+  const eventTimes = [...new Set(movements.map((movement) => movement.effectiveAt.getTime()))].sort((a, b) => a - b);
+  for (const eventTime of eventTimes) {
+    const asOf = new Date(eventTime);
+    const throughEvent = movements.filter((movement) => movement.effectiveAt.getTime() <= eventTime);
+    const snapshot = calculateSecurityDepositSnapshot({ ...input, movements: throughEvent, asOf });
+    if (snapshot.interestPaidCents > snapshot.accruedInterestCents + snapshot.interestAdjustmentsCents) throw new Error("Vyplacený úrok nesmí být vyšší než splatný úrok k datu pohybu.");
+  }
+  return calculateSecurityDepositSnapshot({ ...input, movements });
 }
 
 export function ratePercentToBps(value: string | number) {

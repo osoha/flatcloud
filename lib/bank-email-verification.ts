@@ -11,7 +11,6 @@ export function verificationCodeForAccount(ownerBankAccountId: string) {
   const raw = createHash("sha256").update(`flatcloud-bank-email-account:${ownerBankAccountId}`).digest().readUInt32BE(0);
   return String(10_000_000 + (raw % 90_000_000));
 }
-export const verificationCodeForLink = verificationCodeForAccount;
 
 export async function matchingOwnerBankAccounts(recipientAccount?: string | null) {
   if (!recipientAccount) return [];
@@ -61,9 +60,12 @@ export async function tryVerifyNotificationPayment(input: {
   if (!candidates.length) return null;
 
   const link = candidates[0];
-  const coveredUnitIds = link.property.units.filter((unit) => unit.ownerships.some((ownership) => ownership.ownerBankAccountId === link.ownerBankAccountId)).map((unit) => unit.id);
+  const verifiedOwnerBankAccountIds = accounts.map((account) => account.id);
+  const affectedOwnerships = await prisma.unitOwnership.findMany({ where: { ownerBankAccountId: { in: verifiedOwnerBankAccountIds } }, select: { unitId: true, unit: { select: { propertyId: true } } } });
+  const coveredUnitIds = [...new Set(affectedOwnerships.map((ownership) => ownership.unitId))];
+  const affectedPropertyIds = [...new Set(affectedOwnerships.map((ownership) => ownership.unit.propertyId))];
   await prisma.$transaction([
-    prisma.ownerBankAccount.updateMany({ where: { id: { in: accounts.map((account) => account.id) } }, data: { notificationVerifiedAt: input.receivedAt, lastNotificationAt: input.receivedAt } }),
+    prisma.ownerBankAccount.updateMany({ where: { id: { in: verifiedOwnerBankAccountIds } }, data: { notificationVerifiedAt: input.receivedAt, lastNotificationAt: input.receivedAt } }),
     prisma.inboxPayment.update({
       where: { id: input.inboxId },
       data: {
@@ -78,7 +80,7 @@ export async function tryVerifyNotificationPayment(input: {
         action: "BANK_EMAIL_ACCOUNT_VERIFIED",
         entityType: "OwnerBankAccount",
         entityId: link.ownerBankAccountId,
-        details: { inboxId: input.inboxId, verifiedOwnerBankAccountIds: accounts.map((account) => account.id), unitIds: coveredUnitIds },
+        details: { inboxId: input.inboxId, verifiedOwnerBankAccountIds, propertyIds: affectedPropertyIds, unitIds: coveredUnitIds },
       },
     }),
   ]);
@@ -96,11 +98,15 @@ export async function manuallyVerifyNotificationPayment(input: { inboxId: string
   if (inbox.amountCents !== 100) throw new Error("Ruční potvrzení testu je možné pouze pro platbu 1,00 Kč.");
   if (!bankAccountMatches(link.ownerBankAccount, inbox.recipientAccount)) throw new Error("Cílový účet e-mailu neodpovídá vybranému bankovnímu účtu.");
   if (normalizedVs(inbox.variableSymbol) !== normalizedVs(verificationCodeForAccount(link.ownerBankAccountId))) throw new Error("Variabilní symbol neodpovídá testovacímu kódu vybraného účtu.");
-  const coveredUnitIds = link.property.units.filter((unit) => unit.ownerships.some((ownership) => ownership.ownerBankAccountId === link.ownerBankAccountId)).map((unit) => unit.id);
+  const matchingAccounts = await matchingOwnerBankAccounts(inbox.recipientAccount);
+  const verifiedOwnerBankAccountIds = matchingAccounts.map((account) => account.id);
+  const affectedOwnerships = await prisma.unitOwnership.findMany({ where: { ownerBankAccountId: { in: verifiedOwnerBankAccountIds } }, select: { unitId: true, unit: { select: { propertyId: true } } } });
+  const coveredUnitIds = [...new Set(affectedOwnerships.map((ownership) => ownership.unitId))];
+  const affectedPropertyIds = [...new Set(affectedOwnerships.map((ownership) => ownership.unit.propertyId))];
 
   await prisma.$transaction([
-    prisma.ownerBankAccount.update({
-      where: { id: link.ownerBankAccountId },
+    prisma.ownerBankAccount.updateMany({
+      where: { id: { in: verifiedOwnerBankAccountIds }, active: true },
       data: { notificationVerifiedAt: inbox.receivedAt, lastNotificationAt: inbox.receivedAt },
     }),
     prisma.inboxPayment.update({
@@ -116,9 +122,9 @@ export async function manuallyVerifyNotificationPayment(input: { inboxId: string
         userId: input.userId,
         propertyId: link.propertyId,
         action: "BANK_EMAIL_ACCOUNT_VERIFIED_MANUALLY",
-        entityType: "PropertyPaymentAccount",
-        entityId: link.id,
-        details: { inboxId: inbox.id, ownerBankAccountId: link.ownerBankAccountId, unitIds: coveredUnitIds },
+        entityType: "OwnerBankAccount",
+        entityId: link.ownerBankAccountId,
+        details: { inboxId: inbox.id, verifiedOwnerBankAccountIds, propertyIds: affectedPropertyIds, unitIds: coveredUnitIds },
       },
     }),
   ]);

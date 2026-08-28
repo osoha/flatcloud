@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { text } from "@/lib/forms";
 import { audit } from "@/lib/management";
 import { ownerSelfServiceScope, requireOwnedAccount } from "@/lib/owner-self-service";
-import { normalizeAccountNumber, normalizeBankCode, normalizeIban, validateOwnerBankAccount } from "@/lib/owner-bank-account";
+import { normalizeAccountNumber, normalizeBankCode, normalizeIban, samePhysicalBankAccount, validateOwnerBankAccount } from "@/lib/owner-bank-account";
 import { go, goWithMessage } from "@/lib/route-response";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { assertUniqueVariableSymbol } from "@/lib/variable-symbol";
@@ -32,6 +32,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       normalizeBankCode(previous.bankCode) !== (account.bankCode || "") ||
       normalizeIban(previous.iban) !== (account.iban || "")
     ));
+    const duplicate = scope.allOwnerAccounts.find((candidate) => candidate.id !== accountId && candidate.active && samePhysicalBankAccount(candidate, account));
+    if (duplicate) throw new Error(`Tento fyzický účet už existuje jako „${duplicate.label || "bankovní účet"}“. Vyberte a přiřaďte existující účet místo vytváření dalšího.`);
 
     const saved = await prisma.$transaction(async (tx) => {
       const savedAccount = accountId

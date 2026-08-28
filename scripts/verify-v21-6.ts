@@ -1,5 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
-import { calculateSecurityDepositSnapshot } from "../lib/security-deposit-core";
+import { calculateSecurityDepositSnapshot, ratePercentToBps, validateSecurityDepositTimeline } from "../lib/security-deposit-core";
+import { repairPaymentStatuses } from "./recompute-payment-statuses";
+import { overdueDebtCents } from "../lib/charges";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const checks: Array<[string, boolean]> = [
@@ -36,14 +38,41 @@ const checks: Array<[string, boolean]> = [
   ["global deposit tabs", ["Aktivní", "K vypořádání", "Vypořádané", "Vše"].every((text) => read("app/kauce/page.tsx").includes(text))],
   ["deposit sidebar", read("components/Shell.tsx").includes('href="/kauce"')],
   ["bank deposit UI", read("app/nemovitosti/[id]/platby/[transactionId]/page.tsx").includes("Zaúčtovat jako kauci") && read("app/nemovitosti/[id]/platby/[transactionId]/page.tsx").includes("securityDepositReceipts")],
-  ["account-level verification UI", read("app/nemovitosti/[id]/[section]/page.tsx").includes("link.ownerBankAccount.notificationVerifiedAt") && read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx").includes("ownershipPaymentAccount?.notificationVerifiedAt")],
+  ["account-level verification UI", read("app/nemovitosti/[id]/[section]/page.tsx").includes("verificationCodeForAccount(account.id)") && read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx").includes("ownershipPaymentAccount?.notificationVerifiedAt")],
   ["legacy link verification ignored", !read("lib/bank-verification-scope.ts").includes("!link?.ownerBankAccount") && !read("app/api/properties/[id]/owner-bank-account/route.ts").includes("propertyPaymentAccount.updateMany")],
   ["shared charge includes", read("lib/access.ts").includes("securityDepositOffsets: true, creditApplications: true")],
   ["portfolio shared paid", read("app/portfolio/page.tsx").includes("paidCents(charge)")],
   ["reports shared paid", read("app/reporty/[report]/page.tsx").includes("paidCents(charge)")],
   ["single transaction recompute", read("lib/matching.ts").includes("await recomputeTransactionStatus(transactionId)") && !read("app/api/payments/manual/route.ts").includes("PaymentStatus")],
+  ["collection tasks three sources", read("lib/tasks.ts").includes("securityDepositOffsets: true, creditApplications: true")],
+  ["rent notifications three sources", read("lib/rent-notifications.ts").includes("securityDepositOffsets: true; creditApplications: true") && read("lib/rent-notifications.ts").includes("securityDepositOffsets: true, creditApplications: true")],
+  ["coverage owns verification", read("lib/bank-verification-scope.ts").includes("ownership?.ownerBankAccount?.notificationVerifiedAt") && !read("lib/bank-verification-scope.ts").includes("linkByAccountId")],
+  ["no link verification code", !read("lib/bank-email-verification.ts").includes("verificationCodeForLink") && !read("app/nemovitosti/[id]/[section]/page.tsx").includes("verificationCodeForLink")],
+  ["manual verification duplicate propagation", read("lib/bank-email-verification.ts").includes("matchingOwnerBankAccounts(inbox.recipientAccount)") && read("lib/bank-email-verification.ts").includes("verifiedOwnerBankAccountIds")],
+  ["serializable financial writes", ["deposit/movements/route.ts", "settlement/apply/route.ts"].every((path) => read(`app/api/properties/[id]/leases/[leaseId]/${path}`).includes("serializableTransaction")) && read("app/api/properties/[id]/transactions/[transactionId]/deposit/route.ts").includes("serializableTransaction") && read("app/api/properties/[id]/transactions/[transactionId]/allocate/route.ts").includes("serializableTransaction")],
+  ["canonical duplicate identity", read("lib/owner-bank-account.ts").includes("samePhysicalBankAccount") && read("app/api/properties/[id]/owner-bank-account/route.ts").includes("samePhysicalBankAccount")],
+  ["shared deposit rate parser", read("lib/lease-create.ts").includes("ratePercentToBps") && read("components/LeaseCoreFields.tsx").includes('max="100"')],
+  ["other offset UI", read("app/smlouvy/[leaseId]/page.tsx").includes("Jiný zápočet / škoda") && read("app/smlouvy/[leaseId]/page.tsx").includes("withoutCharge")],
 ];
 const snapshot = calculateSecurityDepositSnapshot({ depositCents: 3_000_000, asOf: new Date("2026-01-31T00:00:00Z"), terms: [{ agreedAmountCents: 3_000_000, annualRateBps: 500, effectiveFrom: new Date("2026-01-01T00:00:00Z") }], movements: [{ type: "RECEIVED", amountCents: 3_000_000, effectiveAt: new Date("2026-01-01T00:00:00Z") }] });
 checks.push(["ACT/365 30 000 Kč at 5 %", snapshot.accruedInterestCents === 12_329]);
-if (checks.some(([, ok]) => !ok)) throw new Error(checks.filter(([, ok]) => !ok).map(([name]) => `FAIL: ${name}`).join("\n"));
-console.log(`V21.6 verification passed (${checks.length} checks).`);
+const finalRounded = calculateSecurityDepositSnapshot({ depositCents: 1, asOf: new Date("2026-07-20T00:00:00Z"), terms: [{ agreedAmountCents: 1, annualRateBps: 10_000, effectiveFrom: new Date("2026-01-01T00:00:00Z") }, { agreedAmountCents: 1, annualRateBps: 10_000, effectiveFrom: new Date("2026-04-11T00:00:00Z") }], movements: [{ type: "RECEIVED", amountCents: 1, effectiveAt: new Date("2026-01-01T00:00:00Z") }] });
+checks.push(["final-only interest rounding", finalRounded.accruedInterestCents === 1]);
+let futureDecreaseRejected = false;
+try { validateSecurityDepositTimeline({ depositCents: 100, terms: [{ agreedAmountCents: 100, annualRateBps: 0, effectiveFrom: new Date("2026-01-01") }], movements: [{ type: "RECEIVED", amountCents: 100, effectiveAt: new Date("2026-01-01") }, { type: "ADJUSTMENT_DECREASE", amountCents: 80, effectiveAt: new Date("2027-01-01") }, { type: "ADJUSTMENT_DECREASE", amountCents: 30, effectiveAt: new Date("2028-01-01") }] }); } catch { futureDecreaseRejected = true; }
+checks.push(["future negative principal rejected", futureDecreaseRejected]);
+let excessInterestRejected = false;
+try { validateSecurityDepositTimeline({ depositCents: 100, terms: [{ agreedAmountCents: 100, annualRateBps: 0, effectiveFrom: new Date("2026-01-01") }], movements: [{ type: "RECEIVED", amountCents: 100, effectiveAt: new Date("2026-01-01") }, { type: "INTEREST_PAID", amountCents: 1, effectiveAt: new Date("2026-01-02") }] }); } catch { excessInterestRejected = true; }
+checks.push(["interest paid above due rejected", excessInterestRejected]);
+let rateAbove100Rejected = false;
+try { ratePercentToBps("100.01"); } catch { rateAbove100Rejected = true; }
+checks.push(["rate above 100 rejected", rateAbove100Rejected]);
+const overdueBase = { active: true, amountCents: 10_000, dueDate: new Date("2020-01-01"), allocations: [] };
+checks.push(["OFFSET settles collection debt", overdueDebtCents({ ...overdueBase, securityDepositOffsets: [{ amountCents: 10_000 }], creditApplications: [] }) === 0]);
+checks.push(["LeaseCredit settles collection debt", overdueDebtCents({ ...overdueBase, securityDepositOffsets: [], creditApplications: [{ amountCents: 10_000 }] }) === 0]);
+let dryRunUpdates = 0;
+repairPaymentStatuses({ bankTransaction: { findMany: async () => [{ id: "tx", status: "UNMATCHED", amountCents: 100, suggestedLeaseId: null, createdAt: new Date(), allocations: [{ amountCents: 100, charge: { amountCents: 100, allocations: [{ amountCents: 100 }], securityDepositOffsets: [], creditApplications: [] } }], securityDepositReceipts: [] }], update: async () => { dryRunUpdates += 1; throw new Error("dry-run wrote"); } } } as never, false).then(() => {
+  checks.push(["repair dry-run zero writes", dryRunUpdates === 0]);
+  if (checks.some(([, ok]) => !ok)) throw new Error(checks.filter(([, ok]) => !ok).map(([name]) => `FAIL: ${name}`).join("\n"));
+  console.log(`V21.6 verification passed (${checks.length} checks).`);
+}).catch((error) => { console.error(error); process.exitCode = 1; });

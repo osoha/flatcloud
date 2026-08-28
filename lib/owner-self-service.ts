@@ -45,7 +45,8 @@ export async function ownerSelfServiceScope(user: OwnerViewer, propertyId: strin
         orderBy: [{ active: "desc" }, { createdAt: "asc" }],
       })
     : [];
-  return { ...owner, unitOwnerships, paymentAccounts };
+  const allOwnerAccounts = await prisma.ownerBankAccount.findMany({ where: { ownerId: owner.id }, orderBy: [{ active: "desc" }, { createdAt: "asc" }] });
+  return { ...owner, unitOwnerships, paymentAccounts, allOwnerAccounts };
 }
 
 export async function requireOwnedAccount(user: OwnerViewer, propertyId: string, accountId: string) {

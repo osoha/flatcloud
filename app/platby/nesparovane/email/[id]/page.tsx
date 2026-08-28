@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { bankAccountMatches, bankNameForCode } from "@/lib/inbound-bank/bank-email";
-import { verificationCodeForAccount, verificationCodeForLink } from "@/lib/bank-email-verification";
+import { verificationCodeForAccount } from "@/lib/bank-email-verification";
 import { linkIsUsedByUnit } from "@/lib/bank-verification-scope";
 import { Shell } from "@/components/Shell";
 import { Flash, FormPage } from "@/components/FormUi";
@@ -34,7 +34,7 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
 
   const isOneCrownTest = row.amountCents === 100;
   const matchingLinks = paymentLinks.filter((link) => link.ownerBankAccount.active && linkIsUsedByUnit(link.ownerBankAccountId, link.property.units) && bankAccountMatches(link.ownerBankAccount, row.recipientAccount)).sort((a, b) => a.property.name.localeCompare(b.property.name, "cs"));
-  const exactTestLink = matchingLinks.find((link) => digits(verificationCodeForLink(link.id)) === digits(row.variableSymbol));
+  const exactTestLink = matchingLinks.find((link) => digits(verificationCodeForAccount(link.ownerBankAccountId)) === digits(row.variableSymbol));
 
   return <Shell user={user}><FormPage title="Bankovní e-mail – ruční řešení" description="Sběrný e-mail bankovních notifikací" backHref="/platby/nesparovane">
     <Flash ok={query.ok} error={query.error}/>
@@ -61,7 +61,7 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
           {matchingLinks.length ? <form className="compact-form" action={`/api/inbound-payments/${row.id}/verify-account`} method="post">
             <label className="field"><span>Nemovitost a účet</span><select name="linkId" required defaultValue={exactTestLink?.id || (matchingLinks.length === 1 ? matchingLinks[0].id : "")}>
               {!exactTestLink && matchingLinks.length > 1 ? <option value="" disabled>Vyberte nemovitost / účet</option> : null}
-              {matchingLinks.map((link) => { const unitLabels=link.property.units.filter((unit)=>unit.ownerships.some((ownership)=>ownership.ownerBankAccountId===link.ownerBankAccountId)).map((unit)=>unit.label).join(", "); return <option value={link.id} key={link.id}>{link.property.name} · {unitLabels} · {accountLabel(link.ownerBankAccount)} · test VS {verificationCodeForLink(link.id)}</option>; })}
+              {matchingLinks.map((link) => { const unitLabels=link.property.units.filter((unit)=>unit.ownerships.some((ownership)=>ownership.ownerBankAccountId===link.ownerBankAccountId)).map((unit)=>unit.label).join(", "); return <option value={link.id} key={link.id}>{link.property.name} · {unitLabels} · {accountLabel(link.ownerBankAccount)} · test VS {verificationCodeForAccount(link.ownerBankAccountId)}</option>; })}
             </select></label>
             {exactTestLink ? <div className="notice">VS odpovídá testovacímu kódu pro <strong>{exactTestLink.property.name}</strong>.</div> : null}
             <button className="primary" type="submit">Potvrdit jako test bankovního účtu</button>

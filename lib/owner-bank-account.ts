@@ -76,6 +76,15 @@ export function paymentIban(account?: OwnerBankAccountLike | null) {
   return normalizeIban(account?.iban) || czIbanFromDomestic(account?.accountNumber, account?.bankCode);
 }
 
+export function canonicalPaymentIdentity(account?: OwnerBankAccountLike | null) {
+  return paymentIban(account);
+}
+
+export function samePhysicalBankAccount(a?: OwnerBankAccountLike | null, b?: OwnerBankAccountLike | null) {
+  const left = canonicalPaymentIdentity(a);
+  return Boolean(left && left === canonicalPaymentIdentity(b));
+}
+
 export function normalizePayerAccount(value?: string | null) {
   const compact = (value || "").replace(/\s+/g, "").toUpperCase();
   if (!compact) return "";

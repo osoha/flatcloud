@@ -1,18 +1,34 @@
+import { pathToFileURL } from "node:url";
+import { PaymentStatus } from "@prisma/client";
 import { prisma } from "../lib/db";
-import { recomputeTransactionStatus } from "../lib/matching";
+import { expectedTransactionStatus } from "../lib/matching";
 
-const apply = process.argv.includes("--apply");
-if (apply && process.env.ALLOW_PAYMENT_STATUS_REPAIR !== "1") throw new Error("Apply vyžaduje ALLOW_PAYMENT_STATUS_REPAIR=1.");
-const transactions = await prisma.bankTransaction.findMany({ where: { status: { not: "IGNORED" } }, select: { id: true, status: true } });
-let fixed = 0;
-for (const transaction of transactions) {
-  const before = transaction.status;
-  await recomputeTransactionStatus(transaction.id);
-  const after = (await prisma.bankTransaction.findUnique({ where: { id: transaction.id }, select: { status: true } }))?.status;
-  if (before !== after) {
-    fixed += 1;
-    console.log(`${transaction.id}: ${before} -> ${after}`);
+const include = { allocations: { include: { charge: { include: { allocations: true, securityDepositOffsets: true, creditApplications: true } } } }, securityDepositReceipts: true } as const;
+type RepairDb = Pick<typeof prisma, "bankTransaction">;
+
+export async function repairPaymentStatuses(db: RepairDb, apply: boolean) {
+  const transactions = await db.bankTransaction.findMany({ include, orderBy: { createdAt: "asc" } });
+  const report = { scanned: transactions.length, unchanged: 0, fixed: 0, ignoredSkipped: 0, invalidSkipped: 0, transitions: {} as Record<string, number> };
+  for (const transaction of transactions) {
+    if (transaction.status === PaymentStatus.IGNORED) { report.ignoredSkipped += 1; continue; }
+    const expected = expectedTransactionStatus(transaction);
+    if (expected.invalid || !expected.status) { report.invalidSkipped += 1; continue; }
+    if (expected.status === transaction.status) { report.unchanged += 1; continue; }
+    const transition = `${transaction.status} -> ${expected.status}`;
+    report.transitions[transition] = (report.transitions[transition] || 0) + 1;
+    if (apply) {
+      await db.bankTransaction.update({ where: { id: transaction.id }, data: { status: expected.status } });
+      report.fixed += 1;
+    }
   }
+  return report;
 }
-console.log(JSON.stringify({ scanned: transactions.length, fixed: apply ? fixed : 0, dryRun: !apply }));
-await prisma.$disconnect();
+
+async function main() {
+  const apply = process.argv.includes("--apply");
+  if (apply && process.env.ALLOW_PAYMENT_STATUS_REPAIR !== "1") throw new Error("--apply vyžaduje ALLOW_PAYMENT_STATUS_REPAIR=1.");
+  console.log(JSON.stringify({ ...(await repairPaymentStatuses(prisma, apply)), dryRun: !apply }, null, 2));
+  await prisma.$disconnect();
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) main().catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); });

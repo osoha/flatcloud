@@ -5,6 +5,7 @@ import { assertUniqueVariableSymbol, validateVariableSymbol } from "./variable-s
 import { firstFutureAnniversary, periodKeyForDate, syncLeaseCharges } from "./charge-automation";
 import { leaseStatusAt } from "./lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "./lease-lifecycle";
+import { ratePercentToBps } from "./security-deposit-core";
 
 type Tx = Prisma.TransactionClient;
 
@@ -30,9 +31,7 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   const rentCents = moneyToCents(form, "rent");
   const servicesCents = moneyToCents(form, "services");
   const depositCents = moneyToCents(form, "deposit");
-  const depositInterestRaw = text(form, "depositInterest") || "0";
-  const depositInterestBps = Math.round(Number(depositInterestRaw.replace(",", ".")) * 100);
-  if (!Number.isFinite(depositInterestBps) || depositInterestBps < 0) throw new Error("Úrok kauce musí být nejméně 0 %.");
+  const depositInterestBps = ratePercentToBps(text(form, "depositInterest") || "0");
   const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
   const timingRaw = text(form, "rentTiming") || "ADVANCE";
   const rentTiming = Object.values(RentTiming).includes(timingRaw as RentTiming) ? timingRaw as RentTiming : RentTiming.ADVANCE;

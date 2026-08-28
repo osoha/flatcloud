@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
-import { validateOwnerBankAccount } from "@/lib/owner-bank-account";
+import { samePhysicalBankAccount, validateOwnerBankAccount } from "@/lib/owner-bank-account";
 import { requirePortfolioManager, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 
@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       currency: text(form, "currency") || "CZK",
     });
     const identityChanged = existing.accountNumber !== account.accountNumber || existing.bankCode !== account.bankCode || existing.iban !== account.iban;
-    const duplicate = await prisma.ownerBankAccount.findFirst({ where: { ownerId: id, id: { not: accountId }, active: true, accountNumber: account.accountNumber, bankCode: account.bankCode, iban: account.iban } });
+    const duplicate = (await prisma.ownerBankAccount.findMany({ where: { ownerId: id, id: { not: accountId }, active: true } })).find((candidate) => samePhysicalBankAccount(candidate, account));
     if (duplicate) throw new Error("Stejný aktivní bankovní účet tohoto vlastníka již existuje.");
     const updated = await prisma.ownerBankAccount.update({ where: { id: accountId }, data: { ...account, active: boolValue(form, "active"), ...(identityChanged ? { notificationVerifiedAt: null } : {}) } });
     await audit(user.id, "OWNER_BANK_ACCOUNT_UPDATED", "OwnerBankAccount", updated.id, { ownerId: id, active: updated.active });
