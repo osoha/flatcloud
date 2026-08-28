@@ -17,6 +17,7 @@ const accept = read("app/api/invitations/accept/route.ts");
 const create = read("app/api/invitations/create/route.ts");
 const propertyCreate = read("app/api/properties/[id]/invitations/route.ts");
 const rotate = read("app/api/invitations/[inviteId]/rotate/route.ts");
+const revoke = read("app/api/invitations/[inviteId]/revoke/route.ts");
 const users = read("app/uzivatele/page.tsx");
 const propertyUsers = read("app/nemovitosti/[id]/[section]/page.tsx");
 const portfolio = read("app/portfolio/page.tsx");
@@ -81,6 +82,11 @@ checks.push(["unit-only bank scope uses visible unit relations", bankScope.inclu
 checks.push(["deposit receipts included in bank scope", bankScope.includes("securityDepositReceipts")]);
 checks.push(["global search uses shared transaction/task scopes", search.includes("taskAccessWhere(user)") && search.includes("bankTransactionAccessWhere(user)") && !search.includes("bankAccount: { propertyId: { in: propertyIds }")]);
 checks.push(["catalog displays effective lease end", catalog.includes("effectiveLeaseEnd(lease)") && catalog.includes("date(effectiveEnd)")]);
+checks.push(["revoke is conditional on PENDING", revoke.includes("userInvitation.updateMany") && revoke.includes('id: inviteId, status: "PENDING"') && !revoke.includes("userInvitation.update({")]);
+checks.push(["revoke requires exactly one row", revoke.includes("revoked.count !== 1") && revoke.includes("Pozvánka už byla přijata, změněna nebo zrušena")]);
+checks.push(["failed revoke cannot create audit", revoke.indexOf("revoked.count !== 1") < revoke.indexOf('audit(user.id, "INVITATION_REVOKED"')]);
+checks.push(["grant re-reads user inside transaction", accessHelper.indexOf("tx.user.findUniqueOrThrow") > accessHelper.indexOf("prisma.$transaction") && accessHelper.includes("select: { role: true, allProperties: true }")]);
+checks.push(["concurrent stronger state cannot downgrade", strongerRole(UserRole.SUPER_ADMIN, UserRole.OWNER_VIEWER) === UserRole.SUPER_ADMIN && accessHelper.includes("strongerRole(currentUser.role, scope.role)") && accessHelper.includes("currentUser.allProperties || scope.allProperties") && accessHelper.includes("TransactionIsolationLevel.Serializable")]);
 
 const failures = checks.filter(([, ok]) => !ok);
 if (failures.length) throw new Error(failures.map(([name]) => `FAIL: ${name}`).join("\n"));

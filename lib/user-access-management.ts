@@ -1,4 +1,4 @@
-import { PropertyPermission, UserRole } from "@prisma/client";
+import { Prisma, PropertyPermission, UserRole } from "@prisma/client";
 import { prisma } from "./db";
 import { invitationToken } from "./invitations";
 
@@ -27,20 +27,25 @@ export function shouldRevokeInvitationOnCreate(invitation: InvitationScopeLike, 
 
 export async function grantUserAccess(user: { id: string; role: UserRole; allProperties: boolean }, scope: AccessScope) {
   scope = canonicalizeAccessScope(scope);
-  let changed = roleRank[scope.role] > roleRank[user.role] || scope.allProperties && !user.allProperties;
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: user.id }, data: { role: strongerRole(user.role, scope.role), allProperties: user.allProperties || scope.allProperties || scope.role === UserRole.MANAGER || scope.role === UserRole.SUPER_ADMIN } });
+  const changed = await prisma.$transaction(async (tx) => {
+    let transactionChanged = false;
+    const currentUser = await tx.user.findUniqueOrThrow({ where: { id: user.id }, select: { role: true, allProperties: true } });
+    const nextRole = strongerRole(currentUser.role, scope.role);
+    const nextAllProperties = currentUser.allProperties || scope.allProperties;
+    if (nextRole !== currentUser.role || nextAllProperties !== currentUser.allProperties) transactionChanged = true;
+    await tx.user.update({ where: { id: user.id }, data: { role: nextRole, allProperties: nextAllProperties } });
     if (!scope.allProperties) for (const propertyId of scope.propertyIds) {
       const current = await tx.userProperty.findUnique({ where: { userId_propertyId: { userId: user.id, propertyId } } });
-      if (!current || permissionRank[current.permission] < permissionRank[scope.permission]) changed = true;
+      if (!current || permissionRank[current.permission] < permissionRank[scope.permission]) transactionChanged = true;
       await tx.userProperty.upsert({ where: { userId_propertyId: { userId: user.id, propertyId } }, update: { permission: current ? strongerPermission(current.permission, scope.permission) : scope.permission }, create: { userId: user.id, propertyId, permission: scope.permission } });
     }
     if (!scope.allProperties) for (const unitId of scope.unitIds) {
       const current = await tx.userUnit.findUnique({ where: { userId_unitId: { userId: user.id, unitId } } });
-      if (!current || permissionRank[current.permission] < permissionRank[scope.permission]) changed = true;
+      if (!current || permissionRank[current.permission] < permissionRank[scope.permission]) transactionChanged = true;
       await tx.userUnit.upsert({ where: { userId_unitId: { userId: user.id, unitId } }, update: { permission: current ? strongerPermission(current.permission, scope.permission) : scope.permission }, create: { userId: user.id, unitId, permission: scope.permission } });
     }
-  });
+    return transactionChanged;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   return { changed };
 }
 

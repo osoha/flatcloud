@@ -27,7 +27,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ inv
   const returnTo = safeReturnTo(form.get("returnTo"), invitation.propertyId);
   if (invitation.status !== "PENDING") return goWithMessage(request, returnTo, "ok", "Pozvánka už byla dříve zneplatněna.");
 
-  await prisma.userInvitation.update({ where: { id: inviteId }, data: { status: "REVOKED" } });
+  const revoked = await prisma.userInvitation.updateMany({ where: { id: inviteId, status: "PENDING" }, data: { status: "REVOKED" } });
+  if (revoked.count !== 1) return goWithMessage(request, returnTo, "ok", "Pozvánka už byla přijata, změněna nebo zrušena.");
   await audit(user.id, "INVITATION_REVOKED", "UserInvitation", inviteId, {
     propertyId: invitation.propertyId,
     email: invitation.email,
