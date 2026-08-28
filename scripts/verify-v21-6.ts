@@ -53,6 +53,10 @@ const checks: Array<[string, boolean]> = [
   ["canonical duplicate identity", read("lib/owner-bank-account.ts").includes("samePhysicalBankAccount") && read("app/api/properties/[id]/owner-bank-account/route.ts").includes("samePhysicalBankAccount")],
   ["shared deposit rate parser", read("lib/lease-create.ts").includes("ratePercentToBps") && read("components/LeaseCoreFields.tsx").includes('max="100"')],
   ["other offset UI", read("app/smlouvy/[leaseId]/page.tsx").includes("Jiný zápočet / škoda") && read("app/smlouvy/[leaseId]/page.tsx").includes("withoutCharge")],
+  ["global manual payment serializable", read("app/api/payments/manual/route.ts").includes("serializableTransaction") && read("app/api/payments/manual/route.ts").includes("tx.lease.findFirst")],
+  ["property manual payment serializable", read("app/api/properties/[id]/payments/manual/route.ts").includes("serializableTransaction") && read("app/api/properties/[id]/payments/manual/route.ts").includes("tx.charge.findFirst")],
+  ["automatic allocation serializable", read("lib/matching.ts").includes("allocateTransactionToLease") && read("lib/matching.ts").includes("serializableTransaction(async (tx)") && read("lib/matching.ts").includes("tx.paymentAllocation.upsert")],
+  ["duplicates include inactive accounts", read("app/api/owners/[id]/bank-accounts/route.ts").includes("findMany({ where: { ownerId: id } })") && read("app/api/owners/[id]/bank-accounts/[accountId]/route.ts").includes("ownerId: id, id: { not: accountId } }") && !read("app/api/properties/[id]/owner-bank-account/route.ts").includes("candidate.active && samePhysicalBankAccount")],
 ];
 const snapshot = calculateSecurityDepositSnapshot({ depositCents: 3_000_000, asOf: new Date("2026-01-31T00:00:00Z"), terms: [{ agreedAmountCents: 3_000_000, annualRateBps: 500, effectiveFrom: new Date("2026-01-01T00:00:00Z") }], movements: [{ type: "RECEIVED", amountCents: 3_000_000, effectiveAt: new Date("2026-01-01T00:00:00Z") }] });
 checks.push(["ACT/365 30 000 Kč at 5 %", snapshot.accruedInterestCents === 12_329]);

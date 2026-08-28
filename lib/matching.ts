@@ -3,6 +3,7 @@ import { prisma } from "./db";
 import { bankAccountMatches, normalizeBankAccount } from "./inbound-bank/bank-email";
 import { resolveCollectionTasksIfSettled } from "./tasks";
 import { outstandingCents } from "./charges";
+import { serializableTransaction } from "./serializable";
 
 type TransactionStatusInput = {
   amountCents: number;
@@ -61,34 +62,25 @@ async function setSuggestion(transactionId: string, leaseId: string, note: strin
 }
 
 export async function allocateTransactionToLease(transactionId: string, leaseId: string, note: string, matchedRuleId?: string) {
-  const transaction = await prisma.bankTransaction.findUnique({
-    where: { id: transactionId },
-    include: { allocations: true, securityDepositReceipts: true, bankAccount: true },
+  const allocated = await serializableTransaction(async (tx) => {
+    const transaction = await tx.bankTransaction.findUnique({ where: { id: transactionId }, include: { allocations: true, securityDepositReceipts: true, bankAccount: true } });
+    if (!transaction || transaction.amountCents <= 0) return false;
+    const lease = await tx.lease.findFirst({ where: { id: leaseId, unit: { propertyId: transaction.bankAccount.propertyId } }, include: { charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true }, orderBy: { dueDate: "asc" } } } });
+    if (!lease) return false;
+    let remaining = transaction.amountCents - transaction.allocations.reduce((sum, row) => sum + row.amountCents, 0) - transaction.securityDepositReceipts.filter((row) => row.type === "RECEIVED").reduce((sum, row) => sum + row.amountCents, 0);
+    if (remaining <= 0) return false;
+    for (const charge of lease.charges) {
+      if (remaining <= 0) break;
+      const outstanding = outstandingCents(charge);
+      if (!outstanding) continue;
+      const amount = Math.min(remaining, outstanding);
+      await tx.paymentAllocation.upsert({ where: { transactionId_chargeId: { transactionId, chargeId: charge.id } }, update: { amountCents: { increment: amount } }, create: { transactionId, chargeId: charge.id, amountCents: amount } });
+      remaining -= amount;
+    }
+    await tx.bankTransaction.update({ where: { id: transactionId }, data: { suggestedLeaseId: leaseId, matchNote: note, matchedRuleId: matchedRuleId || null } });
+    return true;
   });
-  if (!transaction || transaction.amountCents <= 0) return;
-  const lease = await prisma.lease.findFirst({
-    where: { id: leaseId, unit: { propertyId: transaction.bankAccount.propertyId } },
-    include: { charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true }, orderBy: { dueDate: "asc" } } },
-  });
-  if (!lease) return;
-
-  let remaining = transaction.amountCents - transaction.allocations.reduce((sum, row) => sum + row.amountCents, 0) - transaction.securityDepositReceipts.filter((row)=>row.type==="RECEIVED").reduce((sum,row)=>sum+row.amountCents,0);
-  for (const charge of lease.charges) {
-    if (remaining <= 0) break;
-    const outstanding = outstandingCents(charge);
-    if (!outstanding) continue;
-    const amount = Math.min(remaining, outstanding);
-    await prisma.paymentAllocation.upsert({
-      where: { transactionId_chargeId: { transactionId, chargeId: charge.id } },
-      update: { amountCents: { increment: amount } },
-      create: { transactionId, chargeId: charge.id, amountCents: amount },
-    });
-    remaining -= amount;
-  }
-  await prisma.bankTransaction.update({
-    where: { id: transactionId },
-    data: { suggestedLeaseId: leaseId, matchNote: note, matchedRuleId: matchedRuleId || null },
-  });
+  if (!allocated) return;
   await recomputeTransactionStatus(transactionId);
   await resolveCollectionTasksIfSettled(leaseId);
 }

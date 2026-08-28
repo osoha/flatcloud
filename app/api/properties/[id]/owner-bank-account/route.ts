@@ -32,8 +32,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       normalizeBankCode(previous.bankCode) !== (account.bankCode || "") ||
       normalizeIban(previous.iban) !== (account.iban || "")
     ));
-    const duplicate = scope.allOwnerAccounts.find((candidate) => candidate.id !== accountId && candidate.active && samePhysicalBankAccount(candidate, account));
-    if (duplicate) throw new Error(`Tento fyzický účet už existuje jako „${duplicate.label || "bankovní účet"}“. Vyberte a přiřaďte existující účet místo vytváření dalšího.`);
+    const duplicate = scope.allOwnerAccounts.find((candidate) => candidate.id !== accountId && samePhysicalBankAccount(candidate, account));
+    if (duplicate) throw new Error("Tento bankovní účet již existuje. Aktivujte / použijte existující účet.");
 
     const saved = await prisma.$transaction(async (tx) => {
       const savedAccount = accountId
