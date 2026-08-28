@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { verificationCodeForLink } from "../lib/bank-email-verification";
+import { verificationCodeForAccount } from "../lib/bank-email-verification";
 import { addMonthsKeepingDay, complianceState } from "../lib/operations";
 
-const code = verificationCodeForLink("link-demo-1");
+const code = verificationCodeForAccount("link-demo-1");
 assert.match(code, /^\d{8}$/);
-assert.equal(code, verificationCodeForLink("link-demo-1"));
-assert.notEqual(code, verificationCodeForLink("link-demo-2"));
+assert.equal(code, verificationCodeForAccount("link-demo-1"));
+assert.notEqual(code, verificationCodeForAccount("link-demo-2"));
 
 const now = new Date("2026-08-25T10:00:00Z");
 assert.equal(complianceState({ active: true, nextDueAt: new Date("2026-08-20T00:00:00Z") }, now).key, "overdue");

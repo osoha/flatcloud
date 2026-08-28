@@ -29,8 +29,7 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const owner = unit.ownerships[0]?.owner || property.owner;
   const ownershipPaymentAccount = unit.ownerships[0]?.ownerBankAccount || null;
   const paymentAccount = activeLease?.ownerBankAccount || ownershipPaymentAccount;
-  const ownershipPaymentLink = ownershipPaymentAccount ? property.paymentAccounts.find((link) => link.ownerBankAccountId === ownershipPaymentAccount.id) : null;
-  const unitBankVerified = Boolean(ownershipPaymentLink?.notificationVerifiedAt);
+  const unitBankVerified = Boolean(ownershipPaymentAccount?.notificationVerifiedAt);
   const allCharges = unit.leases.flatMap((lease) => lease.charges);
   const overdueDebt = allCharges.reduce((sum, charge) => sum + overdueDebtCents(charge), 0);
   type UnitTransaction = (typeof allCharges)[number]["allocations"][number]["transaction"];

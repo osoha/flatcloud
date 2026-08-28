@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { text } from "@/lib/forms";
 import { audit } from "@/lib/management";
 import { ownerSelfServiceScope, requireOwnedAccount } from "@/lib/owner-self-service";
-import { normalizeAccountNumber, normalizeBankCode, normalizeIban, validateOwnerBankAccount } from "@/lib/owner-bank-account";
+import { normalizeAccountNumber, normalizeBankCode, normalizeIban, samePhysicalBankAccount, validateOwnerBankAccount } from "@/lib/owner-bank-account";
 import { go, goWithMessage } from "@/lib/route-response";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { assertUniqueVariableSymbol } from "@/lib/variable-symbol";
@@ -32,12 +32,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       normalizeBankCode(previous.bankCode) !== (account.bankCode || "") ||
       normalizeIban(previous.iban) !== (account.iban || "")
     ));
+    const duplicate = scope.allOwnerAccounts.find((candidate) => candidate.id !== accountId && samePhysicalBankAccount(candidate, account));
+    if (duplicate) throw new Error("Tento bankovní účet již existuje. Aktivujte / použijte existující účet.");
 
     const saved = await prisma.$transaction(async (tx) => {
       const savedAccount = accountId
-        ? await tx.ownerBankAccount.update({ where: { id: accountId, ownerId: scope.id }, data: { ...account, active: true } })
+        ? await tx.ownerBankAccount.update({ where: { id: accountId, ownerId: scope.id }, data: { ...account, active: true, ...(identityChanged ? { notificationVerifiedAt: null } : {}) } })
         : await tx.ownerBankAccount.create({ data: { ownerId: scope.id, ...account, active: true } });
-      if (identityChanged) await tx.propertyPaymentAccount.updateMany({ where: { ownerBankAccountId: savedAccount.id }, data: { notificationVerifiedAt: null } });
 
       for (const unitId of selectedUnitIds) {
         const ownership = authorizedByUnitId.get(unitId);

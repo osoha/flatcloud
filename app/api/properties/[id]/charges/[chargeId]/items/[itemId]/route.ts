@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { moneyToCents, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { paidCents } from "@/lib/charges";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; chargeId: string; itemId: string }> }) {
   const { id, chargeId, itemId } = await params;
@@ -12,12 +13,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const item = await prisma.chargeItem.findFirst({
       where: { id: itemId, chargeId, charge: { lease: { unit: { propertyId: id } } } },
-      include: { charge: { include: { items: true, allocations: true } } },
+      include: { charge: { include: { items: true, allocations: true, securityDepositOffsets: true, creditApplications: true } } },
     });
     if (!item) throw new Error("Položka měsíčního předpisu nebyla nalezena.");
     const form = await request.formData();
     const mode = text(form, "mode") || "save";
-    const paid = item.charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0);
+    const paid = paidCents(item.charge);
 
     let total: number;
     let amountCents = item.amountCents;

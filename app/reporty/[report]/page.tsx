@@ -5,7 +5,7 @@ import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { accessibleProperties } from "@/lib/access";
 import { money, date } from "@/lib/format";
 import { currentPeriod } from "@/lib/period";
-import { chargeDisplayState, chargeStateLabel, overdueDebtCents } from "@/lib/charges";
+import { chargeDisplayState, chargeStateLabel, overdueDebtCents, paidCents } from "@/lib/charges";
 import { leaseStatuses } from "@/lib/labels";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { Shell } from "@/components/Shell";
@@ -42,7 +42,7 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
   const properties = propertyScope ? [propertyScope] : allProperties;
   const period = currentPeriod();
   const periods = recentPeriods();
-  const allChargeRows = properties.flatMap((property) => property.units.flatMap((unit) => unit.leases.flatMap((lease) => lease.charges.map((charge) => ({ property, unit, lease, charge, paid: charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0) })))));
+  const allChargeRows = properties.flatMap((property) => property.units.flatMap((unit) => unit.leases.flatMap((lease) => lease.charges.map((charge) => ({ property, unit, lease, charge, paid: paidCents(charge) })))));
   const charges = allChargeRows.filter((row) => row.charge.active);
   const prescriptionRows = allChargeRows.filter((row) => periods.includes(row.charge.period)).sort((a, b) => b.charge.dueDate.getTime() - a.charge.dueDate.getTime());
   const trend = periods.map((item) => {

@@ -187,6 +187,22 @@ enum ChargeCategory {
   ADJUSTMENT
 }
 
+enum SecurityDepositMovementType {
+  RECEIVED
+  RETURNED
+  OFFSET
+  ADJUSTMENT_INCREASE
+  ADJUSTMENT_DECREASE
+  INTEREST_PAID
+  INTEREST_ADJUSTMENT_INCREASE
+  INTEREST_ADJUSTMENT_DECREASE
+}
+
+enum LeaseCreditType {
+  SERVICE_SETTLEMENT
+  MANUAL_ADJUSTMENT
+}
+
 model User {
   id                          String              @id @default(cuid())
   email                       String              @unique
@@ -208,6 +224,10 @@ model User {
   tasksAssigned               Task[]               @relation("TaskAssignee")
   taskEntries                 TaskEntry[]
   complianceRecordsCreated    ComplianceRecord[]   @relation("ComplianceRecordCreator")
+  securityDepositTermsCreated SecurityDepositTerm[] @relation("SecurityDepositTermCreator")
+  securityDepositMovementsCreated SecurityDepositMovement[] @relation("SecurityDepositMovementCreator")
+  leaseCreditsCreated         LeaseCredit[]        @relation("LeaseCreditCreator")
+  leaseCreditApplicationsCreated LeaseCreditApplication[] @relation("LeaseCreditApplicationCreator")
   createdAt                   DateTime            @default(now())
   updatedAt                   DateTime            @updatedAt
 }
@@ -243,6 +263,7 @@ model OwnerBankAccount {
   currency                   String          @default("CZK")
   active                     Boolean         @default(true)
   lastNotificationAt         DateTime?
+  notificationVerifiedAt     DateTime?
   unitOwnerships             UnitOwnership[]
   leases         Lease[]
   propertyLinks  PropertyPaymentAccount[]
@@ -517,6 +538,9 @@ model Lease {
   indexationEnabled     Boolean            @default(false)
   indexationPercentBps  Int?
   nextIndexationAt      DateTime?
+  securityDepositTerms  SecurityDepositTerm[]
+  securityDepositMovements SecurityDepositMovement[]
+  credits               LeaseCredit[]
   createdAt             DateTime           @default(now())
   updatedAt             DateTime           @updatedAt
 
@@ -605,6 +629,8 @@ model Charge {
   manualOverride Boolean            @default(false)
   items         ChargeItem[]
   allocations   PaymentAllocation[]
+  securityDepositOffsets SecurityDepositMovement[] @relation("SecurityDepositOffsetCharge")
+  creditApplications LeaseCreditApplication[]
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
   notifications RentNotification[]
@@ -693,6 +719,7 @@ model BankTransaction {
   recipientAccount String?
   source            String              @default("manual")
   allocations      PaymentAllocation[]
+  securityDepositReceipts SecurityDepositMovement[]
   inboxPayment      InboxPayment?
   createdAt        DateTime            @default(now())
 
@@ -700,6 +727,74 @@ model BankTransaction {
   @@index([bankAccountId, bookedAt])
   @@index([matchedRuleId])
   @@index([suggestedLeaseId])
+}
+
+model SecurityDepositTerm {
+  id                 String   @id @default(cuid())
+  leaseId            String
+  lease              Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  agreedAmountCents  Int
+  annualRateBps      Int      @default(0)
+  effectiveFrom      DateTime
+  note               String?
+  createdById        String?
+  createdBy          User?    @relation("SecurityDepositTermCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+
+  @@index([leaseId, effectiveFrom])
+}
+
+model SecurityDepositMovement {
+  id                 String   @id @default(cuid())
+  leaseId            String
+  lease              Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  type               SecurityDepositMovementType
+  amountCents        Int
+  effectiveAt        DateTime
+  note               String?
+  bankTransactionId  String?
+  bankTransaction    BankTransaction? @relation(fields: [bankTransactionId], references: [id], onDelete: SetNull)
+  offsetChargeId     String?
+  offsetCharge       Charge? @relation("SecurityDepositOffsetCharge", fields: [offsetChargeId], references: [id], onDelete: SetNull)
+  createdById        String?
+  createdBy          User?    @relation("SecurityDepositMovementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+
+  @@index([leaseId, effectiveAt])
+  @@index([bankTransactionId])
+  @@index([offsetChargeId])
+}
+
+model LeaseCredit {
+  id                String   @id @default(cuid())
+  leaseId           String
+  lease             Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  type              LeaseCreditType
+  amountCents       Int
+  effectiveAt       DateTime
+  description       String
+  note              String?
+  createdById       String?
+  createdBy         User?    @relation("LeaseCreditCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  applications      LeaseCreditApplication[]
+
+  @@index([leaseId, effectiveAt])
+}
+
+model LeaseCreditApplication {
+  id              String   @id @default(cuid())
+  creditId        String
+  credit          LeaseCredit @relation(fields: [creditId], references: [id], onDelete: Cascade)
+  chargeId        String
+  charge          Charge  @relation(fields: [chargeId], references: [id], onDelete: Cascade)
+  amountCents     Int
+  createdById     String?
+  createdBy       User?   @relation("LeaseCreditApplicationCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+
+  @@index([creditId])
+  @@index([chargeId])
 }
 
 

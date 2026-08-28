@@ -55,7 +55,7 @@ export async function ensureCollectionTask(input: {
 export async function resolveCollectionTasksIfSettled(leaseId: string) {
   const lease = await prisma.lease.findUnique({
     where: { id: leaseId },
-    include: { unit: { select: { propertyId: true } }, charges: { where: { active: true }, include: { allocations: true } } },
+    include: { unit: { select: { propertyId: true } }, charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true } } },
   });
   if (!lease) return 0;
   const overdue = lease.charges.reduce((sum, charge) => sum + overdueDebtCents(charge), 0);

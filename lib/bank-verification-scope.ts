@@ -1,10 +1,6 @@
-type VerificationLinkLike = {
-  ownerBankAccountId: string;
-  notificationVerifiedAt?: Date | string | null;
-};
-
 type UnitOwnershipLike = {
   ownerBankAccountId?: string | null;
+  ownerBankAccount?: { notificationVerifiedAt?: Date | string | null } | null;
   owner?: { name: string } | null;
 };
 
@@ -28,21 +24,19 @@ export type UnitBankVerificationState = {
  * the owner of each unit. A property-level account link alone must never make
  * the whole property look verified.
  */
-export function bankVerificationCoverage(units: UnitLike[], links: VerificationLinkLike[]) {
-  const linkByAccountId = new Map(links.map((link) => [link.ownerBankAccountId, link]));
+export function bankVerificationCoverage(units: UnitLike[], _links?: unknown[]) {
   const unitStates: UnitBankVerificationState[] = units.map((unit) => {
     // The current FlatCloud ownership workflow assigns one effective owner/payment
     // account per unit. This mirrors lease creation, which uses ownerships[0].
     const ownership = unit.ownerships[0] ?? null;
     const ownerBankAccountId = ownership?.ownerBankAccountId ?? null;
-    const link = ownerBankAccountId ? linkByAccountId.get(ownerBankAccountId) : null;
     return {
       unitId: unit.id,
       unitLabel: unit.label,
       ownerName: ownership?.owner?.name ?? null,
       ownerBankAccountId,
       configured: Boolean(ownerBankAccountId),
-      verified: Boolean(link?.notificationVerifiedAt),
+      verified: Boolean(ownership?.ownerBankAccount?.notificationVerifiedAt),
     };
   });
 

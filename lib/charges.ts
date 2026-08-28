@@ -6,15 +6,21 @@ const PRAGUE_DATE = new Intl.DateTimeFormat("en-CA", {
 });
 
 type AllocationLike = { amountCents: number };
+type OffsetLike = { amountCents: number };
+type CreditApplicationLike = { amountCents: number };
 type ChargeLike = {
   active: boolean;
   amountCents: number;
   dueDate: Date;
   allocations: AllocationLike[];
+  securityDepositOffsets?: OffsetLike[];
+  creditApplications?: CreditApplicationLike[];
 };
 
-export function paidCents(charge: Pick<ChargeLike, "allocations">) {
-  return charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0);
+export function paidCents(charge: Pick<ChargeLike, "allocations"> & Partial<Pick<ChargeLike, "securityDepositOffsets" | "creditApplications">>) {
+  return charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0)
+    + (charge.securityDepositOffsets || []).reduce((sum, movement) => sum + movement.amountCents, 0)
+    + (charge.creditApplications || []).reduce((sum, application) => sum + application.amountCents, 0);
 }
 
 export function outstandingCents(charge: Pick<ChargeLike, "amountCents" | "allocations">) {

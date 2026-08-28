@@ -92,7 +92,7 @@ export type ForceReminderPreview = {
   outstandingCents: number;
 };
 
-type LeaseRow = Prisma.LeaseGetPayload<{ include: { tenant: true; ownerBankAccount: { include: { owner: true } }; unit: { include: { ownerships: { include: { owner: true; ownerBankAccount: true } }; property: { include: { owner: true; communicationOwner: true; manager: true; bankAccounts: true } } } }; charges: { include: { allocations: true } } } }>;
+type LeaseRow = Prisma.LeaseGetPayload<{ include: { tenant: true; ownerBankAccount: { include: { owner: true } }; unit: { include: { ownerships: { include: { owner: true; ownerBankAccount: true } }; property: { include: { owner: true; communicationOwner: true; manager: true; bankAccounts: true } } } }; charges: { include: { allocations: true; securityDepositOffsets: true; creditApplications: true } } } }>;
 
 async function loadLeases() {
   return prisma.lease.findMany({
@@ -101,7 +101,7 @@ async function loadLeases() {
       tenant: true,
       ownerBankAccount: { include: { owner: true } },
       unit: { include: { ownerships: { include: { owner: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }, property: { include: { owner: true, communicationOwner: true, manager: true, bankAccounts: true } } } },
-      charges: { where: { active: true }, include: { allocations: true }, orderBy: { dueDate: "asc" } },
+      charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true }, orderBy: { dueDate: "asc" } },
     },
   });
 }

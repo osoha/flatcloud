@@ -20,7 +20,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   const user=await requireUser();
   const {id}=await params;
   const query=await searchParams;
-  const task=await prisma.task.findUnique({where:{id},include:{property:true,unit:true,lease:{include:{charges:{where:{active:true},include:{allocations:true}}}},tenant:true,assignee:true,createdBy:true,entries:{include:{author:true},orderBy:{createdAt:"desc"}}}});
+  const task=await prisma.task.findUnique({where:{id},include:{property:true,unit:true,lease:{include:{charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true}}}},tenant:true,assignee:true,createdBy:true,entries:{include:{author:true},orderBy:{createdAt:"desc"}}}});
   if(!task)notFound();
   const property=await requirePropertyAccess(user,task.propertyId);
   if(!property)notFound();

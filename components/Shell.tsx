@@ -67,6 +67,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         {superAdmin && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>} 
         <Nav href="/reporty/predpisy" icon={<ReceiptText size={17}/>} label="Předpisy"/>
         <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
+        <Nav href="/kauce" icon={<WalletCards size={17}/>} label="Kauce"/>
 
         <div className="nav-label">Evidence</div>
         <Nav href="/najemnici" icon={<Users size={17}/>} label="Nájemníci"/>

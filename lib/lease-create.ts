@@ -5,6 +5,7 @@ import { assertUniqueVariableSymbol, validateVariableSymbol } from "./variable-s
 import { firstFutureAnniversary, periodKeyForDate, syncLeaseCharges } from "./charge-automation";
 import { leaseStatusAt } from "./lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "./lease-lifecycle";
+import { ratePercentToBps } from "./security-deposit-core";
 
 type Tx = Prisma.TransactionClient;
 
@@ -29,6 +30,8 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
   const rentCents = moneyToCents(form, "rent");
   const servicesCents = moneyToCents(form, "services");
+  const depositCents = moneyToCents(form, "deposit");
+  const depositInterestBps = ratePercentToBps(text(form, "depositInterest") || "0");
   const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
   const timingRaw = text(form, "rentTiming") || "ADVANCE";
   const rentTiming = Object.values(RentTiming).includes(timingRaw as RentTiming) ? timingRaw as RentTiming : RentTiming.ADVANCE;
@@ -58,7 +61,8 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
     tenant = await tx.tenant.create({ data: { type: tenantType, name: text(form, "name", true)!, email: communicationEmail || billingEmail, phone: text(form, "phone"), address: permanentAddress || billingAddress, ico: tenantType === TenantType.COMPANY ? text(form, "ico") : null, permanentAddress, correspondenceAddress: text(form, "correspondenceAddress"), billingAddress, billingEmail, communicationEmail, note: text(form, "tenantNote") || text(form, "note"), payerAccounts: Array.from(new Set([...stringArray(form, "payerAccounts").map(normalizePayerAccount), ...(tenantBankAccount ? [tenantBankAccount] : [])].filter(Boolean))), active: true } });
   }
 
-  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, endDate, dueDay: Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31), variableSymbol, rentTiming, rentCents, servicesCents, depositCents: moneyToCents(form, "deposit"), note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : [])] } } });
+  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, endDate, dueDay: Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31), variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : [])] } } });
+  if (depositCents > 0 || depositInterestBps > 0) await tx.securityDepositTerm.create({ data: { leaseId: lease.id, agreedAmountCents: depositCents, annualRateBps: depositInterestBps, effectiveFrom: startDate } });
   await syncUnitOccupancyCache(tx, unitId);
   if (autoChargesEnabled) await syncLeaseCharges(tx, lease.id, { force: true, fromPeriod: periodKeyForDate(startDate) });
   return { tenant, lease, unitId, ownerBankAccountId, derivedStatus, autoChargesEnabled, indexationEnabled, termType, tenantBankAccount };
