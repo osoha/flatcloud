@@ -1,24 +1,27 @@
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dateValue, text } from "@/lib/forms";
-import { audit, hasPropertyPermission } from "@/lib/management";
+import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { canEditTask } from "@/lib/task-access";
 
-const statuses = new Set(["OPEN", "IN_PROGRESS", "WAITING", "DONE", "CANCELLED"]);
+const statuses = new Set(["OPEN", "IN_PROGRESS", "WAITING", "CANCELLED"]);
 const priorities = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
   if (!user) return go(request, "/login");
   const { id } = await params;
-  const task = await prisma.task.findUnique({ where: { id } });
+  const task = await prisma.task.findUnique({ where: { id }, include: { lease: { select: { unitId: true } } } });
   if (!task) return goWithMessage(request, "/ukoly", "error", "Úkol nebyl nalezen.");
-  if (!(await hasPropertyPermission(user, task.propertyId, "EDIT"))) return goWithMessage(request, `/ukoly/${id}`, "error", "Nemáte oprávnění upravit tento úkol.");
+  if (!(await canEditTask(user, task))) return goWithMessage(request, `/ukoly/${id}`, "error", "Nemáte oprávnění upravit tento úkol.");
   try {
     const form = await request.formData();
-    const status = text(form, "status") || task.status;
+    const requestedStatus = text(form, "status");
+    if (requestedStatus === "DONE" && task.status !== "DONE") throw new Error("Úkol lze dokončit pouze přes uzavření se závěrečným komentářem.");
+    const status = task.status === "DONE" || task.status === "CANCELLED" ? task.status : (requestedStatus || task.status);
     const priority = text(form, "priority") || task.priority;
-    if (!statuses.has(status)) throw new Error("Neplatný stav úkolu.");
+    if (status !== "DONE" && !statuses.has(status)) throw new Error("Neplatný stav úkolu.");
     if (!priorities.has(priority)) throw new Error("Neplatná priorita úkolu.");
     const dueAt = dateValue(form, "dueAt");
     const assigneeId = text(form, "assigneeId");

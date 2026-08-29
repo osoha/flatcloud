@@ -2,11 +2,11 @@ import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { dateValue, text } from "@/lib/forms";
 import { hasPropertyPermission } from "@/lib/management";
-import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { prepareDocumentFiles,documentCategory } from "@/lib/documents/upload";
-import { createDocumentFromUpload } from "@/lib/documents/service";
 import { DocumentPhotoStage } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepareDocumentBatch, storePreparedDocumentBatch } from "@/lib/documents/batch-service";
 
 const categories = new Set(["COLLECTION", "MAINTENANCE", "LEASE", "COMPLIANCE", "GENERAL"]);
 const priorities = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
@@ -72,8 +72,14 @@ export async function POST(request: Request) {
       if (!assignee) throw new Error("Vybraný řešitel nemá přístup k této nemovitosti.");
     }
 
-    const created = await prisma.task.create({
-      data: {
+    const taskId=randomUUID();
+    const documentInputs=preparedFiles.map(file=>({propertyId,unitId:resolvedUnitId||undefined,leaseId:leaseId||undefined,taskId,...file,category:documentCategory(null,file),photoStage:categoryRaw==="MAINTENANCE"&&file.mimeType.startsWith("image/")?DocumentPhotoStage.BEFORE:undefined,title:file.originalName}));
+    const documentScope=resolvedUnitId?{mode:"UNIT" as const,propertyId,unitId:resolvedUnitId}:{mode:"PROPERTY" as const,propertyId};
+    const preparedBatch=await prepareDocumentBatch(user,documentInputs,documentInputs.map(()=>documentScope));
+    const storedBatch=await storePreparedDocumentBatch(preparedBatch);
+    let created;
+    try{created=await prisma.$transaction(async tx=>{const task=await tx.task.create({
+      data: { id:taskId,
         title,
         description,
         category: categoryRaw as "COLLECTION" | "MAINTENANCE" | "LEASE" | "COMPLIANCE" | "GENERAL",
@@ -88,8 +94,9 @@ export async function POST(request: Request) {
         entries: { create: { authorId: user.id, kind: "SYSTEM", body: "Úkol byl založen." } },
       },
     });
-    await audit(user.id, "TASK_CREATED", "Task", created.id, { title, category: categoryRaw, priority: priorityRaw }, propertyId);
-    for(const file of preparedFiles)await createDocumentFromUpload({actor:user,propertyId,unitId:resolvedUnitId||undefined,leaseId:leaseId||undefined,taskId:created.id,...file,category:documentCategory(null,file),photoStage:categoryRaw==="MAINTENANCE"&&file.mimeType.startsWith("image/")?DocumentPhotoStage.BEFORE:undefined,title:file.originalName});
+    await createStoredDocumentsInTransaction(tx,storedBatch);
+    await tx.auditLog.create({data:{userId:user.id,propertyId,action:"TASK_CREATED",entityType:"Task",entityId:task.id,details:{title,category:categoryRaw,priority:priorityRaw}}});
+    return task;});}catch(error){await cleanupStoredDocumentBatch(storedBatch);throw error;}
     return goWithMessage(request, `/ukoly/${created.id}`, "ok", "Úkol byl vytvořen.");
   } catch (error) {
     return goWithMessage(request, propertyId ? `/ukoly/novy?propertyId=${propertyId}` : "/ukoly/novy", "error", error instanceof Error ? error.message : "Úkol se nepodařilo vytvořit.");

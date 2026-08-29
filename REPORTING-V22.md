@@ -28,6 +28,8 @@ Lease classifications use shared lifecycle dates, not cached status. `expiring90
 
 Quality JSON has stable code, `INFO/WARNING/BLOCKER`, message and optional entity IDs. Initial codes cover unknown operational history, missing area, legacy/missing rent, missing charge, deposit configuration and no rentable units. Calculators disclose fallbacks and never turn unknown history into silent facts.
 
+Operational LIVE KPIs on both `/portfolio` and `/reporty` use the same universe of accessible, active properties. Inactive and archived properties remain visible in navigation and the scope picker for historical context, but they are excluded from LIVE aggregates, including when retained in an explicit URL selection.
+
 Rent scope is an explicit discriminated value: `ALL` means the whole portfolio, while `SCOPED` always carries complete whole-property and unit-ID grants (including an intentionally empty no-access scope). Its shared Prisma builder maps `ALL` to no filter, a non-empty scoped union to property-or-unit predicates, and empty scope to match-nothing. Requested property context is always an intersection. Shareholder calculations separately intersect group membership with effective group-property history. Neither grants the other.
 
 Quarterly reports are group/year/quarter revisions. Every property row has mandatory snapshot ID, retaining its numerical origin. `PUBLISHED` is designed for immutable publication; future PDF/media must be explicitly published assets rather than mutable live output.

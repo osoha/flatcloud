@@ -13,7 +13,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   if (!key) return new Response("Variant not found", { status: 404 });
   const storage = createFileStorage();
   const headers = { "Cache-Control": "private, no-store", "Content-Type": variant === "original" ? document.fileAsset.mimeType : "image/webp", "Content-Disposition": `${variant === "original" ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(document.fileAsset.originalName)}` };
-  if (fileStorageCapabilities().signedDownloads) return Response.redirect(await storage.getSignedDownloadUrl(key, 300), 302);
+  if (fileStorageCapabilities().signedDownloads) return Response.redirect(await storage.getSignedDownloadUrl(key, 300, { contentDisposition: headers["Content-Disposition"], contentType: headers["Content-Type"] }), 302);
   const bytes = await storage.getObject(key);
   return new Response(bytes, { headers });
 }

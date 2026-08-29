@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
 import { portfolioSelectionLabel, withPortfolioSelection, type PortfolioSelection } from "@/lib/portfolio-selection";
@@ -9,8 +9,10 @@ type PropertyOption = { id: string; name: string; address: string; city: string;
 export function PortfolioScopePicker({ availableProperties, selection }: { availableProperties: PropertyOption[]; selection: PortfolioSelection }) {
   const router = useRouter(), pathname = usePathname(), searchParams = useSearchParams();
   const [open, setOpen] = useState(false), [search, setSearch] = useState("");
-  const initial = selection.mode === "ALL" ? availableProperties.map((property) => property.id) : selection.propertyIds;
+  const selectionKey=selection.mode==="ALL"?`ALL:${availableProperties.map(property=>property.id).join(",")}`:`SELECTED:${selection.propertyIds.join(",")}`;
+  const initial = useMemo(()=>selection.mode === "ALL" ? availableProperties.map((property) => property.id) : selection.propertyIds,[selectionKey]);
   const [draft, setDraft] = useState<string[]>(initial);
+  useEffect(()=>{setDraft(initial);setOpen(false);setSearch("")},[selectionKey,initial]);
   const visible = useMemo(() => { const needle = search.trim().toLocaleLowerCase("cs"); return availableProperties.filter((property) => !needle || `${property.name} ${property.address} ${property.city}`.toLocaleLowerCase("cs").includes(needle)); }, [availableProperties, search]);
   const selectedCount = selection.mode === "ALL" ? availableProperties.length : selection.propertyIds.length;
   function close(reset = true) { if (reset) setDraft(initial); setOpen(false); setSearch(""); }

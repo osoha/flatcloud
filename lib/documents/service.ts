@@ -53,13 +53,14 @@ export function authoritativeDocumentGrantWhere(actorId: string, scope: Authorit
     : { property: { propertyId: scope.propertyId, userId: actorId, permission: { in: ["EDIT", "ADMIN"] } }, unit: { unitId: scope.unitId, userId: actorId, permission: { in: ["EDIT", "ADMIN"] } } };
 }
 export function canEditAuthoritativeDocumentScope(scope: AuthoritativeDocumentScope, grants: { wholePropertyIds: string[]; unitIds: string[] }, allProperties = false) { return allProperties || grants.wholePropertyIds.includes(scope.propertyId) || (scope.mode === "UNIT" && grants.unitIds.includes(scope.unitId)); }
-async function requireDocumentCreateAccess(actor: Actor, scope: AuthoritativeDocumentScope, client: Prisma.TransactionClient | typeof prisma = prisma) {
+export async function requireDocumentCreateAccess(actor: Actor, scope: AuthoritativeDocumentScope, client: Prisma.TransactionClient | typeof prisma = prisma) {
   if (hasAllPropertyAccess(actor)) return;
   const grants = authoritativeDocumentGrantWhere(actor.id, scope);
   const [propertyGrant, unitGrant] = await Promise.all([client.userProperty.findFirst({ where: grants.property, select: { propertyId: true } }), scope.mode === "UNIT" ? client.userUnit.findFirst({ where: grants.unit, select: { unitId: true } }) : null]);
   if (canEditAuthoritativeDocumentScope(scope, { wholePropertyIds: propertyGrant ? [propertyGrant.propertyId] : [], unitIds: unitGrant ? [unitGrant.unitId] : [] })) return;
   throw new Error("Document edit access denied.");
 }
+export async function authorizeDocumentContext(actor: Actor, context: DocumentContext) { const resolved = await resolveDocumentContext(context); const scope = resolveAuthoritativeDocumentScope(context, resolved); await requireDocumentCreateAccess(actor, scope); return scope; }
 function auditDetails(input: DocumentContext & { originalName: string }, document: { id: string; fileAssetId: string; category: DocumentCategory }): Prisma.InputJsonObject { return { propertyId: input.propertyId, documentId: document.id, fileAssetId: document.fileAssetId, category: document.category, originalName: input.originalName, ...(input.unitId ? { unitId: input.unitId } : {}), ...(input.leaseId ? { leaseId: input.leaseId } : {}), ...(input.taskId ? { taskId: input.taskId } : {}), ...(input.taskEntryId ? { taskEntryId: input.taskEntryId } : {}), ...(input.complianceRecordId ? { complianceRecordId: input.complianceRecordId } : {}) }; }
 
 export async function createDocumentFromUpload(input: DocumentContext & { actor: Actor; bytes: Uint8Array; mimeType: string; originalName: string; category: DocumentCategory; photoStage?: DocumentPhotoStage; title: string; description?: string; documentDate?: Date }, storage: FileStorage = createFileStorage()) {

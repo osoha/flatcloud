@@ -14,7 +14,8 @@ import { taskCategories } from "@/lib/labels";
 import { prisma } from "@/lib/db";
 import { bankVerificationCoverage } from "@/lib/bank-verification-scope";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
-import { parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
+import { liveSelectedPropertyIds, parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
+import { businessDateKeyToInstant, businessTodayKey } from "@/lib/calendar";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,8 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   const properties = availableProperties.filter((property)=>selectedSet.has(property.id));
   const selectionValue = serializePortfolioSelection(selection);
   const scopeQuery = selectionValue === null ? "" : `&properties=${encodeURIComponent(allowedSelection.join(","))}`;
-  const activeProperties = properties.filter((property) => property.active);
+  const liveIds = new Set(liveSelectedPropertyIds(selection, availableProperties));
+  const activeProperties = properties.filter((property) => liveIds.has(property.id));
   const period = currentPeriod();
   const fullAccess = hasAllPropertyAccess(user);
   const propertyIds = activeProperties.map((property)=>property.id);
@@ -37,9 +39,12 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   const revisionScope = fullAccess ? { propertyId: { in: propertyIds } } : { propertyId: { in: propertyWideIds } };
   const revisionHorizon = new Date(Date.now()+60*86_400_000);
 
-  const [tasks, revisions] = await Promise.all([
+  const [tasks, taskCount, revisions, revisionCount, overdueRevisionCount] = await Promise.all([
     prisma.task.findMany({ where: { ...taskScope, status: { in: openTaskStatuses } }, include: { property: true, assignee: true }, orderBy: [{ priority:"desc" },{ dueAt:"asc" },{ updatedAt:"desc" }], take:30 }),
+    prisma.task.count({ where: { ...taskScope, status: { in: openTaskStatuses } } }),
     prisma.complianceItem.findMany({ where: { ...revisionScope, active:true, nextDueAt:{lte:revisionHorizon} }, include:{property:true}, orderBy:{nextDueAt:"asc"}, take:30 }),
+    prisma.complianceItem.count({ where: { ...revisionScope, active:true, nextDueAt:{lte:revisionHorizon} } }),
+    prisma.complianceItem.count({ where: { ...revisionScope, active:true, nextDueAt:{lt:businessDateKeyToInstant(businessTodayKey())} } }),
   ]);
 
   const rows = properties.map((property) => {
@@ -68,7 +73,6 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
     prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] }, bankAccount: { propertyId: { in: propertyIds } } } }),
       prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] }, ...(selection.mode === "ALL" ? { OR: [{ propertyId: null }, { propertyId: { in: propertyIds } }] } : { propertyId: { in: propertyIds } }) } }),
   ])).reduce((sum, value) => sum + value, 0) : 0;
-  const overdueRevisions=revisions.filter((r)=>complianceState(r).key==="overdue");
   const bankVerifiedUnits = activeRows.reduce((sum, row) => sum + row.bankVerifiedCount, 0);
   const bankTotalUnits = activeRows.reduce((sum, row) => sum + row.bankUnits, 0);
 
@@ -80,8 +84,8 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   for(const alert of contractAlerts.slice(0,3))attention.push({title:`${alert.kind==="EXPIRY"?"Expirace":"Výročí"} · ${alert.lease.unit.label}`,detail:`${alert.property.name} · ${alert.lease.tenant.name} · ${date(alert.date)}`,href:`/smlouvy/${alert.lease.id}`,tone:"info"});
 
   return <Shell user={user}><div className="page v21-portfolio"><div className="page-title"><div><h1>Portfolio</h1><p>{portfolioSelectionLabel(selection,properties.length,availableProperties.length,availableProperties.filter((property)=>property.active).length)} · období {period}.</p></div><PortfolioScopePicker availableProperties={availableProperties.map(({id,name,address,city,active})=>({id,name,address,city,active}))} selection={selection.mode==="ALL"?selection:{mode:"SELECTED",propertyIds:allowedSelection}}/></div><Flash ok={query.ok} error={query.error}/>
-    <div className="stat-grid v21-stat-grid"><Kpi href={`/reporty?view=collections${scopeQuery}`} icon={<CheckCircle2/>} label="Inkaso" value={expected?`${Math.round(paid/expected*100)} %`:"—"} note={`${money(paid)} z ${money(expected)}`} tone="green"/><Kpi href={`/reporty?view=collections${scopeQuery}`} icon={<WalletCards/>} label="Dluh" value={money(debt)} note="po splatnosti" tone="red" bad={debt>0}/><Kpi href={`/ukoly?${scopeQuery.slice(1)}`} icon={<ListChecks/>} label="Úkoly" value={String(tasks.length)} note="otevřených případů" tone="orange" bad={tasks.some(t=>t.priority==="URGENT")}/><Kpi href={`/revize?${scopeQuery.slice(1)}`} icon={<ClipboardCheck/>} label="Revize" value={String(revisions.length)} note={`${overdueRevisions.length} po termínu`} tone="purple" bad={overdueRevisions.length>0}/><Kpi href={`/smlouvy/upozorneni?${scopeQuery.slice(1)}`} icon={<CalendarCheck2/>} label="Smlouvy" value={String(contractAlerts.length)} note={`${expiryCount} expirace · ${anniversaryCount} výročí`} tone="blue"/>{user.role==="SUPER_ADMIN"&&<Kpi href="/platby/nesparovane" icon={<AlertCircle/>} label="Nespárované" value={String(unmatchedCount)} note="plateb k řešení" tone="red" bad={unmatchedCount>0}/>}</div>
-    <div className="detail-grid v21-dashboard-grid"><div className="card col-8 attention-card"><div className="card-head"><div><h2>Vyžaduje pozornost</h2><p className="muted-copy">Úkoly, finance, smlouvy a technické termíny v jedné pracovní frontě.</p></div></div><div className="attention-list">{attention.length?attention.slice(0,10).map((item,index)=><Link className={`attention-item ${item.tone}`} href={item.href} key={`${item.href}-${index}`}><span className="attention-icon"><AlertCircle size={17}/></span><span><strong>{item.title}</strong><small>{item.detail}</small></span><b>→</b></Link>):<div className="calm-state"><CheckCircle2 size={22}/><div><strong>Portfolio je bez akutních událostí</strong><span>Žádná položka právě nevyžaduje okamžitý zásah.</span></div></div>}</div></div><div className="card col-4"><h2>Stav portfolia</h2><div className="summary-list"><div><span>Aktivní nemovitosti</span><strong>{activeRows.length}</strong></div><div><span>Neaktivní / archivované</span><strong>{inactiveRows.length}</strong></div><div><span>Otevřené úkoly</span><strong>{tasks.length}</strong></div><div><span>Revize do 60 dní</span><strong>{revisions.length}</strong></div><div><span>Expirace smluv</span><strong>{expiryCount}</strong></div><div><span>Výročí smluv</span><strong>{anniversaryCount}</strong></div><div><span>Bankovní účty jednotek</span><strong>{bankVerifiedUnits} / {bankTotalUnits}</strong></div></div></div></div>
+    <div className="stat-grid v21-stat-grid"><Kpi href={`/reporty?view=collections${scopeQuery}`} icon={<CheckCircle2/>} label="Inkaso" value={expected?`${Math.round(paid/expected*100)} %`:"—"} note={`${money(paid)} z ${money(expected)}`} tone="green"/><Kpi href={`/reporty?view=collections${scopeQuery}`} icon={<WalletCards/>} label="Dluh" value={money(debt)} note="po splatnosti" tone="red" bad={debt>0}/><Kpi href={`/ukoly?${scopeQuery.slice(1)}`} icon={<ListChecks/>} label="Úkoly" value={String(taskCount)} note="otevřených případů" tone="orange" bad={tasks.some(t=>t.priority==="URGENT")}/><Kpi href={`/revize?${scopeQuery.slice(1)}`} icon={<ClipboardCheck/>} label="Revize" value={String(revisionCount)} note={`${overdueRevisionCount} po termínu`} tone="purple" bad={overdueRevisionCount>0}/><Kpi href={`/smlouvy/upozorneni?${scopeQuery.slice(1)}`} icon={<CalendarCheck2/>} label="Smlouvy" value={String(contractAlerts.length)} note={`${expiryCount} expirace · ${anniversaryCount} výročí`} tone="blue"/>{user.role==="SUPER_ADMIN"&&<Kpi href="/platby/nesparovane" icon={<AlertCircle/>} label="Nespárované" value={String(unmatchedCount)} note="plateb k řešení" tone="red" bad={unmatchedCount>0}/>}</div>
+    <div className="detail-grid v21-dashboard-grid"><div className="card col-8 attention-card"><div className="card-head"><div><h2>Vyžaduje pozornost</h2><p className="muted-copy">Úkoly, finance, smlouvy a technické termíny v jedné pracovní frontě.</p></div></div><div className="attention-list">{attention.length?attention.slice(0,10).map((item,index)=><Link className={`attention-item ${item.tone}`} href={item.href} key={`${item.href}-${index}`}><span className="attention-icon"><AlertCircle size={17}/></span><span><strong>{item.title}</strong><small>{item.detail}</small></span><b>→</b></Link>):<div className="calm-state"><CheckCircle2 size={22}/><div><strong>Portfolio je bez akutních událostí</strong><span>Žádná položka právě nevyžaduje okamžitý zásah.</span></div></div>}</div></div><div className="card col-4"><h2>Stav portfolia</h2><div className="summary-list"><div><span>Aktivní nemovitosti</span><strong>{activeRows.length}</strong></div><div><span>Neaktivní / archivované</span><strong>{inactiveRows.length}</strong></div><div><span>Otevřené úkoly</span><strong>{taskCount}</strong></div><div><span>Revize do 60 dní</span><strong>{revisionCount}</strong></div><div><span>Expirace smluv</span><strong>{expiryCount}</strong></div><div><span>Výročí smluv</span><strong>{anniversaryCount}</strong></div><div><span>Bankovní účty jednotek</span><strong>{bankVerifiedUnits} / {bankTotalUnits}</strong></div></div></div></div>
     <div className="card portfolio-table-card" id="nemovitosti"><div className="table-toolbar"><div><h2>Nemovitosti</h2><p>Kliknutím otevřete provozní dashboard objektu.</p></div></div><div className="table-wrap"><table><thead><tr><th>Nemovitost</th><th>Vlastník / SPV</th><th>Bankovní e-mail</th><th>Předpis</th><th>Dluh</th><th>Inkaso</th><th>Stav</th></tr></thead><tbody>{rows.length?<>{renderPropertyRows(activeRows)}{inactiveRows.length>0&&<tr className="archive-section-row"><td colSpan={7}>Neaktivní / archivované</td></tr>}{renderPropertyRows(inactiveRows,true)}</>:<tr><td colSpan={7} className="table-empty">Zatím nejsou evidované nemovitosti.</td></tr>}</tbody></table></div></div>
   </div></Shell>;
 }
