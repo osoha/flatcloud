@@ -9,11 +9,11 @@ export function parsePortfolioSelection(input: { properties?: string | string[];
   const values = Array.isArray(raw) ? raw : [raw];
   return { mode: "SELECTED", propertyIds: cleanIds(values.flatMap((value) => value.split(","))) };
 }
-export function serializePortfolioSelection(selection: PortfolioSelection) { return selection.mode === "ALL" ? null : selection.propertyIds.join(","); }
+export function serializePortfolioSelection(selection: PortfolioSelection) { return selection.mode === "ALL" ? null : cleanIds(selection.propertyIds).join(","); }
 export function applyPortfolioSelection(scope: ReportingScope, selection: PortfolioSelection, unitPropertyIds: Record<string, string> = {}): ReportingScope {
   if (selection.mode === "ALL") return scope;
   const selected = new Set(selection.propertyIds);
-  if (scope.mode === "ALL") return { mode: "SCOPED", wholePropertyIds: selection.propertyIds, unitIds: [] };
+  if (scope.mode === "ALL") return { mode: "SCOPED", wholePropertyIds: cleanIds(selection.propertyIds), unitIds: [] };
   return { mode: "SCOPED", wholePropertyIds: scope.wholePropertyIds.filter((id) => selected.has(id)), unitIds: scope.unitIds.filter((id) => selected.has(unitPropertyIds[id])) };
 }
 export function portfolioSelectionLabel(selection: PortfolioSelection, selectedCount: number, totalCount: number, activeCount = totalCount) { return selection.mode === "ALL" ? `Celé portfolio · ${activeCount} aktivních objektů` : `Výběr · ${selectedCount} z ${totalCount} objektů`; }

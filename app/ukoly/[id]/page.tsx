@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { CheckCircle2, Clock3, FileText, Home, UserRound } from "lucide-react";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
-import { requirePropertyAccess } from "@/lib/access";
+import { editableUnitWhere, requirePropertyAccess } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { dateInput } from "@/lib/forms";
@@ -13,6 +13,8 @@ import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { UserAvatar } from "@/components/UserAvatar";
 import { TaskThreadComposer } from "@/components/TaskThreadComposer";
+import { documentAccessWhere } from "@/lib/documents/access";
+import { DocumentAttachments } from "@/components/documents/DocumentAttachments";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,8 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   if(!property)notFound();
   const propertyWide=hasAllPropertyAccess(user)||property.memberships.some((row)=>row.userId===user.id);
   if(!propertyWide&&(!task.unitId||!property.units.some((unit)=>unit.id===task.unitId)))notFound();
-  const canManage=await hasPropertyPermission(user,task.propertyId,"EDIT");
+  const canManage=await hasPropertyPermission(user,task.propertyId,"EDIT")||Boolean(task.unitId&&await prisma.unit.findFirst({where:{id:task.unitId,...editableUnitWhere(user,task.propertyId)},select:{id:true}}));
+  const documents=await prisma.document.findMany({where:{AND:[documentAccessWhere(user),{taskId:id}]},orderBy:{createdAt:"desc"},include:{fileAsset:true,property:{select:{name:true}},unit:{select:{label:true}},lease:{select:{contractNumber:true}},task:{select:{title:true}},complianceRecord:{select:{id:true}}}});
   const managers=canManage?await prisma.user.findMany({where:{active:true,OR:[{allProperties:true},{role:{in:["SUPER_ADMIN","MANAGER"]}},{memberships:{some:{propertyId:task.propertyId,permission:{in:["EDIT","ADMIN"]}}}}]},orderBy:{name:"asc"}}):[];
   const debt=task.lease?.charges.reduce((sum,charge)=>sum+overdueDebtCents(charge),0)??0;
   const latestPromise=task.entries.find((entry)=>entry.kind==="PROMISE");
@@ -45,7 +48,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
         <div className="card-head"><div><h2>Vlákno případu</h2><p className="muted-copy">Nejnovější komunikace a automatické události jsou nahoře. Vlastník vidí stejný průběh v režimu pouze pro čtení.</p></div></div>
         <div className="discussion-thread">{task.entries.length?task.entries.map((entry)=><article className={`discussion-entry kind-${entry.kind.toLowerCase()}`} key={entry.id}>
           <div className="discussion-avatar">{entry.author?<UserAvatar user={entry.author} size="sm"/>:<div className="system-avatar">FC</div>}</div>
-          <div className="discussion-content"><div className="discussion-head"><div><strong>{entry.author?.name||"FlatCloud"}</strong><span className="entry-kind">{taskEntryKinds[entry.kind]}</span></div><time>{entry.createdAt.toLocaleString("cs-CZ",{dateStyle:"medium",timeStyle:"short"})}</time></div><p>{entry.body}</p>{entry.kind==="PROMISE"&&(entry.promisedPaymentDate||entry.promisedAmountCents)&&<div className="promise-summary"><Clock3 size={15}/><div><strong>Příslib úhrady</strong><span>{entry.promisedPaymentDate?date(entry.promisedPaymentDate):"Datum neuvedeno"}{entry.promisedAmountCents?` · ${money(entry.promisedAmountCents)}`:""}</span></div></div>}</div>
+          <div className="discussion-content"><div className="discussion-head"><div><strong>{entry.author?.name||"FlatCloud"}</strong><span className="entry-kind">{taskEntryKinds[entry.kind]}</span></div><time>{entry.createdAt.toLocaleString("cs-CZ",{dateStyle:"medium",timeStyle:"short"})}</time></div><p>{entry.body}</p><DocumentAttachments documents={documents.filter(document=>document.taskEntryId===entry.id)}/>{entry.kind==="PROMISE"&&(entry.promisedPaymentDate||entry.promisedAmountCents)&&<div className="promise-summary"><Clock3 size={15}/><div><strong>Příslib úhrady</strong><span>{entry.promisedPaymentDate?date(entry.promisedPaymentDate):"Datum neuvedeno"}{entry.promisedAmountCents?` · ${money(entry.promisedAmountCents)}`:""}</span></div></div>}</div>
         </article>):<div className="table-empty">Vlákno zatím neobsahuje záznamy.</div>}</div>
         {canManage&&<TaskThreadComposer taskId={task.id} collection={task.category==="COLLECTION"}/>}
       </div>
@@ -62,6 +65,8 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
           <div><span>Poslední aktivita</span><strong>{lastActivity.toLocaleString("cs-CZ",{dateStyle:"short",timeStyle:"short"})}</strong></div>
           <div><span>Kategorie / priorita</span><strong>{taskCategories[task.category]} · {taskPriorities[task.priority]}</strong></div>
         </div>{task.description&&<div className="case-description"><strong>Zadání</strong><p>{task.description}</p></div>}</div>
+        {task.category==="MAINTENANCE"&&documents.some(document=>document.photoStage==="BEFORE"||document.photoStage==="AFTER")&&<div className="card"><h2>Fotodokumentace</h2><h3>Před opravou</h3><DocumentAttachments documents={documents.filter(document=>document.photoStage==="BEFORE")}/><h3>Po opravě</h3><DocumentAttachments documents={documents.filter(document=>document.photoStage==="AFTER")}/></div>}
+        {canManage&&task.status!=="DONE"&&<details className="card case-edit-panel"><summary>Uzavřít případ</summary><form className="compact-form" action={`/api/tasks/${task.id}/close`} method="post" encType="multipart/form-data"><label className="field"><span>Závěrečný komentář *</span><textarea name="body" rows={4} required/></label><label className="field"><span>Fotografie / soubory</span><input name="files" type="file" multiple/></label><button className="primary" type="submit">Uzavřít případ</button></form></details>}
 
         {canManage&&<details className="card case-edit-panel"><summary>Upravit případ</summary><form className="compact-form" action={`/api/tasks/${task.id}`} method="post"><label className="field"><span>Název</span><input name="title" defaultValue={task.title}/></label><label className="field"><span>Stav</span><select name="status" defaultValue={task.status}>{Object.entries(taskStatuses).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><label className="field"><span>Priorita</span><select name="priority" defaultValue={task.priority}>{Object.entries(taskPriorities).map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label><label className="field"><span>Odpovědný</span><select name="assigneeId" defaultValue={task.assigneeId||""}><option value="">Nepřiřazen</option>{managers.map((m)=><option value={m.id} key={m.id}>{m.name}</option>)}</select></label><label className="field"><span>Termín</span><input name="dueAt" type="date" defaultValue={dateInput(task.dueAt)}/></label><label className="field"><span>Popis</span><textarea name="description" rows={4} defaultValue={task.description||""}/></label><button className="primary" type="submit">Uložit změny</button></form></details>}
       </aside>

@@ -32,7 +32,7 @@ export function TaskCreateForm({ properties, initialPropertyId = "", initialLeas
 
   if (!property) return <div className="card empty-state"><h2>Nemáte nemovitost s právem editace</h2><p>Úkol může založit správce nebo uživatel s právem editace objektu.</p></div>;
 
-  return <form className="card edit-form" action="/api/tasks" method="post">
+  return <form className="card edit-form" action="/api/tasks" method="post" encType="multipart/form-data">
     <div className="form-grid">
       <label className="field"><span>Nemovitost *</span><select name="propertyId" value={propertyId} onChange={(event) => changeProperty(event.target.value)} required>{properties.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
       <label className="field"><span>Kategorie *</span><select name="category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="GENERAL">Obecný úkol</option><option value="MAINTENANCE">Provoz / závada</option><option value="COLLECTION">Vymáhání / upomínka</option><option value="LEASE">Smlouva</option><option value="COMPLIANCE">Revize / kontrola</option></select></label>
@@ -44,6 +44,7 @@ export function TaskCreateForm({ properties, initialPropertyId = "", initialLeas
       <label className="field"><span>Odpovědný</span><select key={property.id} name="assigneeId" defaultValue={property.managerId || ""}><option value="">Nepřiřazen</option>{property.managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}</select></label>
       <label className="field"><span>Termín</span><input name="dueAt" type="date"/></label>
       <label className="field field-full"><span>Popis / zadání</span><textarea name="description" rows={4} placeholder="Co je potřeba vyřešit, jaký je další krok a případně co už proběhlo."/></label>
+      <label className="field field-full"><span>Přílohy / fotografie</span><input name="files" type="file" multiple/><small>Nejvýše 10 souborů. Fotografie závady se označí jako stav před opravou.</small></label>
     </div>
     <div className="form-actions"><Link className="secondary" href="/ukoly">Zrušit</Link><button className="primary" type="submit">Vytvořit úkol</button></div>
   </form>;

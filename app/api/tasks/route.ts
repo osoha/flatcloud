@@ -4,6 +4,9 @@ import { dateValue, text } from "@/lib/forms";
 import { hasPropertyPermission } from "@/lib/management";
 import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { prepareDocumentFiles,documentCategory } from "@/lib/documents/upload";
+import { createDocumentFromUpload } from "@/lib/documents/service";
+import { DocumentPhotoStage } from "@prisma/client";
 
 const categories = new Set(["COLLECTION", "MAINTENANCE", "LEASE", "COMPLIANCE", "GENERAL"]);
 const priorities = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
@@ -14,6 +17,8 @@ export async function POST(request: Request) {
   let propertyId = "";
   try {
     const form = await request.formData();
+    const hasFiles=form.getAll("files").some(value=>value instanceof File&&value.size>0);
+    const preparedFiles=hasFiles?await prepareDocumentFiles(form):[];
     propertyId = text(form, "propertyId", true)!;
     if (!(await hasPropertyPermission(user, propertyId, "EDIT"))) throw new Error("Nemáte oprávnění vytvářet úkoly pro tuto nemovitost.");
     const title = text(form, "title", true)!;
@@ -84,6 +89,7 @@ export async function POST(request: Request) {
       },
     });
     await audit(user.id, "TASK_CREATED", "Task", created.id, { title, category: categoryRaw, priority: priorityRaw }, propertyId);
+    for(const file of preparedFiles)await createDocumentFromUpload({actor:user,propertyId,unitId:resolvedUnitId||undefined,leaseId:leaseId||undefined,taskId:created.id,...file,category:documentCategory(null,file),photoStage:categoryRaw==="MAINTENANCE"&&file.mimeType.startsWith("image/")?DocumentPhotoStage.BEFORE:undefined,title:file.originalName});
     return goWithMessage(request, `/ukoly/${created.id}`, "ok", "Úkol byl vytvořen.");
   } catch (error) {
     return goWithMessage(request, propertyId ? `/ukoly/novy?propertyId=${propertyId}` : "/ukoly/novy", "error", error instanceof Error ? error.message : "Úkol se nepodařilo vytvořit.");

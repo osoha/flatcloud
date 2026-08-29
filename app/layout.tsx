@@ -1,4 +1,5 @@
 import "./globals.css";
+import "./documents.css";
 
 export const metadata = {
   title: "FlatCloud Rent",

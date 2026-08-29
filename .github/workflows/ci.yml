@@ -51,4 +51,5 @@ jobs:
       - run: npm run verify:v21.6.1
       - run: npm run verify:v21.7
       - run: npm run verify:v22
+      - run: npm run verify:v22-b
       - run: npm run build

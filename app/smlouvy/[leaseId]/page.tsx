@@ -12,6 +12,9 @@ import { leaseStatuses } from "@/lib/labels";
 import { securityDepositSnapshot } from "@/lib/security-deposit";
 import { outstandingCents } from "@/lib/charges";
 import { remainingCreditCents } from "@/lib/credit";
+import { documentAccessWhere } from "@/lib/documents/access";
+import { DocumentAttachments } from "@/components/documents/DocumentAttachments";
+import { DocumentUploadForm } from "@/components/documents/DocumentUploadForm";
 
 export const dynamic = "force-dynamic";
 const depositStatuses = { NOT_CONFIGURED: "Neevidováno", UNPAID: "Nesloženo", PARTIAL: "Částečně složeno", FUNDED: "Složeno", TO_SETTLE: "K vypořádání", SETTLED: "Vypořádáno" };
@@ -34,6 +37,7 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
   const today = dateInput(new Date());
   const openCharges = lease.charges.filter((charge) => outstandingCents(charge) > 0);
   const action = `/api/properties/${lease.unit.propertyId}/leases/${lease.id}`;
+  const documents=await prisma.document.findMany({where:{AND:[documentAccessWhere(user),{leaseId:lease.id}]},orderBy:{createdAt:"desc"},include:{fileAsset:true,property:{select:{name:true}},unit:{select:{label:true}},lease:{select:{contractNumber:true}},task:{select:{title:true}},complianceRecord:{select:{id:true}}}});
   return <Shell user={user} taskPropertyId={lease.unit.propertyId} taskLeaseId={lease.id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${lease.unit.propertyId}/prehled`}>{lease.unit.property.name}</Link><span>›</span><Link href={`/nemovitosti/${lease.unit.propertyId}/jednotky/${lease.unitId}`}>{lease.unit.label}</Link><span>›</span><span>{lease.contractNumber || "Smlouva"}</span></div>
     <div className="page-title"><div><h1>{lease.contractNumber || "Smlouva"}</h1><p>{lease.tenant.name} · {lease.unit.property.name} · {lease.unit.label}</p></div>{canEdit&&<Link className="primary" href={`/nemovitosti/${lease.unit.propertyId}/smlouvy/${lease.id}/upravit`}>Upravit smlouvu</Link>}</div>
@@ -56,6 +60,7 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
         <h3>Historie podmínek</h3><div className="deposit-history">{lease.securityDepositTerms.length?lease.securityDepositTerms.map((term)=><div key={term.id}><span>{date(term.effectiveFrom)}</span><strong>{money(term.agreedAmountCents)}</strong><span>{(term.annualRateBps/100).toLocaleString("cs-CZ")} % p.a.</span><span>{term.note||"—"}</span></div>):<p className="muted-copy">Zatím bez podmínek.</p>}</div>
       </div>
     </div>
+    <div className="card settlement-card" id="dokumenty"><div className="card-head"><h2>Dokumenty smlouvy</h2></div><DocumentAttachments documents={documents} canDelete={canEdit} returnTo={`/smlouvy/${lease.id}`}/>{canEdit&&<details className="create-panel"><summary>Nahrát dokument smlouvy</summary><DocumentUploadForm propertyId={lease.unit.propertyId} leaseId={lease.id} returnTo={`/smlouvy/${lease.id}`} categories={[["CONTRACT","Nájemní smlouva"],["CONTRACT_ADDENDUM","Dodatek"],["HANDOVER_PROTOCOL","Předávací protokol"],["PHOTO","Fotografie"],["OTHER","Ostatní"]]}/></details>}</div>
     <div className="card settlement-card" id="vyuctovani"><div className="card-head"><div><h2>Vyúčtování / kredity</h2><p className="muted-copy">Nedoplatek vytvoří předpis ADJUSTMENT, přeplatek kredit smlouvy.</p></div></div>
       {canEdit&&<details className="create-panel"><summary>Přidat výsledek vyúčtování</summary><form className="compact-form" action={`${action}/settlement`} method="post"><label className="field"><span>Výsledek</span><select name="kind"><option value="DEBIT">Nedoplatek</option><option value="CREDIT">Přeplatek</option></select></label><Input label="Částka Kč" name="amount" type="number"/><Input label="Datum / období" name="effectiveAt" type="date" defaultValue={today}/><Input label="Splatnost nedoplatku" name="dueDate" type="date" defaultValue={today}/><Input label="Popis období" name="description"/><Input label="Poznámka" name="note"/><button className="primary">Uložit výsledek</button></form></details>}
       <div className="table-wrap"><table><thead><tr><th>Původní kredit</th><th>Použito</th><th>Zbývá</th><th>Období</th><th>Datum</th><th>Historie použití</th></tr></thead><tbody>{lease.credits.length?lease.credits.map((credit)=>{const remaining=remainingCreditCents(credit);return <tr key={credit.id}><td><strong>{money(credit.amountCents)}</strong></td><td>{money(credit.amountCents-remaining)}</td><td>{money(remaining)}</td><td>{credit.description}</td><td>{date(credit.effectiveAt)}</td><td>{credit.applications.length?credit.applications.map((item)=><span className="entity-secondary" key={item.id}>{date(item.createdAt)} · {item.charge.period} · {money(item.amountCents)}</span>):"—"}</td></tr>}):<tr><td colSpan={6} className="table-empty">Zatím nejsou evidované přeplatky.</td></tr>}</tbody></table></div>
