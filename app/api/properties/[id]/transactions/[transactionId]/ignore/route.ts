@@ -12,6 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const transaction = await prisma.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true } });
     if (!transaction) throw new Error("Platba nebyla nalezena.");
+    if (transaction.source === "manual") throw new Error("Ručně evidovanou platbu nelze ignorovat. Použijte funkci Stornovat ruční platbu.");
     if (transaction.allocations.length) throw new Error("Nejprve odstraňte existující přiřazení platby.");
     const form = await request.formData();
     const future = boolValue(form, "future");

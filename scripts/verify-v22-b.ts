@@ -7,7 +7,7 @@ import { canEditTaskFromGrants, taskEditScope } from "../lib/task-access";
 import { safeInternalReturnPath } from "../lib/route-response";
 import { cleanDocumentCatalogParams, documentDateRange } from "../lib/documents/catalog";
 import { expectedTransactionStatus, planOldestChargeAllocations } from "../lib/matching";
-import { canCorrectTransactionFromGrants, manualCancellationError, uniqueAssignmentLeaseId } from "../lib/payment-corrections";
+import { canCorrectTransactionFromGrants, canRemoveFinalTransactionUnitAnchor, manualCancellationError, uniqueAssignmentLeaseId } from "../lib/payment-corrections";
 
 const root=path.resolve(process.cwd()),read=(file:string)=>fs.readFileSync(path.join(root,file),"utf8");let count=0;
 function check(name:string,fn:()=>unknown){fn();count++;console.log(`✓ ${count}. ${name}`)}
@@ -56,7 +56,13 @@ check("VIEW cannot correct",()=>assert.equal(canCorrectTransactionFromGrants("P"
 check("bank import cannot be manually cancelled",()=>assert.match(manualCancellationError({source:"bank",status:"MATCHED",depositLinked:false})||"",/pouze ručně/));
 check("deposit-linked manual cancellation blocked",()=>assert.match(manualCancellationError({source:"manual",status:"MATCHED",depositLinked:true})||"",/kauce/));
 check("repeated manual cancellation controlled",()=>assert.match(manualCancellationError({source:"manual",status:"IGNORED",matchNote:"Ruční platba stornována správcem.",depositLinked:false})||"",/již byla stornována/));
+check("other ignored manual cancellation controlled",()=>assert.match(manualCancellationError({source:"manual",status:"IGNORED",matchNote:"Historicky ignorováno",depositLinked:false})||"",/již označena jako ignorovaná/));
 check("eligible manual cancellation accepted",()=>assert.equal(manualCancellationError({source:"manual",status:"MATCHED",depositLinked:false}),null));
+check("property editor may remove final unit anchor",()=>assert.equal(canRemoveFinalTransactionUnitAnchor(true,[]),true));
+check("unit editor may remove allocation when another anchor remains",()=>assert.equal(canRemoveFinalTransactionUnitAnchor(false,["U"]),true));
+check("unit editor cannot remove final unit anchor",()=>assert.equal(canRemoveFinalTransactionUnitAnchor(false,[]),false));
+check("unit editor cannot cancel away final unit anchor",()=>assert.equal(canRemoveFinalTransactionUnitAnchor(false,[]),false));
+check("unit editor can atomic reassign own to own",()=>assert.equal(canCorrectTransactionFromGrants("P",["U"],{wholePropertyIds:[],unitIds:["U"]}),true));
 
 const specs:Array<[string,string,string[]]>=[
   ["picker","components/PortfolioScopePicker.tsx",["router.push","Hledat nemovitost","type=\"checkbox\"","Vybrat vše","Použít výběr","Zrušit změny","Archivováno","aria-haspopup","useEffect","setDraft(initial)"]],
@@ -86,17 +92,19 @@ const specs:Array<[string,string,string[]]>=[
   ["S3 response metadata","lib/storage/s3.ts",["ResponseContentDisposition","ResponseContentType","expiresSeconds=300"]],
   ["safe returns","lib/route-response.ts",["safeInternalReturnPath","startsWith(\"/\")","startsWith(\"//\")"]],
   ["matching tx helpers","lib/matching.ts",["recomputeTransactionStatusTx","allocateAvailableTransactionToLeaseTx","planOldestChargeAllocations","orderBy: { dueDate: \"asc\" }","await recomputeTransactionStatusTx(tx,transactionId)"]],
-  ["payment corrections","lib/payment-corrections.ts",["serializableTransaction","unallocatePayment","unallocateAllPayment","reassignPayment","cancelManualPayment","requireTransactionCorrectionAccess","canCorrectTransactionFromGrants","reconcileTransactionAssignmentMetadata","recomputeTransactionStatusTx","allocateAvailableTransactionToLeaseTx","paymentAllocation.delete","paymentAllocation.deleteMany","matchedRuleId:null","suggestedLeaseId:null","PAYMENT_UNALLOCATED","PAYMENT_UNALLOCATED_ALL","PAYMENT_REASSIGNED","MANUAL_PAYMENT_CANCELLED","previousAllocations","newAllocations","remainingCents","Platba již byla odpárována","Ruční platba již byla stornována","Cílový nájemní vztah nepatří do této nemovitosti","celou platbu nelze přepárovat","zaúčtována jako kauce"]],
+  ["payment corrections","lib/payment-corrections.ts",["serializableTransaction","unallocatePayment","unallocateAllPayment","reassignPayment","cancelManualPayment","requireTransactionCorrectionAccess","canCorrectTransactionFromGrants","canRemoveFinalTransactionUnitAnchor","hasPropertyCorrectionAccess","requireRemainingUnitAnchorOrPropertyAccess","reconcileTransactionAssignmentMetadata","recomputeTransactionStatusTx","allocateAvailableTransactionToLeaseTx","paymentAllocation.delete","paymentAllocation.deleteMany","matchedRuleId:null","suggestedLeaseId:null","PAYMENT_UNALLOCATED","PAYMENT_UNALLOCATED_ALL","PAYMENT_REASSIGNED","MANUAL_PAYMENT_CANCELLED","previousAllocations","newAllocations","remainingCents","Platba již byla odpárována","Ruční platba již byla stornována","již označena jako ignorovaná","Úplné odpárování platby může provést pouze správce celé nemovitosti","Cílový nájemní vztah nepatří do této nemovitosti","celou platbu nelze přepárovat","zaúčtována jako kauce"]],
   ["collection correction","lib/tasks.ts",["reconcileCollectionTasksAfterPaymentCorrectionTx","COLLECTION_TASK_RESOLVED","COLLECTION_TASK_REOPENED_AFTER_PAYMENT_CORRECTION","COLLECTION_TASK_CREATED_AFTER_PAYMENT_CORRECTION","TASK_CLOSED","TASK_UPDATED","latestClose?.action===\"COLLECTION_TASK_RESOLVED\"","status:\"IN_PROGRESS\"","closedAt:null","Obnovený dluh po opravě platby","if(open.length)continue","task.status === \"CANCELLED\") return task"]],
   ["single unallocate route","app/api/properties/[id]/transactions/[transactionId]/allocations/[allocationId]/remove/route.ts",["currentUser","unallocatePayment","allocationId","odpárováno"]],
   ["unallocate all route","app/api/properties/[id]/transactions/[transactionId]/unallocate-all/route.ts",["currentUser","unallocateAllPayment","zaúčtování kauce zůstalo beze změny"]],
   ["reassign route","app/api/properties/[id]/transactions/[transactionId]/reassign/route.ts",["currentUser","targetLeaseId","reassignPayment","přepárována"]],
   ["manual cancel route","app/api/properties/[id]/transactions/[transactionId]/cancel-manual/route.ts",["currentUser","cancelManualPayment","zůstává zachována v historii"]],
-  ["payment correction UI","app/nemovitosti/[id]/platby/[transactionId]/page.tsx",["canCorrectTransaction","Odpárovat","Odpárovat všechna přiřazení nájemného","Přepárovat platbu","targetLeaseId","transaction.source===\"manual\"","Stornovat ruční platbu","Ruční platba byla stornována","depositLinked","celou platbu nelze přepárovat","Rozumím dopadu storna"]]
+  ["payment ignore guard","app/api/properties/[id]/transactions/[transactionId]/ignore/route.ts",["transaction.source === \"manual\"","Ručně evidovanou platbu nelze ignorovat","Stornovat ruční platbu"]],
+  ["payment correction UI","app/nemovitosti/[id]/platby/[transactionId]/page.tsx",["canCorrectTransaction","hasPropertyCorrectionAccess","Odpárovat","Odpárovat všechna přiřazení nájemného","Přepárovat platbu","targetLeaseId","transaction.source===\"manual\"","transaction.source!==\"manual\"","Stornovat ruční platbu","Ruční platba byla stornována","depositLinked","celou platbu nelze přepárovat","Rozumím dopadu storna"]]
 ];
 for(const[group,file,needles]of specs){const source=read(file);for(const needle of needles)check(`${group}: ${needle}`,()=>assert.ok(source.includes(needle),`${file} must contain ${needle}`))}
 check("UI never exposes storageKey",()=>assert.doesNotMatch(read("components/documents/DocumentAttachments.tsx"),/storageKey/));
 check("no V22-B migration",()=>assert.equal(fs.readdirSync(path.join(root,"prisma/migrations")).filter(name=>/v22.?b/i.test(name)).length,0));
 check("manual cancellation never deletes BankTransaction",()=>assert.doesNotMatch(read("lib/payment-corrections.ts"),/bankTransaction\.delete/));
 check("manual cancellation creates no ignore rule",()=>assert.doesNotMatch(read("lib/payment-corrections.ts"),/bankMatchingRule\.create/));
+check("manual ignore guard precedes future rule creation",()=>assert.ok(read("app/api/properties/[id]/transactions/[transactionId]/ignore/route.ts").indexOf('transaction.source === "manual"')<read("app/api/properties/[id]/transactions/[transactionId]/ignore/route.ts").indexOf("bankMatchingRule.create")));
 assert.ok(count>=260);console.log(`V22-B verification passed: ${count} checks.`);
