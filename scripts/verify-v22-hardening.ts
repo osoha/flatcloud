@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { businessDateKey } from "../lib/calendar";
-import { assertDocumentContextConsistency } from "../lib/documents/service";
+import { assertDocumentContextConsistency, authoritativeDocumentGrantWhere, canEditAuthoritativeDocumentScope, resolveAuthoritativeDocumentScope } from "../lib/documents/service";
 import { documentAccessWhere, documentEditAccessWhere } from "../lib/documents/access";
-import { reportingGroupPropertiesAt, reportingScopeForUser } from "../lib/reporting/access";
+import { reportingGroupPropertiesAt, reportingScopeForUser, reportingUnitAccessWhere } from "../lib/reporting/access";
 import { validateReportingGroupPropertyIntervals } from "../lib/reporting/group-property-intervals";
 import { canonicalSnapshotPeriod, nextSnapshotRevision, validateQuarterlyReportPeriod, validateSnapshotPeriod } from "../lib/reporting/invariants";
 import { calculatePropertySnapshot } from "../lib/reporting/snapshot-calculator";
 import { quarterSnapshotDataSchema } from "../lib/reporting/snapshot-schema";
+import { rentRollAmountsAt } from "../lib/reporting/rent-roll";
 
 type Check = (name: string, assertion: () => unknown) => void;
 const root = process.cwd();
@@ -18,10 +19,19 @@ const baseUnit = (leases: any[], areaM2: number | null = 50) => ({ id: "unit", a
 
 export function runV22HardeningChecks(check: Check) {
   const pm = { id: "pm", role: "PROPERTY_MANAGER", memberships: [{ propertyId: "A" }], unitMemberships: [{ unitId: "A1", unit: { propertyId: "A" } }] };
-  check("property manager is not global", () => assert.deepEqual(reportingScopeForUser(pm), { propertyIds: ["A"], unitIds: ["A1"] }));
-  check("scoped PM cannot see requested foreign property", () => assert.deepEqual(reportingScopeForUser(pm, "B"), { propertyIds: [] }));
-  check("allProperties PM is global", () => assert.deepEqual(reportingScopeForUser({ ...pm, allProperties: true }, "B"), { propertyIds: ["B"] }));
-  check("requested property never expands owner scope", () => assert.deepEqual(reportingScopeForUser({ id: "o", role: "OWNER_VIEWER", memberships: [{ propertyId: "A" }] }, "B").propertyIds, []));
+  check("property manager is not global", () => assert.deepEqual(reportingScopeForUser(pm), { mode: "SCOPED", wholePropertyIds: ["A"], unitIds: ["A1"] }));
+  check("scoped PM cannot see requested foreign property", () => assert.deepEqual(reportingScopeForUser(pm, "B"), { mode: "SCOPED", wholePropertyIds: [], unitIds: [] }));
+  check("allProperties PM requested property is scoped", () => assert.deepEqual(reportingScopeForUser({ ...pm, allProperties: true }, "B"), { mode: "SCOPED", wholePropertyIds: ["B"], unitIds: [] }));
+  check("requested property never expands owner scope", () => assert.deepEqual(reportingScopeForUser({ id: "o", role: "OWNER_VIEWER", memberships: [{ propertyId: "A" }] }, "B"), { mode: "SCOPED", wholePropertyIds: [], unitIds: [] }));
+  check("global ALL differs from no access", () => assert.notDeepEqual(reportingScopeForUser({ id: "g", role: "MANAGER" }), reportingScopeForUser({ id: "n", role: "OWNER_VIEWER" })));
+  check("global user gets explicit ALL", () => assert.deepEqual(reportingScopeForUser({ id: "g", role: "SUPER_ADMIN" }), { mode: "ALL" }));
+  check("no access is scoped empty", () => assert.deepEqual(reportingScopeForUser({ id: "n", role: "OWNER_VIEWER" }), { mode: "SCOPED", wholePropertyIds: [], unitIds: [] }));
+  const unionUser = { id: "u", role: "OWNER_VIEWER", memberships: [{ propertyId: "A" }], unitMemberships: [{ unitId: "B1", unit: { propertyId: "B" } }] };
+  check("property and other-property unit form union scope", () => assert.deepEqual(reportingScopeForUser(unionUser), { mode: "SCOPED", wholePropertyIds: ["A"], unitIds: ["B1"] }));
+  check("requested property intersects union", () => assert.deepEqual(reportingScopeForUser(unionUser, "B"), { mode: "SCOPED", wholePropertyIds: [], unitIds: ["B1"] }));
+  check("requested unrelated property matches nothing", () => assert.deepEqual(reportingScopeForUser(unionUser, "C"), { mode: "SCOPED", wholePropertyIds: [], unitIds: [] }));
+  check("ALL query builder has no filter", () => assert.equal(reportingUnitAccessWhere({ mode: "ALL" }), undefined));
+  check("empty scope query builder matches nothing", () => assert.deepEqual(reportingUnitAccessWhere({ mode: "SCOPED", wholePropertyIds: [], unitIds: [] }), { id: { in: [] } }));
   check("group effectiveFrom is Prague-date inclusive", () => assert.equal(reportingGroupPropertiesAt({ properties: [{ propertyId: "p", effectiveFrom: new Date("2026-06-30T22:00Z") }] }, new Date("2026-06-30T22:30Z")).length, 1));
   check("group effectiveTo is Prague-date inclusive", () => assert.equal(reportingGroupPropertiesAt({ properties: [{ propertyId: "p", effectiveFrom: new Date("2026-01-01T12:00Z"), effectiveTo: new Date("2026-06-30T08:00Z") }] }, new Date("2026-06-30T21:59Z")).length, 1));
 
@@ -55,10 +65,27 @@ export function runV22HardeningChecks(check: Check) {
   check("lease beyond 90 days excluded", () => assert.equal(leaseKpi.leases.expiring90Days, 1));
   check("ended YTD counted", () => assert.equal(leaseKpi.leases.endedYtd, 1));
   check("prior-year end excluded", () => assert.equal(leaseKpi.leases.endedYtd, 1));
+  const expiringLease = baseLease({ endDate: new Date("2026-08-01T12:00Z") });
+  const renovationLifecycle = calculatePropertySnapshot({ propertyId: "p", asOf: new Date("2026-06-30T12:00Z"), units: [{ ...baseUnit([expiringLease]), operationalStatusEvents: [{ status: "RENOVATION", effectiveAt: new Date("2020-01-01T12:00Z") }] }] }).data;
+  check("renovation active lease excluded from occupancy", () => assert.equal(renovationLifecycle.units.occupied, 0));
+  check("renovation active lease remains contract active", () => assert.equal(renovationLifecycle.leases.active, 1));
+  check("renovation active lease remains expiring", () => assert.equal(renovationLifecycle.leases.expiring90Days, 1));
+  const unknownLifecycle = calculatePropertySnapshot({ propertyId: "p", asOf: new Date("2026-06-30T12:00Z"), units: [{ ...baseUnit([expiringLease]), operationalStatusEvents: [{ status: "STANDARD", effectiveAt: new Date("2026-07-01T12:00Z") }] }] }).data;
+  check("unknown history excludes occupancy", () => assert.equal(unknownLifecycle.units.occupied, 0));
+  check("unknown history preserves active contract KPI", () => assert.equal(unknownLifecycle.leases.active, 1));
   const quality = calculatePropertySnapshot({ propertyId: "p", asOf: new Date("2026-06-30T12:00Z"), units: [baseUnit([baseLease({ paymentItems: [{ active: true, validFrom: new Date("2026-01-01T12:00Z"), validTo: null, category: "RENT", amountCents: 10000 }] })], null)] });
   check("missing current charge is warning", () => assert.ok(quality.quality.issues.some((issue) => issue.code === "MISSING_CHARGE_FOR_PERIOD" && issue.severity === "WARNING")));
   check("missing area makes weighted rent null", () => assert.equal(quality.data.rentRoll.weightedNetRentPerM2Cents, null));
   check("calculated schema permits undefined weighted KPI", () => assert.ok(quarterSnapshotDataSchema.safeParse(quality.data).success));
+
+  const componentLease = (chargeItems: any[], paymentItems: any[], legacyRent = 9000, legacyServices = 900) => ({ rentCents: legacyRent, servicesCents: legacyServices, charges: [{ active: true, period: "2026-06", items: chargeItems }], paymentItems });
+  const rentItem = (category: string, amountCents: number) => ({ active: true, validFrom: new Date("2026-01-01T12:00Z"), validTo: null, category, amountCents });
+  check("charge SERVICES combines with payment RENT", () => assert.deepEqual(rentRollAmountsAt(componentLease([{ category: "SERVICES", amountCents: 3000 }], [rentItem("RENT", 12000)]), new Date("2026-06-30T12:00Z")), { chargeFound: true, rent: { amountCents: 12000, source: "PAYMENT_ITEM" }, services: { amountCents: 3000, source: "CHARGE_ITEM" } }));
+  check("charge RENT combines with payment SERVICES", () => { const result = rentRollAmountsAt(componentLease([{ category: "RENT", amountCents: 12000 }], [rentItem("SERVICES", 3000)]), new Date("2026-06-30T12:00Z")); assert.deepEqual([result.rent.amountCents, result.services.amountCents], [12000, 3000]); });
+  check("charge RENT wins over payment RENT", () => assert.equal(rentRollAmountsAt(componentLease([{ category: "RENT", amountCents: 13000 }], [rentItem("RENT", 12000)]), new Date("2026-06-30T12:00Z")).rent.amountCents, 13000));
+  check("payment RENT wins over legacy RENT", () => assert.equal(rentRollAmountsAt(componentLease([], [rentItem("RENT", 12000)], 9000), new Date("2026-06-30T12:00Z")).rent.source, "PAYMENT_ITEM"));
+  check("known zero charge rent remains a source", () => assert.equal(rentRollAmountsAt(componentLease([{ category: "RENT", amountCents: 0 }], []), new Date("2026-06-30T12:00Z")).rent.source, "CHARGE_ITEM"));
+  check("legacy rent fallback is reported", () => { const snapshot = calculatePropertySnapshot({ propertyId: "p", asOf: new Date("2026-06-30T12:00Z"), units: [baseUnit([baseLease()])] }); assert.ok(snapshot.quality.issues.some((issue) => issue.code === "RENT_SOURCE_LEGACY_FALLBACK" && issue.message.includes("RENT"))); });
 
   const resolved = { unit: { propertyId: "p" }, lease: { unitId: "u", unit: { propertyId: "p" } } };
   check("matching unit and lease accepted", () => assert.doesNotThrow(() => assertDocumentContextConsistency({ propertyId: "p", unitId: "u", leaseId: "l" }, resolved)));
@@ -67,6 +94,20 @@ export function runV22HardeningChecks(check: Check) {
   check("matching taskEntry and task accepted", () => assert.doesNotThrow(() => assertDocumentContextConsistency({ propertyId: "p", taskId: "t", taskEntryId: "e" }, { task, entry: { taskId: "t", task } })));
   check("mismatching taskEntry and task rejected", () => assert.throws(() => assertDocumentContextConsistency({ propertyId: "p", taskId: "t", taskEntryId: "e" }, { task, entry: { taskId: "other", task: { ...task, id: "other" } } })));
   check("lease and task from different units rejected", () => assert.throws(() => assertDocumentContextConsistency({ propertyId: "p", leaseId: "l", taskId: "t" }, { lease: { unitId: "other", unit: { propertyId: "p" } }, task })));
+  const propertyTask = { id: "property-task", propertyId: "p", unitId: null, leaseId: null, lease: null };
+  check("property task resolves authoritative property", () => assert.deepEqual(resolveAuthoritativeDocumentScope({ propertyId: "p", taskId: "property-task" }, { task: propertyTask }), { mode: "PROPERTY", propertyId: "p" }));
+  check("unit task resolves authoritative unit", () => assert.deepEqual(resolveAuthoritativeDocumentScope({ propertyId: "p", taskId: "t" }, { task }), { mode: "UNIT", propertyId: "p", unitId: "u" }));
+  check("lease resolves authoritative lease unit", () => assert.deepEqual(resolveAuthoritativeDocumentScope({ propertyId: "p", leaseId: "l" }, { lease: { unitId: "u", unit: { propertyId: "p" } } }), { mode: "UNIT", propertyId: "p", unitId: "u" }));
+  check("unit trick cannot downgrade property task", () => assert.throws(() => resolveAuthoritativeDocumentScope({ propertyId: "p", taskId: "property-task", unitId: "u" }, { task: propertyTask, unit: { propertyId: "p" } })));
+  const compliance = { complianceItem: { propertyId: "p" } };
+  check("compliance resolves property scope", () => assert.deepEqual(resolveAuthoritativeDocumentScope({ propertyId: "p", complianceRecordId: "c" }, { record: compliance }), { mode: "PROPERTY", propertyId: "p" }));
+  check("unit trick cannot downgrade compliance", () => assert.throws(() => resolveAuthoritativeDocumentScope({ propertyId: "p", complianceRecordId: "c", unitId: "u" }, { record: compliance, unit: { propertyId: "p" } })));
+  check("property grant query has no unit alternative", () => assert.equal(authoritativeDocumentGrantWhere("actor", { mode: "PROPERTY", propertyId: "p" }).unit, undefined));
+  check("unit grant query targets exact authoritative unit", () => assert.equal(authoritativeDocumentGrantWhere("actor", { mode: "UNIT", propertyId: "p", unitId: "u" }).unit?.unitId, "u"));
+  check("unit editor can attach unit-scoped task", () => assert.ok(canEditAuthoritativeDocumentScope({ mode: "UNIT", propertyId: "p", unitId: "u" }, { wholePropertyIds: [], unitIds: ["u"] })));
+  check("lease unit editor can attach lease document", () => assert.ok(canEditAuthoritativeDocumentScope(resolveAuthoritativeDocumentScope({ propertyId: "p", leaseId: "l" }, { lease: { unitId: "u", unit: { propertyId: "p" } } }), { wholePropertyIds: [], unitIds: ["u"] })));
+  check("unit editor cannot attach property compliance", () => assert.ok(!canEditAuthoritativeDocumentScope({ mode: "PROPERTY", propertyId: "p" }, { wholePropertyIds: [], unitIds: ["u"] })));
+  check("property editor can attach compliance", () => assert.ok(canEditAuthoritativeDocumentScope({ mode: "PROPERTY", propertyId: "p" }, { wholePropertyIds: ["p"], unitIds: [] })));
   const editWhere = JSON.stringify(documentEditAccessWhere({ id: "u", role: "OWNER_VIEWER" }));
   check("unit EDIT reaches lease documents", () => assert.match(editWhere, /lease/));
   check("unit EDIT reaches task documents", () => assert.match(editWhere, /task/));
@@ -74,8 +115,11 @@ export function runV22HardeningChecks(check: Check) {
   check("property VIEW cannot edit", () => assert.doesNotMatch(editWhere, /VIEW/));
   check("property VIEW can read", () => assert.match(JSON.stringify(documentAccessWhere({ id: "u", role: "OWNER_VIEWER" })), /memberships/));
   check("document create requires actor", () => assert.match(read("lib/documents/service.ts"), /actor: Actor/));
-  check("document delete requires edit access", () => assert.match(read("lib/documents/service.ts"), /requireDocumentEditAccess\(actor, id\)/));
+  check("document delete requires edit access", () => assert.match(read("lib/documents/service.ts"), /documentEditAccessWhere\(actor\)/));
   check("reporting membership is not mutation grant", () => assert.doesNotMatch(read("lib/documents/service.ts"), /reportingGroup/));
+  check("document upload writes audit in metadata transaction", () => assert.match(read("lib/documents/service.ts"), /tx\.auditLog\.create[\s\S]*DOCUMENT_UPLOADED/));
+  check("document delete writes audit in mutation transaction", () => assert.match(read("lib/documents/service.ts"), /DOCUMENT_DELETED/));
+  check("document audit excludes binary and signed URL", () => { const source = read("lib/documents/service.ts"); const audit = source.slice(source.indexOf("function auditDetails"), source.indexOf("export async function createDocumentFromUpload")); assert.doesNotMatch(audit, /bytes|signedUrl|storageKey/); });
   check("unit update rereads inside serializable transaction", () => assert.match(read("app/api/properties/[id]/units/[unitId]/route.ts"), /serializableTransaction[\s\S]*tx\.unit\.findFirst[\s\S]*tx\.unit\.update/));
   check("adjacent reporting intervals accepted", () => assert.doesNotThrow(() => validateReportingGroupPropertyIntervals([{ effectiveFrom: new Date("2026-01-01T12:00Z"), effectiveTo: new Date("2026-06-30T12:00Z") }, { effectiveFrom: new Date("2026-07-01T12:00Z") }])));
   check("overlapping reporting intervals rejected", () => assert.throws(() => validateReportingGroupPropertyIntervals([{ effectiveFrom: new Date("2026-01-01T12:00Z"), effectiveTo: new Date("2026-06-30T12:00Z") }, { effectiveFrom: new Date("2026-06-30T20:00Z") }])));

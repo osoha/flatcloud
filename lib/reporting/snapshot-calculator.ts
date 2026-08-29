@@ -1,10 +1,11 @@
-import { businessDateKey, businessMonthKey, businessQuarter, quarterStartKey } from "../calendar";
+import { businessDateKey, businessQuarter, quarterStartKey } from "../calendar";
 import { effectiveLeaseEnd, leaseStatusAt } from "../lease-lifecycle-core";
 import { securityDepositSnapshot } from "../security-deposit";
 import { operationalStatusAt } from "../unit-operational-history";
 import { overdueDebtCentsAsOf, paidCentsAsOf } from "./finance";
 import type { ReportingQualityIssue } from "./data-quality";
 import type { CalculatedSnapshotData } from "./snapshot-schema";
+import { rentRollAmountsAt } from "./rent-roll";
 
 type UnitInput = { id: string; areaM2: number | null; operationalStatusEvents: Array<{ status: string; effectiveAt: Date; createdAt?: Date }>; leases: any[] };
 function addCalendarDays(key: string, days: number) { const date = new Date(`${key}T12:00:00Z`); date.setUTCDate(date.getUTCDate() + days); return date.toISOString().slice(0, 10); }
@@ -13,7 +14,8 @@ export function calculatePropertySnapshot(input: { propertyId: string; asOf: Dat
   const issues: ReportingQualityIssue[] = [];
   let rentable = 0, occupied = 0, renovation = 0, inactive = 0, unknown = 0, missingArea = 0, net = 0, services = 0, rentableArea = 0, occupiedArea = 0, weightedRent = 0, weightedArea = 0;
   const allLeases = input.units.flatMap((unit) => unit.leases);
-  const activeLeases: any[] = [];
+  const lifecycleActiveLeases = allLeases.filter((lease) => leaseStatusAt(lease, input.asOf) === "ACTIVE");
+  const occupancyActiveLeases: any[] = [];
   const asOfKey = businessDateKey(input.asOf);
 
   for (const unit of input.units) {
@@ -23,22 +25,22 @@ export function calculatePropertySnapshot(input: { propertyId: string; asOf: Dat
     if (operational.status === "INACTIVE") { inactive += 1; continue; }
     rentable += 1;
     const lease = unit.leases.find((candidate) => leaseStatusAt(candidate, input.asOf) === "ACTIVE");
-    if (lease) { occupied += 1; activeLeases.push(lease); }
+    if (lease) occupancyActiveLeases.push(lease);
     if (!unit.areaM2 || unit.areaM2 <= 0) { missingArea += 1; issues.push({ code: "MISSING_UNIT_AREA", severity: "WARNING", message: "Unit has no usable area.", propertyId: input.propertyId, unitId: unit.id }); }
     else { rentableArea += unit.areaM2; if (lease) occupiedArea += unit.areaM2; }
     if (!lease) continue;
 
-    const charge = lease.charges?.find((candidate: any) => candidate.active && candidate.period === businessMonthKey(input.asOf));
-    let items = charge?.items?.length ? charge.items : lease.paymentItems?.filter((item: any) => item.active && businessDateKey(item.validFrom) <= asOfKey && (!item.validTo || businessDateKey(item.validTo) >= asOfKey));
-    if (!charge) issues.push({ code: "MISSING_CHARGE_FOR_PERIOD", severity: "WARNING", message: "Active occupied lease has no charge for the as-of month; rent was reconstructed.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
-    let rent = items?.filter((item: any) => item.category === "RENT").reduce((sum: number, item: any) => sum + item.amountCents, 0) || 0;
-    let service = items?.filter((item: any) => item.category === "SERVICES").reduce((sum: number, item: any) => sum + item.amountCents, 0) || 0;
-    if (!items?.length) { items = []; rent = lease.rentCents; service = lease.servicesCents; issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy current lease rent used as fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id }); }
-    if (!rent) issues.push({ code: "MISSING_RENT_SOURCE", severity: "WARNING", message: "No rent source at as-of date.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
+    const resolved = rentRollAmountsAt(lease, input.asOf);
+    if (!resolved.chargeFound) issues.push({ code: "MISSING_CHARGE_FOR_PERIOD", severity: "WARNING", message: "Active occupied lease has no charge for the as-of month; rent was reconstructed.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
+    if (resolved.rent.source === "LEGACY") issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy lease rent used as RENT fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
+    if (resolved.services.source === "LEGACY") issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy lease services used as SERVICES fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
+    if (!resolved.rent.source) issues.push({ code: "MISSING_RENT_SOURCE", severity: "WARNING", message: "No rent source at as-of date.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
+    const rent = resolved.rent.amountCents, service = resolved.services.amountCents;
     net += rent; services += service;
     if (unit.areaM2 && unit.areaM2 > 0) { weightedRent += rent; weightedArea += unit.areaM2; }
   }
 
+  occupied = occupancyActiveLeases.length;
   if (!rentable) issues.push({ code: "NO_RENTABLE_UNITS", severity: "INFO", message: "Property has no known rentable units.", propertyId: input.propertyId });
   const quarter = businessQuarter(input.asOf), quarterStart = quarterStartKey(quarter.year, quarter.quarter);
   // Charge.active is the source of truth for a real obligation. Ended leases remain relevant for both quarter collections and outstanding debt.
@@ -62,10 +64,10 @@ export function calculatePropertySnapshot(input: { propertyId: string; asOf: Dat
   }
 
   const ninetyDayKey = addCalendarDays(asOfKey, 90);
-  const expiring90Days = activeLeases.filter((lease) => { const end = effectiveLeaseEnd(lease); if (!end) return false; const key = businessDateKey(end); return key > asOfKey && key <= ninetyDayKey; }).length;
+  const expiring90Days = lifecycleActiveLeases.filter((lease) => { const end = effectiveLeaseEnd(lease); if (!end) return false; const key = businessDateKey(end); return key > asOfKey && key <= ninetyDayKey; }).length;
   const yearStart = `${quarter.year}-01-01`;
   const endedYtd = allLeases.filter((lease) => { if (leaseStatusAt(lease, input.asOf) !== "ENDED" || lease.cancelledAt) return false; const end = effectiveLeaseEnd(lease); if (!end) return false; const key = businessDateKey(end); return key >= yearStart && key <= asOfKey; }).length;
 
-  const data = { source: "CALCULATED" as const, schemaVersion: 1 as const, asOfDate: asOfKey, units: { total: input.units.length, rentable, occupied, vacant: rentable - occupied, renovation, inactive, unknownOperationalStatus: unknown }, rentRoll: { monthlyNetRentCents: net, monthlyServicesCents: services, monthlyTotalCents: net + services, rentableAreaM2: rentableArea, occupiedAreaM2: occupiedArea, weightedNetRentPerM2Cents: weightedArea ? Math.round(weightedRent / weightedArea) : null, missingAreaUnits: missingArea }, collections: { quarterExpectedCents: expected, quarterPaidCents: paid, collectionRateBps: expected ? Math.round(paid * 10000 / expected) : null, overdueDebtCents: overdue }, deposits: { agreedCents: agreed, heldPrincipalCents: held, missingCents: missing, fundedLeases: funded, partialLeases: partial, unpaidLeases: unpaid, toSettleLeases: toSettle }, leases: { active: activeLeases.length, future: allLeases.filter((lease) => leaseStatusAt(lease, input.asOf) === "FUTURE").length, expiring90Days, endedYtd } } satisfies CalculatedSnapshotData;
+  const data = { source: "CALCULATED" as const, schemaVersion: 1 as const, asOfDate: asOfKey, units: { total: input.units.length, rentable, occupied, vacant: rentable - occupied, renovation, inactive, unknownOperationalStatus: unknown }, rentRoll: { monthlyNetRentCents: net, monthlyServicesCents: services, monthlyTotalCents: net + services, rentableAreaM2: rentableArea, occupiedAreaM2: occupiedArea, weightedNetRentPerM2Cents: weightedArea ? Math.round(weightedRent / weightedArea) : null, missingAreaUnits: missingArea }, collections: { quarterExpectedCents: expected, quarterPaidCents: paid, collectionRateBps: expected ? Math.round(paid * 10000 / expected) : null, overdueDebtCents: overdue }, deposits: { agreedCents: agreed, heldPrincipalCents: held, missingCents: missing, fundedLeases: funded, partialLeases: partial, unpaidLeases: unpaid, toSettleLeases: toSettle }, leases: { active: lifecycleActiveLeases.length, future: allLeases.filter((lease) => leaseStatusAt(lease, input.asOf) === "FUTURE").length, expiring90Days, endedYtd } } satisfies CalculatedSnapshotData;
   return { data, quality: { issues } };
 }

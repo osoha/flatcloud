@@ -10,11 +10,11 @@ This document is the source of truth for V22 KPI meaning.
 
 ## Occupancy
 
-Operational state is the latest event effective by as-of. Before the first event it is unknown; current unit state is never projected backward. `STANDARD` is rentable; `RENOVATION` and `INACTIVE` are separate and excluded from the denominator. Unknown is excluded and warned. A rentable unit is occupied when shared `leaseStatusAt` is `ACTIVE`; vacancy is rentable minus occupied. Lease end is inclusive. Renovation is not vacancy.
+Operational state is the latest event effective by as-of. Before the first event it is unknown; current unit state is never projected backward. `STANDARD` is rentable; `RENOVATION` and `INACTIVE` are separate and excluded from the denominator. Unknown is excluded and warned. A rentable unit is occupied when shared `leaseStatusAt` is `ACTIVE`; vacancy is rentable minus occupied. Lease end is inclusive. Renovation is not vacancy. Contract KPIs are independent of operational status: an active lease on a renovation, inactive, or historically unknown unit remains active/expiring even though it does not create occupancy.
 
 ## Rent roll
 
-Monthly net rent run-rate sums effective rent for occupied rentable units. Source priority: as-of month RENT `ChargeItem`; effective RENT `LeasePaymentItem`; legacy `Lease.rentCents` only with warning. A missing current-month charge emits `MISSING_CHARGE_FOR_PERIOD`. Services follow the hierarchy. Weighted rent/m² divides rent by area only for units with known area > 0; exclusions count in `missingAreaUnits`. If no valid area denominator exists, weighted rent/m² is `null`, not zero. Throughout calculated data, `null` means mathematically unknown/undefined while `0` means a known, actual zero; critical fields that can be calculated remain non-null.
+Monthly net rent run-rate sums effective rent for occupied rentable units. RENT and SERVICES resolve independently. Each component uses the as-of month's active `ChargeItem`, then its effective `LeasePaymentItem`, then the corresponding legacy `Lease` amount with a fallback warning. A SERVICES charge item therefore never hides a payment-item RENT, and vice versa. A present component item with amount zero is a known zero; the legacy required numeric fields cannot distinguish every historical zero from missing data, so zero legacy RENT remains missing while zero legacy SERVICES is treated as known. A missing current-month charge emits `MISSING_CHARGE_FOR_PERIOD`. Weighted rent/m² divides rent by area only for units with known area > 0; exclusions count in `missingAreaUnits`. If no valid area denominator exists, weighted rent/m² is `null`, not zero. Throughout calculated data, `null` means mathematically unknown/undefined while `0` means a known, actual zero; critical fields that can be calculated remain non-null.
 
 ## Collections, overdue and deposits
 
@@ -28,7 +28,7 @@ Lease classifications use shared lifecycle dates, not cached status. `expiring90
 
 Quality JSON has stable code, `INFO/WARNING/BLOCKER`, message and optional entity IDs. Initial codes cover unknown operational history, missing area, legacy/missing rent, missing charge, deposit configuration and no rentable units. Calculators disclose fallbacks and never turn unknown history into silent facts.
 
-Rent scope is requested context intersected with global/property/unit grants; unit-only calculations include only granted units. Shareholder calculations separately intersect group membership with effective group-property history. Neither grants the other.
+Rent scope is an explicit discriminated value: `ALL` means the whole portfolio, while `SCOPED` always carries complete whole-property and unit-ID grants (including an intentionally empty no-access scope). Its shared Prisma builder maps `ALL` to no filter, a non-empty scoped union to property-or-unit predicates, and empty scope to match-nothing. Requested property context is always an intersection. Shareholder calculations separately intersect group membership with effective group-property history. Neither grants the other.
 
 Quarterly reports are group/year/quarter revisions. Every property row has mandatory snapshot ID, retaining its numerical origin. `PUBLISHED` is designed for immutable publication; future PDF/media must be explicitly published assets rather than mutable live output.
 
