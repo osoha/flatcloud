@@ -18,7 +18,7 @@ Current charge state uses all allocations. Historical reporting uses `paidCentsA
 
 ## Business calendar and operational history
 
-`lib/calendar.ts` owns business date/month/quarter/range semantics in `Europe/Prague`. Business concepts use date keys; deterministic noon-UTC instants are used only where DateTime is required, avoiding server timezone and DST drift.
+`lib/calendar.ts` owns business date/month/quarter/range semantics in `Europe/Prague`. Business concepts use date keys; where a `DateTime` is required, `businessDateKeyToInstant()` uses the deterministic instant representing Prague local midnight (CET/CEST as applicable), avoiding server-timezone and DST drift.
 
 `Unit.operationalStatus` is the current cache. Historical occupancy reads append-only `UnitOperationalStatusEvent`. V22 creates a `SYSTEM_BASELINE` at rollout for each existing unit and does not claim the state existed earlier. Before the first event the result is `UNKNOWN_BEFORE_HISTORY` until a `MANUAL_BASELINE` is supplied. Create/change updates cache and event atomically; unchanged edits add no event.
 

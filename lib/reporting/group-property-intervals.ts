@@ -1,0 +1,4 @@
+import { businessDateKey } from "../calendar";
+export type ReportingGroupPropertyInterval = { effectiveFrom: Date; effectiveTo?: Date | null };
+/** Validates inclusive business-date intervals for one reporting-group/property pair. */
+export function validateReportingGroupPropertyIntervals(intervals: ReportingGroupPropertyInterval[]) { const normalized = intervals.map((interval) => ({ from: businessDateKey(interval.effectiveFrom), to: interval.effectiveTo ? businessDateKey(interval.effectiveTo) : "9999-12-31" })).sort((a, b) => a.from.localeCompare(b.from)); for (const interval of normalized) if (interval.from > interval.to) throw new Error("Reporting group property interval ends before it starts."); for (let index = 1; index < normalized.length; index += 1) if (normalized[index].from <= normalized[index - 1].to) throw new Error("Reporting group property intervals must not overlap."); return intervals; }
