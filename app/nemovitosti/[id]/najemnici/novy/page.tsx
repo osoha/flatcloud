@@ -37,7 +37,6 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
       <LeaseCoreFields unitOptions={availableUnits.map((unit) => [unit.id, `${unit.label}${unit.floor ? ` · ${unit.floor}` : ""}`])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
       <Field label="Zálohy na služby Kč / měsíc" name="services" type="number" step="0.01" min={0}/>
-      <Field label="Kauce Kč" name="deposit" type="number" step="0.01" min={0}/>
       <Textarea label="Poznámka ke smlouvě" name="leaseNote"/>
     </FormCard> : <div className="card empty-state"><h2>Nejprve přidejte jednotku</h2><p>Budoucí smlouva se může naplánovat i po současném nájmu; překryv období server nepovolí.</p></div>}
   </FormPage></Shell>;

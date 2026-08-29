@@ -1,4 +1,5 @@
 export type SecurityDepositMovementType =
+  | "OPENING_BALANCE"
   | "RECEIVED"
   | "RETURNED"
   | "OFFSET"
@@ -41,7 +42,7 @@ export type SecurityDepositSnapshot = {
   status: "NOT_CONFIGURED" | "UNPAID" | "PARTIAL" | "FUNDED" | "TO_SETTLE" | "SETTLED";
 };
 
-const principalIncrease = new Set<SecurityDepositMovementType>(["RECEIVED", "ADJUSTMENT_INCREASE"]);
+const principalIncrease = new Set<SecurityDepositMovementType>(["OPENING_BALANCE", "RECEIVED", "ADJUSTMENT_INCREASE"]);
 const principalDecrease = new Set<SecurityDepositMovementType>(["RETURNED", "OFFSET", "ADJUSTMENT_DECREASE"]);
 const interestIncrease = new Set<SecurityDepositMovementType>(["INTEREST_ADJUSTMENT_INCREASE"]);
 const interestDecrease = new Set<SecurityDepositMovementType>(["INTEREST_ADJUSTMENT_DECREASE"]);

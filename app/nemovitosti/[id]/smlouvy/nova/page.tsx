@@ -34,7 +34,6 @@ export default async function NewLease({ params, searchParams }: { params: Promi
       <LeaseCoreFields unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
       <Field label="Zálohy na služby Kč / měsíc" name="services" type="number" step="0.01" min={0}/>
-      <Field label="Kauce Kč" name="deposit" type="number" step="0.01" min={0}/>
       <Textarea label="Poznámka" name="note"/>
     </FormCard> : <div className="card empty-state"><h2>Chybí jednotka nebo nájemník</h2><p>Budoucí smlouvu lze naplánovat i na dnes obsazenou jednotku, pokud její období nezačne dříve než po skončení současného nájmu.</p></div>}
   </FormPage></Shell>;

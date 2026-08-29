@@ -19,6 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const type = text(form, "type", true)! as SecurityDepositMovementType;
     if (!Object.values(SecurityDepositMovementType).includes(type)) throw new Error("Neplatný typ pohybu kauce.");
+    if (type === SecurityDepositMovementType.OPENING_BALANCE) throw new Error("Převzatý stav kauce lze evidovat pouze při založení historické smlouvy.");
     const amountCents = moneyToCents(form, "amount");
     if (amountCents <= 0) throw new Error("Částka musí být vyšší než nula.");
     const effectiveAt = dateValue(form, "effectiveAt", true)!;

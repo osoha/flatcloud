@@ -188,6 +188,7 @@ enum ChargeCategory {
 }
 
 enum SecurityDepositMovementType {
+  OPENING_BALANCE
   RECEIVED
   RETURNED
   OFFSET

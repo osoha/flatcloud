@@ -1,4 +1,4 @@
-import { ChargeCategory, LeaseCreditType, type Prisma, type RentTiming } from "@prisma/client";
+import { ChargeCategory, LeaseCreditType, SecurityDepositMovementType, type Prisma, type RentTiming } from "@prisma/client";
 import { businessMonthKey } from "./calendar";
 import { moneyToCents, text } from "./forms";
 import { periodDueDate, periodStart } from "./period";
@@ -6,8 +6,9 @@ import { periodDueDate, periodStart } from "./period";
 export const OPENING_DEBT_DESCRIPTION = "Počáteční nedoplatek při převzetí";
 export const OPENING_OVERPAYMENT_DESCRIPTION = "Počáteční přeplatek při převzetí";
 export type OpeningBalanceType = "ZERO" | "DEBT" | "OVERPAYMENT";
+export type OpeningDepositStatus = "NOT_FUNDED" | "FULLY_FUNDED" | "PARTIAL";
 
-export function resolveLeaseFinancialOnboarding(startDate: Date, form: FormData, now = new Date()) {
+export function resolveLeaseFinancialOnboarding(startDate: Date, form: FormData, now = new Date(), agreedDepositCents = 0) {
   const legalStartPeriod = businessMonthKey(startDate);
   const currentBusinessPeriod = businessMonthKey(now);
   const historical = legalStartPeriod < currentBusinessPeriod;
@@ -18,7 +19,18 @@ export function resolveLeaseFinancialOnboarding(startDate: Date, form: FormData,
   const openingBalanceType: OpeningBalanceType = rawType === "DEBT" || rawType === "OVERPAYMENT" ? rawType : "ZERO";
   const openingBalanceCents = openingBalanceType === "ZERO" ? 0 : moneyToCents(form, "openingBalanceAmount");
   if (openingBalanceType !== "ZERO" && openingBalanceCents <= 0) throw new Error("Počáteční saldo musí být vyšší než nula.");
-  return { historical, legalStartPeriod, financialTrackingFromPeriod: requested, openingBalanceType, openingBalanceCents, openingBalanceNote: text(form, "openingBalanceNote") };
+  const rawDepositStatus = historical && agreedDepositCents > 0 ? text(form, "openingDepositStatus") || "NOT_FUNDED" : "NOT_FUNDED";
+  const openingDepositStatus: OpeningDepositStatus = rawDepositStatus === "FULLY_FUNDED" || rawDepositStatus === "PARTIAL" ? rawDepositStatus : "NOT_FUNDED";
+  const openingDepositHeldCents = openingDepositStatus === "FULLY_FUNDED" ? agreedDepositCents : openingDepositStatus === "PARTIAL" ? moneyToCents(form, "openingDepositHeldAmount") : 0;
+  if (openingDepositHeldCents < 0 || openingDepositHeldCents > agreedDepositCents) throw new Error("Držená částka kauce musí být mezi nulou a sjednanou kaucí.");
+  if (openingDepositStatus === "PARTIAL" && (openingDepositHeldCents <= 0 || openingDepositHeldCents >= agreedDepositCents)) throw new Error("Částečně složená kauce musí být vyšší než nula a nižší než sjednaná kauce.");
+  return { historical, legalStartPeriod, financialTrackingFromPeriod: requested, openingBalanceType, openingBalanceCents, openingBalanceNote: text(form, "openingBalanceNote"), agreedDepositCents, openingDepositStatus, openingDepositHeldCents };
+}
+
+export async function createOpeningDepositBalance(tx: Prisma.TransactionClient, input: { leaseId: string; financialTrackingFromPeriod: string; heldCents: number; createdById?: string }) {
+  if (input.heldCents === 0) return { openingDepositMovementId: null };
+  const movement = await tx.securityDepositMovement.create({ data: { leaseId: input.leaseId, type: SecurityDepositMovementType.OPENING_BALANCE, amountCents: input.heldCents, effectiveAt: periodStart(input.financialTrackingFromPeriod), note: "Převzatý stav kauce při zahájení finanční evidence", createdById: input.createdById } });
+  return { openingDepositMovementId: movement.id };
 }
 
 export async function createOpeningBalance(tx: Prisma.TransactionClient, input: { leaseId: string; dueDay: number; rentTiming: RentTiming; financialTrackingFromPeriod: string; type: OpeningBalanceType; amountCents: number; note: string | null; createdById?: string }) {
