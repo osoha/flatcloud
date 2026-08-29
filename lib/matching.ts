@@ -1,4 +1,4 @@
-import { MatchRuleAction, PaymentStatus } from "@prisma/client";
+import { MatchRuleAction, PaymentStatus, type Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { bankAccountMatches, normalizeBankAccount } from "./inbound-bank/bank-email";
 import { resolveCollectionTasksIfSettled } from "./tasks";
@@ -25,6 +25,7 @@ export function expectedTransactionStatus(transaction: TransactionStatusInput) {
 export function normalizeIban(value?: string | null) {
   return (value || "").replace(/\s+/g, "").toUpperCase();
 }
+export function planOldestChargeAllocations(charges:Array<{chargeId:string;outstandingCents:number}>,availableCents:number){let remainingCents=availableCents;const allocations:{chargeId:string;amountCents:number}[]=[];for(const charge of charges){if(remainingCents<=0)break;if(charge.outstandingCents<=0)continue;const amountCents=Math.min(remainingCents,charge.outstandingCents);allocations.push({chargeId:charge.chargeId,amountCents});remainingCents-=amountCents}return {allocations,remainingCents}}
 
 function normalizeText(value?: string | null) {
   return (value || "").trim().toLocaleLowerCase("cs-CZ");
@@ -63,36 +64,30 @@ async function setSuggestion(transactionId: string, leaseId: string, note: strin
 
 export async function allocateTransactionToLease(transactionId: string, leaseId: string, note: string, matchedRuleId?: string) {
   const allocated = await serializableTransaction(async (tx) => {
-    const transaction = await tx.bankTransaction.findUnique({ where: { id: transactionId }, include: { allocations: true, securityDepositReceipts: true, bankAccount: true } });
-    if (!transaction || transaction.amountCents <= 0) return false;
-    const lease = await tx.lease.findFirst({ where: { id: leaseId, unit: { propertyId: transaction.bankAccount.propertyId } }, include: { charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true }, orderBy: { dueDate: "asc" } } } });
-    if (!lease) return false;
-    let remaining = transaction.amountCents - transaction.allocations.reduce((sum, row) => sum + row.amountCents, 0) - transaction.securityDepositReceipts.filter((row) => row.type === "RECEIVED").reduce((sum, row) => sum + row.amountCents, 0);
-    if (remaining <= 0) return false;
-    for (const charge of lease.charges) {
-      if (remaining <= 0) break;
-      const outstanding = outstandingCents(charge);
-      if (!outstanding) continue;
-      const amount = Math.min(remaining, outstanding);
-      await tx.paymentAllocation.upsert({ where: { transactionId_chargeId: { transactionId, chargeId: charge.id } }, update: { amountCents: { increment: amount } }, create: { transactionId, chargeId: charge.id, amountCents: amount } });
-      remaining -= amount;
-    }
+    const result=await allocateAvailableTransactionToLeaseTx(tx,transactionId,leaseId);
+    if(!result)return false;
     await tx.bankTransaction.update({ where: { id: transactionId }, data: { suggestedLeaseId: leaseId, matchNote: note, matchedRuleId: matchedRuleId || null } });
+    await recomputeTransactionStatusTx(tx,transactionId);
     return true;
   });
   if (!allocated) return;
-  await recomputeTransactionStatus(transactionId);
   await resolveCollectionTasksIfSettled(leaseId);
 }
 
+/** Public route helper: call as `await recomputeTransactionStatus(transactionId)`; atomic workflows use the Tx variant below. */
 export async function recomputeTransactionStatus(transactionId: string) {
-  const transaction = await prisma.bankTransaction.findUnique({ where: { id: transactionId }, include: { allocations: { include: { charge: { include: { allocations: true, securityDepositOffsets: true, creditApplications: true } } } }, securityDepositReceipts: true } });
+  await recomputeTransactionStatusTx(prisma,transactionId);
+}
+export async function recomputeTransactionStatusTx(tx:Prisma.TransactionClient|typeof prisma,transactionId:string){
+  const transaction = await tx.bankTransaction.findUnique({ where: { id: transactionId }, include: { allocations: { include: { charge: { include: { allocations: true, securityDepositOffsets: true, creditApplications: true } } } }, securityDepositReceipts: true } });
   if (!transaction) return;
   if (transaction.status === PaymentStatus.IGNORED) return;
   const expected = expectedTransactionStatus(transaction);
   if (expected.invalid || !expected.status) return;
-  await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status: expected.status } });
+  await tx.bankTransaction.update({ where: { id: transactionId }, data: { status: expected.status } });
 }
+
+export async function allocateAvailableTransactionToLeaseTx(tx:Prisma.TransactionClient,transactionId:string,leaseId:string){const transaction=await tx.bankTransaction.findUnique({where:{id:transactionId},include:{allocations:true,securityDepositReceipts:true,bankAccount:true}});if(!transaction||transaction.amountCents<=0)return null;const lease=await tx.lease.findFirst({where:{id:leaseId,unit:{propertyId:transaction.bankAccount.propertyId}},include:{charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true},orderBy:{dueDate:"asc"}}}});if(!lease)return null;const available=transaction.amountCents-transaction.allocations.reduce((sum,row)=>sum+row.amountCents,0)-transaction.securityDepositReceipts.filter(row=>row.type==="RECEIVED").reduce((sum,row)=>sum+row.amountCents,0),plan=planOldestChargeAllocations(lease.charges.map(charge=>({chargeId:charge.id,outstandingCents:outstandingCents(charge)})),available);for(const allocation of plan.allocations)await tx.paymentAllocation.upsert({where:{transactionId_chargeId:{transactionId,chargeId:allocation.chargeId}},update:{amountCents:{increment:allocation.amountCents}},create:{transactionId,chargeId:allocation.chargeId,amountCents:allocation.amountCents}});return {leaseId,allocations:plan.allocations.map(row=>({...row,leaseId})),remainingCents:plan.remainingCents}}
 
 export async function processTransaction(transactionId: string) {
   const transaction = await prisma.bankTransaction.findUnique({
