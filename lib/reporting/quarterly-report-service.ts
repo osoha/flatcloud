@@ -66,8 +66,7 @@ async function withCollisionRetry<T>(work: () => Promise<T>) {
   }
 }
 
-export async function createQuarterlyReport(input: { reportingGroupId: string; year: number; quarter: number; createdById: string }, actor: QuarterlyReportActor = { id: input.createdById, role: "USER" }) {
-  if (input.createdById !== actor.id) throw new Error("Report creator must be the acting user.");
+export async function createQuarterlyReport(input: { reportingGroupId: string; year: number; quarter: number }, actor: QuarterlyReportActor) {
   assertQuarterAndRevision(input.quarter, 1);
   const asOfDate = businessDateKeyToInstant(quarterEndKey(input.year, input.quarter));
   validateQuarterlyReportPeriod({ asOfDate, year: input.year, quarter: input.quarter, revision: 1 });
@@ -77,8 +76,8 @@ export async function createQuarterlyReport(input: { reportingGroupId: string; y
     if (latest) throw new Error(latest.status === "PUBLISHED" ? "Use correction workflow to create a revision of a published report." : "An active DRAFT or REVIEW report already exists for this quarter.");
     const properties = assertEffectiveReportProperties(await reportProperties(tx, input.reportingGroupId, asOfDate));
     const snapshots = [];
-    for (const property of properties) snapshots.push(await calculateAndStoreSnapshotTx(tx, { propertyId: property.propertyId, asOf: asOfDate, createdById: input.createdById }));
-    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: input.reportingGroupId, year: input.year, quarter: input.quarter, revision: 1, status: "DRAFT", asOfDate, createdById: input.createdById, propertyReports: { create: snapshots.map((snapshot) => ({ propertyId: snapshot.propertyId, snapshotId: snapshot.id })) } } });
+    for (const property of properties) snapshots.push(await calculateAndStoreSnapshotTx(tx, { propertyId: property.propertyId, asOf: asOfDate, createdById: actor.id }));
+    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: input.reportingGroupId, year: input.year, quarter: input.quarter, revision: 1, status: "DRAFT", asOfDate, createdById: actor.id, propertyReports: { create: snapshots.map((snapshot) => ({ propertyId: snapshot.propertyId, snapshotId: snapshot.id })) } } });
     await audit(tx, actor.id, "REPORT_CREATED", report);
     return report;
   }));
