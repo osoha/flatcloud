@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Building2, TrendingUp, WalletCards } from "lucide-react";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { accessibleProperties } from "@/lib/access";
@@ -35,6 +35,7 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
   const [{ report }, query] = await Promise.all([params, searchParams]);
   if (!(report in reportTitles)) notFound();
   const reportKey = report as ReportKey;
+  if (["inkaso","nemovitosti","vlastnici"].includes(reportKey)) redirect(`/reporty?view=${reportKey==="inkaso"?"collections":"overview"}${query.propertyId?`&properties=${encodeURIComponent(query.propertyId)}`:""}`);
   const user = await requireUser();
   const allProperties = await accessibleProperties(user);
   const propertyScope = query.propertyId ? allProperties.find((property) => property.id === query.propertyId) : undefined;

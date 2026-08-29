@@ -60,6 +60,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
       <nav className="nav v21-nav">
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
+        <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
 
         <div className="nav-label">Provoz</div>
         <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
