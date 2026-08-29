@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser, canSeeAll } from "@/lib/auth";
-import { editableUnitWhere, requirePropertyAccess } from "@/lib/access";
+import { requirePropertyAccess } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { money, date } from "@/lib/format";
 import { moneyInput } from "@/lib/forms";
@@ -10,6 +10,7 @@ import { Shell } from "@/components/Shell";
 import { Flash, FormPage } from "@/components/FormUi";
 import { outstandingCents, paidCents } from "@/lib/charges";
 import { canCorrectTransaction, hasPropertyCorrectionAccess, transactionCorrectionUnitIds } from "@/lib/payment-corrections";
+import { loadEditablePaymentLeases, paymentLeaseOptionLabel } from "@/lib/payment-lease-options";
 
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export default async function TransactionDetail({ params, searchParams }: { para
   const membership = property.memberships.find((row) => row.userId === user.id);
   const canManage = transaction.status!=="IGNORED"&&(canSeeAll(user.role) || membership?.permission === "EDIT" || membership?.permission === "ADMIN");
   const leases = property.units.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unit })));
-  const editableLeases=await prisma.lease.findMany({where:{unit:editableUnitWhere(user,id)},include:{unit:true,tenant:true},orderBy:[{unit:{label:"asc"}},{startDate:"desc"}]});
+  const editableLeases=await loadEditablePaymentLeases(user,transaction.source==="manual"?undefined:id);
   const [canCorrect,hasPropertyCorrection]=await Promise.all([canCorrectTransaction(user,id,transactionCorrectionUnitIds(transaction)),hasPropertyCorrectionAccess(user,id)]);
   const cancelledManual=transaction.source==="manual"&&transaction.status==="IGNORED"&&transaction.matchNote==="Ruční platba stornována správcem.";
   const depositLinked=transaction.securityDepositReceipts.length>0;
@@ -49,7 +50,7 @@ export default async function TransactionDetail({ params, searchParams }: { para
       <div className="card col-5"><h2>Aktuální přiřazení</h2>{transaction.allocations.length ? <div className="stack-list">{transaction.allocations.map((allocation) => <div className="simple-row" key={allocation.id}><div className="round-icon">✓</div><div><strong>{allocation.charge.lease.unit.label} · {allocation.charge.lease.tenant.name}</strong><small>Předpis {allocation.charge.period}</small></div><div className="right"><strong>{money(allocation.amountCents)}</strong>{canCorrect&&!cancelledManual&&(hasPropertyCorrection||depositLinked||transaction.allocations.length>1)&&<form action={`/api/properties/${id}/transactions/${transaction.id}/allocations/${allocation.id}/remove`} method="post"><button className="text-button" type="submit">Odpárovat</button></form>}</div></div>)}</div> : <p className="muted-copy">Platba zatím není přiřazena k žádnému předpisu.</p>}{transaction.allocations.length>0&&canCorrect&&!cancelledManual&&(hasPropertyCorrection||depositLinked)&&<form action={`/api/properties/${id}/transactions/${transaction.id}/unallocate-all`} method="post"><button className="secondary" type="submit">Odpárovat všechna přiřazení nájemného</button><p className="muted-copy">Odstraní pouze přiřazení k předpisům. Případné zaúčtování kauce zůstane zachováno.</p></form>}{transaction.suggestedLease && <div className="notice" style={{ marginTop: 15 }}>Navržená smlouva: {transaction.suggestedLease.unit.label} · {transaction.suggestedLease.tenant.name}</div>}</div>
 
       {cancelledManual&&<div className="card col-12"><h2>Ruční platba byla stornována</h2><p className="muted-copy">Transakce zůstává zachována v historii a její původní přiřazení bylo zrušeno.</p></div>}
-      {canCorrect&&!cancelledManual&&transaction.status!=="IGNORED"&&<div className="card col-7"><h2>Přepárovat platbu</h2>{depositLinked?<div className="notice">Část platby je zaúčtována jako kauce. Lze opravit jednotlivé alokace nájemného, ale celou platbu nelze přepárovat.</div>:<form className="compact-form" action={`/api/properties/${id}/transactions/${transaction.id}/reassign`} method="post"><label className="field"><span>Nový nájemní vztah</span><select name="targetLeaseId" required><option value="">Vyberte smlouvu</option>{editableLeases.map(lease=><option key={lease.id} value={lease.id}>{lease.unit.label} · {lease.tenant.name} · {lease.contractNumber||`VS ${lease.variableSymbol}`}</option>)}</select></label><button className="primary" type="submit">Přepárovat platbu</button></form>}</div>}
+      {canCorrect&&!cancelledManual&&transaction.status!=="IGNORED"&&<div className="card col-7"><h2>Přepárovat platbu</h2>{depositLinked?<div className="notice">Část platby je zaúčtována jako kauce. Lze opravit jednotlivé alokace nájemného, ale celou platbu nelze přepárovat.</div>:<form className="compact-form" action={`/api/properties/${id}/transactions/${transaction.id}/reassign`} method="post"><label className="field"><span>Nový nájemní vztah</span><select name="targetLeaseId" required><option value="">Vyberte smlouvu</option>{editableLeases.map(lease=><option key={lease.id} value={lease.id}>{paymentLeaseOptionLabel(lease)}</option>)}</select></label><button className="primary" type="submit">Přepárovat platbu</button></form>}</div>}
       {canCorrect&&hasPropertyCorrection&&!cancelledManual&&transaction.status!=="IGNORED"&&transaction.source==="manual"&&<div className="card col-5"><h2>Stornovat ruční platbu</h2>{depositLinked?<div className="notice">Platbu nelze stornovat, protože její část byla zaúčtována jako kauce. Nejprve je nutné opravit evidenci kauce.</div>:<form action={`/api/properties/${id}/transactions/${transaction.id}/cancel-manual`} method="post"><p className="muted-copy">Ruční platba zůstane zachována v historii jako stornovaná. Její přiřazení k předpisům bude zrušeno a případný dluh se znovu zobrazí.</p><label className="checkbox-field"><input type="checkbox" required/><span>Rozumím dopadu storna</span></label><button className="danger-button" type="submit">Stornovat ruční platbu</button></form>}</div>}
 
       {canManage && remaining > 0 && transaction.amountCents > 0 && <div className="card col-7"><h2>Ruční přiřazení k předpisu</h2><form className="compact-form" action={`/api/properties/${id}/transactions/${transaction.id}/allocate`} method="post"><label className="field"><span>Otevřený předpis</span><select name="chargeId" required>{openCharges.map((row) => <option value={row.charge.id} key={row.charge.id}>{row.lease.unit.label} · {row.lease.tenant.name} · {row.charge.period} · zbývá {money(row.charge.amountCents - row.paid)}</option>)}</select></label><label className="field"><span>Částka (prázdné = maximální možná)</span><input name="amount" type="number" step="0.01" max={moneyInput(remaining)}/></label><button className="primary" type="submit">Přiřadit platbu</button></form></div>}
