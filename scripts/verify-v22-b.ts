@@ -21,7 +21,7 @@ check("global without selection remains ALL",()=>assert.deepEqual(applyPortfolio
 check("mixed property and unit grants",()=>assert.deepEqual(applyPortfolioSelection(scoped,{mode:"SELECTED",propertyIds:["A","B"]},{B1:"B"}),scoped));
 check("unauthorized subset cannot expand",()=>assert.deepEqual(applyPortfolioSelection(scoped,{mode:"SELECTED",propertyIds:["C"]},{B1:"B"}),{mode:"SCOPED",wholePropertyIds:[],unitIds:[]}));
 check("stable serialization",()=>assert.equal(serializePortfolioSelection({mode:"SELECTED",propertyIds:["B","A"]}),"A,B"));
-check("ALL label",()=>assert.match(portfolioSelectionLabel(ALL,14,14),/Celé portfolio/));
+check("ALL label",()=>assert.match(portfolioSelectionLabel(ALL,14,14),/Zobrazeno všech 14 dostupných objektů/));
 check("selected label",()=>assert.match(portfolioSelectionLabel({mode:"SELECTED",propertyIds:["A"]},1,14),/1 z 14/));
 check("query preservation",()=>assert.match(withPortfolioSelection("/reporty",new URLSearchParams("view=collections&x=1"),{mode:"SELECTED",propertyIds:["A"]}),/view=collections/));
 check("LIVE ALL excludes inactive",()=>assert.deepEqual(liveSelectedPropertyIds(ALL,[{id:"A",active:true},{id:"OLD",active:false}]),["A"]));
@@ -67,7 +67,7 @@ check("unit editor can atomic reassign own to own",()=>assert.equal(canCorrectTr
 const specs:Array<[string,string,string[]]>=[
   ["picker","components/PortfolioScopePicker.tsx",["router.push","Hledat nemovitost","type=\"checkbox\"","Vybrat vše","Použít výběr","Zrušit změny","Archivováno","aria-haspopup","useEffect","setDraft(initial)"]],
   ["portfolio","app/portfolio/page.tsx",["parsePortfolioSelection","selectedSet","selectedPropertyIds","taskScope","selection.mode===\"ALL\"","view=collections","PortfolioScopePicker","unmatchedCount","prisma.task.count","prisma.complianceItem.count","taskCount","revisionCount","overdueRevisionCount","liveSelectedPropertyIds"]],
-  ["report","app/reporty/page.tsx",["Reporty","overview","occupancy","collections","tenancy","deposits","contracts","Datová kvalita","LIVE","properties","PortfolioScopePicker"]],
+  ["report","app/reporty/page.tsx",["Reporty","overview","occupancy","collections","tenancy","deposits","contracts","Datová konzistence","LIVE","properties","PortfolioScopePicker"]],
   ["live reporting","lib/reporting/live-service.ts",["businessDate","reportingPropertyAccessWhere","prisma.property.findMany","occupancyBps","weightedRentPerM2Cents","securityDepositSnapshot","leaseStatusAt","effectiveLeaseEnd","paidCentsAsOf","overdueDebtCentsAsOf","qualityIssues"]],
   ["legacy reports","app/reporty/[report]/page.tsx",["redirect","propertyId","predpisy","saldo","collections"]],
   ["download","app/api/documents/[id]/download/route.ts",["currentUser","requireDocumentAccess","document.fileAsset","getSignedDownloadUrl","300","getObject","private, no-store","attachment","inline","deletedAt"]],

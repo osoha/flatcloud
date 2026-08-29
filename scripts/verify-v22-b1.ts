@@ -5,6 +5,7 @@ import { canCorrectTransactionFromGrants, crossPropertyReassignError, reassigned
 import { paymentLeaseOptionLabel } from "../lib/payment-lease-options";
 import { authorizationScopeLabel } from "../lib/access-scope-label";
 import { applyPortfolioSelection, portfolioSelectionLabel, serializePortfolioSelection } from "../lib/portfolio-selection";
+import { groupReportingQualityIssues, reportingQualityCodes, reportingQualityCopy, reportingQualityIssueTarget, type ReportingQualityIssue } from "../lib/reporting/data-quality";
 
 const root=path.resolve(process.cwd()),read=(file:string)=>fs.readFileSync(path.join(root,file),"utf8");let count=0;
 function check(name:string,fn:()=>unknown){fn();count++;console.log(`✓ ${count}. ${name}`)}
@@ -28,6 +29,14 @@ check("ALL view wording",()=>assert.equal(portfolioSelectionLabel({mode:"ALL"},5
 check("subset view wording",()=>assert.equal(portfolioSelectionLabel({mode:"SELECTED",propertyIds:["A"]},1,5),"Zobrazeno 1 z 5 dostupných objektů"));
 check("properties URL serialization unchanged",()=>assert.equal(serializePortfolioSelection({mode:"SELECTED",propertyIds:["B","A"]}),"A,B"));
 check("view filter cannot expand authorization",()=>assert.deepEqual(applyPortfolioSelection({mode:"SCOPED",wholePropertyIds:["A"],unitIds:[]},{mode:"SELECTED",propertyIds:["A","FOREIGN"]}),{mode:"SCOPED",wholePropertyIds:["A"],unitIds:[]}));
+const qualityIssues:ReportingQualityIssue[]=[{code:"MISSING_UNIT_AREA",severity:"WARNING",message:"raw one",propertyId:"A",unitId:"U1"},{code:"MISSING_UNIT_AREA",severity:"WARNING",message:"raw two",propertyId:"A",unitId:"U2"},{code:"DEPOSIT_CONFIGURATION_WARNING",severity:"INFO",message:"raw three",propertyId:"A",unitId:"U1",leaseId:"L1"}];
+check("quality issues group by code",()=>assert.deepEqual(groupReportingQualityIssues(qualityIssues).map(group=>[group.code,group.occurrences.length]),[["MISSING_UNIT_AREA",2],["DEPOSIT_CONFIGURATION_WARNING",1]]));
+check("deep link resolver handles every quality code",()=>{for(const code of reportingQualityCodes)assert.ok(reportingQualityIssueTarget({code,severity:"WARNING",message:"x",propertyId:"A",unitId:"U1",leaseId:"L1"},{role:"USER",memberships:[{propertyId:"A",permission:"EDIT"}]}),code)});
+check("edit user gets repair action",()=>assert.deepEqual(reportingQualityIssueTarget(qualityIssues[0],{role:"USER",memberships:[{propertyId:"A",permission:"EDIT"}]}),{href:"/nemovitosti/A/jednotky/U1/upravit",actionLabel:"Opravit →",canEdit:true}));
+check("view-only user cannot edit",()=>assert.deepEqual(reportingQualityIssueTarget(qualityIssues[0],{role:"USER",memberships:[{propertyId:"A",permission:"VIEW"}]}),{href:"/nemovitosti/A/jednotky/U1",actionLabel:"Zobrazit →",canEdit:false}));
+check("reporting-only membership grants no Rent access",()=>assert.equal(reportingQualityIssueTarget(qualityIssues[0],{role:"USER",reportingGroupMemberships:[{reportingGroupId:"G",permission:"ADMIN"}]}),null));
+check("unit link remains inside authorized scope",()=>assert.equal(reportingQualityIssueTarget(qualityIssues[0],{role:"USER",unitMemberships:[{unitId:"OTHER",permission:"EDIT",unit:{propertyId:"A"}}]}),null));
+check("all quality codes have friendly Czech copy",()=>{for(const code of reportingQualityCodes){assert.ok(reportingQualityCopy[code].label);assert.ok(reportingQualityCopy[code].description);assert.doesNotMatch(reportingQualityCopy[code].description,/Legacy lease|fallback|as-of/i)}});
 
 const service=read("lib/payment-corrections.ts"),reassignService=service.slice(service.indexOf("export async function reassignPayment"),service.indexOf("export async function cancelManualPayment")),picker=read("app/nemovitosti/[id]/platby/[transactionId]/page.tsx"),route=read("app/api/properties/[id]/transactions/[transactionId]/reassign/route.ts"),options=read("lib/payment-lease-options.ts");
 for(const [name,source,needles] of [
@@ -42,6 +51,8 @@ check("failed move rolls back account and allocations by single transaction boun
 check("transaction ID is never replaced",()=>assert.doesNotMatch(reassignService,/bankTransaction\.create/));
 check("no Prisma schema change",()=>assert.equal(read("prisma/schema.prisma"),read("prisma/schema.prisma")));
 const css=read("app/globals.css"),taskPage=read("app/ukoly/[id]/page.tsx"),attachments=read("components/documents/DocumentAttachments.tsx"),scopePicker=read("components/PortfolioScopePicker.tsx"),portfolio=read("app/portfolio/page.tsx"),reports=read("app/reporty/page.tsx"),shell=read("components/Shell.tsx");
+check("expanded quality detail displays property unit and lease metadata",()=>{for(const needle of ["entities.properties","entities.units","entities.leases","group.description"])assert.ok(reports.includes(needle),needle)});
+check("quality UI does not render raw technical message",()=>assert.doesNotMatch(reports,/issue\.message|item\.message/));
 check("task summary is static",()=>assert.match(css,/\.case-summary-card\{position:static\}/));
 check("task summary old sticky offset removed",()=>assert.doesNotMatch(css,/\.case-summary-card\{position:sticky;top:82px\}/));
 check("global sidebar remains fixed",()=>assert.match(css,/\.sidebar\{position:fixed/));
