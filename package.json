@@ -23,10 +23,12 @@
     "verify:v21.6.1": "tsx scripts/verify-v21-6-1.ts",
     "verify:v21.7": "tsx scripts/verify-v21-7.ts",
     "verify:v22": "tsx scripts/verify-v22.ts",
+    "verify:v22-hardening": "tsx scripts/verify-v22-hardening.ts",
     "verify:v22-b": "tsx scripts/verify-v22-b.ts",
     "verify:v22-b1": "tsx scripts/verify-v22-b1.ts",
     "verify:v22-c-part1": "tsx scripts/verify-v22-c-part1.ts",
     "verify:v22-c-part1-1": "tsx scripts/verify-v22-c-part1-1.ts",
+    "verify:v22-c-part2a1": "tsx scripts/verify-v22-c-part2a1.ts",
     "repair:payment-statuses": "tsx scripts/recompute-payment-statuses.ts"
   },
   "dependencies": {
