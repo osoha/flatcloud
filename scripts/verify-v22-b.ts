@@ -34,9 +34,10 @@ const specs:Array<[string,string,string[]]>=[
   ["lease docs","app/smlouvy/[leaseId]/page.tsx",["documentAccessWhere","Dokumenty smlouvy","DocumentUploadForm","CONTRACT_ADDENDUM","canDelete={canEdit}"]],
   ["task create","app/api/tasks/route.ts",["prepareDocumentFiles","createDocumentFromUpload","DocumentPhotoStage.BEFORE","taskId:created.id"]],
   ["task thread","app/api/tasks/[id]/entries/route.ts",["prepareDocumentFiles","taskEntryId:entry.id","editableUnitWhere","createDocumentFromUpload"]],
-  ["task close","app/api/tasks/[id]/close/route.ts",["kind:\"STATUS\"","DocumentPhotoStage.AFTER","status:\"DONE\"","TASK_CLOSED","Závěrečný komentář je povinný","editableUnitWhere"]],
+  ["task close","app/api/tasks/[id]/close/route.ts",["kind:\"STATUS\"","DocumentPhotoStage.AFTER","status:\"DONE\"","closedAt:new Date()","TASK_CLOSED","Závěrečný komentář je povinný","editableUnitWhere"]],
   ["task UX","app/ukoly/[id]/page.tsx",["taskEntryId===entry.id","Fotodokumentace","Před opravou","Po opravě","Uzavřít případ","encType=\"multipart/form-data\""]],
   ["compliance","app/api/properties/[id]/compliance/[itemId]/complete/route.ts",["complianceRecordId:record.id","INSPECTION_PROTOCOL","prepareDocumentFiles","documentDate:performedAt"]],
+  ["compliance UX","app/nemovitosti/[id]/[section]/page.tsx",["Revizní protokol","name=\"files\"","encType=\"multipart/form-data\""]],
   ["navigation","components/Shell.tsx",["href=\"/reporty\"","href=\"/dokumenty\"","href=\"/revize\"","href=\"/ukoly\"","Vlastníci a SPV"]],
   ["storage","lib/storage/index.ts",["fileStorageCapabilities","localStream","signedDownloads","DisabledStorage"]]
 ];
