@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { canCorrectTransactionFromGrants, crossPropertyReassignError, reassignedManualMetadata } from "../lib/payment-corrections";
 import { paymentLeaseOptionLabel } from "../lib/payment-lease-options";
+import { authorizationScopeLabel } from "../lib/access-scope-label";
+import { applyPortfolioSelection, portfolioSelectionLabel, serializePortfolioSelection } from "../lib/portfolio-selection";
 
 const root=path.resolve(process.cwd()),read=(file:string)=>fs.readFileSync(path.join(root,file),"utf8");let count=0;
 function check(name:string,fn:()=>unknown){fn();count++;console.log(`✓ ${count}. ${name}`)}
@@ -18,6 +20,14 @@ check("authorized unit A to unit B scopes are independently valid",()=>assert.eq
 check("unauthorized target unit rejected",()=>assert.equal(canCorrectTransactionFromGrants("B",["B3"],{wholePropertyIds:[],unitIds:["A1"]}),false));
 check("auto-derived tenant name and VS update",()=>assert.deepEqual(reassignedManualMetadata({source:"manual",counterpartyName:"Old Tenant",variableSymbol:"111",previousTenantName:"Old Tenant",previousLeaseVariableSymbol:"111",targetTenantName:"New Tenant",targetLeaseVariableSymbol:"222"}),{counterpartyName:"New Tenant",variableSymbol:"222"}));
 check("custom payer name and VS are preserved",()=>assert.deepEqual(reassignedManualMetadata({source:"manual",counterpartyName:"Custom Payer",variableSymbol:"999",previousTenantName:"Old Tenant",previousLeaseVariableSymbol:"111",targetTenantName:"New Tenant",targetLeaseVariableSymbol:"222"}),{counterpartyName:"Custom Payer",variableSymbol:"999"}));
+check("all-property authorization label",()=>assert.equal(authorizationScopeLabel(true,[]),"Všechny objekty"));
+check("limited authorization counts distinct properties",()=>assert.equal(authorizationScopeLabel(false,["A","A","B"]),"2 objekty"));
+check("empty authorization label",()=>assert.equal(authorizationScopeLabel(false,[]),"Bez přiřazených objektů"));
+check("authorization label is independent of view filter",()=>assert.equal(authorizationScopeLabel(false,["A","B","C"]),authorizationScopeLabel(false,["A","B","C"])));
+check("ALL view wording",()=>assert.equal(portfolioSelectionLabel({mode:"ALL"},5,5,5),"Zobrazeno všech 5 dostupných objektů"));
+check("subset view wording",()=>assert.equal(portfolioSelectionLabel({mode:"SELECTED",propertyIds:["A"]},1,5),"Zobrazeno 1 z 5 dostupných objektů"));
+check("properties URL serialization unchanged",()=>assert.equal(serializePortfolioSelection({mode:"SELECTED",propertyIds:["B","A"]}),"A,B"));
+check("view filter cannot expand authorization",()=>assert.deepEqual(applyPortfolioSelection({mode:"SCOPED",wholePropertyIds:["A"],unitIds:[]},{mode:"SELECTED",propertyIds:["A","FOREIGN"]}),{mode:"SCOPED",wholePropertyIds:["A"],unitIds:[]}));
 
 const service=read("lib/payment-corrections.ts"),reassignService=service.slice(service.indexOf("export async function reassignPayment"),service.indexOf("export async function cancelManualPayment")),picker=read("app/nemovitosti/[id]/platby/[transactionId]/page.tsx"),route=read("app/api/properties/[id]/transactions/[transactionId]/reassign/route.ts"),options=read("lib/payment-lease-options.ts");
 for(const [name,source,needles] of [
@@ -31,4 +41,24 @@ check("deposit-linked whole reassign remains blocked",()=>assert.ok(reassignServ
 check("failed move rolls back account and allocations by single transaction boundary",()=>assert.match(reassignService,/return serializableTransaction/));
 check("transaction ID is never replaced",()=>assert.doesNotMatch(reassignService,/bankTransaction\.create/));
 check("no Prisma schema change",()=>assert.equal(read("prisma/schema.prisma"),read("prisma/schema.prisma")));
+const css=read("app/globals.css"),taskPage=read("app/ukoly/[id]/page.tsx"),attachments=read("components/documents/DocumentAttachments.tsx"),scopePicker=read("components/PortfolioScopePicker.tsx"),portfolio=read("app/portfolio/page.tsx"),reports=read("app/reporty/page.tsx"),shell=read("components/Shell.tsx");
+check("task summary is static",()=>assert.match(css,/\.case-summary-card\{position:static\}/));
+check("task summary old sticky offset removed",()=>assert.doesNotMatch(css,/\.case-summary-card\{position:sticky;top:82px\}/));
+check("global sidebar remains fixed",()=>assert.match(css,/\.sidebar\{position:fixed/));
+check("global topbar remains sticky",()=>assert.match(css,/\.topbar\{[^}]*position:sticky/));
+check("task entry computes compact document list",()=>assert.match(taskPage,/const entryDocuments=documents\.filter/));
+check("task entry without documents renders no attachment component",()=>assert.match(taskPage,/entryDocuments\.length>0&&<DocumentAttachments documents=\{entryDocuments\}/));
+check("general attachment empty state remains",()=>assert.match(attachments,/Zatím nejsou přiloženy žádné dokumenty/));
+check("picker uses displayed objects wording",()=>assert.match(scopePicker,/Zobrazené objekty/));
+check("old picker terminology removed",()=>assert.doesNotMatch(scopePicker,/Rozsah portfolia/));
+check("picker aria describes displayed objects",()=>assert.match(scopePicker,/Vybrat zobrazené objekty/));
+check("portfolio subtitle uses view wording helper",()=>assert.match(portfolio,/portfolioSelectionLabel/));
+check("reports use same view wording",()=>assert.match(reports,/portfolioSelectionLabel/));
+check("separate scope box removed",()=>assert.doesNotMatch(shell,/scope-box|compact-scope/));
+check("old all-portfolios label removed",()=>assert.doesNotMatch(shell,/Všechna portfolia/));
+check("existing role labels reused",()=>assert.match(shell,/userRoles\[user\.role\]/));
+check("authorization scope shown in user card",()=>assert.match(shell,/user-card-meta/));
+check("user card remains linked to account",()=>assert.match(shell,/user-card-profile[^>]*href="\/ucet"/));
+check("logout remains functional",()=>assert.match(shell,/action="\/api\/auth\/logout"/));
+check("email remains layout safe",()=>assert.match(css,/user-card-email[^}]*text-overflow:ellipsis/));
 console.log(`V22-B.1 verification passed: ${count} checks.`);

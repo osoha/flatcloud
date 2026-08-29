@@ -16,7 +16,7 @@ export function applyPortfolioSelection(scope: ReportingScope, selection: Portfo
   if (scope.mode === "ALL") return { mode: "SCOPED", wholePropertyIds: cleanIds(selection.propertyIds), unitIds: [] };
   return { mode: "SCOPED", wholePropertyIds: scope.wholePropertyIds.filter((id) => selected.has(id)), unitIds: scope.unitIds.filter((id) => selected.has(unitPropertyIds[id])) };
 }
-export function portfolioSelectionLabel(selection: PortfolioSelection, selectedCount: number, totalCount: number, activeCount = totalCount) { return selection.mode === "ALL" ? `Celé portfolio · ${activeCount} aktivních objektů` : `Výběr · ${selectedCount} z ${totalCount} objektů`; }
+export function portfolioSelectionLabel(selection: PortfolioSelection, selectedCount: number, totalCount: number, activeCount = totalCount) { return selection.mode === "ALL" ? `Zobrazeno všech ${activeCount} dostupných objektů` : `Zobrazeno ${selectedCount} z ${totalCount} dostupných objektů`; }
 export function selectedPropertyIds(selection: PortfolioSelection, availableIds: string[]) { if (selection.mode === "ALL") return cleanIds(availableIds); const allowed = new Set(availableIds); return selection.propertyIds.filter((id) => allowed.has(id)); }
 /** Operational LIVE KPIs consistently use active properties; archived properties stay available to catalog and navigation views. */
 export function liveSelectedPropertyIds(selection: PortfolioSelection, properties: Array<{ id: string; active: boolean }>) { return selectedPropertyIds(selection, properties.filter((property) => property.active).map((property) => property.id)); }

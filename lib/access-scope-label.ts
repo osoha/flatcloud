@@ -1,0 +1,2 @@
+export function czechObjectCount(count:number){const mod100=count%100,mod10=count%10;const noun=count===1?"objekt":mod10>=2&&mod10<=4&&(mod100<12||mod100>14)?"objekty":"objektů";return `${count} ${noun}`}
+export function authorizationScopeLabel(allProperties:boolean,propertyIds:Iterable<string>){if(allProperties)return "Všechny objekty";const count=new Set(propertyIds).size;return count?czechObjectCount(count):"Bez přiřazených objektů"}

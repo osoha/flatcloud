@@ -9,6 +9,8 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { leaseAccessWhere } from "@/lib/access";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
+import { userRoles } from "@/lib/labels";
+import { authorizationScopeLabel } from "@/lib/access-scope-label";
 
 type ShellUser = {
   id: string;
@@ -51,6 +53,11 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
     where: { id: user.id },
     select: { _count: { select: { memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } }, unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } } } } },
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
+  const accessPropertyIds=fullAccess?[]:(await Promise.all([
+    prisma.userProperty.findMany({where:{userId:user.id},select:{propertyId:true}}),
+    prisma.userUnit.findMany({where:{userId:user.id},select:{unit:{select:{propertyId:true}}}}),
+  ])).flatMap((rows,index)=>index===0?(rows as Array<{propertyId:string}>).map(row=>row.propertyId):(rows as Array<{unit:{propertyId:string}}>).map(row=>row.unit.propertyId));
+  const accessLabel=authorizationScopeLabel(fullAccess,accessPropertyIds);
 
   return <div className="app-shell v21-shell">
     <aside className="sidebar">
@@ -83,9 +90,8 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         {superAdmin && <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>}
       </nav>
       <div className="sidebar-footer">
-        <div className="scope-box compact-scope"><small>Rozsah</small><strong>{fullAccess ? "Všechna portfolia" : "Přiřazené objekty"}</strong></div>
         <div className="user-card">
-          <Link className="user-card-profile" href="/ucet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small>{user.email}</small></div></Link>
+          <Link className="user-card-profile" href="/ucet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small className="user-card-email">{user.email}</small><small className="user-card-meta">{userRoles[user.role]||user.role} · {accessLabel}</small></div></Link>
           <form className="logout-form" action="/api/auth/logout" method="post"><button aria-label="Odhlásit"><LogOut size={13}/></button></form>
         </div>
       </div>
