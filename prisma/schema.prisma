@@ -201,6 +201,7 @@ enum SecurityDepositMovementType {
 enum LeaseCreditType {
   SERVICE_SETTLEMENT
   MANUAL_ADJUSTMENT
+  OPENING_BALANCE
 }
 
 enum UnitOperationalStatusEventSource {
@@ -584,6 +585,7 @@ model Lease {
   tenant                   Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   contractNumber           String?
   startDate                DateTime
+  financialTrackingFromPeriod String
   endDate                  DateTime?
   terminatedOn             DateTime?
   terminationReason        String?

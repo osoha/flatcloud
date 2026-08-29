@@ -31,6 +31,7 @@ export function calculatePropertySnapshot(input: { propertyId: string; asOf: Dat
     if (!lease) continue;
 
     const resolved = rentRollAmountsAt(lease, input.asOf);
+    if ("financiallyTracked" in resolved && !resolved.financiallyTracked) continue;
     if (!resolved.chargeFound) issues.push({ code: "MISSING_CHARGE_FOR_PERIOD", severity: "WARNING", message: "Active occupied lease has no charge for the as-of month; rent was reconstructed.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
     if (resolved.rent.source === "LEGACY") issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy lease rent used as RENT fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
     // Backlog: explicit servicesCents = 0 can currently select LEGACY. Keep the calculation unchanged until its business meaning is decided.

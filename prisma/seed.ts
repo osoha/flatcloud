@@ -64,6 +64,7 @@ async function main() {
           ownerBankAccountId: paymentAccount.id,
           tenantBankAccount: tenant.payerAccounts[0],
           startDate: new Date("2025-01-01"),
+          financialTrackingFromPeriod: "2025-01",
           variableSymbol: `${propertyIndex + 1}00${index}`,
           rentCents: cents(11_000 + index * 500),
           servicesCents: cents(2_500),

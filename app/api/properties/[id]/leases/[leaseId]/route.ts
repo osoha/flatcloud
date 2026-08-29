@@ -8,6 +8,7 @@ import { go, goWithMessage } from "@/lib/route-response";
 import { firstFutureAnniversary, periodKeyForDate, replaceRecurringAmount, syncLeaseCharges } from "@/lib/charge-automation";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "@/lib/lease-lifecycle";
+import { businessMonthKey } from "@/lib/calendar";
 
 function percentToBps(value: string | null) {
   if (!value) return null;
@@ -44,6 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
 
     const startDate = dateValue(form, "startDate", true)!;
+    if (businessMonthKey(startDate) > existing.financialTrackingFromPeriod) throw new Error("Začátek smlouvy nelze posunout za začátek existující finanční evidence.");
     const termType = text(form, "termType") || "INDEFINITE";
     const endDate = termType === "FIXED" ? dateValue(form, "endDate", true)! : null;
     if (endDate && endDate < startDate) throw new Error("Konec smlouvy nesmí být před jejím začátkem.");

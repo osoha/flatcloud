@@ -8,9 +8,15 @@ export const INDEFINITE_CHARGE_HORIZON_MONTHS = 12;
 type Tx = Prisma.TransactionClient;
 type SyncResult = { created: number; updated: number; skippedPaid: number; deactivated: number };
 
+export function financialSyncFromPeriod(lease: { financialTrackingFromPeriod: string }, requestedPeriod?: string) {
+  return requestedPeriod && requestedPeriod > lease.financialTrackingFromPeriod ? requestedPeriod : lease.financialTrackingFromPeriod;
+}
+
 export function periodKeyForDate(value: Date) {
   return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}`;
 }
+
+export function isMonthlyChargePeriod(period: string) { return /^\d{4}-(0[1-9]|1[0-2])$/.test(period); }
 
 function addMonthsUtc(value: Date, months: number) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + months, Math.min(value.getUTCDate(), new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + months + 1, 0)).getUTCDate()), 12));
@@ -98,9 +104,10 @@ export async function syncLeaseCharges(tx: Tx, leaseId: string, options: { now?:
   const targetPeriods = horizonEnd >= lease.startDate ? periodsBetween(lease.startDate, horizonEnd) : [];
   const targetSet = new Set(targetPeriods);
   const existingByPeriod = new Map(lease.charges.map((charge) => [charge.period, charge]));
-  const fromPeriod = options.fromPeriod || periodKeyForDate(lease.startDate);
+  const fromPeriod = financialSyncFromPeriod(lease, options.fromPeriod);
 
   for (const period of targetPeriods) {
+    if (period < lease.financialTrackingFromPeriod) continue;
     const start = periodStart(period);
     const monthEnd = endOfMonth(start);
     const items = lease.paymentItems.filter((item) => item.active && item.validFrom <= monthEnd && (!item.validTo || item.validTo >= start));
@@ -157,6 +164,7 @@ export async function syncLeaseCharges(tx: Tx, leaseId: string, options: { now?:
 
   const effectiveEndPeriod = effectiveEnd ? periodKeyForDate(effectiveEnd) : null;
   for (const charge of lease.charges) {
+    if (!isMonthlyChargePeriod(charge.period)) continue;
     if (targetSet.has(charge.period) || charge.allocations.length || !charge.active) continue;
     const isBeyondEffectiveEnd = Boolean(effectiveEndPeriod && charge.period > effectiveEndPeriod);
     if (!isBeyondEffectiveEnd && charge.period < fromPeriod) continue;

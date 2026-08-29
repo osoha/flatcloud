@@ -24,9 +24,11 @@ type Props = {
   defaultAutoChargesEnabled?: boolean;
   defaultIndexationEnabled?: boolean;
   defaultIndexationPercent?: number | string | null;
+  showFinancialOnboarding?: boolean;
+  currentBusinessPeriod?: string;
 };
 
-export function LeaseCoreFields({ unitOptions, tenantOptions, defaultUnitId, defaultTenantId, defaultContractNumber, defaultStartDate, defaultEndDate = "", defaultDueDay = 5, defaultRentTiming = "ADVANCE", defaultVariableSymbol = "", defaultTenantBankAccount = "", proposals = {}, ownerAccountsByUnit = {}, tenantAccountsByTenant = {}, showGenerateCharges = false, defaultAutoChargesEnabled = true, defaultIndexationEnabled = false, defaultIndexationPercent = "" }: Props) {
+export function LeaseCoreFields({ unitOptions, tenantOptions, defaultUnitId, defaultTenantId, defaultContractNumber, defaultStartDate, defaultEndDate = "", defaultDueDay = 5, defaultRentTiming = "ADVANCE", defaultVariableSymbol = "", defaultTenantBankAccount = "", proposals = {}, ownerAccountsByUnit = {}, tenantAccountsByTenant = {}, showGenerateCharges = false, defaultAutoChargesEnabled = true, defaultIndexationEnabled = false, defaultIndexationPercent = "", showFinancialOnboarding = false, currentBusinessPeriod = "" }: Props) {
   const initialUnit = defaultUnitId || unitOptions[0]?.[0] || "";
   const initialTenant = defaultTenantId || tenantOptions?.[0]?.[0] || "";
   const [unitId, setUnitId] = useState(initialUnit);
@@ -36,6 +38,9 @@ export function LeaseCoreFields({ unitOptions, tenantOptions, defaultUnitId, def
   const [variableSymbol, setVariableSymbol] = useState(initialVs);
   const [tenantBankAccount, setTenantBankAccount] = useState(defaultTenantBankAccount || tenantAccountsByTenant[initialTenant]?.[0] || "");
   const [indexationEnabled, setIndexationEnabled] = useState(defaultIndexationEnabled);
+  const [startDate, setStartDate] = useState(defaultStartDate);
+  const [openingBalanceType, setOpeningBalanceType] = useState("ZERO");
+  const historicalOnboarding = showFinancialOnboarding && Boolean(currentBusinessPeriod && startDate.slice(0, 7) < currentBusinessPeriod);
   const proposed = useMemo(() => proposals[unitId] || "", [proposals, unitId]);
   const ownerAccount = ownerAccountsByUnit[unitId] || null;
   const knownTenantAccounts = tenantAccountsByTenant[tenantId] || [];
@@ -59,13 +64,14 @@ export function LeaseCoreFields({ unitOptions, tenantOptions, defaultUnitId, def
     <label className="field"><span>Účet nájemníka ve smlouvě</span><input name="tenantBankAccount" list="tenant-bank-accounts" value={tenantBankAccount} onChange={(event) => setTenantBankAccount(event.target.value)} placeholder="IBAN nebo číslo účtu plátce"/><datalist id="tenant-bank-accounts">{knownTenantAccounts.map((account) => <option value={account} key={account}/>)}</datalist><small>Použije se pro první automatické párování příchozí platby.</small></label>
     <label className="field"><span>Číslo smlouvy</span><input name="contractNumber" defaultValue={defaultContractNumber || ""}/></label>
     <label className="field"><span>Doba trvání *</span><select name="termType" value={termType} onChange={(event) => setTermType(event.target.value)}><option value="FIXED">Na dobu určitou</option><option value="INDEFINITE">Na dobu neurčitou</option></select></label>
-    <label className="field"><span>Platnost od *</span><input name="startDate" type="date" defaultValue={defaultStartDate} required/></label>
+    <label className="field"><span>Platnost od *</span><input name="startDate" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} required/></label>
     {termType === "FIXED" && <label className="field"><span>Platnost do *</span><input name="endDate" type="date" defaultValue={defaultEndDate} required/></label>}
     <div className="field notice"><strong>Stav smlouvy se určuje automaticky</strong><span>Budoucí / Aktivní / Ukončená se vypočítá z platnosti smlouvy a případného ukončení.</span></div>
     <label className="field"><span>Den splatnosti *</span><input name="dueDay" type="number" min={1} max={31} defaultValue={defaultDueDay} required/></label>
     <label className="field"><span>Způsob placení</span><select name="rentTiming" defaultValue={defaultRentTiming}><option value="ADVANCE">Dopředné – v daném měsíci</option><option value="ARREARS">Zpětné – v následujícím měsíci</option></select></label>
     <label className="field"><span>Variabilní symbol *</span><input name="variableSymbol" inputMode="numeric" pattern="[0-9]{1,10}" maxLength={10} value={variableSymbol} onChange={(event) => setVariableSymbol(event.target.value.replace(/\D/g, "").slice(0, 10))} required/><small>{proposed ? `Návrh podle domu, jednotky a pořadí smlouvy: ${proposed}` : "VS musí být číselný a historicky unikátní na stejném příjmovém účtu vlastníka."}</small></label>
     <label className="field"><span>Úrok kauce % p.a.</span><input name="depositInterest" type="number" step="0.01" min="0" max="100" defaultValue="0"/><small>0 % je povolená smluvní/evidenční sazba.</small></label>
+    {historicalOnboarding && <div className="field field-full automation-box historical-onboarding"><h3>Převzetí existující smlouvy</h3><p className="muted-copy">Smlouva začala před zahájením evidence ve FlatCloudu. Zvolte, od kterého měsíce má FlatCloud evidovat předpisy a jaké bylo saldo při převzetí.</p><label className="field"><span>Finanční evidence od</span><input name="financialTrackingFromPeriod" type="month" defaultValue={currentBusinessPeriod} min={startDate.slice(0, 7)} required/></label><fieldset><legend>Počáteční stav</legend>{[["ZERO","Bez nedoplatku a bez přeplatku"],["DEBT","Nedoplatek"],["OVERPAYMENT","Přeplatek"]].map(([value,label])=><label className="checkbox-field" key={value}><input type="radio" name="openingBalanceType" value={value} checked={openingBalanceType===value} onChange={()=>setOpeningBalanceType(value)}/><span>{label}</span></label>)}</fieldset>{openingBalanceType!=="ZERO"&&<><label className="field"><span>Částka Kč</span><input name="openingBalanceAmount" type="number" step="0.01" min="0.01" required/></label><label className="field"><span>Poznámka k převzetí</span><input name="openingBalanceNote" placeholder="Volitelný původ nebo vysvětlení salda"/></label></>}</div>}
     {showGenerateCharges && <div className="field field-full automation-box"><h3>Automatizace předpisů</h3><label className="checkbox-field"><input type="checkbox" name="autoChargesEnabled" defaultChecked={defaultAutoChargesEnabled}/><span>{termType === "FIXED" ? "Automaticky vytvořit a udržovat předpisy na celé období smlouvy" : "Automaticky vytvářet předpisy 12 měsíců dopředu"}</span></label><small>FlatCloud doplní předpisy při založení i prodloužení smlouvy a změny budoucích částek promítne bez zásahu do uhrazené historie.</small><label className="checkbox-field"><input type="checkbox" name="indexationEnabled" checked={indexationEnabled} onChange={(event) => setIndexationEnabled(event.target.checked)}/><span>Automatická pevná procentní indexace nájemného při výročí smlouvy</span></label>{indexationEnabled && <label className="field automation-percent"><span>Roční indexace %</span><input name="indexationPercent" type="number" step="0.01" min="0.01" max="100" defaultValue={defaultIndexationPercent ?? ""} required/><small>Např. 5 znamená navýšení nájemného o 5 % při každém výročí smlouvy.</small></label>}</div>}
   </>;
 }
