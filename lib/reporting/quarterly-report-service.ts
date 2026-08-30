@@ -5,6 +5,7 @@ import { reportingGroupPropertiesAt, type ReportingUser } from "./access";
 import { assertQuarterAndRevision, validateQuarterlyReportPeriod } from "./invariants";
 import { calculateAndStoreSnapshotTx } from "./snapshot-service";
 import { quarterlyPropertyReportContentSchema, quarterlyReportEditorialSchema, type QuarterlyPropertyReportContentInput, type QuarterlyReportEditorialInput } from "./editorial-schema";
+import { quarterlyReportQualityGate } from "./quarterly-quality-gate";
 
 export type QuarterlyReportActor = Pick<ReportingUser, "id" | "role">;
 type Tx = Prisma.TransactionClient;
@@ -58,6 +59,38 @@ async function audit(tx: Tx, actorId: string, action: string, report: { id: stri
 async function reportProperties(tx: Tx, reportingGroupId: string, asOfDate: Date) {
   const rows = await tx.reportingGroupProperty.findMany({ where: { reportingGroupId }, select: { propertyId: true, effectiveFrom: true, effectiveTo: true } });
   return reportingGroupPropertiesAt({ properties: rows }, asOfDate);
+}
+
+async function currentReviewStartedAt(tx: Tx, reportId: string) {
+  const event = await tx.auditLog.findFirst({
+    where: {
+      entityType: "QuarterlyReport",
+      entityId: reportId,
+      action: "REPORT_SUBMITTED_REVIEW",
+    },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+
+  return event?.createdAt || null;
+}
+
+async function hasCurrentWarningAcknowledgement(tx: Tx, reportId: string) {
+  const reviewStartedAt = await currentReviewStartedAt(tx, reportId);
+  if (!reviewStartedAt) return false;
+
+  return Boolean(
+    await tx.auditLog.findFirst({
+      where: {
+        entityType: "QuarterlyReport",
+        entityId: reportId,
+        action: "REPORT_WARNINGS_ACKNOWLEDGED",
+        createdAt: { gte: reviewStartedAt },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    }),
+  );
 }
 
 async function withCollisionRetry<T>(work: () => Promise<T>) {
@@ -157,16 +190,155 @@ async function transition(reportId: string, actor: QuarterlyReportActor, from: Q
   });
 }
 
-export async function publishQuarterlyReport(reportId: string, actor: QuarterlyReportActor) {
+export async function acknowledgeQuarterlyReportWarnings(
+  reportId: string,
+  actor: QuarterlyReportActor,
+) {
   return serializableTransaction(async (tx) => {
-    const report = await tx.quarterlyReport.findUnique({ where: { id: reportId }, include: { propertyReports: { include: { snapshot: true } } } }); if (!report) throw new Error("Quarterly report was not found.");
-    const granted = await requireAdmin(tx, actor, report.reportingGroupId); assertReportTransitionAllowed(report.status, "PUBLISHED", granted);
-    const expected = await reportProperties(tx, report.reportingGroupId, report.asOfDate); const expectedIds = new Set(expected.map((row) => row.propertyId));
-    if (report.propertyReports.length !== expectedIds.size || new Set(report.propertyReports.map((row) => row.propertyId)).size !== expectedIds.size || report.propertyReports.some((row) => !expectedIds.has(row.propertyId))) throw new Error("Report property scope is incomplete or inconsistent.");
-    for (const row of report.propertyReports) assertSnapshotCompatibility({ asOfDate: report.asOfDate, status: "DRAFT" }, row.propertyId, row.snapshot);
-    const publishedAt = new Date(); const changed = await tx.quarterlyReport.updateMany({ where: { id: reportId, status: "REVIEW" }, data: { status: "PUBLISHED", reviewedById: actor.id, publishedById: actor.id, publishedAt } });
-    if (changed.count !== 1) throw new Error("Report status changed concurrently.");
-    const updated = { ...report, status: "PUBLISHED" as const, reviewedById: actor.id, publishedById: actor.id, publishedAt }; await audit(tx, actor.id, "REPORT_PUBLISHED", updated); return updated;
+    const report = await tx.quarterlyReport.findUnique({
+      where: { id: reportId },
+      include: {
+        propertyReports: {
+          include: {
+            snapshot: { select: { quality: true } },
+          },
+        },
+      },
+    });
+
+    if (!report) throw new Error("Quarterly report was not found.");
+
+    await requireAdmin(tx, actor, report.reportingGroupId);
+
+    if (report.status !== "REVIEW") {
+      throw new Error("Warnings can only be acknowledged in REVIEW.");
+    }
+
+    const gate = quarterlyReportQualityGate(
+      report.propertyReports.map((row) => ({
+        propertyId: row.propertyId,
+        quality: row.snapshot.quality,
+      })),
+    );
+
+    if (gate.blockerCount > 0) {
+      throw new Error("Report has blocking data quality issues.");
+    }
+
+    if (gate.warningCount === 0) {
+      throw new Error("Report has no warnings to acknowledge.");
+    }
+
+    const reviewStartedAt = await currentReviewStartedAt(tx, reportId);
+
+    if (!reviewStartedAt) {
+      throw new Error("Current review cycle was not found.");
+    }
+
+    await audit(tx, actor.id, "REPORT_WARNINGS_ACKNOWLEDGED", report, {
+      warningCount: gate.warningCount,
+      infoCount: gate.infoCount,
+      reviewStartedAt: reviewStartedAt.toISOString(),
+    });
+
+    return gate;
+  });
+}
+
+export async function publishQuarterlyReport(
+  reportId: string,
+  actor: QuarterlyReportActor,
+) {
+  return serializableTransaction(async (tx) => {
+    const report = await tx.quarterlyReport.findUnique({
+      where: { id: reportId },
+      include: {
+        propertyReports: {
+          include: { snapshot: true },
+        },
+      },
+    });
+
+    if (!report) throw new Error("Quarterly report was not found.");
+
+    const granted = await requireAdmin(tx, actor, report.reportingGroupId);
+    assertReportTransitionAllowed(report.status, "PUBLISHED", granted);
+
+    const expected = await reportProperties(
+      tx,
+      report.reportingGroupId,
+      report.asOfDate,
+    );
+    const expectedIds = new Set(expected.map((row) => row.propertyId));
+
+    if (
+      report.propertyReports.length !== expectedIds.size ||
+      new Set(report.propertyReports.map((row) => row.propertyId)).size !==
+        expectedIds.size ||
+      report.propertyReports.some((row) => !expectedIds.has(row.propertyId))
+    ) {
+      throw new Error("Report property scope is incomplete or inconsistent.");
+    }
+
+    for (const row of report.propertyReports) {
+      assertSnapshotCompatibility(
+        { asOfDate: report.asOfDate, status: "DRAFT" },
+        row.propertyId,
+        row.snapshot,
+      );
+    }
+
+    const gate = quarterlyReportQualityGate(
+      report.propertyReports.map((row) => ({
+        propertyId: row.propertyId,
+        quality: row.snapshot.quality,
+      })),
+    );
+
+    if (gate.blockerCount > 0) {
+      throw new Error("Report has blocking data quality issues.");
+    }
+
+    if (
+      gate.warningCount > 0 &&
+      !(await hasCurrentWarningAcknowledgement(tx, reportId))
+    ) {
+      throw new Error(
+        "Report warnings must be acknowledged before publication.",
+      );
+    }
+
+    const publishedAt = new Date();
+
+    const changed = await tx.quarterlyReport.updateMany({
+      where: { id: reportId, status: "REVIEW" },
+      data: {
+        status: "PUBLISHED",
+        reviewedById: actor.id,
+        publishedById: actor.id,
+        publishedAt,
+      },
+    });
+
+    if (changed.count !== 1) {
+      throw new Error("Report status changed concurrently.");
+    }
+
+    const updated = {
+      ...report,
+      status: "PUBLISHED" as const,
+      reviewedById: actor.id,
+      publishedById: actor.id,
+      publishedAt,
+    };
+
+    await audit(tx, actor.id, "REPORT_PUBLISHED", updated, {
+      qualityInfoCount: gate.infoCount,
+      qualityWarningCount: gate.warningCount,
+      qualityBlockerCount: gate.blockerCount,
+    });
+
+    return updated;
   });
 }
 

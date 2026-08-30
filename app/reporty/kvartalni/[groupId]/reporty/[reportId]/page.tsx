@@ -9,6 +9,7 @@ import { prisma } from "@/lib/db";
 import { backofficePermissionForGroup, canAdminReportingBackoffice, canReadReportingBackoffice } from "@/lib/reporting/backoffice-access";
 import { technicalSectionsSchema, valuationRowsSchema, type TechnicalSection, type ValuationRow } from "@/lib/reporting/editorial-schema";
 import { quarterSnapshotQualitySchema } from "@/lib/reporting/snapshot-schema";
+import { quarterlyReportQualityGate } from "@/lib/reporting/quarterly-quality-gate";
 
 export const dynamic = "force-dynamic";
 const statusLabels: Record<string, string> = { DRAFT: "Koncept", REVIEW: "Ke kontrole", PUBLISHED: "Publikováno" };
@@ -53,6 +54,52 @@ export default async function QuarterlyReportWorkspace({ params, searchParams }:
   });
   if (!report) notFound();
 
+  const qualityGate = quarterlyReportQualityGate(
+    report.propertyReports.map((row) => ({
+      propertyId: row.propertyId,
+      quality: row.snapshot.quality,
+    })),
+  );
+
+  const reviewStarted =
+    report.status === "REVIEW"
+      ? await prisma.auditLog.findFirst({
+          where: {
+            entityType: "QuarterlyReport",
+            entityId: report.id,
+            action: "REPORT_SUBMITTED_REVIEW",
+          },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true },
+        })
+      : null;
+
+  const warningAcknowledgement =
+    report.status === "REVIEW" &&
+    reviewStarted &&
+    qualityGate.warningCount > 0
+      ? await prisma.auditLog.findFirst({
+          where: {
+            entityType: "QuarterlyReport",
+            entityId: report.id,
+            action: "REPORT_WARNINGS_ACKNOWLEDGED",
+            createdAt: { gte: reviewStarted.createdAt },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { createdAt: true },
+        })
+      : null;
+
+  const warningsAcknowledged =
+    qualityGate.warningCount === 0 || Boolean(warningAcknowledgement);
+
+  const propertyNames = new Map(
+    report.propertyReports.map((row) => [
+      row.propertyId,
+      row.property.name,
+    ]),
+  );
+
   const propertyIds = report.propertyReports.map((row) => row.propertyId);
   const candidates = report.status === "DRAFT" && propertyIds.length ? await prisma.quarterSnapshot.findMany({
     where: { propertyId: { in: propertyIds }, asOfDate: report.asOfDate, source: { in: ["CALCULATED", "MANUAL_BASELINE"] } },
@@ -66,8 +113,105 @@ export default async function QuarterlyReportWorkspace({ params, searchParams }:
 
   return <Shell user={user}><div className="page"><div className="breadcrumb"><Link href={`/reporty/kvartalni/${groupId}`}>← {report.reportingGroup.name}</Link></div><div className="page-title"><div><h1>{report.year} Q{report.quarter}</h1><p>{report.reportingGroup.name} · revize {report.revision} · rozhodné datum {businessDateKey(report.asOfDate)}</p><span className="status">{statusLabels[report.status]}</span></div></div><Flash ok={query.ok} error={query.error}/>
     <div className="card"><h2>Výkonné shrnutí</h2>{report.status === "DRAFT" ? <form className="edit-form" action={`/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/editorial`} method="post"><label className="field field-full"><span>Shrnutí za celou reportovací skupinu</span><textarea name="executiveSummary" defaultValue={report.executiveSummary || ""} maxLength={10000}/></label><div className="form-actions"><button className="primary" type="submit">Uložit shrnutí</button></div></form> : <p className="muted-copy" style={{ whiteSpace: "pre-wrap" }}>{report.executiveSummary || "Bez výkonného shrnutí"}</p>}</div>
-    {report.status === "DRAFT" && <div className="card"><form action={transitionAction} method="post"><button className="primary" name="action" value="submit-review">Odeslat ke kontrole</button></form></div>}
-    {report.status === "REVIEW" && admin && <div className="card"><form action={transitionAction} method="post"><button className="secondary" name="action" value="return-draft">Vrátit do konceptu</button></form></div>}
+    <div className="card">
+      <h2>Kontrola kvality před publikací</h2>
+      <p>
+        <strong>
+          INFO {qualityGate.infoCount} · WARNING {qualityGate.warningCount} · BLOCKER {qualityGate.blockerCount}
+        </strong>
+      </p>
+
+      {qualityGate.invalidQualityCount > 0 && (
+        <p className="muted-copy">
+          U {qualityGate.invalidQualityCount} snapshotů se metadata kvality nepodařilo ověřit; publikace je blokována.
+        </p>
+      )}
+
+      {qualityGate.issues.length ? (
+        <ul>
+          {qualityGate.issues.map((issue, index) => (
+            <li key={`${issue.code}-${issue.propertyId || "all"}-${index}`}>
+              <strong>{issue.severity}</strong> · {propertyNames.get(issue.propertyId || "") || "Report"} · {issue.message}
+            </li>
+          ))}
+        </ul>
+      ) : qualityGate.invalidQualityCount === 0 ? (
+        <p className="muted-copy">Bez problémů kvality dat.</p>
+      ) : null}
+
+      {report.status === "REVIEW" && qualityGate.warningCount > 0 && (
+        <p className="muted-copy">
+          {warningsAcknowledged
+            ? "Warningy byly potvrzeny pro aktuální kontrolní cyklus."
+            : "Warningy musí před publikací potvrdit administrátor."}
+        </p>
+      )}
+
+      {report.status === "REVIEW" &&
+        admin &&
+        qualityGate.blockerCount === 0 &&
+        qualityGate.warningCount > 0 &&
+        !warningsAcknowledged && (
+          <form action={transitionAction} method="post">
+            <button
+              className="secondary"
+              name="action"
+              value="acknowledge-warnings"
+            >
+              Potvrdit warningy
+            </button>
+          </form>
+        )}
+
+      {report.status === "REVIEW" &&
+        admin &&
+        qualityGate.blockerCount === 0 &&
+        warningsAcknowledged && (
+          <form
+            action={transitionAction}
+            method="post"
+            style={{ marginTop: 8 }}
+          >
+            <button className="primary" name="action" value="publish">
+              Publikovat
+            </button>
+          </form>
+        )}
+    </div>
+
+    {report.status === "DRAFT" && (
+      <div className="card">
+        <form action={transitionAction} method="post">
+          <button className="primary" name="action" value="submit-review">
+            Odeslat ke kontrole
+          </button>
+        </form>
+      </div>
+    )}
+
+    {report.status === "REVIEW" && admin && (
+      <div className="card">
+        <form action={transitionAction} method="post">
+          <button className="secondary" name="action" value="return-draft">
+            Vrátit do konceptu
+          </button>
+        </form>
+      </div>
+    )}
+
+    {report.status === "PUBLISHED" && (
+      <div className="card">
+        <form action={transitionAction} method="post">
+          <button
+            className="secondary"
+            name="action"
+            value="create-correction"
+          >
+            Vytvořit opravnou revizi
+          </button>
+        </form>
+      </div>
+    )}
     <div className="detail-grid" style={{ marginTop: 16 }}>{report.propertyReports.map((row) => {
       const propertyCandidates = candidatesByProperty.get(row.propertyId) || [];
       const base = `/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/properties/${row.propertyId}`;

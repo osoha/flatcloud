@@ -15,6 +15,13 @@ const friendlyMessages = new Map([
   ["Report content can only change in DRAFT.", "Snapshoty lze měnit pouze v konceptu reportu."],
   ["Editorial content can only change in DRAFT.", "Obsah reportu lze upravovat pouze v konceptu."],
   ["Every property report must have a property status before review.", "U všech nemovitostí musí být před odesláním ke kontrole vyplněn stav projektu."],
+  ["Report has blocking data quality issues.", "Report obsahuje blokující chyby kvality dat. Před publikací je nutné je odstranit."],
+  ["Report warnings must be acknowledged before publication.", "Report obsahuje warningy kvality dat. Před publikací je musí administrátor výslovně potvrdit."],
+  ["Warnings can only be acknowledged in REVIEW.", "Warningy lze potvrdit pouze ve stavu Ke kontrole."],
+  ["Report has no warnings to acknowledge.", "Report neobsahuje žádné warningy k potvrzení."],
+  ["Current review cycle was not found.", "Nepodařilo se určit aktuální kontrolní cyklus reportu."],
+  ["Corrections can only be created from a published report.", "Opravnou revizi lze vytvořit pouze z publikovaného reportu."],
+  ["Correction must be created from the latest published revision and no active revision may exist.", "Opravu lze založit pouze z poslední publikované revize, pokud již neexistuje novější rozpracovaná revize."],
   ["Reporting workflow transition is not permitted.", "Tento přechod stavu reportu není povolen."],
   ["Report status changed concurrently.", "Stav reportu se mezitím změnil. Načtěte stránku znovu."],
 ]);
