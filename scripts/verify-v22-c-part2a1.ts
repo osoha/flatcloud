@@ -42,7 +42,7 @@ async function main() {
   await check("original PUBLISHED correction source is not mutated", () => { assert.deepEqual(original, { propertyId: "p", snapshotId: "snapshot-3", propertyStatus: "STABILIZED", managementCommentary: "unchanged", technicalSections: { roof: "ok" }, valuationRows: [{ value: 1 }] }); assert.doesNotMatch(source, /quarterlyReport\.update\(\{[\s\S]*source\.id/); });
   await check("correction preserves snapshot references", () => assert.equal(cloned.snapshotId, original.snapshotId));
   await check("concurrent create/correction use serializable transactions plus unique DB guards", () => { assert.match(source, /withCollisionRetry\(\(\) => serializableTransaction/g); assert.match(source, /latest/); });
-  await check("double publish uses an atomic stale-status claim", () => assert.match(source, /updateMany\(\{ where: \{ id: reportId, status: "REVIEW" \}/));
+  await check("double publish uses an atomic stale-status claim", () => assert.match(source, /updateMany\(\{[\s\S]*?where:\s*\{[\s\S]*?id:\s*reportId,[\s\S]*?status:\s*"REVIEW"/));
   await check("all lifecycle audit actions are emitted", () => { for (const action of ["REPORT_CREATED", "REPORT_SNAPSHOT_RECALCULATED", "REPORT_SNAPSHOT_SELECTED", "REPORT_SUBMITTED_REVIEW", "REPORT_RETURNED_DRAFT", "REPORT_PUBLISHED", "REPORT_REVISION_CREATED"]) assert.ok(source.includes(action), action); assert.doesNotMatch(source, /details:[^\n]*snapshot\.data/); });
   console.log(`V22-C Part 2A.1 verification passed: ${count} checks.`);
 }
