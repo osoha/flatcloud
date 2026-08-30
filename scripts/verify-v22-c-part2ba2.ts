@@ -104,6 +104,7 @@ check("A2 verifier follows A1 in CI", () => {
       "      - run: npm run verify:v22-c-part2ba2\n" +
       "      - run: npm run verify:v22-c-part2ba3a\n" +
       "      - run: npm run verify:v22-c-part2ba3b\n" +
+      "      - run: npm run verify:v22-c-part2ba3b0\n" +
       "      - run: npm run build",
     ),
   );
