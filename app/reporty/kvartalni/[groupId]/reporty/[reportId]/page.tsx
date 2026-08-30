@@ -10,6 +10,7 @@ import { backofficePermissionForGroup, canAdminReportingBackoffice, canReadRepor
 import { technicalSectionsSchema, valuationRowsSchema, type TechnicalSection, type ValuationRow } from "@/lib/reporting/editorial-schema";
 import { quarterSnapshotQualitySchema } from "@/lib/reporting/snapshot-schema";
 import { quarterlyReportQualityGate } from "@/lib/reporting/quarterly-quality-gate";
+import { fileStorageCapabilities } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 const statusLabels: Record<string, string> = { DRAFT: "Koncept", REVIEW: "Ke kontrole", PUBLISHED: "Publikováno" };
@@ -109,6 +110,7 @@ export default async function QuarterlyReportWorkspace({ params, searchParams }:
   const candidatesByProperty = new Map<string, typeof candidates>();
   for (const snapshot of candidates) candidatesByProperty.set(snapshot.propertyId, [...(candidatesByProperty.get(snapshot.propertyId) || []), snapshot]);
   const admin = canAdminReportingBackoffice(permission);
+  const persistentStorageAvailable = fileStorageCapabilities().persistentWrites;
   const transitionAction = `/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/transition`;
 
   return <Shell user={user}><div className="page"><div className="breadcrumb"><Link href={`/reporty/kvartalni/${groupId}`}>← {report.reportingGroup.name}</Link></div><div className="page-title"><div><h1>{report.year} Q{report.quarter}</h1><p>{report.reportingGroup.name} · revize {report.revision} · rozhodné datum {businessDateKey(report.asOfDate)}</p><span className="status">{statusLabels[report.status]}</span></div></div><Flash ok={query.ok} error={query.error}/>
@@ -202,7 +204,8 @@ export default async function QuarterlyReportWorkspace({ params, searchParams }:
     {report.status === "PUBLISHED" && (
       <div className="card">
         <h2>Publikovaný soubor</h2>
-        {report.publishedAssetId ? <a className="button secondary" href={`/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/assets/download`}>Stáhnout PDF</a> : admin ? <form action={`/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/assets/generate`} method="post"><button className="primary" type="submit">Vygenerovat PDF</button></form> : <p className="muted-copy">PDF zatím nebylo vygenerováno.</p>}
+        <p><a className="button secondary" href={`/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/assets/preview`}>Stáhnout náhled PDF</a></p>
+        {report.publishedAssetId ? <a className="button secondary" href={`/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/assets/download`}>Stáhnout PDF</a> : admin && persistentStorageAvailable ? <form action={`/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/assets/generate`} method="post"><button className="primary" type="submit">Vygenerovat PDF</button></form> : admin ? <p className="muted-copy">Trvalé úložiště souborů není nakonfigurováno. Pro kontrolu vzhledu použijte náhled PDF.</p> : <p className="muted-copy">PDF zatím nebylo vygenerováno.</p>}
         <form action={transitionAction} method="post">
           <button
             className="secondary"
