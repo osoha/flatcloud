@@ -1,0 +1,6 @@
+import { ReportingGroupPermission } from "@prisma/client";
+import { requireUser } from "@/lib/auth";
+import { text } from "@/lib/forms";
+import { changeReportingGroupMember, ReportingBackofficeError, reportingBackofficeErrorMessage, reportingGroupPermissions } from "@/lib/reporting/backoffice-access";
+import { goWithMessage } from "@/lib/route-response";
+export async function POST(request: Request, { params }: { params: Promise<{ groupId: string; userId: string }> }) { const [{ groupId, userId }, actor] = await Promise.all([params, requireUser()]); try { const form = await request.formData(), action = text(form, "action", true); if (action !== "update" && action !== "remove") throw new ReportingBackofficeError("Neplatná členská operace."); const raw = text(form, "permission") as ReportingGroupPermission | null; if (action === "update" && (!raw || !reportingGroupPermissions.includes(raw))) throw new ReportingBackofficeError("Neplatné reportingové oprávnění."); await changeReportingGroupMember(groupId, userId, action, raw, actor); return goWithMessage(request, `/reporty/kvartalni/${groupId}`, "ok", action === "remove" ? "Člen byl odebrán." : "Oprávnění člena bylo změněno."); } catch (error) { return goWithMessage(request, `/reporty/kvartalni/${groupId}`, "error", reportingBackofficeErrorMessage(error)); } }

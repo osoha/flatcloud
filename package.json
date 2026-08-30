@@ -29,6 +29,7 @@
     "verify:v22-c-part1": "tsx scripts/verify-v22-c-part1.ts",
     "verify:v22-c-part1-1": "tsx scripts/verify-v22-c-part1-1.ts",
     "verify:v22-c-part2a1": "tsx scripts/verify-v22-c-part2a1.ts",
+    "verify:v22-c-part2a2a": "tsx scripts/verify-v22-c-part2a2a.ts",
     "repair:payment-statuses": "tsx scripts/recompute-payment-statuses.ts"
   },
   "dependencies": {

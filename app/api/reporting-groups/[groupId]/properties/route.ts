@@ -1,0 +1,5 @@
+import { requireUser } from "@/lib/auth";
+import { text } from "@/lib/forms";
+import { addReportingGroupPropertyInterval, parseReportingBusinessDate, reportingBackofficeErrorMessage } from "@/lib/reporting/backoffice-access";
+import { goWithMessage } from "@/lib/route-response";
+export async function POST(request: Request, { params }: { params: Promise<{ groupId: string }> }) { const [{ groupId }, actor] = await Promise.all([params, requireUser()]); try { const form = await request.formData(), propertyId = text(form, "propertyId", true)!, effectiveFrom = parseReportingBusinessDate(text(form, "effectiveFrom", true)!), effectiveTo = parseReportingBusinessDate(text(form, "effectiveTo") || "", false); await addReportingGroupPropertyInterval(groupId, { propertyId, effectiveFrom: effectiveFrom!, effectiveTo }, actor); return goWithMessage(request, `/reporty/kvartalni/${groupId}`, "ok", "Interval nemovitosti byl přidán."); } catch (error) { return goWithMessage(request, `/reporty/kvartalni/${groupId}`, "error", reportingBackofficeErrorMessage(error)); } }

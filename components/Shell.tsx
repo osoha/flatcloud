@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, CalendarCheck2, ClipboardCheck, FileText, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
+import { AlertTriangle, BarChart3, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
@@ -11,6 +11,7 @@ import { leaseAccessWhere } from "@/lib/access";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
 import { authorizationScopeLabel } from "@/lib/access-scope-label";
+import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
 
 type ShellUser = {
   id: string;
@@ -58,6 +59,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
     prisma.userUnit.findMany({where:{userId:user.id},select:{unit:{select:{propertyId:true}}}}),
   ])).flatMap((rows,index)=>index===0?(rows as Array<{propertyId:string}>).map(row=>row.propertyId):(rows as Array<{unit:{propertyId:string}}>).map(row=>row.unit.propertyId));
   const accessLabel=authorizationScopeLabel(fullAccess,accessPropertyIds);
+  const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
   return <div className="app-shell v21-shell">
     <aside className="sidebar">
@@ -68,6 +70,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
+        {canSeeQuarterlyReports && <Nav href="/reporty/kvartalni" icon={<CalendarRange size={17}/>} label="Kvartální reporty"/>}
 
         <div className="nav-label">Provoz</div>
         <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
