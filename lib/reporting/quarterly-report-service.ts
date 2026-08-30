@@ -72,6 +72,8 @@ export async function createQuarterlyReport(input: { reportingGroupId: string; y
   validateQuarterlyReportPeriod({ asOfDate, year: input.year, quarter: input.quarter, revision: 1 });
   return withCollisionRetry(() => serializableTransaction(async (tx) => {
     await requireEdit(tx, actor, input.reportingGroupId);
+    const group = await tx.reportingGroup.findUnique({ where: { id: input.reportingGroupId }, select: { active: true } });
+    if (!group?.active) throw new Error("Reporting group is inactive.");
     const latest = await tx.quarterlyReport.findFirst({ where: { reportingGroupId: input.reportingGroupId, year: input.year, quarter: input.quarter }, orderBy: { revision: "desc" } });
     if (latest) throw new Error(latest.status === "PUBLISHED" ? "Use correction workflow to create a revision of a published report." : "An active DRAFT or REVIEW report already exists for this quarter.");
     const properties = assertEffectiveReportProperties(await reportProperties(tx, input.reportingGroupId, asOfDate));

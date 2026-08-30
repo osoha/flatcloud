@@ -1,0 +1,37 @@
+import { prisma } from "../db";
+
+const friendlyMessages = new Map([
+  ["Reporting group is inactive.", "Skupina je neaktivní. Nový kvartální report nelze založit."],
+  ["An active DRAFT or REVIEW report already exists for this quarter.", "Pro tento kvartál již existuje rozpracovaný report."],
+  ["Use correction workflow to create a revision of a published report.", "Pro tento kvartál již existuje publikovaný report. Další revizi bude možné vytvořit přes opravu reportu."],
+  ["Reporting group has no effective properties at report quarter end.", "Skupina nemá k rozhodnému datu žádné platné nemovitosti."],
+  ["Reporting EDIT permission is required.", "Nemáte oprávnění upravovat tento kvartální report."],
+  ["Reporting ADMIN permission is required.", "Nemáte oprávnění vrátit tento report do konceptu."],
+  ["Quarterly report was not found.", "Kvartální report nebyl nalezen."],
+  ["Quarter snapshot was not found.", "Snapshot nebyl nalezen."],
+  ["Property report was not found.", "Nemovitost není součástí reportu."],
+  ["Property report is missing or no longer editable.", "Nemovitost není součástí reportu nebo report již nelze upravit."],
+  ["Report content can only change in DRAFT.", "Snapshoty lze měnit pouze v konceptu reportu."],
+  ["Reporting workflow transition is not permitted.", "Tento přechod stavu reportu není povolen."],
+  ["Report status changed concurrently.", "Stav reportu se mezitím změnil. Načtěte stránku znovu."],
+]);
+
+export class QuarterlyWorkflowRouteError extends Error {
+  constructor(message: string) { super(message); this.name = "QuarterlyWorkflowRouteError"; }
+}
+
+export async function requireReportInGroup(reportId: string, groupId: string) {
+  const report = await prisma.quarterlyReport.findFirst({ where: { id: reportId, reportingGroupId: groupId }, select: { id: true } });
+  if (!report) throw new QuarterlyWorkflowRouteError("Kvartální report nebyl nalezen.");
+}
+
+export function quarterlyWorkflowErrorMessage(error: unknown) {
+  if (error instanceof QuarterlyWorkflowRouteError) return error.message;
+  if (error instanceof Error) {
+    const friendly = friendlyMessages.get(error.message);
+    if (friendly) return friendly;
+    if (/Quarter must be 1-4|Revision must be at least 1/.test(error.message)) return "Rok nebo kvartál není platný.";
+  }
+  console.error("Quarterly report workflow operation failed.", error);
+  return "Operaci se nepodařilo provést.";
+}

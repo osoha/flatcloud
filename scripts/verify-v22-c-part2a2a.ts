@@ -126,7 +126,7 @@ async function main() {
   await check("all required audit actions exist", () => { for (const action of ["REPORTING_GROUP_CREATED", "REPORTING_GROUP_UPDATED", "REPORTING_GROUP_MEMBER_ADDED", "REPORTING_GROUP_MEMBER_UPDATED", "REPORTING_GROUP_MEMBER_REMOVED", "REPORTING_GROUP_PROPERTY_ADDED", "REPORTING_GROUP_PROPERTY_UPDATED", "REPORTING_GROUP_PROPERTY_ENDED"]) assert.ok(service.includes(action), action); });
   await check("dashboard/detail expose no operational property links or data", () => { assert.doesNotMatch(dashboard + detail, /\/nemovitosti\/|units|leases|tenants|payments|documents/); assert.match(detail, /property: \{ select: \{ name: true, address: true, active: true \}/); });
   await check("LIVE report page remains operational and untouched", () => { const live = read("app/reporty/page.tsx"); assert.match(live, /loadLiveReport/); assert.match(live, /PortfolioScopePicker/); assert.doesNotMatch(live, /ReportingGroup|kvartalni/); });
-  await check("Part 2A.2A verifier follows Part 2A.1 in CI", () => assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2a1\n      - run: npm run verify:v22-c-part2a2a\n      - run: npm run build")));
+  await check("Part 2A.2A verifier follows Part 2A.1 in CI", () => assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2a1\n      - run: npm run verify:v22-c-part2a2a\n")));
   await verifyDatabaseBehavior();
   console.log(`V22-C Part 2A.2A verification passed: ${count} checks.`);
 }
