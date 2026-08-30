@@ -1138,6 +1138,7 @@ model QuarterlyReport {
   revision         Int
   status           QuarterlyReportStatus     @default(DRAFT)
   asOfDate         DateTime
+  executiveSummary String?
   createdById      String
   createdBy        User                      @relation("QuarterlyReportCreator", fields: [createdById], references: [id], onDelete: Restrict)
   reviewedById     String?

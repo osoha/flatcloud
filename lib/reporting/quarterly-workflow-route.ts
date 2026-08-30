@@ -12,6 +12,8 @@ const friendlyMessages = new Map([
   ["Property report was not found.", "Nemovitost není součástí reportu."],
   ["Property report is missing or no longer editable.", "Nemovitost není součástí reportu nebo report již nelze upravit."],
   ["Report content can only change in DRAFT.", "Snapshoty lze měnit pouze v konceptu reportu."],
+  ["Editorial content can only change in DRAFT.", "Obsah reportu lze upravovat pouze v konceptu."],
+  ["Every property report must have a property status before review.", "U všech nemovitostí musí být před odesláním ke kontrole vyplněn stav projektu."],
   ["Reporting workflow transition is not permitted.", "Tento přechod stavu reportu není povolen."],
   ["Report status changed concurrently.", "Stav reportu se mezitím změnil. Načtěte stránku znovu."],
 ]);
@@ -31,6 +33,7 @@ export function quarterlyWorkflowErrorMessage(error: unknown) {
     const friendly = friendlyMessages.get(error.message);
     if (friendly) return friendly;
     if (/Quarter must be 1-4|Revision must be at least 1/.test(error.message)) return "Rok nebo kvartál není platný.";
+    if (error.name === "ZodError" || error instanceof SyntaxError) return "Zadaný obsah reportu není platný.";
   }
   console.error("Quarterly report workflow operation failed.", error);
   return "Operaci se nepodařilo provést.";

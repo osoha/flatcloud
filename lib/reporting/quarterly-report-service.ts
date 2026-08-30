@@ -4,6 +4,7 @@ import { serializableTransaction } from "../serializable";
 import { reportingGroupPropertiesAt, type ReportingUser } from "./access";
 import { assertQuarterAndRevision, validateQuarterlyReportPeriod } from "./invariants";
 import { calculateAndStoreSnapshotTx } from "./snapshot-service";
+import { quarterlyPropertyReportContentSchema, quarterlyReportEditorialSchema, type QuarterlyPropertyReportContentInput, type QuarterlyReportEditorialInput } from "./editorial-schema";
 
 export type QuarterlyReportActor = Pick<ReportingUser, "id" | "role">;
 type Tx = Prisma.TransactionClient;
@@ -112,6 +113,32 @@ export async function recalculatePropertySnapshot(reportId: string, propertyId: 
   }));
 }
 
+export async function updateQuarterlyReportEditorial(reportId: string, input: QuarterlyReportEditorialInput, actor: QuarterlyReportActor) {
+  return serializableTransaction(async (tx) => {
+    const report = await tx.quarterlyReport.findUnique({ where: { id: reportId } }); if (!report) throw new Error("Quarterly report was not found.");
+    await requireEdit(tx, actor, report.reportingGroupId);
+    if (report.status !== "DRAFT") throw new Error("Editorial content can only change in DRAFT.");
+    const editorial = quarterlyReportEditorialSchema.parse(input);
+    const changed = await tx.quarterlyReport.updateMany({ where: { id: reportId, status: "DRAFT" }, data: { executiveSummary: editorial.executiveSummary } });
+    if (changed.count !== 1) throw new Error("Report is no longer editable.");
+    await audit(tx, actor.id, "REPORT_EDITORIAL_UPDATED", report, { changedFields: ["executiveSummary"], hasExecutiveSummary: editorial.executiveSummary !== null });
+    return tx.quarterlyReport.findUniqueOrThrow({ where: { id: reportId } });
+  });
+}
+
+export async function updateQuarterlyPropertyReportContent(reportId: string, propertyId: string, input: QuarterlyPropertyReportContentInput, actor: QuarterlyReportActor) {
+  return serializableTransaction(async (tx) => {
+    const report = await tx.quarterlyReport.findUnique({ where: { id: reportId } }); if (!report) throw new Error("Quarterly report was not found.");
+    await requireEdit(tx, actor, report.reportingGroupId);
+    if (report.status !== "DRAFT") throw new Error("Editorial content can only change in DRAFT.");
+    const content = quarterlyPropertyReportContentSchema.parse(input);
+    const changed = await tx.quarterlyPropertyReport.updateMany({ where: { quarterlyReportId: reportId, propertyId, quarterlyReport: { status: "DRAFT" } }, data: { propertyStatus: content.propertyStatus, managementCommentary: content.managementCommentary, technicalSections: content.technicalSections, valuationRows: content.valuationRows } });
+    if (changed.count !== 1) throw new Error("Property report is missing or no longer editable.");
+    await audit(tx, actor.id, "REPORT_PROPERTY_CONTENT_UPDATED", report, { propertyId, changedFields: ["propertyStatus", "managementCommentary", "technicalSections", "valuationRows"], technicalSectionCount: content.technicalSections.length, valuationRowCount: content.valuationRows.length });
+    return tx.quarterlyPropertyReport.findUniqueOrThrow({ where: { quarterlyReportId_propertyId: { quarterlyReportId: reportId, propertyId } } });
+  });
+}
+
 export async function submitQuarterlyReportForReview(reportId: string, actor: QuarterlyReportActor) { return transition(reportId, actor, "DRAFT", "REVIEW", "REPORT_SUBMITTED_REVIEW", false); }
 export async function returnQuarterlyReportToDraft(reportId: string, actor: QuarterlyReportActor) { return transition(reportId, actor, "REVIEW", "DRAFT", "REPORT_RETURNED_DRAFT", true); }
 
@@ -120,6 +147,10 @@ async function transition(reportId: string, actor: QuarterlyReportActor, from: Q
     const report = await tx.quarterlyReport.findUnique({ where: { id: reportId } }); if (!report) throw new Error("Quarterly report was not found.");
     const granted = admin ? await requireAdmin(tx, actor, report.reportingGroupId) : await requireEdit(tx, actor, report.reportingGroupId);
     assertReportTransitionAllowed(report.status, to, granted);
+    if (from === "DRAFT" && to === "REVIEW") {
+      const properties = await tx.quarterlyPropertyReport.findMany({ where: { quarterlyReportId: reportId }, select: { propertyStatus: true } });
+      if (properties.some((property) => property.propertyStatus === null)) throw new Error("Every property report must have a property status before review.");
+    }
     const changed = await tx.quarterlyReport.updateMany({ where: { id: reportId, status: from }, data: { status: to, ...(to === "DRAFT" ? { reviewedById: null, publishedById: null, publishedAt: null } : {}) } });
     if (changed.count !== 1) throw new Error("Report status changed concurrently.");
     const updated = { ...report, status: to }; await audit(tx, actor.id, action, updated); return updated;
@@ -146,7 +177,7 @@ export async function createCorrectionRevision(publishedReportId: string, actor:
     const latest = await tx.quarterlyReport.findFirst({ where: { reportingGroupId: source.reportingGroupId, year: source.year, quarter: source.quarter }, orderBy: { revision: "desc" } });
     if (!latest || latest.id !== source.id) throw new Error("Correction must be created from the latest published revision and no active revision may exist.");
     const revision = source.revision + 1; assertQuarterAndRevision(source.quarter, revision);
-    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: source.reportingGroupId, year: source.year, quarter: source.quarter, revision, status: "DRAFT", asOfDate: source.asOfDate, createdById: actor.id, propertyReports: { create: source.propertyReports.map(correctionPropertyData) } } });
+    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: source.reportingGroupId, year: source.year, quarter: source.quarter, revision, status: "DRAFT", asOfDate: source.asOfDate, executiveSummary: source.executiveSummary, createdById: actor.id, propertyReports: { create: source.propertyReports.map(correctionPropertyData) } } });
     await audit(tx, actor.id, "REPORT_REVISION_CREATED", report); return report;
   }));
 }

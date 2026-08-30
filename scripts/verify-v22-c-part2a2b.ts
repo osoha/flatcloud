@@ -34,7 +34,7 @@ async function main() {
   await check("quality is schema-validated and raw JSON is never rendered", () => { assert.match(workspace, /quarterSnapshotQualitySchema\.safeParse/); assert.match(workspace, /INFO \{counts\.INFO\} · WARNING \{counts\.WARNING\} · BLOCKER \{counts\.BLOCKER\}/); assert.doesNotMatch(workspace, /JSON\.stringify|snapshot\.data/); });
   await check("workspace introduces no RENT-domain reads or links", () => { assert.doesNotMatch(workspace, /prisma\.(unit|lease|tenant|payment|document)|\/nemovitosti\/|\/smlouvy\//); assert.match(workspace, /property: \{ select: \{ name: true, address: true, active: true \} \}/); });
   await check("LIVE reporting page remains unchanged in semantics", () => { const live = read("app/reporty/page.tsx"); assert.match(live, /loadLiveReport/); assert.match(live, /PortfolioScopePicker/); assert.doesNotMatch(live, /QuarterlyReport|ReportingGroup/); });
-  await check("Part 2A.2B follows Part 2A.2A in CI", () => assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2a2a\n      - run: npm run verify:v22-c-part2a2b\n      - run: npm run build")));
+  await check("Part 2A.2B follows Part 2A.2A in CI", () => assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2a2a\n      - run: npm run verify:v22-c-part2a2b\n")));
   await check("checkpoint adds no Prisma schema or migration", () => { assert.equal(fs.existsSync("prisma/migrations/20260830_v22_c_part2a2b"), false); assert.doesNotMatch(workspace + mutationRoutes.join("\n"), /prisma\.(unit|lease|tenant|payment|document)/); });
   console.log(`V22-C Part 2A.2B verification passed: ${count} checks.`);
 }
