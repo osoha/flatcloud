@@ -4,7 +4,7 @@ import fs from "node:fs";
 import { UserRole } from "@prisma/client";
 import { prisma } from "../lib/db";
 import { createCorrectionRevision } from "../lib/reporting/quarterly-report-service";
-import { A3A_REPORT_ARTIFACT_MIME_TYPE, generatePublishedReportAsset, getPublishedReportAssetForDownload } from "../lib/reporting/report-asset-service";
+import { generatePublishedReportAsset, getPublishedReportAssetForDownload } from "../lib/reporting/report-asset-service";
 import type { FileStorage, PutObjectInput, SignedDownloadOptions } from "../lib/storage/types";
 
 let count = 0;
@@ -27,7 +27,7 @@ async function databaseBehavior() {
   let groupId: string | undefined;
   try {
     const group = await prisma.reportingGroup.create({ data: { name: marker, members: { create: [{ userId: editor.id, permission: "EDIT" }, { userId: admin.id, permission: "ADMIN" }, { userId: viewer.id, permission: "VIEW" }] } } }); groupId = group.id;
-    const report = await prisma.quarterlyReport.create({ data: { reportingGroupId: group.id, year: 2026, quarter: 2, revision: 1, status: "PUBLISHED", asOfDate: new Date("2026-06-29T22:00:00.000Z"), createdById: editor.id, publishedById: editor.id, publishedAt: new Date() } });
+    const report = await prisma.quarterlyReport.create({ data: { reportingGroupId: group.id, reportingGroupNameSnapshot: group.name, year: 2026, quarter: 2, revision: 1, status: "PUBLISHED", asOfDate: new Date("2026-06-29T22:00:00.000Z"), createdById: editor.id, publishedById: editor.id, publishedAt: new Date() } });
     const storage = new MemoryStorage();
     await check("DB: EDIT cannot generate the canonical published asset", async () => {
       await assert.rejects(generatePublishedReportAsset(report.id, group.id, { id: editor.id, role: editor.role }, storage), /ADMIN permission/);
@@ -41,7 +41,7 @@ async function databaseBehavior() {
       assert.equal(attached.publishedAssetId, created.id); assert.ok(attached.publishedAsset);
       const bytes = await storage.getObject(attached.publishedAsset.storageKey);
       assert.equal(attached.publishedAsset.sha256, createHash("sha256").update(bytes).digest("hex"));
-      assert.equal(attached.publishedAsset.sizeBytes, bytes.byteLength); assert.equal(attached.publishedAsset.mimeType, A3A_REPORT_ARTIFACT_MIME_TYPE);
+      assert.equal(attached.publishedAsset.sizeBytes, bytes.byteLength); assert.ok(attached.publishedAsset.mimeType); assert.ok(attached.publishedAsset.originalName);
       assert.match(attached.publishedAsset.storageKey, new RegExp(`${group.id}/quarterly-reports/${report.id}/revision-1/`));
     });
     await check("DB: an attached published asset is never silently replaced", async () => {
@@ -50,7 +50,7 @@ async function databaseBehavior() {
       assert.equal(await prisma.fileAsset.count({ where: { publishedReports: { some: { id: report.id } } } }), 1);
     });
     await check("DB: SUPER_ADMIN can generate without group membership", async () => {
-      const superReport = await prisma.quarterlyReport.create({ data: { reportingGroupId: group.id, year: 2026, quarter: 3, revision: 1, status: "PUBLISHED", asOfDate: new Date("2026-09-29T22:00:00.000Z"), createdById: superAdmin.id, publishedById: superAdmin.id, publishedAt: new Date() } });
+      const superReport = await prisma.quarterlyReport.create({ data: { reportingGroupId: group.id, reportingGroupNameSnapshot: group.name, year: 2026, quarter: 3, revision: 1, status: "PUBLISHED", asOfDate: new Date("2026-09-29T22:00:00.000Z"), createdById: superAdmin.id, publishedById: superAdmin.id, publishedAt: new Date() } });
       const result = await generatePublishedReportAsset(superReport.id, group.id, { id: superAdmin.id, role: superAdmin.role }, storage);
       assert.equal((await prisma.quarterlyReport.findUniqueOrThrow({ where: { id: superReport.id } })).publishedAssetId, result.id);
     });
@@ -97,8 +97,8 @@ async function main() {
   await check("storageKey is confined to service and download transport", () => { assert.doesNotMatch(workspace + generation, /storageKey/); assert.doesNotMatch(service, /return \{[^}]*storageKey/); });
   await check("correction creation does not copy or mutate publishedAssetId", () => { const body = correction.slice(correction.indexOf("export async function createCorrectionRevision")); assert.doesNotMatch(body, /publishedAssetId/); });
   await check("download accepts VIEW membership and excludes deleted assets", () => { assert.match(service, /permission === "NONE"/); assert.match(service, /publishedAsset\.deletedAt/); });
-  await check("only PUBLISHED UI exposes downloads and only ADMIN/SUPER_ADMIN sees generation", () => { assert.match(workspace, /report\.status === "PUBLISHED"[\s\S]*Stáhnout publikovaný soubor/); assert.doesNotMatch(workspace, /report\.status === "(DRAFT|REVIEW)"[\s\S]{0,300}Stáhnout publikovaný soubor/); assert.match(workspace, /publishedAssetId \?[^:]+Stáhnout publikovaný soubor[^:]+: admin \?[^:]+Vygenerovat publikovaný soubor/); assert.match(workspace, /nikoli finální investorské PDF/); });
-  await check("A3a follows A2 in CI", () => assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2ba2\n      - run: npm run verify:v22-c-part2ba3a\n      - run: npm run build")));
+  await check("only PUBLISHED UI exposes asset controls and only ADMIN/SUPER_ADMIN sees generation", () => { assert.match(workspace, /report\.status === "PUBLISHED"[\s\S]*assets\/download/); assert.doesNotMatch(workspace, /report\.status === "(DRAFT|REVIEW)"[\s\S]{0,300}assets\/download/); assert.match(workspace, /publishedAssetId \?[^:]+assets\/download[^:]+: admin \?[^:]+assets\/generate/); });
+  await check("A3a follows A2 in CI", () => assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2ba2\n      - run: npm run verify:v22-c-part2ba3a\n")));
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for A3a database behavior verification.");
   await databaseBehavior();
   console.log(`V22-C Part 2B-A3a verification passed: ${count} checks.`);

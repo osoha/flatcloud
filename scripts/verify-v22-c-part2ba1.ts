@@ -25,7 +25,7 @@ async function verifyDatabaseBehavior() {
     const group = await prisma.reportingGroup.create({ data: { name: `${marker}-group`, members: { create: [{ userId: editor.id, permission: "EDIT" }, { userId: viewer.id, permission: "VIEW" }] } } }); groupId = group.id;
     const asOfDate = businessDateKeyToInstant(quarterEndKey(2026, 2));
     const snapshot = await prisma.quarterSnapshot.create({ data: { propertyId: property.id, asOfDate, year: 2026, quarter: 2, revision: 1, source: "MANUAL_BASELINE", schemaVersion: 1, calculatorVersion: "verifier", data: { source: "MANUAL_BASELINE", schemaVersion: 1, asOfDate: "2026-06-30" }, quality: { issues: [] }, createdById: editor.id } }); snapshotId = snapshot.id;
-    const report = await prisma.quarterlyReport.create({ data: { reportingGroupId: group.id, year: 2026, quarter: 2, revision: 1, status: "DRAFT", asOfDate, createdById: editor.id, propertyReports: { create: { propertyId: property.id, snapshotId: snapshot.id } } } }); reportId = report.id;
+    const report = await prisma.quarterlyReport.create({ data: { reportingGroupId: group.id, reportingGroupNameSnapshot: group.name, year: 2026, quarter: 2, revision: 1, status: "DRAFT", asOfDate, createdById: editor.id, propertyReports: { create: { propertyId: property.id, propertyNameSnapshot: property.name, propertyAddressSnapshot: `${property.address}, ${property.city}`, snapshotId: snapshot.id } } } }); reportId = report.id;
 
     await check("DB: EDIT updates DRAFT executive summary without RENT grants", async () => {
       await updateQuarterlyReportEditorial(report.id, { executiveSummary: "Souhrn vedení" }, actor(editor));

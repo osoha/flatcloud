@@ -34,12 +34,15 @@
     "verify:v22-c-part2ba1": "tsx scripts/verify-v22-c-part2ba1.ts",
     "repair:payment-statuses": "tsx scripts/recompute-payment-statuses.ts",
     "verify:v22-c-part2ba2": "tsx scripts/verify-v22-c-part2ba2.ts",
-    "verify:v22-c-part2ba3a": "tsx scripts/verify-v22-c-part2ba3a.ts"
+    "verify:v22-c-part2ba3a": "tsx scripts/verify-v22-c-part2ba3a.ts",
+    "verify:v22-c-part2ba3b": "tsx scripts/verify-v22-c-part2ba3b.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",
     "@aws-sdk/s3-request-presigner": "3.879.0",
+    "@fontsource/noto-sans": "^5.3.0",
     "@prisma/client": "6.19.3",
+    "@react-pdf/renderer": "^4.9.0",
     "bcryptjs": "3.0.2",
     "jose": "6.1.0",
     "lucide-react": "0.468.0",

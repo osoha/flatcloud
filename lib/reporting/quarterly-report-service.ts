@@ -27,8 +27,8 @@ export function assertSnapshotCompatibility(report: { asOfDate: Date; status: st
   if (!["CALCULATED", "MANUAL_BASELINE"].includes(snapshot.source)) throw new Error("Snapshot source is not selectable.");
 }
 export function assertEffectiveReportProperties<T>(properties: T[]) { if (!properties.length) throw new Error("Reporting group has no effective properties at report quarter end."); return properties; }
-export function correctionPropertyData(row: { propertyId: string; snapshotId: string; propertyStatus: PropertyReportingStatus | null; managementCommentary: string | null; technicalSections: Prisma.JsonValue; valuationRows: Prisma.JsonValue }) {
-  return { propertyId: row.propertyId, snapshotId: row.snapshotId, propertyStatus: row.propertyStatus, managementCommentary: row.managementCommentary, technicalSections: row.technicalSections === null ? Prisma.JsonNull : row.technicalSections, valuationRows: row.valuationRows === null ? Prisma.JsonNull : row.valuationRows };
+export function correctionPropertyData(row: { propertyId: string; propertyNameSnapshot: string; propertyAddressSnapshot: string; snapshotId: string; propertyStatus: PropertyReportingStatus | null; managementCommentary: string | null; technicalSections: Prisma.JsonValue; valuationRows: Prisma.JsonValue }) {
+  return { propertyId: row.propertyId, propertyNameSnapshot: row.propertyNameSnapshot, propertyAddressSnapshot: row.propertyAddressSnapshot, snapshotId: row.snapshotId, propertyStatus: row.propertyStatus, managementCommentary: row.managementCommentary, technicalSections: row.technicalSections === null ? Prisma.JsonNull : row.technicalSections, valuationRows: row.valuationRows === null ? Prisma.JsonNull : row.valuationRows };
 }
 
 async function permission(tx: Tx, actor: QuarterlyReportActor, reportingGroupId: string) {
@@ -57,9 +57,11 @@ async function audit(tx: Tx, actorId: string, action: string, report: { id: stri
   await tx.auditLog.create({ data: { userId: actorId, action, entityType: "QuarterlyReport", entityId: report.id, details: details(report, extra) } });
 }
 async function reportProperties(tx: Tx, reportingGroupId: string, asOfDate: Date) {
-  const rows = await tx.reportingGroupProperty.findMany({ where: { reportingGroupId }, select: { propertyId: true, effectiveFrom: true, effectiveTo: true } });
+  const rows = await tx.reportingGroupProperty.findMany({ where: { reportingGroupId }, select: { propertyId: true, effectiveFrom: true, effectiveTo: true, property: { select: { name: true, address: true, city: true, postalCode: true } } } });
   return reportingGroupPropertiesAt({ properties: rows }, asOfDate);
 }
+
+function frozenPropertyAddress(property: { address: string; city: string; postalCode: string | null }) { return `${property.address}, ${property.postalCode ? `${property.postalCode} ` : ""}${property.city}`; }
 
 async function currentReviewStartedAt(tx: Tx, reportId: string) {
   const event = await tx.auditLog.findFirst({
@@ -106,14 +108,15 @@ export async function createQuarterlyReport(input: { reportingGroupId: string; y
   validateQuarterlyReportPeriod({ asOfDate, year: input.year, quarter: input.quarter, revision: 1 });
   return withCollisionRetry(() => serializableTransaction(async (tx) => {
     await requireEdit(tx, actor, input.reportingGroupId);
-    const group = await tx.reportingGroup.findUnique({ where: { id: input.reportingGroupId }, select: { active: true } });
+    const group = await tx.reportingGroup.findUnique({ where: { id: input.reportingGroupId }, select: { active: true, name: true } });
     if (!group?.active) throw new Error("Reporting group is inactive.");
     const latest = await tx.quarterlyReport.findFirst({ where: { reportingGroupId: input.reportingGroupId, year: input.year, quarter: input.quarter }, orderBy: { revision: "desc" } });
     if (latest) throw new Error(latest.status === "PUBLISHED" ? "Use correction workflow to create a revision of a published report." : "An active DRAFT or REVIEW report already exists for this quarter.");
     const properties = assertEffectiveReportProperties(await reportProperties(tx, input.reportingGroupId, asOfDate));
     const snapshots = [];
     for (const property of properties) snapshots.push(await calculateAndStoreSnapshotTx(tx, { propertyId: property.propertyId, asOf: asOfDate, createdById: actor.id }));
-    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: input.reportingGroupId, year: input.year, quarter: input.quarter, revision: 1, status: "DRAFT", asOfDate, createdById: actor.id, propertyReports: { create: snapshots.map((snapshot) => ({ propertyId: snapshot.propertyId, snapshotId: snapshot.id })) } } });
+    const identityByProperty = new Map(properties.map((row) => [row.propertyId, row.property]));
+    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: input.reportingGroupId, reportingGroupNameSnapshot: group.name, year: input.year, quarter: input.quarter, revision: 1, status: "DRAFT", asOfDate, createdById: actor.id, propertyReports: { create: snapshots.map((snapshot) => { const property = identityByProperty.get(snapshot.propertyId)!; return { propertyId: snapshot.propertyId, propertyNameSnapshot: property.name, propertyAddressSnapshot: frozenPropertyAddress(property), snapshotId: snapshot.id }; }) } } });
     await audit(tx, actor.id, "REPORT_CREATED", report);
     return report;
   }));
@@ -349,7 +352,7 @@ export async function createCorrectionRevision(publishedReportId: string, actor:
     const latest = await tx.quarterlyReport.findFirst({ where: { reportingGroupId: source.reportingGroupId, year: source.year, quarter: source.quarter }, orderBy: { revision: "desc" } });
     if (!latest || latest.id !== source.id) throw new Error("Correction must be created from the latest published revision and no active revision may exist.");
     const revision = source.revision + 1; assertQuarterAndRevision(source.quarter, revision);
-    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: source.reportingGroupId, year: source.year, quarter: source.quarter, revision, status: "DRAFT", asOfDate: source.asOfDate, executiveSummary: source.executiveSummary, createdById: actor.id, propertyReports: { create: source.propertyReports.map(correctionPropertyData) } } });
+    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: source.reportingGroupId, reportingGroupNameSnapshot: source.reportingGroupNameSnapshot, year: source.year, quarter: source.quarter, revision, status: "DRAFT", asOfDate: source.asOfDate, executiveSummary: source.executiveSummary, createdById: actor.id, propertyReports: { create: source.propertyReports.map(correctionPropertyData) } } });
     await audit(tx, actor.id, "REPORT_REVISION_CREATED", report); return report;
   }));
 }

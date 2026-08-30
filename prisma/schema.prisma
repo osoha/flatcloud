@@ -1133,6 +1133,7 @@ model QuarterlyReport {
   id               String                    @id @default(cuid())
   reportingGroupId String
   reportingGroup   ReportingGroup            @relation(fields: [reportingGroupId], references: [id], onDelete: Restrict)
+  reportingGroupNameSnapshot String
   year             Int
   quarter          Int
   revision         Int
@@ -1162,6 +1163,8 @@ model QuarterlyPropertyReport {
   quarterlyReport      QuarterlyReport          @relation(fields: [quarterlyReportId], references: [id], onDelete: Cascade)
   propertyId           String
   property             Property                 @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  propertyNameSnapshot String
+  propertyAddressSnapshot String
   snapshotId           String
   snapshot             QuarterSnapshot          @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
   propertyStatus       PropertyReportingStatus?
