@@ -25,6 +25,14 @@ export const valuationRowSchema = z.object({
 
 export const valuationRowsSchema = z.array(valuationRowSchema).max(40);
 
+export const valuationRowEditorSchema = z.object({
+  label: z.string(),
+  amountCzk: z.string(),
+  valueLabel: z.string().nullable().optional(),
+  note: z.string().nullable().optional(),
+}).strict();
+export const valuationRowsEditorSchema = z.array(valuationRowEditorSchema).max(40);
+
 export const quarterlyReportEditorialSchema = z.object({ executiveSummary: optionalText(10000) }).strict();
 export const quarterlyPropertyReportContentSchema = z.object({
   propertyStatus: z.enum(propertyReportingStatuses).nullable(),

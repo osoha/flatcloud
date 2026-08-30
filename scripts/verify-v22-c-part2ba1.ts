@@ -3,8 +3,11 @@ import fs from "node:fs";
 import { UserRole } from "@prisma/client";
 import { businessDateKeyToInstant, quarterEndKey } from "../lib/calendar";
 import { prisma } from "../lib/db";
+import { phone } from "../lib/format";
+import { CzkMoneyParseError, parseCzkToCents } from "../lib/forms";
 import { technicalSectionsSchema, valuationRowsSchema } from "../lib/reporting/editorial-schema";
 import { createCorrectionRevision, submitQuarterlyReportForReview, updateQuarterlyPropertyReportContent, updateQuarterlyReportEditorial } from "../lib/reporting/quarterly-report-service";
+import { quarterlyWorkflowErrorMessage } from "../lib/reporting/quarterly-workflow-route";
 
 let count = 0;
 async function check(name: string, test: () => unknown | Promise<unknown>) { await test(); count += 1; console.log(`✓ ${count}. ${name}`); }
@@ -112,6 +115,24 @@ async function main() {
   await check("LIVE semantics and RENT data boundaries remain unchanged", () => { const live = read("app/reporty/page.tsx"); assert.match(live, /loadLiveReport/); assert.match(live, /PortfolioScopePicker/); assert.doesNotMatch(workspace + client + editorialRoute + contentRoute, /prisma\.(unit|lease|tenant|payment|document)|\/nemovitosti\/|\/smlouvy\//); });
   await check("checkpoint contains no benchmark media storage or acknowledgement work", () => assert.doesNotMatch(schema + service + workspace + client, /benchmark|FileAsset|storage|media|acknowledg/i));
   await check("Part 2B-A1 follows Part 2A.2B in CI", () => assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2a2b\n      - run: npm run verify:v22-c-part2ba1\n      - run: npm run build")));
+  await check("CZK editor input parses deterministically to signed integer cents", () => {
+    assert.equal(parseCzkToCents("3174780"), 317478000);
+    assert.equal(parseCzkToCents("3 174 780"), 317478000);
+    assert.equal(parseCzkToCents("3174780,50"), 317478050);
+    assert.equal(parseCzkToCents("3 174 780,50"), 317478050);
+    assert.equal(parseCzkToCents("3174780.50"), 317478050);
+    assert.equal(parseCzkToCents("-25 000,50"), -2500050);
+    assert.equal(parseCzkToCents("0"), 0);
+    for (const malformed of ["abc", "1,2.3", "1,234", "", "--1"]) assert.throws(() => parseCzkToCents(malformed));
+    assert.equal(quarterlyWorkflowErrorMessage(new CzkMoneyParseError()), "Zadaná částka není platná.");
+    assert.match(client, /Částka \(Kč\)/); assert.match(client, /inputMode="decimal"/); assert.doesNotMatch(client, /haléřích|Number\(row\.amount/); assert.match(contentRoute, /parseCzkToCents/);
+  });
+  await check("Czech phone display formatter is safe and shared by human-readable surfaces", () => {
+    assert.equal(phone("544216094"), "544 216 094"); assert.equal(phone("544 216 094"), "544 216 094");
+    assert.equal(phone("+420544216094"), "+420 544 216 094"); assert.equal(phone("+420 544 216 094"), "+420 544 216 094");
+    assert.equal(phone("+49 30 123456"), "+49 30 123456"); assert.equal(phone("  linka 123  "), "linka 123"); assert.equal(phone(null), ""); assert.equal(phone("   "), "");
+    for (const path of ["app/najemnici/[tenantId]/page.tsx", "app/najemnici/page.tsx", "app/nemovitosti/[id]/[section]/page.tsx", "app/nemovitosti/[id]/jednotky/[unitId]/page.tsx"]) { const source = read(path); assert.match(source, /import \{[^}]*phone[^}]*\} from "@\/lib\/format"/); assert.match(source, /phone\(/); assert.doesNotMatch(source, /\.replace\([^\n]*phone|phone[^\n]*\.replace\(/); }
+  });
   await verifyDatabaseBehavior();
   console.log(`V22-C Part 2B-A1 verification passed: ${count} checks.`);
 }

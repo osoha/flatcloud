@@ -28,6 +28,24 @@ export function moneyToCents(form: FormData, key: string, fallback = 0) {
   return Math.round(value * 100);
 }
 
+export class CzkMoneyParseError extends Error {
+  constructor() { super("Invalid CZK amount."); this.name = "CzkMoneyParseError"; }
+}
+
+/** Exact decimal CZK parser. It never converts the decimal input through floating-point arithmetic. */
+export function parseCzkToCents(value: string) {
+  const normalized = value.trim();
+  if (!/^-?(?:\d+|\d{1,3}(?:\s\d{3})+)(?:[,.]\d{1,2})?$/.test(normalized)) throw new CzkMoneyParseError();
+  const compact = normalized.replace(/\s/g, "");
+  const match = /^(-?)(\d+)(?:([,.])(\d{1,2}))?$/.exec(compact);
+  if (!match) throw new CzkMoneyParseError();
+  const cents = BigInt(match[2]) * BigInt(100) + BigInt((match[4] || "").padEnd(2, "0") || "0");
+  const signed = match[1] ? -cents : cents;
+  const result = Number(signed);
+  if (!Number.isSafeInteger(result)) throw new CzkMoneyParseError();
+  return result;
+}
+
 export function boolValue(form: FormData, key: string) {
   const raw = String(form.get(key) ?? "").toLowerCase();
   return raw === "on" || raw === "true" || raw === "1";

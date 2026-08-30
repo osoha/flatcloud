@@ -1,4 +1,5 @@
 import { prisma } from "../db";
+import { CzkMoneyParseError } from "../forms";
 
 const friendlyMessages = new Map([
   ["Reporting group is inactive.", "Skupina je neaktivní. Nový kvartální report nelze založit."],
@@ -29,6 +30,7 @@ export async function requireReportInGroup(reportId: string, groupId: string) {
 
 export function quarterlyWorkflowErrorMessage(error: unknown) {
   if (error instanceof QuarterlyWorkflowRouteError) return error.message;
+  if (error instanceof CzkMoneyParseError) return "Zadaná částka není platná.";
   if (error instanceof Error) {
     const friendly = friendlyMessages.get(error.message);
     if (friendly) return friendly;
