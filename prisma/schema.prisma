@@ -1146,11 +1146,14 @@ model QuarterlyReport {
   publishedById    String?
   publishedBy      User?                     @relation("QuarterlyReportPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
   publishedAt      DateTime?
+  publishedAssetId String?
+  publishedAsset   FileAsset?                @relation("QuarterlyReportPublishedAsset", fields: [publishedAssetId], references: [id], onDelete: Restrict)
   propertyReports  QuarterlyPropertyReport[]
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @updatedAt
 
   @@unique([reportingGroupId, year, quarter, revision])
+  @@index([publishedAssetId])
 }
 
 model QuarterlyPropertyReport {
@@ -1184,6 +1187,7 @@ model FileAsset {
   uploadedById        String
   uploadedBy          User       @relation("FileAssetUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   documents           Document[]
+  publishedReports    QuarterlyReport[] @relation("QuarterlyReportPublishedAsset")
   createdAt           DateTime   @default(now())
   deletedAt           DateTime?
 

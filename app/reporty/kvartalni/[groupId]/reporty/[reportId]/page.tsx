@@ -40,7 +40,7 @@ export default async function QuarterlyReportWorkspace({ params, searchParams }:
   const report = await prisma.quarterlyReport.findFirst({
     where: { id: reportId, reportingGroupId: groupId },
     select: {
-      id: true, year: true, quarter: true, revision: true, status: true, asOfDate: true, executiveSummary: true,
+      id: true, year: true, quarter: true, revision: true, status: true, asOfDate: true, executiveSummary: true, publishedAssetId: true,
       reportingGroup: { select: { id: true, name: true } },
       propertyReports: {
         select: {
@@ -201,6 +201,8 @@ export default async function QuarterlyReportWorkspace({ params, searchParams }:
 
     {report.status === "PUBLISHED" && (
       <div className="card">
+        <h2>Publikovaný soubor</h2>
+        {report.publishedAssetId ? <a className="button secondary" href={`/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/assets/download`}>Stáhnout publikovaný soubor</a> : admin ? <form action={`/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/assets/generate`} method="post"><button className="primary" type="submit">Vygenerovat publikovaný soubor</button><p className="muted-copy">Dočasný interní artefakt A3a, nikoli finální investorské PDF.</p></form> : <p className="muted-copy">Publikovaný soubor zatím nebyl vygenerován.</p>}
         <form action={transitionAction} method="post">
           <button
             className="secondary"

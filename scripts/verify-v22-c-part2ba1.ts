@@ -113,7 +113,7 @@ async function main() {
   await check("workspace has typed editors but no raw JSON editor", () => { assert.match(workspace, /QuarterlyPropertyEditorialEditor/); assert.match(client, /Přidat technickou oblast/); assert.match(client, /Přidat řádek ocenění/); assert.doesNotMatch(workspace + client, /textarea[^>]+name=["'](technicalSections|valuationRows)/); });
   await check("editorial checkpoint remains free of publish logic in editorial routes and client editor", () => assert.doesNotMatch(client + editorialRoute + contentRoute, /publishQuarterlyReport|createCorrectionRevision|acknowledgeQuarterlyReportWarnings/));
   await check("LIVE semantics and RENT data boundaries remain unchanged", () => { const live = read("app/reporty/page.tsx"); assert.match(live, /loadLiveReport/); assert.match(live, /PortfolioScopePicker/); assert.doesNotMatch(workspace + client + editorialRoute + contentRoute, /prisma\.(unit|lease|tenant|payment|document)|\/nemovitosti\/|\/smlouvy\//); });
-  await check("checkpoint contains no benchmark media storage work", () => assert.doesNotMatch(schema + client, /benchmark|FileAsset|storage|media/i));
+  await check("editorial schema and client contain no benchmark media controls", () => assert.doesNotMatch(schema + client, /benchmark|FileAsset|storage|media/i));
   await check("Part 2B-A1 follows Part 2A.2B in CI", () => assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2a2b\n      - run: npm run verify:v22-c-part2ba1\n")));
   await check("CZK editor input parses deterministically to signed integer cents", () => {
     assert.equal(parseCzkToCents("3174780"), 317478000);
