@@ -42,7 +42,7 @@ assert.match(matching, /row\.ownerAccount && row\.vs/);
 const queue = read("app/platby/nesparovane/page.tsx");
 assert.match(queue, /where: \{ status: "IGNORED" \}/);
 assert.match(queue, /take: 100/);
-assert.match(queue, /Ostatní příchozí bankovní notifikace/);
+assert.match(queue, /Ostatní bankovní notifikace/);
 assert.match(queue, /transactions\.length \+ inbox\.length/);
 
 const sync = read("lib/inbound-bank/sync.ts");
