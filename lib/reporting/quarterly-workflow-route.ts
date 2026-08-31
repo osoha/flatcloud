@@ -1,5 +1,7 @@
 import { prisma } from "../db";
 import { CzkMoneyParseError } from "../forms";
+import { ImageProcessingError } from "../documents/image-processing";
+import { StorageTimeoutError, StorageUnavailableError } from "../storage/types";
 
 const friendlyMessages = new Map([
   ["Reporting group is inactive.", "Skupina je neaktivní. Nový kvartální report nelze založit."],
@@ -38,9 +40,14 @@ export async function requireReportInGroup(reportId: string, groupId: string) {
 export function quarterlyWorkflowErrorMessage(error: unknown) {
   if (error instanceof QuarterlyWorkflowRouteError) return error.message;
   if (error instanceof CzkMoneyParseError) return "Zadaná částka není platná.";
+  if (error instanceof ImageProcessingError) return error.message;
+  if (error instanceof StorageTimeoutError || error instanceof StorageUnavailableError) return error.message;
   if (error instanceof Error) {
     const friendly = friendlyMessages.get(error.message);
     if (friendly) return friendly;
+    if (/File size must be between/.test(error.message)) return "Fotografie je prázdná nebo překračuje povolenou velikost.";
+    if (/Unsupported file type|does not match its MIME type|must be an image/.test(error.message)) return "Vybraný soubor není podporovaný obrázek JPEG, PNG nebo WEBP.";
+    if (/^S3_[A-Z0-9_]+ is required/.test(error.message)) return "Úložiště fotografií není správně nakonfigurováno.";
     if (/Quarter must be 1-4|Revision must be at least 1/.test(error.message)) return "Rok nebo kvartál není platný.";
     if (error.name === "ZodError" || error instanceof SyntaxError) return "Zadaný obsah reportu není platný.";
   }

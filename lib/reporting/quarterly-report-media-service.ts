@@ -1,6 +1,7 @@
 import { DocumentCategory, DocumentPhotoStage, Prisma, QuarterlyReportMediaRole } from "@prisma/client";
 import { prisma } from "../db";
 import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, storePreparedDocumentBatch } from "../documents/batch-service";
+import type { StoredDocumentBatch } from "../documents/batch-service";
 import type { PreparedDocumentFile } from "../documents/upload";
 import { serializableTransaction } from "../serializable";
 import { createFileStorage } from "../storage";
@@ -59,23 +60,32 @@ export async function selectQuarterlyPropertyPrimaryPhoto(input: { reportId: str
 }
 
 export async function uploadQuarterlyPropertyPrimaryPhoto(input: { reportId: string; reportingGroupId: string; propertyId: string; file: PreparedDocumentFile; caption?: string | null }, actor: QuarterlyReportMediaActor, storage: FileStorage = createFileStorage()) {
+  const startedAt = Date.now();
+  const logContext = { reportId: input.reportId, propertyId: input.propertyId, sizeBytes: input.file.bytes.length, mimeType: input.file.mimeType };
   if (!input.file.mimeType.startsWith("image/")) throw new Error("Quarterly report photo must be an image.");
   const authorized = await prisma.$transaction((tx) => editablePropertyReport(tx, input, actor));
-  const stored = await storePreparedDocumentBatch({
-    actor,
-    scopes: [{ mode: "PROPERTY", propertyId: authorized.propertyId }],
-    documents: [{
-      propertyId: authorized.propertyId,
-      bytes: input.file.bytes,
-      mimeType: input.file.mimeType,
-      originalName: input.file.originalName,
-      category: DocumentCategory.PHOTO,
-      photoStage: DocumentPhotoStage.GENERAL,
-      title: "Fotografie pro kvartální report",
-    }],
-  }, storage);
+  let stored: StoredDocumentBatch;
   try {
-    return await serializableTransaction(async (tx) => {
+    stored = await storePreparedDocumentBatch({
+      actor,
+      scopes: [{ mode: "PROPERTY", propertyId: authorized.propertyId }],
+      documents: [{
+        propertyId: authorized.propertyId,
+        bytes: input.file.bytes,
+        mimeType: input.file.mimeType,
+        originalName: input.file.originalName,
+        category: DocumentCategory.PHOTO,
+        photoStage: DocumentPhotoStage.GENERAL,
+        title: "Fotografie pro kvartální report",
+      }],
+    }, storage);
+    console.info("Quarterly report photo upload.", { ...logContext, stage: "storage_completed", elapsedMs: Date.now() - startedAt });
+  } catch (error) {
+    console.warn("Quarterly report photo upload failed.", { ...logContext, stage: "storage_failed", errorClass: error instanceof Error ? error.name : "UnknownError", elapsedMs: Date.now() - startedAt });
+    throw error;
+  }
+  try {
+    const result = await serializableTransaction(async (tx) => {
       const propertyReport = await editablePropertyReport(tx, input, actor);
       if (propertyReport.id !== authorized.id) throw new Error("Property report changed during photo upload.");
       const [document] = await createStoredDocumentsInTransaction(tx, stored);
@@ -87,8 +97,11 @@ export async function uploadQuarterlyPropertyPrimaryPhoto(input: { reportId: str
       await tx.auditLog.create({ data: { userId: actor.id, propertyId: propertyReport.propertyId, action: existing ? "REPORT_PROPERTY_MEDIA_UPDATED" : "REPORT_PROPERTY_MEDIA_SELECTED", entityType: "QuarterlyPropertyReportMedia", entityId: media.id, details: auditDetails(propertyReport, media) } });
       return { document, media };
     });
+    console.info("Quarterly report photo upload.", { ...logContext, stage: "db_completed", elapsedMs: Date.now() - startedAt });
+    return result;
   } catch (error) {
     await cleanupStoredDocumentBatch(stored);
+    console.warn("Quarterly report photo upload failed.", { ...logContext, stage: "db_failed", errorClass: error instanceof Error ? error.name : "UnknownError", elapsedMs: Date.now() - startedAt });
     throw error;
   }
 }
