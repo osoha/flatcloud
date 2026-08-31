@@ -118,7 +118,7 @@ assert.match(detail, /bankNameForCode/);
 assert.doesNotMatch(detail, /RB e-mail – ruční spárování/);
 
 const queue = readFileSync("app/platby/nesparovane/page.tsx", "utf8");
-assert.match(queue, /Bankovní e-maily bez objektu/);
+assert.match(queue, /Bankovní notifikace k ručnímu řešení/);
 assert.match(queue, /bankNameForCode/);
 assert.doesNotMatch(queue, /RB e-maily bez objektu/);
 
