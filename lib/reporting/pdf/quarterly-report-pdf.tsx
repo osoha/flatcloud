@@ -4,6 +4,7 @@ import type { FrozenQuarterlyReportPdfData, FrozenQuarterlyReportPdfProperty } f
 import { REPORT_PDF_RENDERER_VERSION } from "./constants";
 import { aggregateKnownReportValues, type ReportPdfNumeric } from "./aggregation";
 import { REPORT_PDF_FONT_PATH, REPORT_PDF_LOGO_PATH } from "./assets";
+import { coverPeriodLabel, footerPeriodLabel, quarterLabel } from "./period-labels";
 
 export { REPORT_PDF_RENDERER_VERSION } from "./constants";
 const FONT_FAMILY = "FlatCloudNotoSans";
@@ -42,7 +43,7 @@ const reportDate = (value: Date) => new Intl.DateTimeFormat("sv-SE", { timeZone:
 type SnapshotSection = "units" | "rentRoll" | "collections" | "deposits" | "leases";
 function section<K extends SnapshotSection>(property: FrozenQuarterlyReportPdfProperty, key: K): NonNullable<FrozenQuarterlyReportPdfProperty["snapshot"]["data"][K]> { return (property.snapshot.data[key] ?? {}) as NonNullable<FrozenQuarterlyReportPdfProperty["snapshot"]["data"][K]>; }
 
-function Footer({ data }: { data: FrozenQuarterlyReportPdfData }) { return <View style={styles.footer} fixed><Text>FlatCloud · Q{data.quarter} {data.year} · revize {data.revision}</Text><Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} /></View>; }
+function Footer({ data }: { data: FrozenQuarterlyReportPdfData }) { return <View style={styles.footer} fixed><Text>{footerPeriodLabel(data)}</Text><Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} /></View>; }
 function Metric({ label, value }: { label: string; value: string }) { return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.metricValue}>{value}</Text></View>; }
 function TableRows({ rows }: { rows: Array<[string, string]> }) { return <View style={styles.table}>{rows.map(([label, value], index) => <View style={[styles.row, index === rows.length - 1 ? styles.lastRow : {}]} key={label}><Text style={styles.cellLabel}>{label}</Text><Text style={styles.cellValue}>{value}</Text></View>)}</View>; }
 const valuationTotalCents = (rows: FrozenQuarterlyReportPdfProperty["valuationRows"]) => rows.reduce((total, row) => total + (typeof row.amountCents === "number" ? row.amountCents : 0), 0);
@@ -77,8 +78,8 @@ function PropertyPage({ data, property }: { data: FrozenQuarterlyReportPdfData; 
   </Page>;
 }
 
-function QuarterlyReportPdf({ data }: { data: FrozenQuarterlyReportPdfData }) { return <Document title={`Kvartální report ${data.reportingGroupName} Q${data.quarter} ${data.year}`} author="FlatCloud" subject={`Snapshot-based immutable quarterly report · ${REPORT_PDF_RENDERER_VERSION}`} creator={`FlatCloud ${REPORT_PDF_RENDERER_VERSION}`} producer={`FlatCloud ${REPORT_PDF_RENDERER_VERSION}`} creationDate={data.publishedAt} modificationDate={data.publishedAt}>
-  <Page size="A4" style={[styles.page, styles.cover]}><View><Image src={REPORT_PDF_LOGO_PATH} style={styles.logo}/><Text style={styles.coverTitle}>Kvartální report</Text><Text style={styles.coverGroup}>{data.reportingGroupName}</Text><Text style={styles.coverPeriod}>Q{data.quarter} / {data.year} · revize {data.revision}</Text></View><View style={styles.coverMeta}><Text>Rozhodné datum: {reportDate(data.asOfDate)}</Text><Text>Publikováno: {data.publishedAt.toLocaleString("cs-CZ", { timeZone: "Europe/Prague" })}</Text><Text style={{ marginTop: 8 }}>Report vychází výhradně z neměnných kvartálních snapshotů.</Text><Text>PDF renderer: {REPORT_PDF_RENDERER_VERSION}</Text></View></Page>
+function QuarterlyReportPdf({ data }: { data: FrozenQuarterlyReportPdfData }) { return <Document title={`Kvartální report ${data.reportingGroupName} ${quarterLabel(data.quarter)} ${data.year}`} author="FlatCloud" subject={`Snapshot-based immutable quarterly report · ${REPORT_PDF_RENDERER_VERSION}`} creator={`FlatCloud ${REPORT_PDF_RENDERER_VERSION}`} producer={`FlatCloud ${REPORT_PDF_RENDERER_VERSION}`} creationDate={data.publishedAt} modificationDate={data.publishedAt}>
+  <Page size="A4" style={[styles.page, styles.cover]}><View><Image src={REPORT_PDF_LOGO_PATH} style={styles.logo}/><Text style={styles.coverTitle}>Kvartální report</Text><Text style={styles.coverGroup}>{data.reportingGroupName}</Text><Text style={styles.coverPeriod}>{coverPeriodLabel(data)}</Text></View><View style={styles.coverMeta}><Text>Rozhodné datum: {reportDate(data.asOfDate)}</Text><Text>Publikováno: {data.publishedAt.toLocaleString("cs-CZ", { timeZone: "Europe/Prague" })}</Text><Text style={{ marginTop: 8 }}>Report vychází výhradně z neměnných kvartálních snapshotů.</Text><Text>PDF renderer: {REPORT_PDF_RENDERER_VERSION}</Text></View></Page>
   <PortfolioSummary data={data}/>{data.properties.map((property, index) => <PropertyPage data={data} property={property} key={`${property.propertyName}-${index}`}/>)}
   <Page size="A4" style={styles.page}><Footer data={data}/><Text style={styles.h1}>Provenience reportu</Text><Text>Publikováno: {data.publishedAt.toLocaleString("cs-CZ", { timeZone: "Europe/Prague" })}</Text><Text style={{ marginTop: 8 }}>Tento dokument je neměnným publikovaným výstupem sestaveným z kvartálních snapshotů a zmrazeného redakčního obsahu.</Text><Text style={styles.provenance}>FlatCloud · PDF renderer {REPORT_PDF_RENDERER_VERSION}</Text></Page>
 </Document>; }
