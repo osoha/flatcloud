@@ -43,8 +43,8 @@ async function main() {
     const bytes = await renderQuarterlyReportPdf(data);
     assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), "%PDF-");
   });
-  await check("A3b.3 follows A3b.2 and precedes build in CI", () => {
-    assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2ba3b\n      - run: npm run verify:v22-c-part2ba3b0\n      - run: npm run verify:v22-c-part2ba3b1\n      - run: npm run verify:v22-c-part2ba3b2\n      - run: npm run verify:v22-c-part2ba3b3\n      - run: npm run build"));
+  await check("A3b.3 follows A3b.2 and precedes later checkpoints in CI", () => {
+    assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2ba3b\n      - run: npm run verify:v22-c-part2ba3b0\n      - run: npm run verify:v22-c-part2ba3b1\n      - run: npm run verify:v22-c-part2ba3b2\n      - run: npm run verify:v22-c-part2ba3b3\n      - run: npm run verify:v22-c-payments1\n      - run: npm run build"));
   });
 
   console.log(`V22-C Part 2B-A3b.3 verification passed: ${count} checks.`);

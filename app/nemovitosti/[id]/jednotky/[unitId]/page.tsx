@@ -17,6 +17,8 @@ import { prisma } from "@/lib/db";
 import { documentAccessWhere } from "@/lib/documents/access";
 import { DocumentAttachments } from "@/components/documents/DocumentAttachments";
 import { DocumentUploadForm } from "@/components/documents/DocumentUploadForm";
+import { PaymentLedgerTable } from "@/components/PaymentLedgerTable";
+import { loadPaymentLedgerRows } from "@/lib/payment-ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -37,10 +39,7 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const unitBankVerified = Boolean(ownershipPaymentAccount?.notificationVerifiedAt);
   const allCharges = unit.leases.flatMap((lease) => lease.charges);
   const overdueDebt = allCharges.reduce((sum, charge) => sum + overdueDebtCents(charge), 0);
-  type UnitTransaction = (typeof allCharges)[number]["allocations"][number]["transaction"];
-  const transactionMap = new Map<string, UnitTransaction>();
-  for (const charge of allCharges) for (const allocation of charge.allocations) transactionMap.set(allocation.transaction.id, allocation.transaction);
-  const transactions = Array.from(transactionMap.values()).sort((a, b) => b.bookedAt.getTime() - a.bookedAt.getTime());
+  const paymentLedgerRows = await loadPaymentLedgerRows(unit.leases.map((lease) => lease.id));
   const tenant = activeLease?.tenant;
   const primaryEmail = tenant?.type === "COMPANY" ? tenant.communicationEmail || tenant.billingEmail || tenant.email : tenant?.email;
   const primaryAddress = tenant?.type === "COMPANY" ? tenant.billingAddress || tenant.address : tenant?.permanentAddress || tenant?.address;
@@ -106,8 +105,8 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
         {canManage && <details className="module-add"><summary><Plus size={15}/> Přidat další osobu</summary><form className="compact-form module-form" action={`/api/properties/${id}/units/${unit.id}/occupants`} method="post"><input type="hidden" name="leaseId" value={activeLease.id}/><label className="field"><span>Jméno a příjmení</span><input name="name" required/></label><label className="field"><span>E-mail</span><input name="email" type="email"/></label><label className="field"><span>Telefon</span><input name="phone"/></label><label className="field"><span>Trvalá adresa</span><input name="permanentAddress"/></label><label className="field"><span>Korespondenční adresa</span><input name="correspondenceAddress"/></label><label className="field field-full"><span>Poznámka ke kontaktu</span><textarea name="note"/></label><button className="primary field-full" type="submit">Přidat osobu</button></form></details>}
       </div>
 
-      <div id="platby" className="card portfolio-table-card"><div className="table-toolbar"><div><h2>Došlé platby jednotky</h2><p>Platby přiřazené k předpisům této jednotky.</p></div></div><div className="table-wrap"><table><thead><tr><th>Datum</th><th>Plátce</th><th>VS</th><th>Částka</th><th>Poznámka</th></tr></thead><tbody>{transactions.length ? transactions.map((transaction) => <tr key={transaction.id}><td>{date(transaction.bookedAt)}</td><td>{transaction.counterpartyName || "Neznámý plátce"}</td><td>{transaction.variableSymbol || "—"}</td><td className="money">{money(transaction.amountCents)}</td><td>{transaction.message || "Automaticky / ručně spárováno"}</td></tr>) : <tr><td colSpan={5} className="table-empty">K jednotce zatím není přiřazena žádná platba.</td></tr>}</tbody></table></div></div>
-    </> : unit.leases.length === 0 ? <div className="card empty-state"><UserRound size={28}/><h2>Jednotka zatím nemá nájemní smlouvu</h2><p>Měřidla lze evidovat i před uzavřením první nájemní smlouvy.</p></div> : <div id="historie-finance" className="card portfolio-table-card"><div className="table-toolbar"><div><h2>Historické finance jednotky</h2><p>Platby a případný dluh zůstávají dostupné i po skončení nájemního vztahu.</p></div><strong className={overdueDebt ? "negative" : "positive"}>{money(overdueDebt)}</strong></div><div className="table-wrap"><table><thead><tr><th>Datum</th><th>Plátce</th><th>VS</th><th>Částka</th><th>Poznámka</th></tr></thead><tbody>{transactions.length ? transactions.map((transaction) => <tr key={transaction.id}><td>{date(transaction.bookedAt)}</td><td>{transaction.counterpartyName || "Neznámý plátce"}</td><td>{transaction.variableSymbol || "—"}</td><td className="money">{money(transaction.amountCents)}</td><td>{transaction.message || "Automaticky / ručně spárováno"}</td></tr>) : <tr><td colSpan={5} className="table-empty">K historickým vztahům zatím není přiřazena žádná platba.</td></tr>}</tbody></table></div></div>}
+      <div id="platby" className="card portfolio-table-card"><div className="table-toolbar"><div><h2>Finance jednotky</h2><p>Zaúčtované části bankovních transakcí a přijaté kauce této jednotky.</p></div></div><PaymentLedgerTable rows={paymentLedgerRows} empty="K jednotce zatím není přiřazena žádná platba ani přijatá kauce."/></div>
+    </> : unit.leases.length === 0 ? <div className="card empty-state"><UserRound size={28}/><h2>Jednotka zatím nemá nájemní smlouvu</h2><p>Měřidla lze evidovat i před uzavřením první nájemní smlouvy.</p></div> : <div id="historie-finance" className="card portfolio-table-card"><div className="table-toolbar"><div><h2>Historické finance jednotky</h2><p>Zaúčtované platby, kauce a případný dluh zůstávají dostupné i po skončení nájemního vztahu.</p></div><strong className={overdueDebt ? "negative" : "positive"}>{money(overdueDebt)}</strong></div><PaymentLedgerTable rows={paymentLedgerRows} empty="K historickým vztahům zatím není přiřazena žádná platba ani přijatá kauce."/></div>}
 
       <div id="dokumenty" className="card unit-module-card"><div className="card-head"><h2>Dokumenty jednotky</h2></div><DocumentAttachments documents={documents} canDelete={canManage} returnTo={`/nemovitosti/${id}/jednotky/${unitId}`}/>{canManage&&<details className="module-add"><summary><Plus size={15}/> Nahrát dokument</summary><DocumentUploadForm propertyId={id} unitId={unitId} returnTo={`/nemovitosti/${id}/jednotky/${unitId}`} categories={[["PHOTO","Fotografie"],["HANDOVER_PROTOCOL","Předávací protokol"],["TECHNICAL_DOCUMENT","Technický dokument"],["OTHER","Ostatní"]]}/></details>}</div>
 

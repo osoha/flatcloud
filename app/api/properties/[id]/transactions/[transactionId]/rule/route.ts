@@ -1,23 +1,24 @@
-import { MatchRuleAction } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { normalizeIban, processTransaction } from "@/lib/matching";
 import { go, goWithMessage } from "@/lib/route-response";
+import { assertNoReceivedDepositForTransactionAction, transactionLeaseRuleAction } from "@/lib/payment-safety";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; transactionId: string }> }) {
   const { id, transactionId } = await params;
   const access = await requireManagedProperty(id);
   if (!access) return go(request, "/login");
   try {
-    const transaction = await prisma.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true } });
+    const transaction = await prisma.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true, securityDepositReceipts: { where: { type: "RECEIVED" } } } });
     if (!transaction) throw new Error("Platba nebyla nalezena.");
     if (transaction.allocations.length) throw new Error("Platba už má ruční nebo automatické přiřazení.");
+    assertNoReceivedDepositForTransactionAction(transaction.securityDepositReceipts.length, "rule");
     const form = await request.formData();
     const targetLeaseId = text(form, "targetLeaseId", true)!;
     const lease = await prisma.lease.findFirst({ where: { id: targetLeaseId, unit: { propertyId: id } } });
     if (!lease) throw new Error("Vybraná smlouva nebyla nalezena.");
-    const action = (text(form, "action") || "MATCH_LEASE") as MatchRuleAction;
+    const action = transactionLeaseRuleAction(text(form, "action"));
     const useIban = boolValue(form, "useIban") && transaction.counterpartyIban;
     const useName = boolValue(form, "useName") && transaction.counterpartyName;
     const useVs = boolValue(form, "useVs") && transaction.variableSymbol;

@@ -66,4 +66,5 @@ jobs:
       - run: npm run verify:v22-c-part2ba3b1
       - run: npm run verify:v22-c-part2ba3b2
       - run: npm run verify:v22-c-part2ba3b3
+      - run: npm run verify:v22-c-payments1
       - run: npm run build

@@ -4,16 +4,18 @@ import { boolValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { normalizeIban, processPropertyTransactions } from "@/lib/matching";
 import { go, goWithMessage } from "@/lib/route-response";
+import { assertNoReceivedDepositForTransactionAction } from "@/lib/payment-safety";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; transactionId: string }> }) {
   const { id, transactionId } = await params;
   const access = await requireManagedProperty(id);
   if (!access) return go(request, "/login");
   try {
-    const transaction = await prisma.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true } });
+    const transaction = await prisma.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true, securityDepositReceipts: { where: { type: "RECEIVED" } } } });
     if (!transaction) throw new Error("Platba nebyla nalezena.");
     if (transaction.source === "manual") throw new Error("Ručně evidovanou platbu nelze ignorovat. Použijte funkci Stornovat ruční platbu.");
     if (transaction.allocations.length) throw new Error("Nejprve odstraňte existující přiřazení platby.");
+    assertNoReceivedDepositForTransactionAction(transaction.securityDepositReceipts.length, "ignore");
     const form = await request.formData();
     const future = boolValue(form, "future");
     let ruleId: string | null = null;
