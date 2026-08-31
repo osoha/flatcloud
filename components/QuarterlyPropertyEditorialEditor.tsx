@@ -24,6 +24,8 @@ export function QuarterlyPropertyEditorialEditor({ action, propertyStatus, manag
   const submitting = useRef(false);
   const dirty = JSON.stringify(technicalSections) !== JSON.stringify(initialTechnicalSections) || JSON.stringify(unitValuationRows) !== JSON.stringify(initialUnitValuationRows);
   useEffect(() => {
+    document.documentElement.dataset.quarterlyEditorialDirty = dirty ? "true" : "false";
+    const externalSubmit = () => { submitting.current = true; };
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirty || submitting.current) return;
       event.preventDefault();
@@ -36,9 +38,12 @@ export function QuarterlyPropertyEditorialEditor({ action, propertyStatus, manag
       if (!window.confirm("Máte neuložené změny technických oblastí nebo ocenění. Opravdu chcete odejít?")) event.preventDefault();
     };
     window.addEventListener("beforeunload", beforeUnload);
+    window.addEventListener("quarterly-report-external-submit", externalSubmit);
     document.addEventListener("click", protectWorkspaceNavigation, true);
     return () => {
+      delete document.documentElement.dataset.quarterlyEditorialDirty;
       window.removeEventListener("beforeunload", beforeUnload);
+      window.removeEventListener("quarterly-report-external-submit", externalSubmit);
       document.removeEventListener("click", protectWorkspaceNavigation, true);
     };
   }, [dirty]);
