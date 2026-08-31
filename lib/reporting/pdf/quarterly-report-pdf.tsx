@@ -19,6 +19,7 @@ const styles = StyleSheet.create({
   body: { fontSize: 9, color: colors.ink }, muted: { color: colors.muted }, section: { marginBottom: 14 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 7 }, metric: { width: "31.8%", padding: 9, backgroundColor: colors.pale, borderRadius: 3 }, metricLabel: { fontSize: 7, color: colors.muted, marginBottom: 3 }, metricValue: { fontSize: 12 },
   table: { borderWidth: 1, borderColor: colors.line, borderRadius: 3 }, row: { flexDirection: "row", borderBottomWidth: 1, borderBottomColor: colors.line, minHeight: 23, alignItems: "center" }, lastRow: { borderBottomWidth: 0 }, cellLabel: { width: "62%", padding: 6, color: colors.muted }, cellValue: { width: "38%", padding: 6, textAlign: "right" },
+  valuationCell: { padding: 5, width: "17%" }, valuationUnit: { padding: 5, width: "18%" }, valuationArea: { padding: 5, width: "15%", textAlign: "right" }, valuationAmount: { padding: 5, width: "33%", textAlign: "right" }, valuationHeader: { backgroundColor: colors.pale, color: colors.muted },
   badge: { alignSelf: "flex-start", backgroundColor: colors.pale, color: colors.blue, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 3, marginTop: 4 },
   note: { padding: 9, borderLeftWidth: 3, borderLeftColor: colors.blue, backgroundColor: "#f8faff", marginBottom: 6 },
   technical: { paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.line }, status: { fontSize: 7, color: colors.muted, marginBottom: 2 },
@@ -44,6 +45,16 @@ function section<K extends SnapshotSection>(property: FrozenQuarterlyReportPdfPr
 function Footer({ data }: { data: FrozenQuarterlyReportPdfData }) { return <View style={styles.footer} fixed><Text>FlatCloud · Q{data.quarter} {data.year} · revize {data.revision}</Text><Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} /></View>; }
 function Metric({ label, value }: { label: string; value: string }) { return <View style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={styles.metricValue}>{value}</Text></View>; }
 function TableRows({ rows }: { rows: Array<[string, string]> }) { return <View style={styles.table}>{rows.map(([label, value], index) => <View style={[styles.row, index === rows.length - 1 ? styles.lastRow : {}]} key={label}><Text style={styles.cellLabel}>{label}</Text><Text style={styles.cellValue}>{value}</Text></View>)}</View>; }
+const valuationTotalCents = (rows: FrozenQuarterlyReportPdfProperty["valuationRows"]) => rows.reduce((total, row) => total + (typeof row.amountCents === "number" ? row.amountCents : 0), 0);
+
+function ValuationTable({ property }: { property: FrozenQuarterlyReportPdfProperty }) {
+  const unitRows = property.valuationRows.filter((row) => "kind" in row);
+  const legacyRows = property.valuationRows.filter((row) => !("kind" in row));
+  return <View><Text style={styles.h2}>Ocenění</Text>{unitRows.length > 0 && <View style={styles.table}>
+    <View style={[styles.row, styles.valuationHeader]}><Text style={styles.valuationUnit}>BJ</Text><Text style={styles.valuationCell}>Dispozice</Text><Text style={styles.valuationCell}>Podlaží</Text><Text style={styles.valuationArea}>m²</Text><Text style={styles.valuationAmount}>Ocenění</Text></View>
+    {unitRows.map((row, index) => "kind" in row && <View style={styles.row} key={`${row.unitLabel}-${index}`}><Text style={styles.valuationUnit}>{row.unitLabel}</Text><Text style={styles.valuationCell}>{row.disposition || dash}</Text><Text style={styles.valuationCell}>{row.floor || dash}</Text><Text style={styles.valuationArea}>{decimal(row.areaM2)}</Text><Text style={styles.valuationAmount}>{money(row.amountCents)}</Text></View>)}
+  </View>}{legacyRows.length > 0 && <View><Text style={styles.h3}>Starší formát ocenění</Text><TableRows rows={legacyRows.map((row) => !("kind" in row) ? [row.label, `${row.amountCents != null ? money(row.amountCents) : row.valueLabel || dash}${row.note ? ` · ${row.note}` : ""}`] : [dash, dash])}/></View>}<TableRows rows={[["Celkem", money(valuationTotalCents(property.valuationRows))]]}/></View>;
+}
 
 function PortfolioSummary({ data }: { data: FrozenQuarterlyReportPdfData }) {
   const units = data.properties.map((p) => section(p, "units")); const rent = data.properties.map((p) => section(p, "rentRoll")); const collections = data.properties.map((p) => section(p, "collections"));
@@ -61,7 +72,7 @@ function PropertyPage({ data, property }: { data: FrozenQuarterlyReportPdfData; 
     <View wrap={false}><Text style={styles.h2}>Kauce a smlouvy</Text><TableRows rows={[["Kauce sjednáno / drženo", `${money(deposits.agreedCents)} / ${money(deposits.heldPrincipalCents)}`],["Chybějící kauce", money(deposits.missingCents)],["Kauce: financované / částečné / neuhrazené / k vypořádání", `${integer(deposits.fundedLeases)} / ${integer(deposits.partialLeases)} / ${integer(deposits.unpaidLeases)} / ${integer(deposits.toSettleLeases)}`],["Smlouvy: aktivní / budoucí / končící do 90 dnů / ukončené YTD", `${integer(leases.active)} / ${integer(leases.future)} / ${integer(leases.expiring90Days)} / ${integer(leases.endedYtd)}`]]}/></View>
     <View wrap={false}><Text style={styles.h2}>Komentář managementu</Text><View style={styles.note}><Text>{property.managementCommentary || "Bez komentáře."}</Text></View></View>
     {property.technicalSections.length > 0 && <View><Text style={styles.h2}>Technický stav</Text>{property.technicalSections.map((item, index) => <View style={styles.technical} wrap={false} key={`${item.title}-${index}`}><Text style={styles.h3}>{item.title}</Text><Text style={styles.status}>{item.status ? technicalStatusLabels[item.status] : "Bez stavu"}</Text><Text>{item.commentary || "Bez komentáře."}</Text></View>)}</View>}
-    {property.valuationRows.length > 0 && <View><Text style={styles.h2}>Ocenění</Text><TableRows rows={property.valuationRows.map((row) => [row.label, `${row.amountCents != null ? money(row.amountCents) : row.valueLabel || dash}${row.note ? ` · ${row.note}` : ""}`])}/></View>}
+    {property.valuationRows.length > 0 && <ValuationTable property={property}/>}
     <View style={styles.provenance}><Text>{sourceLabel(property.snapshot.source)} · schéma {property.snapshot.schemaVersion} · kalkulátor {property.snapshot.calculatorVersion}</Text>{property.snapshot.sourceNote && <Text>Poznámka ke zdroji: {property.snapshot.sourceNote}</Text>}</View>
   </Page>;
 }

@@ -37,7 +37,8 @@
     "verify:v22-c-part2ba3a": "tsx scripts/verify-v22-c-part2ba3a.ts",
     "verify:v22-c-part2ba3b": "tsx scripts/verify-v22-c-part2ba3b.ts",
     "verify:v22-c-part2ba3b0": "tsx scripts/verify-v22-c-part2ba3b0.ts",
-    "verify:v22-c-part2ba3b1": "tsx scripts/verify-v22-c-part2ba3b1.ts"
+    "verify:v22-c-part2ba3b1": "tsx scripts/verify-v22-c-part2ba3b1.ts",
+    "verify:v22-c-part2ba3b2": "tsx scripts/verify-v22-c-part2ba3b2.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

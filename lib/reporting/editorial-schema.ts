@@ -14,7 +14,7 @@ export const technicalSectionSchema = z.object({
 
 export const technicalSectionsSchema = z.array(technicalSectionSchema).max(25);
 
-export const valuationRowSchema = z.object({
+export const legacyValuationRowSchema = z.object({
   label: z.string().min(1).max(120),
   amountCents: z.number().int().nullable().optional(),
   valueLabel: optionalText(120).optional(),
@@ -23,15 +23,33 @@ export const valuationRowSchema = z.object({
   if (row.amountCents == null && !row.valueLabel?.trim()) context.addIssue({ code: "custom", message: "Valuation row requires an amount or value label." });
 });
 
+export const unitValuationRowSchema = z.object({
+  kind: z.literal("UNIT"),
+  unitLabel: z.string().min(1).max(120),
+  disposition: optionalText(120),
+  floor: optionalText(120),
+  areaM2: z.number().positive().nullable(),
+  amountCents: z.number().int(),
+}).strict();
+
+export const valuationRowSchema = z.union([unitValuationRowSchema, legacyValuationRowSchema]);
+
 export const valuationRowsSchema = z.array(valuationRowSchema).max(40);
 
-export const valuationRowEditorSchema = z.object({
-  label: z.string(),
+export const unitValuationRowEditorSchema = z.object({
+  kind: z.literal("UNIT"),
+  unitLabel: z.string(),
+  disposition: z.string().nullable(),
+  floor: z.string().nullable(),
+  areaM2: z.string(),
   amountCzk: z.string(),
-  valueLabel: z.string().nullable().optional(),
-  note: z.string().nullable().optional(),
 }).strict();
+export const valuationRowEditorSchema = z.union([unitValuationRowEditorSchema, legacyValuationRowSchema]);
 export const valuationRowsEditorSchema = z.array(valuationRowEditorSchema).max(40);
+
+export function valuationTotalCents(rows: readonly ValuationRow[]) {
+  return rows.reduce((total, row) => total + (typeof row.amountCents === "number" ? row.amountCents : 0), 0);
+}
 
 export const quarterlyReportEditorialSchema = z.object({ executiveSummary: optionalText(10000) }).strict();
 export const quarterlyPropertyReportContentSchema = z.object({

@@ -32,6 +32,20 @@ export class CzkMoneyParseError extends Error {
   constructor() { super("Invalid CZK amount."); this.name = "CzkMoneyParseError"; }
 }
 
+export class AreaM2ParseError extends Error {
+  constructor() { super("Invalid area in square metres."); this.name = "AreaM2ParseError"; }
+}
+
+/** Parses a positive Czech-friendly decimal area without accepting exponents or signs. */
+export function parseAreaM2(value: string) {
+  const normalized = value.trim();
+  if (!normalized) return null;
+  if (!/^\d+(?:[,.]\d+)?$/.test(normalized)) throw new AreaM2ParseError();
+  const area = Number(normalized.replace(",", "."));
+  if (!Number.isFinite(area) || area <= 0) throw new AreaM2ParseError();
+  return area;
+}
+
 /** Exact decimal CZK parser. It never converts the decimal input through floating-point arithmetic. */
 export function parseCzkToCents(value: string) {
   const normalized = value.trim();

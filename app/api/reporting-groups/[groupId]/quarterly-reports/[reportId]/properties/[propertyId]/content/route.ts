@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { parseCzkToCents, text } from "@/lib/forms";
+import { parseAreaM2, parseCzkToCents, text } from "@/lib/forms";
 import { quarterlyPropertyReportContentSchema, valuationRowsEditorSchema } from "@/lib/reporting/editorial-schema";
 import { updateQuarterlyPropertyReportContent } from "@/lib/reporting/quarterly-report-service";
 import { quarterlyWorkflowErrorMessage, requireReportInGroup } from "@/lib/reporting/quarterly-workflow-route";
@@ -12,7 +12,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ gro
     await requireReportInGroup(reportId, groupId);
     const form = await request.formData();
     const valuationEditorRows = valuationRowsEditorSchema.parse(JSON.parse(text(form, "valuationRows", true)!));
-    const valuationRows = valuationEditorRows.map(({ amountCzk, ...row }) => ({ ...row, amountCents: amountCzk.trim() ? parseCzkToCents(amountCzk) : null }));
+    const valuationRows = valuationEditorRows.map((row) => {
+      if (!("kind" in row)) return row;
+      return {
+        kind: row.kind,
+        unitLabel: row.unitLabel,
+        disposition: row.disposition,
+        floor: row.floor,
+        areaM2: parseAreaM2(row.areaM2),
+        amountCents: parseCzkToCents(row.amountCzk),
+      };
+    });
     const input = quarterlyPropertyReportContentSchema.parse({
       propertyStatus: text(form, "propertyStatus") || null,
       managementCommentary: text(form, "managementCommentary"),

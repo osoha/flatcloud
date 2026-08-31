@@ -125,7 +125,7 @@ async function main() {
     assert.equal(parseCzkToCents("0"), 0);
     for (const malformed of ["abc", "1,2.3", "1,234", "", "--1"]) assert.throws(() => parseCzkToCents(malformed));
     assert.equal(quarterlyWorkflowErrorMessage(new CzkMoneyParseError()), "Zadaná částka není platná.");
-    assert.match(client, /Částka \(Kč\)/); assert.match(client, /inputMode="decimal"/); assert.doesNotMatch(client, /haléřích|Number\(row\.amount/); assert.match(contentRoute, /parseCzkToCents/);
+    assert.match(client, /Ocenění \(Kč\)/); assert.match(client, /inputMode="decimal"/); assert.doesNotMatch(client, /haléřích|Number\(row\.amount/); assert.match(contentRoute, /parseCzkToCents/);
   });
   await check("Czech phone display formatter is safe and shared by human-readable surfaces", () => {
     assert.equal(phone("544216094"), "544 216 094"); assert.equal(phone("544 216 094"), "544 216 094");
