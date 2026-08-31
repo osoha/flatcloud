@@ -34,7 +34,18 @@ export type QuarterlyPropertyWorkspaceData = {
   managementCommentary: string | null;
   technicalSections: TechnicalSection[] | null;
   valuationRows: ValuationRow[] | null;
+  primaryPhoto: { id: string; caption: string | null; sourceDocumentId: string | null } | null;
   snapshot: QuarterlySnapshotView;
+};
+
+export type QuarterlyPropertyPhotoCandidate = {
+  id: string;
+  title: string;
+  description: string | null;
+  photoStage: string | null;
+  documentDate: Date | null;
+  createdAt: Date;
+  fileAsset: { id: string; mimeType: string; sizeBytes: number };
 };
 
 export type QuarterlyQualityGateView = {
