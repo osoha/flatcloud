@@ -96,7 +96,7 @@ type LeaseRow = Prisma.LeaseGetPayload<{ include: { tenant: true; ownerBankAccou
 
 async function loadLeases() {
   return prisma.lease.findMany({
-    where: { charges: { some: { active: true } } },
+    where: { unit: { property: { active: true } }, charges: { some: { active: true } } },
     include: {
       tenant: true,
       ownerBankAccount: { include: { owner: true } },
