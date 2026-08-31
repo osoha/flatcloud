@@ -40,7 +40,8 @@
     "verify:v22-c-part2ba3b1": "tsx scripts/verify-v22-c-part2ba3b1.ts",
     "verify:v22-c-part2ba3b2": "tsx scripts/verify-v22-c-part2ba3b2.ts",
     "verify:v22-c-part2ba3b3": "tsx scripts/verify-v22-c-part2ba3b3.ts",
-    "verify:v22-c-payments1": "tsx scripts/verify-v22-c-payments1.ts"
+    "verify:v22-c-payments1": "tsx scripts/verify-v22-c-payments1.ts",
+    "verify:v22-c-payments2a": "tsx scripts/verify-v22-c-payments2a.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",
