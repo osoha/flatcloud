@@ -7,7 +7,7 @@ import { goWithMessage } from "@/lib/route-response";
 
 export async function POST(request: Request, { params }: { params: Promise<{ groupId: string; reportId: string; propertyId: string }> }) {
   const [{ groupId, reportId, propertyId }, actor] = await Promise.all([params, requireUser()]);
-  const workspace = `/reporty/kvartalni/${groupId}/reporty/${reportId}`;
+  const workspace = `/reporty/kvartalni/${groupId}/reporty/${reportId}?propertyId=${encodeURIComponent(propertyId)}`;
   try {
     await requireReportInGroup(reportId, groupId);
     const form = await request.formData();

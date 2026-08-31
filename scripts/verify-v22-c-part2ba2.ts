@@ -70,12 +70,12 @@ check(
   () => {
     const page = read(
       "app/reporty/kvartalni/[groupId]/reporty/[reportId]/page.tsx",
-    );
+    ) + read("components/quarterly-report-workspace/QuarterlyReportReviewExport.tsx");
 
     assert.match(page, /Potvrdit warningy/);
     assert.match(page, /Publikovat/);
     assert.match(page, /Vytvořit opravnou revizi/);
-    assert.match(page, /qualityGate\.blockerCount === 0/);
+    assert.match(page, /quality\.blockerCount === 0/);
     assert.match(page, /warningsAcknowledged/);
   },
 );
@@ -111,6 +111,7 @@ check("A2 verifier follows A1 in CI", () => {
       "      - run: npm run verify:v22-c-payments1\n" +
       "      - run: npm run verify:v22-c-payments2a\n" +
       "      - run: npm run verify:v22-c-inactive-property-notifications\n" +
+      "      - run: npm run verify:report-design-1\n" +
       "      - run: npm run build",
     ),
   );
