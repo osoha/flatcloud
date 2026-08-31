@@ -34,8 +34,7 @@ export function calculatePropertySnapshot(input: { propertyId: string; asOf: Dat
     if ("financiallyTracked" in resolved && !resolved.financiallyTracked) continue;
     if (!resolved.chargeFound) issues.push({ code: "MISSING_CHARGE_FOR_PERIOD", severity: "WARNING", message: "Active occupied lease has no charge for the as-of month; rent was reconstructed.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
     if (resolved.rent.source === "LEGACY") issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy lease rent used as RENT fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
-    // Backlog: explicit servicesCents = 0 can currently select LEGACY. Keep the calculation unchanged until its business meaning is decided.
-    if (resolved.services.source === "LEGACY") issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy lease services used as SERVICES fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
+    if (resolved.services.source === "LEGACY" && resolved.services.amountCents !== 0) issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy lease services used as SERVICES fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
     if (!resolved.rent.source) issues.push({ code: "MISSING_RENT_SOURCE", severity: "WARNING", message: "No rent source at as-of date.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
     const rent = resolved.rent.amountCents, service = resolved.services.amountCents;
     net += rent; services += service;
