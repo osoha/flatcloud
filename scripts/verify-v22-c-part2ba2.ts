@@ -119,6 +119,7 @@ check("A2 verifier follows A1 in CI", () => {
       "      - run: npm run verify:report-design-3b\n" +
       "      - run: npm run verify:report-design-3b1\n" +
       "      - run: npm run verify:report-design-3b2\n" +
+      "      - run: npm run verify:report-design-3b3\n" +
       "      - run: npm run build",
     ),
   );

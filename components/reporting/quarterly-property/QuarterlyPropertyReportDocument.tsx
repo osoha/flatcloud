@@ -8,11 +8,26 @@ const pct = (value: number) => `${value * 100}%`;
 const rect = (value: { x: number; y: number; width: number; height: number }): CSSProperties => ({ left: pct(value.x), top: pct(value.y), width: pct(value.width), height: pct(value.height) });
 const money = (cents: number | null) => cents == null ? "—" : `${(cents / 100).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} Kč`;
 const statusLabels: Record<string, string> = { STABILIZED: "Stabilizovaná", RENOVATION: "Rekonstrukce", DEVELOPMENT: "Development", EXIT: "Exit / prodej" };
-const technicalLabels: Record<string, string> = { OK: "V pořádku", WATCH: "Sledovat", ACTION: "Vyžaduje akci", RISK: "Riziko" };
 function splitText(value: string, limit: number) {
   const words = value.trim().split(/\s+/).filter(Boolean), chunks: string[] = []; let current = "";
   for (const word of words) { const next = current ? `${current} ${word}` : word; if (current && next.length > limit) { chunks.push(current); current = word; } else current = next; }
   if (current) chunks.push(current); return chunks.length ? chunks : [""];
+}
+
+function paginateTechnicalSections(sections: QuarterlyPropertyPresentation["technicalSections"]) {
+  const pages: Array<Array<QuarterlyPropertyPresentation["technicalSections"][number]>> = [], current: Array<QuarterlyPropertyPresentation["technicalSections"][number]> = [];
+  const flush = () => { if (current.length) pages.push(current.splice(0)); };
+  for (const section of sections) {
+    const commentaryParts = splitText(section.commentary, 320);
+    commentaryParts.forEach((commentary, index) => {
+      if (index > 0) flush();
+      if (current.length === 9) flush();
+      current.push({ ...section, title: index ? `${section.title} · pokračování ${index + 1}` : section.title, commentary });
+      if (index < commentaryParts.length - 1) flush();
+    });
+  }
+  flush();
+  return pages.length ? pages : [[]];
 }
 
 function Page({ model, role, title, continuation, children }: { model: QuarterlyPropertyPresentation; role: ReportDesignPageRole; title?: string; continuation?: number; children: ReactNode }) {
@@ -37,9 +52,8 @@ function Overview({ model }: { model: QuarterlyPropertyPresentation }) {
 }
 
 function Technical({ model }: { model: QuarterlyPropertyPresentation }) {
-  const expanded = model.technicalSections.flatMap((section) => splitText(section.commentary, 550).map((commentary, index) => ({ ...section, title: index ? `${section.title} · pokračování ${index + 1}` : section.title, commentary })));
-  const chunks = expanded.length ? Array.from({ length: Math.ceil(expanded.length / 6) }, (_, index) => expanded.slice(index * 6, index * 6 + 6)) : [[]];
-  return <>{chunks.map((sections, page) => <Page key={page} model={model} role="TECHNICAL" title="Technický stav" continuation={page + 1}><div className="qpr-body qpr-technical-grid" style={rect(model.template.config.pages.TECHNICAL.bodyRect)}>{sections.length ? sections.map((section, index) => <article className={`qpr-technical-item status-${section.status || "NONE"}`} key={index}><i className="qpr-technical-accent"/><header><h3>{section.title}</h3>{section.status && <span>{technicalLabels[section.status]}</span>}</header><p>{section.commentary || "Bez komentáře."}</p></article>) : <div className="qpr-empty">Technické oblasti nebyly doplněny.</div>}</div></Page>)}</>;
+  const pages = paginateTechnicalSections(model.technicalSections);
+  return <>{pages.map((sections, page) => <Page key={page} model={model} role="TECHNICAL" title="Technický stav" continuation={page + 1}><div className="qpr-body qpr-technical-table" style={rect(model.template.config.pages.TECHNICAL.bodyRect)}>{sections.length ? sections.map((section, index) => <article className="qpr-technical-cell" key={index}><h3 className="qpr-technical-title-band">{section.title}</h3><div className="qpr-technical-commentary"><p>{section.commentary || "Bez komentáře."}</p></div></article>) : <div className="qpr-empty">Technické oblasti nebyly doplněny.</div>}</div></Page>)}</>;
 }
 
 function Valuation({ model }: { model: QuarterlyPropertyPresentation }) {
