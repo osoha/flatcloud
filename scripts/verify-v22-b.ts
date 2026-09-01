@@ -89,7 +89,7 @@ const specs:Array<[string,string,string[]]>=[
   ["compliance UX","app/nemovitosti/[id]/[section]/page.tsx",["Revizní protokol","name=\"files\"","encType=\"multipart/form-data\""]],
   ["navigation","components/Shell.tsx",["href=\"/reporty\"","href=\"/dokumenty\"","href=\"/revize\"","href=\"/ukoly\"","Vlastníci a SPV"]],
   ["storage","lib/storage/index.ts",["fileStorageCapabilities","localStream","signedDownloads","DisabledStorage"]],
-  ["S3 response metadata","lib/storage/s3.ts",["ResponseContentDisposition","ResponseContentType","expiresSeconds=300"]],
+  ["S3 response metadata","lib/storage/s3.ts",["ResponseContentDisposition","ResponseContentType"]],
   ["safe returns","lib/route-response.ts",["safeInternalReturnPath","startsWith(\"/\")","startsWith(\"//\")"]],
   ["matching tx helpers","lib/matching.ts",["recomputeTransactionStatusTx","allocateAvailableTransactionToLeaseTx","planOldestChargeAllocations","orderBy: { dueDate: \"asc\" }","await recomputeTransactionStatusTx(tx,transactionId)"]],
   ["payment corrections","lib/payment-corrections.ts",["serializableTransaction","unallocatePayment","unallocateAllPayment","reassignPayment","cancelManualPayment","requireTransactionCorrectionAccess","canCorrectTransactionFromGrants","canRemoveFinalTransactionUnitAnchor","hasPropertyCorrectionAccess","requireRemainingUnitAnchorOrPropertyAccess","reconcileTransactionAssignmentMetadata","recomputeTransactionStatusTx","allocateAvailableTransactionToLeaseTx","paymentAllocation.delete","paymentAllocation.deleteMany","matchedRuleId:null","suggestedLeaseId:null","PAYMENT_UNALLOCATED","PAYMENT_UNALLOCATED_ALL","PAYMENT_REASSIGNED","MANUAL_PAYMENT_CANCELLED","previousAllocations","newAllocations","remainingCents","Platba již byla odpárována","Ruční platba již byla stornována","již označena jako ignorovaná","Úplné odpárování platby může provést pouze správce celé nemovitosti","Bankovní transakci nelze přesunout mezi nemovitostmi","celou platbu nelze přepárovat","zaúčtována jako kauce"]],
@@ -102,6 +102,7 @@ const specs:Array<[string,string,string[]]>=[
   ["payment correction UI","app/nemovitosti/[id]/platby/[transactionId]/page.tsx",["canCorrectTransaction","hasPropertyCorrectionAccess","Odpárovat","Odpárovat všechna přiřazení nájemného","Přepárovat platbu","targetLeaseId","transaction.source===\"manual\"","transaction.source!==\"manual\"","Stornovat ruční platbu","Ruční platba byla stornována","depositLinked","celou platbu nelze přepárovat","Rozumím dopadu storna"]]
 ];
 for(const[group,file,needles]of specs){const source=read(file);for(const needle of needles)check(`${group}: ${needle}`,()=>assert.ok(source.includes(needle),`${file} must contain ${needle}`))}
+check("S3 signed downloads default to 300 seconds",()=>assert.match(read("lib/storage/s3.ts"),/getSignedDownloadUrl\s*\(\s*key\s*:\s*string\s*,\s*expiresSeconds\s*=\s*300(?:\s*,|\s*\))/));
 check("UI never exposes storageKey",()=>assert.doesNotMatch(read("components/documents/DocumentAttachments.tsx"),/storageKey/));
 check("no V22-B migration",()=>assert.equal(fs.readdirSync(path.join(root,"prisma/migrations")).filter(name=>/v22.?b/i.test(name)).length,0));
 check("manual cancellation never deletes BankTransaction",()=>assert.doesNotMatch(read("lib/payment-corrections.ts"),/bankTransaction\.delete/));
