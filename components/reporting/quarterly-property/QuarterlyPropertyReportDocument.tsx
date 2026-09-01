@@ -2,10 +2,10 @@ import type { CSSProperties, ReactNode } from "react";
 import type { ReportDesignPageRole } from "@prisma/client";
 import type { ReportDesignTemplateConfig } from "@/lib/reporting/design-template-schema";
 import type { QuarterlyPropertyPresentation, PresentationTrendPoint } from "@/lib/reporting/presentation/quarterly-property-presentation-model";
+import { ReportDesignGeneratedBackground } from "@/components/reporting/ReportDesignGeneratedBackground";
 
 const pct = (value: number) => `${value * 100}%`;
 const rect = (value: { x: number; y: number; width: number; height: number }): CSSProperties => ({ left: pct(value.x), top: pct(value.y), width: pct(value.width), height: pct(value.height) });
-const polygon = (points: Array<[number, number]>) => `polygon(${points.map(([x, y]) => `${pct(x)} ${pct(y)}`).join(",")})`;
 const money = (cents: number | null) => cents == null ? "—" : `${(cents / 100).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} Kč`;
 const statusLabels: Record<string, string> = { STABILIZED: "Stabilizovaná", RENOVATION: "Rekonstrukce", DEVELOPMENT: "Development", EXIT: "Exit / prodej" };
 const technicalLabels: Record<string, string> = { OK: "V pořádku", WATCH: "Sledovat", ACTION: "Vyžaduje akci", RISK: "Riziko" };
@@ -15,14 +15,10 @@ function splitText(value: string, limit: number) {
   if (current) chunks.push(current); return chunks.length ? chunks : [""];
 }
 
-function GeneratedBackground({ config }: { config: ReportDesignTemplateConfig }) {
-  return <><div className="qpr-generated-dark" style={{ background: config.brand.primaryDark, clipPath: polygon(config.contentHeader.darkPolygon) }}/><div className="qpr-generated-light" style={{ background: config.brand.primaryLight, clipPath: polygon(config.contentHeader.lightPolygon) }}/></>;
-}
-
 function Page({ model, role, title, continuation, children }: { model: QuarterlyPropertyPresentation; role: ReportDesignPageRole; title?: string; continuation?: number; children: ReactNode }) {
   const { config, backgrounds } = model.template, background = backgrounds[role];
   return <section className={`qpr-page qpr-page-${role.toLowerCase()}`} style={{ "--qpr-primary": config.brand.primary, "--qpr-dark": config.brand.primaryDark, "--qpr-light": config.brand.primaryLight, "--qpr-text": config.brand.text, "--qpr-muted": config.brand.muted, "--qpr-border": config.brand.border, "--qpr-white": config.brand.white, fontFamily: `${config.typography.body}, Arial, sans-serif` } as CSSProperties} data-page-role={role} data-background-mode={background.mode}>
-    {background.mode === "ASSET" && background.imageUrl ? <img className="qpr-background-asset" src={background.imageUrl} alt=""/> : role !== "COVER" && <GeneratedBackground config={config}/>}
+    {background.mode === "ASSET" && background.imageUrl ? <img className="qpr-background-asset" src={background.imageUrl} alt=""/> : role !== "COVER" && <ReportDesignGeneratedBackground config={config}/>}
     {role !== "COVER" && <><span className="qpr-report-label" style={rect(config.contentHeader.reportLabelRect)}>Kvartální report · Q{model.report.quarter} {model.report.year}</span><strong className="qpr-property-title" style={rect(config.contentHeader.propertyTitleRect)}>{model.property.name}</strong><span className="qpr-logo qpr-content-logo" style={rect(config.contentHeader.logoRect)}><img src="/flatcloud-logo-white.png" alt="FlatCloud"/></span></>}
     {title && <h2 className="qpr-section-title">{title}{continuation && continuation > 1 ? ` · pokračování ${continuation}` : ""}</h2>}
     {children}<footer className="qpr-footer" style={rect(config.footer)}><span>{model.property.name}</span><span>Q{model.report.quarter} {model.report.year}</span></footer>
@@ -43,7 +39,7 @@ function Overview({ model }: { model: QuarterlyPropertyPresentation }) {
 function Technical({ model }: { model: QuarterlyPropertyPresentation }) {
   const expanded = model.technicalSections.flatMap((section) => splitText(section.commentary, 550).map((commentary, index) => ({ ...section, title: index ? `${section.title} · pokračování ${index + 1}` : section.title, commentary })));
   const chunks = expanded.length ? Array.from({ length: Math.ceil(expanded.length / 6) }, (_, index) => expanded.slice(index * 6, index * 6 + 6)) : [[]];
-  return <>{chunks.map((sections, page) => <Page key={page} model={model} role="TECHNICAL" title="Technický stav" continuation={page + 1}><div className="qpr-body qpr-technical-grid" style={rect(model.template.config.pages.TECHNICAL.bodyRect)}>{sections.length ? sections.map((section, index) => <article className={`qpr-technical-card status-${section.status || "NONE"}`} key={index}><header><h3>{section.title}</h3>{section.status && <span>{technicalLabels[section.status]}</span>}</header><p>{section.commentary || "Bez komentáře."}</p></article>) : <div className="qpr-empty">Technické oblasti nebyly doplněny.</div>}</div></Page>)}</>;
+  return <>{chunks.map((sections, page) => <Page key={page} model={model} role="TECHNICAL" title="Technický stav" continuation={page + 1}><div className="qpr-body qpr-technical-grid" style={rect(model.template.config.pages.TECHNICAL.bodyRect)}>{sections.length ? sections.map((section, index) => <article className={`qpr-technical-item status-${section.status || "NONE"}`} key={index}><i className="qpr-technical-accent"/><header><h3>{section.title}</h3>{section.status && <span>{technicalLabels[section.status]}</span>}</header><p>{section.commentary || "Bez komentáře."}</p></article>) : <div className="qpr-empty">Technické oblasti nebyly doplněny.</div>}</div></Page>)}</>;
 }
 
 function Valuation({ model }: { model: QuarterlyPropertyPresentation }) {
