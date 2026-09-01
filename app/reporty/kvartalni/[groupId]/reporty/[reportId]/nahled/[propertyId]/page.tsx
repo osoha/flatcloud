@@ -13,9 +13,10 @@ export default async function QuarterlyPropertyPreviewPage({ params }: { params:
   const permission = await backofficePermissionForGroup(user, groupId);
   if (!canReadReportingBackoffice(permission)) redirect("/reporty");
   const editorHref = `/reporty/kvartalni/${groupId}/reporty/${reportId}?section=property&propertyId=${encodeURIComponent(propertyId)}`;
+  const pdfHref = `/api/reporting-groups/${groupId}/quarterly-reports/${reportId}/properties/${propertyId}/presentation/pdf`;
   try {
     const model = await loadQuarterlyPropertyPresentation({ groupId, reportId, propertyId });
-    return <Shell user={user}><div className="qpr-preview-screen"><header className="qpr-preview-toolbar"><div><Link href={editorHref}>← Zpět do editoru</Link><h1>{model.property.name}</h1><p>Kvartální report · Q{model.report.quarter} {model.report.year} · šablona {model.template.name} v{model.template.version}</p></div><span>Náhled — není publikovaný dokument</span></header><QuarterlyPropertyReportDocument model={model}/></div></Shell>;
+    return <Shell user={user}><div className="qpr-preview-screen"><header className="qpr-preview-toolbar"><div><Link href={editorHref}>← Zpět do editoru</Link><h1>{model.property.name}</h1><p>Kvartální report · Q{model.report.quarter} {model.report.year} · šablona {model.template.name} v{model.template.version}</p></div><div style={{ display: "grid", justifyItems: "end", gap: 8 }}><a href={pdfHref} target="_blank" rel="noreferrer">PDF náhled</a><span style={{ padding: "7px 11px", borderRadius: 999, background: "#fff7df", color: "#8a5900", font: "700 11px Arial, sans-serif" }}>Náhled — není publikovaný dokument</span></div></header><QuarterlyPropertyReportDocument model={model}/></div></Shell>;
   } catch (error) {
     if (error instanceof QuarterlyPropertyPresentationNotFound) notFound();
     if (error instanceof QuarterlyPropertyPresentationTemplateMissing) return <Shell user={user}><div className="page"><div className="breadcrumb"><Link href={editorHref}>← Zpět do editoru</Link></div><div className="card"><h1>Náhled reportu není dostupný</h1><p>Tomuto reportu není přiřazena šablona designu. Přiřaďte ji v přehledu reportu; náhled přiřazení sám nemění.</p></div></div></Shell>;
