@@ -1,0 +1,43 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+const root = process.cwd(), read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
+const hash = (file: string) => createHash("sha256").update(read(file)).digest("hex");
+let count = 0;
+function check(name: string, fn: () => void) { fn(); count += 1; console.log(`✓ ${count}. ${name}`); }
+
+const routeFile = "app/reporty/kvartalni/[groupId]/reporty/[reportId]/nahled/[propertyId]/page.tsx";
+const dataFile = "lib/reporting/presentation/quarterly-property-presentation-data.ts";
+const modelFile = "lib/reporting/presentation/quarterly-property-presentation-model.ts";
+const documentFile = "components/reporting/quarterly-property/QuarterlyPropertyReportDocument.tsx";
+const backgroundRouteFile = "app/api/reporting-groups/[groupId]/quarterly-reports/[reportId]/presentation/backgrounds/[role]/route.ts";
+
+function main() {
+  const route = read(routeFile), backgroundRoute = read(backgroundRouteFile), data = read(dataFile), model = read(modelFile), document = read(documentFile), css = read("app/globals.css"), workspace = read("components/quarterly-report-workspace/QuarterlyReportPropertyWorkspace.tsx");
+  check("property-specific landscape preview route exists", () => { assert.ok(fs.existsSync(path.join(root, routeFile))); assert.match(route, /groupId.*reportId.*propertyId/); });
+  check("reporting authentication and authorization are enforced", () => { assert.match(route, /requireUser/); assert.match(route, /backofficePermissionForGroup/); assert.match(route, /canReadReportingBackoffice/); });
+  check("report, group and property membership are one scoped query", () => assert.match(data, /quarterlyReportId: input\.reportId, propertyId: input\.propertyId, quarterlyReport: \{ reportingGroupId: input\.groupId \}/));
+  check("assigned design template version is loaded and required", () => { assert.match(data, /designTemplateVersion:/); assert.match(data, /QuarterlyPropertyPresentationTemplateMissing/); });
+  check("template config is parsed through the RD3A schema", () => assert.match(data, /reportDesignTemplateConfigSchema\.parse\(report\.designTemplateVersion\.config\)/));
+  check("all five semantic roles drive the document", () => ["COVER", "OVERVIEW", "TECHNICAL", "VALUATION", "TRENDS"].forEach((role) => assert.match(document, new RegExp(`role=\\"${role}\\"`))));
+  check("background mode resolves independently by role", () => { assert.match(data, /REPORT_DESIGN_PAGE_ROLES\.map/); assert.match(document, /background\.mode === "ASSET"/); assert.match(document, /GeneratedBackground/); });
+  check("PRIMARY media powers cover", () => { assert.match(data, /role === "PRIMARY" && item\.sortOrder === 0/); assert.match(document, /model\.media\.primary/); });
+  check("SECONDARY media powers overview", () => { assert.match(data, /role === "SECONDARY" && item\.sortOrder === 0/); assert.match(document, /model\.media\.supportive/); });
+  check("media and backgrounds use authorized report-scoped app routes", () => { assert.match(data, /\/api\/reporting-groups\//); assert.match(data, /\/presentation\/backgrounds\//); assert.match(backgroundRoute, /currentUser/); assert.match(backgroundRoute, /backofficePermissionForGroup/); assert.match(backgroundRoute, /id: reportId, reportingGroupId: groupId/); assert.match(backgroundRoute, /quarterlyReportMediaImageResponse/); assert.doesNotMatch(data + model + document + backgroundRoute, /drive\.google|storageKey|previewStorageKey/); });
+  check("editorial content enters presentation model", () => { assert.match(data, /managementCommentary: propertyReport\.managementCommentary/); assert.match(data, /technicalSections:/); assert.match(data, /valuationRows, valuationTotalCents/); });
+  check("trend history is same-property and PUBLISHED only", () => assert.match(data, /where: \{ propertyId: input\.propertyId, quarterlyReport: \{ status: "PUBLISHED"/));
+  check("current frozen snapshot can supply the current point", () => { assert.match(data, /report\.status !== "PUBLISHED"/); assert.match(data, /propertyReport\.snapshot\.data/); });
+  check("trend periods are derived only from returned snapshots", () => { assert.match(data, /trendPoint\(row\.quarterlyReport\.year/); assert.doesNotMatch(data, /fillMissing|invent|interpolat/i); });
+  check("A4 landscape screen and print geometry are declared", () => { assert.match(css, /aspect-ratio:297\/210/); assert.match(css, /@page\{size:A4 landscape;margin:0\}/); assert.match(css, /break-after:page/); });
+  check("workspace exposes the report preview action", () => { assert.match(workspace, />Náhled reportu<\/Link>/); assert.match(workspace, /previewHref/); });
+  check("preview is read-only", () => { assert.doesNotMatch(route + document, /<form|method="post"|prisma\..*(create|update|delete|upsert)/); assert.match(route, /Náhled — není publikovaný dokument/); });
+  check("no Prisma schema or migration changed", () => { assert.equal(hash("prisma/schema.prisma"), "3dc503357f5ec3b46698b762a98d4a834f0e578dbff59f47186aa8818c0d7390"); assert.doesNotMatch(read(".gitignore"), /REPORT-DESIGN-3B/); });
+  check("Google Drive implementation is unchanged", () => { assert.equal(hash("lib/storage/google-drive.ts"), "50d0988f0b1215fc3d0ffe13d0ed5cebbc666e31d999799cce58cc8fceb5eb4b"); assert.equal(hash("lib/storage/locations.ts"), "676e036c2fb1202650525e0e43424ae4840d16d476c0c436317d5346f8b2d9f8"); });
+  check("canonical PDF renderer and loader are unchanged", () => { assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf.tsx"), "ae22aeb7e1f81b95bb73ec7dae498811bcdbc380a6c2cd3de40e61d3809b24ff"); assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf-data.ts"), "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b"); });
+  check("publication and publishedAssetId paths are unchanged", () => { assert.equal(hash("lib/reporting/quarterly-report-service.ts"), "2de4a2290a709692a160281815eadbd1eb1faa21962814c8ad68a60d9ffab22d"); assert.equal(hash("app/api/reporting-groups/[groupId]/quarterly-reports/[reportId]/transition/route.ts"), "d506386a28cd5867f103b27475df6cbca6e9236ac5ccd50f13d447b386dcfab9"); assert.equal(hash("app/api/reporting-groups/[groupId]/quarterly-reports/[reportId]/assets/generate/route.ts"), "9af6c077a7e0cb50ef88285ff178d084a62d50f2797e7d32a39d351851172a87"); });
+  check("protected snapshot, editorial and quality contracts are unchanged", () => { assert.equal(hash("lib/reporting/snapshot-schema.ts"), "560cc086ddd3bc22d464c968ab598cf01b10e669d0df3a1869fd3e9917bf0c00"); assert.equal(hash("lib/reporting/editorial-schema.ts"), "ab6e54e8bee77cfc29a7db197a0dcfd379e6884d656202f97dfd255b7c6f2591"); assert.equal(hash("lib/reporting/quarterly-quality-gate.ts"), "bee943a48d16afe527c3f9340947821022d98794066134ff7783dea3d2f4fcf1"); });
+  console.log(`REPORT-DESIGN-3B verification passed: ${count} checks.`);
+}
+main();
