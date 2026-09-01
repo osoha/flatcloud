@@ -1,0 +1,75 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
+import { prisma } from "../lib/db";
+import { flatCloudQuarterly2026Config, REPORT_DESIGN_PAGE_ROLES, reportDesignTemplateConfigSchema } from "../lib/reporting/design-template-schema";
+
+const root = path.resolve(process.cwd()), read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
+let count = 0;
+async function check(name: string, fn: () => unknown | Promise<unknown>) { await fn(); count += 1; console.log(`✓ ${count}. ${name}`); }
+
+async function main() {
+  const schema = read("prisma/schema.prisma"), migration = read("prisma/migrations/20260901070000_report_design_3a_templates/migration.sql");
+  const configSource = read("lib/reporting/design-template-schema.ts"), templates = read("lib/reporting/design-template-service.ts"), reports = read("lib/reporting/quarterly-report-service.ts"), media = read("lib/reporting/quarterly-report-media-service.ts");
+  const primaryRoute = read("app/api/reporting-groups/[groupId]/quarterly-reports/[reportId]/properties/[propertyId]/media/primary/upload/route.ts"), supportiveRoute = read("app/api/reporting-groups/[groupId]/quarterly-reports/[reportId]/properties/[propertyId]/media/supportive/upload/route.ts");
+  const adminPage = read("app/reporty/sablony/[versionId]/page.tsx"), preview = read("components/reporting/ReportDesignTemplatePreview.tsx"), quality = read("lib/reporting/quarterly-quality-gate.ts");
+  await check("additive template schema exists", () => { for (const model of ["ReportDesignTemplate", "ReportDesignTemplateVersion", "ReportDesignTemplatePage"]) assert.match(schema, new RegExp(`model ${model}`)); });
+  await check("QuarterlyReport template relation is nullable", () => assert.match(schema, /designTemplateVersionId\s+String\?/));
+  await check("built-in template code is seeded", () => assert.match(migration, /FLATCLOUD_QUARTERLY_2026/));
+  await check("built-in version one is ACTIVE", () => assert.match(migration, /system-flatcloud-quarterly-2026-v1[\s\S]*?'ACTIVE'/));
+  await check("built-in version has five page roles", () => REPORT_DESIGN_PAGE_ROLES.forEach((role) => assert.match(migration, new RegExp(`'${role}', 'GENERATED'`))));
+  await check("built-in format is A4 landscape", () => assert.deepEqual(flatCloudQuarterly2026Config.page, { format: "A4", orientation: "LANDSCAPE" }));
+  await check("generated backgrounds allow no FileAsset", () => assert.match(schema, /backgroundAssetId\s+String\?/));
+  await check("ASSET activation requires an image FileAsset", () => { assert.match(templates, /backgroundMode === "ASSET"/); assert.match(templates, /mimeType: \{ startsWith: "image\/" \}/); });
+  await check("template backgrounds use FileAsset and not Document", () => { assert.match(schema, /backgroundAsset\s+FileAsset\?/); assert.doesNotMatch(schema, /ReportDesignTemplatePage[\s\S]{0,900}Document\?/); });
+  await check("template management requires SUPER_ADMIN", () => assert.match(templates, /user\.role !== "SUPER_ADMIN"/));
+  await check("ReportingGroup ADMIN is not template admin", () => assert.doesNotMatch(templates, /ReportingGroupPermission\.ADMIN|membership.*ADMIN/));
+  await check("DRAFT versions are editable", () => assert.match(templates, /status !== "DRAFT"/));
+  await check("ACTIVE versions are immutable", () => assert.match(templates, /Only DRAFT template versions are editable/));
+  await check("RETIRED versions are immutable", () => assert.match(templates, /Only DRAFT template versions are editable/));
+  await check("clone allocates monotonically next DRAFT", () => assert.match(templates, /\(latest\._max\.version \|\| 0\) \+ 1/));
+  await check("clone reuses background asset references", () => assert.match(templates, /backgroundAssetId: page\.backgroundAssetId/));
+  await check("activation atomically retires previous active", () => { assert.match(templates, /serializableTransaction/); assert.match(templates, /status: "RETIRED"/); });
+  await check("only ACTIVE quarterly property versions assign", () => assert.match(reports, /status: "ACTIVE"[\s\S]{0,160}type: "QUARTERLY_PROPERTY"/));
+  await check("reporting EDIT can assign a DRAFT report", () => { assert.match(reports, /assignQuarterlyReportDesignTemplate/); assert.match(reports, /await requireEdit/); });
+  await check("VIEW cannot assign", () => assert.match(reports, /Reporting EDIT permission is required/));
+  await check("REVIEW cannot change template", () => assert.match(reports, /Report template can only change in DRAFT/));
+  await check("PUBLISHED cannot change template", () => assert.match(reports, /Report template can only change in DRAFT/));
+  await check("NULL template does not enter publication gate", () => assert.doesNotMatch(quality, /designTemplate/));
+  await check("new reports store the active system version once", () => assert.match(reports, /designTemplateVersionId = await activeSystemTemplateVersionId\(tx\)/));
+  await check("no render-time latest template lookup", () => { assert.doesNotMatch(read("lib/reporting/pdf/quarterly-report-pdf.tsx"), /ReportDesignTemplate|latest template/i); assert.doesNotMatch(read("lib/reporting/pdf/quarterly-report-pdf-data.ts"), /ReportDesignTemplate|latest template/i); });
+  await check("correction copies exact template version", () => assert.match(reports, /designTemplateVersionId: source\.designTemplateVersionId/));
+  await check("cover main slot is PRIMARY zero", () => assert.deepEqual(flatCloudQuarterly2026Config.mediaSlots.main, { role: "PRIMARY", sortOrder: 0, fit: "COVER", focalPoint: "CENTER" }));
+  await check("overview supportive slot is SECONDARY zero", () => { assert.equal(flatCloudQuarterly2026Config.mediaSlots.supportive.role, "SECONDARY"); assert.equal(flatCloudQuarterly2026Config.mediaSlots.supportive.sortOrder, 0); });
+  await check("PRIMARY behavior remains hardcoded", () => { assert.match(media, /QuarterlyReportMediaRole\.PRIMARY/); assert.match(primaryRoute, /uploadQuarterlyPropertyPrimaryPhoto/); });
+  await check("supportive selection is same-property", () => assert.match(media, /sourceDocumentId[\s\S]{0,500}propertyId: propertyReport\.propertyId/));
+  await check("supportive upload creates PHOTO GENERAL Document", () => { assert.match(media, /Doplňková fotografie[\s\S]{0,300}|category: DocumentCategory\.PHOTO/); assert.match(media, /photoStage: DocumentPhotoStage\.GENERAL/); });
+  await check("supportive endpoint accepts no role or order", () => { assert.doesNotMatch(supportiveRoute, /text\(form, "role"|text\(form, "sortOrder"/); assert.match(media, /role: QuarterlyReportMediaRole\.SECONDARY, sortOrder: 0/); });
+  await check("supportive photo is optional", () => assert.doesNotMatch(quality, /SECONDARY|supportive/i));
+  await check("supportive replacement does not delete old assets", () => assert.doesNotMatch(media, /fileAsset\.delete|document\.delete/));
+  await check("correction clones all media roles", () => assert.match(reports, /media: \{ create: \(row\.media \|\| \[\]\)\.map/));
+  await check("template upload creates FileAsset only", () => { assert.match(templates, /tx\.fileAsset\.create/); assert.doesNotMatch(templates, /tx\.document\.create/); });
+  await check("template upload inherits bounded S3 storage", () => { assert.match(templates, /createFileStorage/); assert.match(read("lib/storage/s3.ts"), /connectionTimeout:[\s\S]*requestTimeout:[\s\S]*throwOnRequestTimeout: true/); });
+  await check("template storage failure cleans stored keys", () => assert.match(templates, /Promise\.allSettled\(storedKeys\.map/));
+  await check("secure template preview exposes no storage key", () => { assert.match(adminPage, /\/image\?variant=thumbnail/); assert.doesNotMatch(adminPage, /storageKey/); });
+  await check("same background asset is reusable across content pages", () => assert.match(templates, /role: \{ in: \["OVERVIEW", "TECHNICAL", "VALUATION", "TRENDS"\] \}[\s\S]*backgroundAssetId: source\.backgroundAssetId/));
+  await check("apply-to-content does not copy binary bytes", () => assert.doesNotMatch(templates, /applyTemplateBackgroundToContentPages[\s\S]{0,1000}putObject/));
+  await check("default config has FlatCloud brand colors", () => assert.deepEqual(flatCloudQuarterly2026Config.brand, { primary: "#26639F", primaryDark: "#1E4F80", primaryLight: "#DDEAF5", text: "#1F2937", muted: "#7A7A7A", border: "#D7E1EA", white: "#FFFFFF" }));
+  await check("default config has split cover preset", () => assert.equal(flatCloudQuarterly2026Config.cover.preset, "FLATCLOUD_SPLIT_HERO"));
+  await check("default config has diagonal header preset", () => assert.equal(flatCloudQuarterly2026Config.contentHeader.preset, "FLATCLOUD_DIAGONAL_HEADER"));
+  await check("no PPTX runtime parser", () => assert.doesNotMatch(`${configSource}${templates}`, /pptx|powerpoint/i));
+  await check("no arbitrary JSON editor", () => assert.doesNotMatch(adminPage, /textarea|name="config"/));
+  await check("no new quality blocker", () => assert.doesNotMatch(quality, /template|PRIMARY|SECONDARY|media/i));
+  await check("current PDF renderer is unchanged", () => execFileSync("git", ["diff", "--exit-code", "HEAD", "--", "lib/reporting/pdf/quarterly-report-pdf.tsx"], { cwd: root }));
+  await check("current PDF data contract is unchanged", () => execFileSync("git", ["diff", "--exit-code", "HEAD", "--", "lib/reporting/pdf/quarterly-report-pdf-data.ts"], { cwd: root }));
+  await check("no trend calculations", () => assert.doesNotMatch(`${templates}${configSource}`, /calculateTrend|trendData|chartData/));
+  await check("no MF benchmark", () => assert.doesNotMatch(`${templates}${configSource}`, /benchmark|\bMF\b/i));
+  await check("no Google Drive", () => assert.doesNotMatch(`${templates}${configSource}`, /google.?drive/i));
+  await check("no annual-report work", () => assert.doesNotMatch(`${templates}${configSource}`, /annual|yearly/i));
+  await check("typed config validates the built-in", () => assert.deepEqual(reportDesignTemplateConfigSchema.parse(flatCloudQuarterly2026Config), flatCloudQuarterly2026Config));
+  await check("DB contains exact built-in and five generated pages", async () => { const builtIn = await prisma.reportDesignTemplateVersion.findUnique({ where: { id: "system-flatcloud-quarterly-2026-v1" }, include: { template: true, pages: true } }); assert.equal(builtIn?.template.code, "FLATCLOUD_QUARTERLY_2026"); assert.equal(builtIn?.status, "ACTIVE"); assert.equal(builtIn?.pages.length, 5); assert.ok(builtIn?.pages.every((page) => page.backgroundMode === "GENERATED" && page.backgroundAssetId === null)); });
+  assert.equal(count, 55); console.log(`REPORT-DESIGN-3A verification passed: ${count} checks.`);
+}
+
+main().catch(async (error) => { console.error(error); await prisma.$disconnect(); process.exit(1); }).finally(() => prisma.$disconnect());

@@ -35,6 +35,7 @@ export type QuarterlyPropertyWorkspaceData = {
   technicalSections: TechnicalSection[] | null;
   valuationRows: ValuationRow[] | null;
   primaryPhoto: { id: string; caption: string | null; sourceDocumentId: string | null } | null;
+  supportivePhoto: { id: string; caption: string | null; sourceDocumentId: string | null } | null;
   snapshot: QuarterlySnapshotView;
 };
 

@@ -38,7 +38,7 @@ function captionValue(value: string | null | undefined) {
 }
 
 function auditDetails(propertyReport: { id: string; propertyId: string; quarterlyReport: { id: string; reportingGroupId: string; year: number; quarter: number; revision: number } }, media: { fileAssetId: string; sourceDocumentId: string | null; role: QuarterlyReportMediaRole }) {
-  return { quarterlyReportId: propertyReport.quarterlyReport.id, quarterlyPropertyReportId: propertyReport.id, reportingGroupId: propertyReport.quarterlyReport.reportingGroupId, propertyId: propertyReport.propertyId, year: propertyReport.quarterlyReport.year, quarter: propertyReport.quarterlyReport.quarter, revision: propertyReport.quarterlyReport.revision, fileAssetId: media.fileAssetId, ...(media.sourceDocumentId ? { sourceDocumentId: media.sourceDocumentId } : {}), role: media.role } satisfies Prisma.InputJsonObject;
+  return { quarterlyReportId: propertyReport.quarterlyReport.id, quarterlyPropertyReportId: propertyReport.id, reportingGroupId: propertyReport.quarterlyReport.reportingGroupId, propertyId: propertyReport.propertyId, year: propertyReport.quarterlyReport.year, quarter: propertyReport.quarterlyReport.quarter, revision: propertyReport.quarterlyReport.revision, fileAssetId: media.fileAssetId, ...(media.sourceDocumentId ? { sourceDocumentId: media.sourceDocumentId } : {}), mediaRole: media.role, sortOrder: 0 } satisfies Prisma.InputJsonObject;
 }
 
 export async function selectQuarterlyPropertyPrimaryPhoto(input: { reportId: string; reportingGroupId: string; propertyId: string; sourceDocumentId: string; caption?: string | null }, actor: QuarterlyReportMediaActor) {
@@ -122,6 +122,59 @@ export async function updateQuarterlyPropertyPrimaryPhotoCaption(input: { report
     const propertyReport = await editablePropertyReport(tx, input, actor);
     const existing = await tx.quarterlyPropertyReportMedia.findFirst({ where: { quarterlyPropertyReportId: propertyReport.id, role: "PRIMARY" } });
     if (!existing) throw new Error("Primary report photo was not found.");
+    const media = await tx.quarterlyPropertyReportMedia.update({ where: { id: existing.id }, data: { caption: captionValue(input.caption) } });
+    await tx.auditLog.create({ data: { userId: actor.id, propertyId: propertyReport.propertyId, action: "REPORT_PROPERTY_MEDIA_UPDATED", entityType: "QuarterlyPropertyReportMedia", entityId: media.id, details: auditDetails(propertyReport, media) } });
+    return media;
+  });
+}
+
+export async function selectQuarterlyPropertySupportivePhoto(input: { reportId: string; reportingGroupId: string; propertyId: string; sourceDocumentId: string; caption?: string | null }, actor: QuarterlyReportMediaActor) {
+  return serializableTransaction(async (tx) => {
+    const propertyReport = await editablePropertyReport(tx, input, actor);
+    const document = await tx.document.findFirst({ where: { id: input.sourceDocumentId, propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } }, select: { id: true, fileAssetId: true } });
+    if (!document) throw new Error("Selected property photo is not available.");
+    const existing = await tx.quarterlyPropertyReportMedia.findFirst({ where: { quarterlyPropertyReportId: propertyReport.id, role: "SECONDARY", sortOrder: 0 } });
+    const data = { role: QuarterlyReportMediaRole.SECONDARY, sortOrder: 0, fileAssetId: document.fileAssetId, sourceDocumentId: document.id, caption: captionValue(input.caption) };
+    const media = existing ? await tx.quarterlyPropertyReportMedia.update({ where: { id: existing.id }, data }) : await tx.quarterlyPropertyReportMedia.create({ data: { quarterlyPropertyReportId: propertyReport.id, createdById: actor.id, ...data } });
+    await tx.auditLog.create({ data: { userId: actor.id, propertyId: propertyReport.propertyId, action: existing ? "REPORT_PROPERTY_MEDIA_UPDATED" : "REPORT_PROPERTY_MEDIA_SELECTED", entityType: "QuarterlyPropertyReportMedia", entityId: media.id, details: auditDetails(propertyReport, media) } });
+    return media;
+  });
+}
+
+export async function uploadQuarterlyPropertySupportivePhoto(input: { reportId: string; reportingGroupId: string; propertyId: string; file: PreparedDocumentFile; caption?: string | null }, actor: QuarterlyReportMediaActor, storage: FileStorage = createFileStorage()) {
+  if (!input.file.mimeType.startsWith("image/")) throw new Error("Quarterly report photo must be an image.");
+  const authorized = await prisma.$transaction((tx) => editablePropertyReport(tx, input, actor));
+  const stored = await storePreparedDocumentBatch({ actor, scopes: [{ mode: "PROPERTY", propertyId: authorized.propertyId }], documents: [{ propertyId: authorized.propertyId, bytes: input.file.bytes, mimeType: input.file.mimeType, originalName: input.file.originalName, category: DocumentCategory.PHOTO, photoStage: DocumentPhotoStage.GENERAL, title: "Doplňková fotografie pro kvartální report" }] }, storage);
+  try {
+    return await serializableTransaction(async (tx) => {
+      const propertyReport = await editablePropertyReport(tx, input, actor);
+      if (propertyReport.id !== authorized.id) throw new Error("Property report changed during photo upload.");
+      const [document] = await createStoredDocumentsInTransaction(tx, stored);
+      const existing = await tx.quarterlyPropertyReportMedia.findFirst({ where: { quarterlyPropertyReportId: propertyReport.id, role: "SECONDARY", sortOrder: 0 } });
+      const data = { role: QuarterlyReportMediaRole.SECONDARY, sortOrder: 0, fileAssetId: document.fileAssetId, sourceDocumentId: document.id, caption: captionValue(input.caption) };
+      const media = existing ? await tx.quarterlyPropertyReportMedia.update({ where: { id: existing.id }, data }) : await tx.quarterlyPropertyReportMedia.create({ data: { quarterlyPropertyReportId: propertyReport.id, createdById: actor.id, ...data } });
+      await tx.auditLog.create({ data: { userId: actor.id, propertyId: propertyReport.propertyId, action: existing ? "REPORT_PROPERTY_MEDIA_UPDATED" : "REPORT_PROPERTY_MEDIA_SELECTED", entityType: "QuarterlyPropertyReportMedia", entityId: media.id, details: auditDetails(propertyReport, media) } });
+      return { document, media };
+    });
+  } catch (error) { await cleanupStoredDocumentBatch(stored); throw error; }
+}
+
+export async function removeQuarterlyPropertySupportivePhoto(input: { reportId: string; reportingGroupId: string; propertyId: string }, actor: QuarterlyReportMediaActor) {
+  return serializableTransaction(async (tx) => {
+    const propertyReport = await editablePropertyReport(tx, input, actor);
+    const media = await tx.quarterlyPropertyReportMedia.findFirst({ where: { quarterlyPropertyReportId: propertyReport.id, role: "SECONDARY", sortOrder: 0 } });
+    if (!media) return null;
+    await tx.quarterlyPropertyReportMedia.delete({ where: { id: media.id } });
+    await tx.auditLog.create({ data: { userId: actor.id, propertyId: propertyReport.propertyId, action: "REPORT_PROPERTY_MEDIA_REMOVED", entityType: "QuarterlyPropertyReportMedia", entityId: media.id, details: auditDetails(propertyReport, media) } });
+    return media;
+  });
+}
+
+export async function updateQuarterlyPropertySupportivePhotoCaption(input: { reportId: string; reportingGroupId: string; propertyId: string; caption?: string | null }, actor: QuarterlyReportMediaActor) {
+  return serializableTransaction(async (tx) => {
+    const propertyReport = await editablePropertyReport(tx, input, actor);
+    const existing = await tx.quarterlyPropertyReportMedia.findFirst({ where: { quarterlyPropertyReportId: propertyReport.id, role: "SECONDARY", sortOrder: 0 } });
+    if (!existing) throw new Error("Supportive report photo was not found.");
     const media = await tx.quarterlyPropertyReportMedia.update({ where: { id: existing.id }, data: { caption: captionValue(input.caption) } });
     await tx.auditLog.create({ data: { userId: actor.id, propertyId: propertyReport.propertyId, action: "REPORT_PROPERTY_MEDIA_UPDATED", entityType: "QuarterlyPropertyReportMedia", entityId: media.id, details: auditDetails(propertyReport, media) } });
     return media;

@@ -6,6 +6,7 @@ import { assertQuarterAndRevision, validateQuarterlyReportPeriod } from "./invar
 import { calculateAndStoreSnapshotTx } from "./snapshot-service";
 import { quarterlyPropertyReportContentSchema, quarterlyReportEditorialSchema, type QuarterlyPropertyReportContentInput, type QuarterlyReportEditorialInput } from "./editorial-schema";
 import { quarterlyReportQualityGate } from "./quarterly-quality-gate";
+import { SYSTEM_REPORT_DESIGN_TEMPLATE_CODE } from "./design-template-schema";
 
 export type QuarterlyReportActor = Pick<ReportingUser, "id" | "role">;
 type Tx = Prisma.TransactionClient;
@@ -60,6 +61,11 @@ async function audit(tx: Tx, actorId: string, action: string, report: { id: stri
 async function reportProperties(tx: Tx, reportingGroupId: string, asOfDate: Date) {
   const rows = await tx.reportingGroupProperty.findMany({ where: { reportingGroupId }, select: { propertyId: true, effectiveFrom: true, effectiveTo: true, property: { select: { name: true, address: true, city: true, postalCode: true } } } });
   return reportingGroupPropertiesAt({ properties: rows }, asOfDate);
+}
+
+async function activeSystemTemplateVersionId(tx: Tx) {
+  const version = await tx.reportDesignTemplateVersion.findFirst({ where: { status: "ACTIVE", template: { code: SYSTEM_REPORT_DESIGN_TEMPLATE_CODE, type: "QUARTERLY_PROPERTY", active: true } }, select: { id: true } });
+  return version?.id || null;
 }
 
 function frozenPropertyAddress(property: { address: string; city: string; postalCode: string | null }) { return `${property.address}, ${property.postalCode ? `${property.postalCode} ` : ""}${property.city}`; }
@@ -117,7 +123,8 @@ export async function createQuarterlyReport(input: { reportingGroupId: string; y
     const snapshots = [];
     for (const property of properties) snapshots.push(await calculateAndStoreSnapshotTx(tx, { propertyId: property.propertyId, asOf: asOfDate, createdById: actor.id }));
     const identityByProperty = new Map(properties.map((row) => [row.propertyId, row.property]));
-    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: input.reportingGroupId, reportingGroupNameSnapshot: group.name, year: input.year, quarter: input.quarter, revision: 1, status: "DRAFT", asOfDate, createdById: actor.id, propertyReports: { create: snapshots.map((snapshot) => { const property = identityByProperty.get(snapshot.propertyId)!; return { propertyId: snapshot.propertyId, propertyNameSnapshot: property.name, propertyAddressSnapshot: frozenPropertyAddress(property), snapshotId: snapshot.id }; }) } } });
+    const designTemplateVersionId = await activeSystemTemplateVersionId(tx);
+    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: input.reportingGroupId, reportingGroupNameSnapshot: group.name, year: input.year, quarter: input.quarter, revision: 1, status: "DRAFT", asOfDate, designTemplateVersionId, createdById: actor.id, propertyReports: { create: snapshots.map((snapshot) => { const property = identityByProperty.get(snapshot.propertyId)!; return { propertyId: snapshot.propertyId, propertyNameSnapshot: property.name, propertyAddressSnapshot: frozenPropertyAddress(property), snapshotId: snapshot.id }; }) } } });
     await audit(tx, actor.id, "REPORT_CREATED", report);
     return report;
   }));
@@ -160,6 +167,23 @@ export async function updateQuarterlyReportEditorial(reportId: string, input: Qu
     if (changed.count !== 1) throw new Error("Report is no longer editable.");
     await audit(tx, actor.id, "REPORT_EDITORIAL_UPDATED", report, { changedFields: ["executiveSummary"], hasExecutiveSummary: editorial.executiveSummary !== null });
     return tx.quarterlyReport.findUniqueOrThrow({ where: { id: reportId } });
+  });
+}
+
+export async function assignQuarterlyReportDesignTemplate(reportId: string, designTemplateVersionId: string | null, actor: QuarterlyReportActor) {
+  return serializableTransaction(async (tx) => {
+    const report = await tx.quarterlyReport.findUnique({ where: { id: reportId } });
+    if (!report) throw new Error("Quarterly report was not found.");
+    await requireEdit(tx, actor, report.reportingGroupId);
+    if (report.status !== "DRAFT") throw new Error("Report template can only change in DRAFT.");
+    const resolvedId = designTemplateVersionId || await activeSystemTemplateVersionId(tx);
+    if (!resolvedId) throw new Error("Active report design template was not found.");
+    const version = await tx.reportDesignTemplateVersion.findFirst({ where: { id: resolvedId, status: "ACTIVE", template: { active: true, type: "QUARTERLY_PROPERTY" } }, select: { id: true, templateId: true, version: true } });
+    if (!version) throw new Error("Only an ACTIVE quarterly-property template version can be assigned.");
+    const changed = await tx.quarterlyReport.updateMany({ where: { id: report.id, status: "DRAFT" }, data: { designTemplateVersionId: version.id } });
+    if (changed.count !== 1) throw new Error("Report is no longer editable.");
+    await audit(tx, actor.id, "QUARTERLY_REPORT_TEMPLATE_ASSIGNED", report, { templateId: version.templateId, templateVersionId: version.id, version: version.version });
+    return version;
   });
 }
 
@@ -353,7 +377,7 @@ export async function createCorrectionRevision(publishedReportId: string, actor:
     const latest = await tx.quarterlyReport.findFirst({ where: { reportingGroupId: source.reportingGroupId, year: source.year, quarter: source.quarter }, orderBy: { revision: "desc" } });
     if (!latest || latest.id !== source.id) throw new Error("Correction must be created from the latest published revision and no active revision may exist.");
     const revision = source.revision + 1; assertQuarterAndRevision(source.quarter, revision);
-    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: source.reportingGroupId, reportingGroupNameSnapshot: source.reportingGroupNameSnapshot, year: source.year, quarter: source.quarter, revision, status: "DRAFT", asOfDate: source.asOfDate, executiveSummary: source.executiveSummary, createdById: actor.id, propertyReports: { create: source.propertyReports.map((row) => correctionPropertyData(row, actor.id)) } } });
+    const report = await tx.quarterlyReport.create({ data: { reportingGroupId: source.reportingGroupId, reportingGroupNameSnapshot: source.reportingGroupNameSnapshot, year: source.year, quarter: source.quarter, revision, status: "DRAFT", asOfDate: source.asOfDate, executiveSummary: source.executiveSummary, designTemplateVersionId: source.designTemplateVersionId, createdById: actor.id, propertyReports: { create: source.propertyReports.map((row) => correctionPropertyData(row, actor.id)) } } });
     await audit(tx, actor.id, "REPORT_REVISION_CREATED", report); return report;
   }));
 }

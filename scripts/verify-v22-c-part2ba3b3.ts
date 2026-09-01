@@ -44,7 +44,7 @@ async function main() {
     assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), "%PDF-");
   });
   await check("A3b.3 follows A3b.2 and precedes later checkpoints in CI", () => {
-    assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2ba3b\n      - run: npm run verify:v22-c-part2ba3b0\n      - run: npm run verify:v22-c-part2ba3b1\n      - run: npm run verify:v22-c-part2ba3b2\n      - run: npm run verify:v22-c-part2ba3b3\n      - run: npm run verify:v22-c-payments1\n      - run: npm run verify:v22-c-payments2a\n      - run: npm run verify:v22-c-inactive-property-notifications\n      - run: npm run verify:report-design-1\n      - run: npm run verify:report-design-2\n      - run: npm run verify:report-design-2-1\n      - run: npm run verify:report-design-2-1-upload\n      - run: npm run build"));
+    assert.ok(read(".github/workflows/ci.yml").includes("      - run: npm run verify:v22-c-part2ba3b\n      - run: npm run verify:v22-c-part2ba3b0\n      - run: npm run verify:v22-c-part2ba3b1\n      - run: npm run verify:v22-c-part2ba3b2\n      - run: npm run verify:v22-c-part2ba3b3\n      - run: npm run verify:v22-c-payments1\n      - run: npm run verify:v22-c-payments2a\n      - run: npm run verify:v22-c-inactive-property-notifications\n      - run: npm run verify:report-design-1\n      - run: npm run verify:report-design-2\n      - run: npm run verify:report-design-2-1\n      - run: npm run verify:report-design-2-1-upload\n      - run: npm run verify:report-design-3a\n      - run: npm run build"));
   });
 
   console.log(`V22-C Part 2B-A3b.3 verification passed: ${count} checks.`);

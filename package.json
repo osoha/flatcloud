@@ -46,7 +46,8 @@
     "verify:report-design-1": "tsx scripts/verify-report-design-1.ts",
     "verify:report-design-2": "tsx scripts/verify-report-design-2.ts",
     "verify:report-design-2-1": "tsx scripts/verify-report-design-2-1.ts",
-    "verify:report-design-2-1-upload": "tsx scripts/verify-report-design-2-1-upload.ts"
+    "verify:report-design-2-1-upload": "tsx scripts/verify-report-design-2-1-upload.ts",
+    "verify:report-design-3a": "tsx scripts/verify-report-design-3a.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

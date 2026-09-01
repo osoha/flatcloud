@@ -261,6 +261,29 @@ enum QuarterlyReportMediaRole {
   SECONDARY
 }
 
+enum ReportDesignTemplateType {
+  QUARTERLY_PROPERTY
+}
+
+enum ReportDesignTemplateVersionStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+}
+
+enum ReportDesignPageRole {
+  COVER
+  OVERVIEW
+  TECHNICAL
+  VALUATION
+  TRENDS
+}
+
+enum ReportDesignBackgroundMode {
+  GENERATED
+  ASSET
+}
+
 model User {
   id                                  String                         @id @default(cuid())
   email                               String                         @unique
@@ -1155,12 +1178,56 @@ model QuarterlyReport {
   publishedAt                DateTime?
   publishedAssetId           String?
   publishedAsset             FileAsset?                @relation("QuarterlyReportPublishedAsset", fields: [publishedAssetId], references: [id], onDelete: Restrict)
+  designTemplateVersionId    String?
+  designTemplateVersion      ReportDesignTemplateVersion? @relation(fields: [designTemplateVersionId], references: [id], onDelete: Restrict)
   propertyReports            QuarterlyPropertyReport[]
   createdAt                  DateTime                  @default(now())
   updatedAt                  DateTime                  @updatedAt
 
   @@unique([reportingGroupId, year, quarter, revision])
   @@index([publishedAssetId])
+  @@index([designTemplateVersionId])
+}
+
+model ReportDesignTemplate {
+  id        String                   @id @default(cuid())
+  code      String                   @unique
+  name      String
+  type      ReportDesignTemplateType
+  active    Boolean                  @default(true)
+  versions  ReportDesignTemplateVersion[]
+  createdAt DateTime                 @default(now())
+  updatedAt DateTime                 @updatedAt
+}
+
+model ReportDesignTemplateVersion {
+  id             String                            @id @default(cuid())
+  templateId     String
+  template       ReportDesignTemplate              @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  version        Int
+  status         ReportDesignTemplateVersionStatus @default(DRAFT)
+  config         Json
+  pages          ReportDesignTemplatePage[]
+  quarterlyReports QuarterlyReport[]
+  createdAt      DateTime                          @default(now())
+  activatedAt    DateTime?
+
+  @@unique([templateId, version])
+  @@index([templateId, status])
+}
+
+model ReportDesignTemplatePage {
+  id                String                       @id @default(cuid())
+  templateVersionId String
+  templateVersion   ReportDesignTemplateVersion  @relation(fields: [templateVersionId], references: [id], onDelete: Cascade)
+  role              ReportDesignPageRole
+  backgroundMode    ReportDesignBackgroundMode   @default(GENERATED)
+  backgroundAssetId String?
+  backgroundAsset   FileAsset?                   @relation("ReportDesignTemplateBackground", fields: [backgroundAssetId], references: [id], onDelete: Restrict)
+  config            Json?
+
+  @@unique([templateVersionId, role])
+  @@index([backgroundAssetId])
 }
 
 model QuarterlyPropertyReport {
@@ -1199,6 +1266,7 @@ model FileAsset {
   documents                    Document[]
   publishedReports             QuarterlyReport[]              @relation("QuarterlyReportPublishedAsset")
   quarterlyPropertyReportMedia QuarterlyPropertyReportMedia[]
+  reportDesignTemplatePages    ReportDesignTemplatePage[]       @relation("ReportDesignTemplateBackground")
   createdAt                    DateTime                       @default(now())
   deletedAt                    DateTime?
 
