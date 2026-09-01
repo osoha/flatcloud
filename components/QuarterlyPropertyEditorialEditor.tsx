@@ -16,7 +16,7 @@ function move<T>(rows: T[], index: number, direction: -1 | 1) {
   const next = [...rows]; [next[index], next[target]] = [next[target], next[index]]; return next;
 }
 
-export function QuarterlyPropertyEditorialEditor({ action, propertyStatus, managementCommentary, initialTechnicalSections, initialValuationRows, operationalKpis }: { action: string; propertyStatus: string | null; managementCommentary: string | null; initialTechnicalSections: TechnicalSection[]; initialValuationRows: ValuationRow[]; operationalKpis?: ReactNode }) {
+export function QuarterlyPropertyEditorialEditor({ action, propertyStatus, managementCommentary, additionalCommentary, initialTechnicalSections, initialValuationRows, operationalKpis }: { action: string; propertyStatus: string | null; managementCommentary: string | null; additionalCommentary: string | null; initialTechnicalSections: TechnicalSection[]; initialValuationRows: ValuationRow[]; operationalKpis?: ReactNode }) {
   const [technicalSections, setTechnicalSections] = useState(initialTechnicalSections);
   const legacyValuationRows = initialValuationRows.filter((row): row is LegacyValuationRow => !("kind" in row));
   const initialUnitValuationRows = useMemo<UnitValuationDraft[]>(() => initialValuationRows.filter((row) => "kind" in row).map((row) => ({ kind: "UNIT", unitLabel: row.unitLabel, disposition: row.disposition, floor: row.floor, areaM2: row.areaM2 == null ? "" : String(row.areaM2).replace(".", ","), amountCzk: moneyInput(row.amountCents) })), [initialValuationRows]);
@@ -75,6 +75,7 @@ export function QuarterlyPropertyEditorialEditor({ action, propertyStatus, manag
       {legacyValuationRows.length > 0 && <div style={{ marginTop: 16 }}><h4>Starší formát ocenění</h4><p className="muted-copy">Tyto zmrazené řádky zůstávají beze změny kvůli kompatibilitě.</p>{legacyValuationRows.map((row, index) => <div className="rule-summary" key={index}><div><strong>{row.label}</strong><small>{row.amountCents != null ? `${moneyInput(row.amountCents)} Kč` : row.valueLabel}</small>{row.note && <small>{row.note}</small>}</div></div>)}</div>}
       <p><strong>Celkové ocenění: {(totalCents / 100).toLocaleString("cs-CZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kč</strong></p>
     </div>
+    <section className="quarterly-editor-section quarterly-additional-commentary-editor"><h3>Doplňující komentář</h3><p className="muted-copy">Volitelný prostor pro podrobnější vysvětlení, které se nevejde do ostatních částí reportu. Pokud zůstane prázdný, stránka se do reportu nevloží.</p><label className="field field-full"><span>Doplňující komentář</span><textarea name="additionalCommentary" defaultValue={additionalCommentary || ""} maxLength={10000}/></label></section>
     <div className="form-actions"><span className={`quarterly-save-state ${dirty ? "dirty" : ""}`}>{dirty ? "Neuložené změny" : "Změny jsou uložené"}</span><button className="primary" type="submit">Uložit obsah nemovitosti</button></div>
   </form>;
 }

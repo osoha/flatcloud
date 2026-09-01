@@ -55,6 +55,7 @@ export const quarterlyReportEditorialSchema = z.object({ executiveSummary: optio
 export const quarterlyPropertyReportContentSchema = z.object({
   propertyStatus: z.enum(propertyReportingStatuses).nullable(),
   managementCommentary: optionalText(10000),
+  additionalCommentary: optionalText(10000).optional().default(null),
   technicalSections: technicalSectionsSchema,
   valuationRows: valuationRowsSchema,
 }).strict();

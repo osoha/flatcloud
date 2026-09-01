@@ -26,7 +26,7 @@ export async function loadQuarterlyPropertyPresentation(input: { groupId: string
   const propertyReport = await prisma.quarterlyPropertyReport.findFirst({
     where: { quarterlyReportId: input.reportId, propertyId: input.propertyId, quarterlyReport: { reportingGroupId: input.groupId } },
     select: {
-      propertyId: true, propertyNameSnapshot: true, propertyAddressSnapshot: true, propertyStatus: true, managementCommentary: true, technicalSections: true, valuationRows: true,
+      propertyId: true, propertyNameSnapshot: true, propertyAddressSnapshot: true, propertyStatus: true, managementCommentary: true, additionalCommentary: true, technicalSections: true, valuationRows: true,
       snapshot: { select: { data: true } },
       media: { where: { OR: [{ role: "PRIMARY", sortOrder: 0 }, { role: "SECONDARY", sortOrder: 0 }] }, select: { id: true, role: true, sortOrder: true, caption: true } },
       quarterlyReport: { select: { id: true, reportingGroupId: true, year: true, quarter: true, status: true, designTemplateVersion: { select: { id: true, version: true, config: true, template: { select: { name: true } }, pages: { select: { role: true, backgroundMode: true, backgroundAssetId: true } } } } } },
@@ -70,6 +70,7 @@ export async function loadQuarterlyPropertyPresentation(input: { groupId: string
     template: { id: report.designTemplateVersion.id, name: report.designTemplateVersion.template.name, version: report.designTemplateVersion.version, config, backgrounds },
     media: { primary: primary ? { id: primary.id, caption: primary.caption, imageUrl: mediaUrl(primary.id) } : null, supportive: supportive ? { id: supportive.id, caption: supportive.caption, imageUrl: mediaUrl(supportive.id) } : null },
     managementCommentary: propertyReport.managementCommentary,
+    additionalCommentary: propertyReport.additionalCommentary,
     technicalSections: technical.success ? technical.data : [], valuationRows, valuationTotalCents: valuationTotalCents(valuationRows), trends,
   };
 }

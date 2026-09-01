@@ -12,6 +12,7 @@ export type QuarterlyPropertyPresentation = {
   template: { id: string; name: string; version: number; config: ReportDesignTemplateConfig; backgrounds: Record<ReportDesignPageRole, PresentationBackground> };
   media: { primary: PresentationMedia; supportive: PresentationMedia };
   managementCommentary: string | null;
+  additionalCommentary: string | null;
   technicalSections: TechnicalSection[];
   valuationRows: ValuationRow[];
   valuationTotalCents: number;

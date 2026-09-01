@@ -26,6 +26,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ gro
     const input = quarterlyPropertyReportContentSchema.parse({
       propertyStatus: text(form, "propertyStatus") || null,
       managementCommentary: text(form, "managementCommentary"),
+      additionalCommentary: text(form, "additionalCommentary"),
       technicalSections: JSON.parse(text(form, "technicalSections", true)!),
       valuationRows,
     });

@@ -1243,6 +1243,7 @@ model QuarterlyPropertyReport {
   snapshot                QuarterSnapshot                @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
   propertyStatus          PropertyReportingStatus?
   managementCommentary    String?
+  additionalCommentary    String?
   technicalSections       Json?
   valuationRows           Json?
   media                   QuarterlyPropertyReportMedia[]

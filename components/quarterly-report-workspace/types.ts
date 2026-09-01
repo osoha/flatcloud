@@ -32,6 +32,7 @@ export type QuarterlyPropertyWorkspaceData = {
   propertyAddress: string;
   propertyStatus: string | null;
   managementCommentary: string | null;
+  additionalCommentary: string | null;
   technicalSections: TechnicalSection[] | null;
   valuationRows: ValuationRow[] | null;
   primaryPhoto: { id: string; caption: string | null; sourceDocumentId: string | null } | null;

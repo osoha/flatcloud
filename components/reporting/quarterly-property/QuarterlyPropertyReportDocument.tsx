@@ -14,6 +14,24 @@ function splitText(value: string, limit: number) {
   if (current) chunks.push(current); return chunks.length ? chunks : [""];
 }
 
+const narrativeLineCapacity = 30;
+const narrativeCharactersPerLine = 115;
+export function paginateNarrativeText(value: string) {
+  const normalized = value.replace(/\r\n?/g, "\n").trim();
+  if (!normalized) return [];
+  const lines: string[] = [];
+  for (const sourceLine of normalized.split("\n")) {
+    if (!sourceLine.trim()) { lines.push(""); continue; }
+    let line = "";
+    for (const word of sourceLine.trim().split(/\s+/)) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && next.length > narrativeCharactersPerLine) { lines.push(line); line = word; } else line = next;
+    }
+    if (line) lines.push(line);
+  }
+  return Array.from({ length: Math.ceil(lines.length / narrativeLineCapacity) }, (_, index) => lines.slice(index * narrativeLineCapacity, index * narrativeLineCapacity + narrativeLineCapacity).join("\n"));
+}
+
 function paginateTechnicalSections(sections: QuarterlyPropertyPresentation["technicalSections"]) {
   const pages: Array<Array<QuarterlyPropertyPresentation["technicalSections"][number]>> = [], current: Array<QuarterlyPropertyPresentation["technicalSections"][number]> = [];
   const flush = () => { if (current.length) pages.push(current.splice(0)); };
@@ -30,10 +48,11 @@ function paginateTechnicalSections(sections: QuarterlyPropertyPresentation["tech
   return pages.length ? pages : [[]];
 }
 
-function Page({ model, role, title, continuation, children }: { model: QuarterlyPropertyPresentation; role: ReportDesignPageRole; title?: string; continuation?: number; children: ReactNode }) {
+function Page({ model, role, title, continuation, forceGenerated = false, children }: { model: QuarterlyPropertyPresentation; role: ReportDesignPageRole; title?: string; continuation?: number; forceGenerated?: boolean; children: ReactNode }) {
   const { config, backgrounds } = model.template, background = backgrounds[role];
-  return <section className={`qpr-page qpr-page-${role.toLowerCase()}`} style={{ "--qpr-primary": config.brand.primary, "--qpr-dark": config.brand.primaryDark, "--qpr-light": config.brand.primaryLight, "--qpr-text": config.brand.text, "--qpr-muted": config.brand.muted, "--qpr-border": config.brand.border, "--qpr-white": config.brand.white, fontFamily: `${config.typography.body}, Arial, sans-serif` } as CSSProperties} data-page-role={role} data-background-mode={background.mode}>
-    {background.mode === "ASSET" && background.imageUrl ? <img className="qpr-background-asset" src={background.imageUrl} alt=""/> : role !== "COVER" && <ReportDesignGeneratedBackground config={config}/>}
+  const backgroundMode = forceGenerated ? "GENERATED" : background.mode;
+  return <section className={`qpr-page qpr-page-${role.toLowerCase()}`} style={{ "--qpr-primary": config.brand.primary, "--qpr-dark": config.brand.primaryDark, "--qpr-light": config.brand.primaryLight, "--qpr-text": config.brand.text, "--qpr-muted": config.brand.muted, "--qpr-border": config.brand.border, "--qpr-white": config.brand.white, fontFamily: `${config.typography.body}, Arial, sans-serif` } as CSSProperties} data-page-role={role} data-background-mode={backgroundMode}>
+    {backgroundMode === "ASSET" && background.imageUrl ? <img className="qpr-background-asset" src={background.imageUrl} alt=""/> : role !== "COVER" && <ReportDesignGeneratedBackground config={config}/>}
     {role !== "COVER" && <><span className="qpr-report-label" style={rect(config.contentHeader.reportLabelRect)}>Kvartální report · Q{model.report.quarter} {model.report.year}</span><strong className="qpr-property-title" style={rect(config.contentHeader.propertyTitleRect)}>{model.property.name}</strong><span className="qpr-logo qpr-content-logo" style={rect(config.contentHeader.logoRect)}><img src="/flatcloud-logo-white.png" alt="FlatCloud"/></span></>}
     {title && <h2 className="qpr-section-title">{title}{continuation && continuation > 1 ? ` · pokračování ${continuation}` : ""}</h2>}
     {children}<footer className="qpr-footer" style={rect(config.footer)}><span>{model.property.name}</span><span>Q{model.report.quarter} {model.report.year}</span></footer>
@@ -76,4 +95,9 @@ function Trends({ model }: { model: QuarterlyPropertyPresentation }) {
   return <Page model={model} role="TRENDS" title="Vývoj hlavních ukazatelů"><div className="qpr-body qpr-trends-grid" style={rect(model.template.config.pages.TRENDS.bodyRect)}>{model.trends.length ? <><MiniChart title="Obsazenost" points={model.trends} field="occupancyPercent" format={(value) => `${value.toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} %`}/><MiniChart title="Měsíční čisté nájemné" points={model.trends} field="monthlyNetRentCents" format={compactMoney}/><MiniChart title="Úspěšnost inkasa" points={model.trends} field="collectionRatePercent" format={(value) => `${value.toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} %`}/><MiniChart title="Dluh po splatnosti" points={model.trends} field="overdueDebtCents" format={compactMoney}/></> : <div className="qpr-empty qpr-trends-empty">Historická data zatím nejsou dostupná.</div>}</div></Page>;
 }
 
-export function QuarterlyPropertyReportDocument({ model }: { model: QuarterlyPropertyPresentation }) { return <div className="qpr-document"><Cover model={model}/><Overview model={model}/><Technical model={model}/><Valuation model={model}/><Trends model={model}/></div>; }
+function AdditionalCommentary({ model }: { model: QuarterlyPropertyPresentation }) {
+  const pages = paginateNarrativeText(model.additionalCommentary || "");
+  return <>{pages.map((content, index) => <Page key={index} model={model} role="TRENDS" title="Doplňující komentář" continuation={index + 1} forceGenerated><div className="qpr-body qpr-additional-commentary" style={rect(model.template.config.pages.TRENDS.bodyRect)}><p>{content}</p></div></Page>)}</>;
+}
+
+export function QuarterlyPropertyReportDocument({ model }: { model: QuarterlyPropertyPresentation }) { return <div className="qpr-document"><Cover model={model}/><Overview model={model}/><Technical model={model}/><Valuation model={model}/><Trends model={model}/><AdditionalCommentary model={model}/></div>; }

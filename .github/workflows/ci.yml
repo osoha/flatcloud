@@ -78,4 +78,5 @@ jobs:
       - run: npm run verify:report-design-3b1
       - run: npm run verify:report-design-3b2
       - run: npm run verify:report-design-3b3
+      - run: npm run verify:report-design-3b4
       - run: npm run build
