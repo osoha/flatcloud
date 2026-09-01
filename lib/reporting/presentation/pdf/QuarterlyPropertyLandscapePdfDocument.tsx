@@ -16,6 +16,7 @@ Font.register({ family: FONT_FAMILY, src: path.join(process.cwd(), "node_modules
 
 const styles = StyleSheet.create({
   page: { width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT, fontFamily: FONT_FAMILY, fontSize: 9, color: "#1F2937", position: "relative" },
+  pageCanvas: { position: "absolute", left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT },
   absolute: { position: "absolute" },
   footer: { position: "absolute", flexDirection: "row", justifyContent: "space-between", borderTopWidth: 0.7, paddingTop: 4, fontSize: 7 },
   heading: { fontSize: 18, fontWeight: 700, marginBottom: 12 },
@@ -42,7 +43,7 @@ const number = (value: number | null | undefined) => value == null ? "—" : val
 
 function GeneratedHeader({ model }: { model: QuarterlyPropertyPresentation }) {
   const config = model.template.config;
-  return <Svg style={[styles.absolute, { left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: config.contentHeader.height * A4_LANDSCAPE_HEIGHT }]} viewBox={`0 0 1000 ${config.contentHeader.height * 1000}`}>
+  return <Svg preserveAspectRatio="none" style={[styles.absolute, { left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: config.contentHeader.height * A4_LANDSCAPE_HEIGHT }]} viewBox={`0 0 1000 ${config.contentHeader.height * 1000}`}>
       <Polygon points={points(config.contentHeader.darkPolygon)} fill={config.brand.primaryDark}/>
       <Polygon points={points(config.contentHeader.lightPolygon)} fill={config.brand.primaryLight}/>
     </Svg>;
@@ -77,11 +78,13 @@ function PageTitle({ title, continuation }: { title: string; continuation: numbe
 function Cover({ model, assets }: { model: QuarterlyPropertyPresentation; assets: QuarterlyPropertyPdfAssets }) {
   const config = model.template.config;
   return <Page size={A4_LANDSCAPE_PAGE_SIZE} style={styles.page}>
-    <View style={[styles.absolute, rect(config.cover.brandRect), { backgroundColor: config.brand.primary }]}/>
-    {assets.primary ? <Image src={assets.primary} style={[styles.absolute, rect(config.cover.imageRect), { objectFit: "cover" }]}/> : <View style={[styles.absolute, rect(config.cover.imageRect), { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}><Text style={{ color: config.brand.muted }}>Fotografie není k dispozici</Text></View>}
-    <Image src={assets.logo} style={[styles.absolute, rect(config.cover.logoRect), { objectFit: "contain" }]}/>
-    <View style={[styles.absolute, rect(config.cover.titleRect)]}><Text style={{ color: config.brand.white, fontSize: 25, fontWeight: 700 }}>{model.property.name}</Text><Text style={{ color: config.brand.white, fontSize: 10, marginTop: 7 }}>{model.property.address}</Text></View>
-    <Text style={[styles.absolute, rect(config.cover.periodRect), { color: config.brand.white, fontSize: 13 }]}>Kvartální report · Q{model.report.quarter} {model.report.year}</Text>
+    <View style={styles.pageCanvas} wrap={false}>
+      <View style={[styles.absolute, rect(config.cover.brandRect), { backgroundColor: config.brand.primary }]}/>
+      {assets.primary ? <Image src={assets.primary} style={[styles.absolute, rect(config.cover.imageRect), { objectFit: "cover" }]}/> : <View style={[styles.absolute, rect(config.cover.imageRect), { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}><Text style={{ color: config.brand.muted }}>Fotografie není k dispozici</Text></View>}
+      <Image src={assets.logo} style={[styles.absolute, rect(config.cover.logoRect), { objectFit: "contain" }]}/>
+      <View style={[styles.absolute, rect(config.cover.titleRect)]}><Text style={{ color: config.brand.white, fontSize: 25, fontWeight: 700 }}>{model.property.name}</Text><Text style={{ color: config.brand.white, fontSize: 10, marginTop: 7 }}>{model.property.address}</Text></View>
+      <Text style={[styles.absolute, rect(config.cover.periodRect), { color: config.brand.white, fontSize: 13 }]}>Kvartální report · Q{model.report.quarter} {model.report.year}</Text>
+    </View>
   </Page>;
 }
 
