@@ -26,6 +26,7 @@ const friendlyMessages = new Map([
   ["Correction must be created from the latest published revision and no active revision may exist.", "Opravu lze založit pouze z poslední publikované revize, pokud již neexistuje novější rozpracovaná revize."],
   ["Reporting workflow transition is not permitted.", "Tento přechod stavu reportu není povolen."],
   ["Report status changed concurrently.", "Stav reportu se mezitím změnil. Načtěte stránku znovu."],
+  ["Vyberte alespoň jeden soubor.", "Vyberte fotografii k nahrání."],
 ]);
 
 export class QuarterlyWorkflowRouteError extends Error {
