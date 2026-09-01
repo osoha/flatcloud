@@ -16,7 +16,6 @@ Font.register({ family: FONT_FAMILY, src: path.join(process.cwd(), "node_modules
 
 const styles = StyleSheet.create({
   page: { width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT, fontFamily: FONT_FAMILY, fontSize: 9, color: "#1F2937", position: "relative" },
-  pageCanvas: { position: "absolute", left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT },
   absolute: { position: "absolute" },
   footer: { position: "absolute", flexDirection: "row", justifyContent: "space-between", borderTopWidth: 0.7, paddingTop: 4, fontSize: 7 },
   heading: { fontSize: 18, fontWeight: 700, marginBottom: 12 },
@@ -43,7 +42,8 @@ const number = (value: number | null | undefined) => value == null ? "—" : val
 
 function GeneratedHeader({ model }: { model: QuarterlyPropertyPresentation }) {
   const config = model.template.config;
-  return <Svg preserveAspectRatio="none" style={[styles.absolute, { left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: config.contentHeader.height * A4_LANDSCAPE_HEIGHT }]} viewBox={`0 0 1000 ${config.contentHeader.height * 1000}`}>
+  const headerHeight = config.contentHeader.height * A4_LANDSCAPE_HEIGHT;
+  return <Svg width={A4_LANDSCAPE_WIDTH} height={headerHeight} preserveAspectRatio="none" style={[styles.absolute, { left: 0, top: 0 }]} viewBox={`0 0 1000 ${config.contentHeader.height * 1000}`}>
       <Polygon points={points(config.contentHeader.darkPolygon)} fill={config.brand.primaryDark}/>
       <Polygon points={points(config.contentHeader.lightPolygon)} fill={config.brand.primaryLight}/>
     </Svg>;
@@ -66,8 +66,8 @@ function Footer({ model }: { model: QuarterlyPropertyPresentation }) {
 function ContentFrame({ model, assets, role, forceGenerated, children }: { model: QuarterlyPropertyPresentation; assets: QuarterlyPropertyPdfAssets; role: Exclude<ReportDesignPageRole, "COVER">; forceGenerated?: boolean; children: React.ReactNode }) {
   const mode = forceGenerated ? "GENERATED" : model.template.backgrounds[role].mode;
   return <Page size={A4_LANDSCAPE_PAGE_SIZE} style={styles.page}>
-    {mode === "ASSET" && assets.backgrounds[role] && <Image src={assets.backgrounds[role]} style={[styles.absolute, { left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT }]}/>} 
-    {mode === "GENERATED" && <GeneratedHeader model={model}/>} 
+    {mode === "ASSET" && assets.backgrounds[role] && <Image src={assets.backgrounds[role]} style={[styles.absolute, { left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT }]}/>}
+    {mode === "GENERATED" && <GeneratedHeader model={model}/>}
     <ContentHeaderLabels model={model} logo={assets.logo}/>
     {children}<Footer model={model}/>
   </Page>;
@@ -78,19 +78,25 @@ function PageTitle({ title, continuation }: { title: string; continuation: numbe
 function Cover({ model, assets }: { model: QuarterlyPropertyPresentation; assets: QuarterlyPropertyPdfAssets }) {
   const config = model.template.config;
   return <Page size={A4_LANDSCAPE_PAGE_SIZE} style={styles.page}>
-    <View style={styles.pageCanvas} wrap={false}>
-      <View style={[styles.absolute, rect(config.cover.brandRect), { backgroundColor: config.brand.primary }]}/>
-      {assets.primary ? <Image src={assets.primary} style={[styles.absolute, rect(config.cover.imageRect), { objectFit: "cover" }]}/> : <View style={[styles.absolute, rect(config.cover.imageRect), { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}><Text style={{ color: config.brand.muted }}>Fotografie není k dispozici</Text></View>}
-      <Image src={assets.logo} style={[styles.absolute, rect(config.cover.logoRect), { objectFit: "contain" }]}/>
-      <View style={[styles.absolute, rect(config.cover.titleRect)]}><Text style={{ color: config.brand.white, fontSize: 25, fontWeight: 700 }}>{model.property.name}</Text><Text style={{ color: config.brand.white, fontSize: 10, marginTop: 7 }}>{model.property.address}</Text></View>
-      <Text style={[styles.absolute, rect(config.cover.periodRect), { color: config.brand.white, fontSize: 13 }]}>Kvartální report · Q{model.report.quarter} {model.report.year}</Text>
-    </View>
+    <View fixed style={[styles.absolute, rect(config.cover.brandRect), { backgroundColor: config.brand.primary }]}/>
+    {assets.primary ? <Image fixed src={assets.primary} style={[styles.absolute, rect(config.cover.imageRect), { objectFit: "cover" }]}/> : <View fixed style={[styles.absolute, rect(config.cover.imageRect), { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}><Text style={{ color: config.brand.muted }}>Fotografie není k dispozici</Text></View>}
+    <Image fixed src={assets.logo} style={[styles.absolute, rect(config.cover.logoRect), { objectFit: "contain" }]}/>
+    <View fixed style={[styles.absolute, rect(config.cover.titleRect)]}><Text style={{ color: config.brand.white, fontSize: 25, fontWeight: 700 }}>{model.property.name}</Text><Text style={{ color: config.brand.white, fontSize: 10, marginTop: 7 }}>{model.property.address}</Text></View>
+    <Text fixed style={[styles.absolute, rect(config.cover.periodRect), { color: config.brand.white, fontSize: 13 }]}>Kvartální report · Q{model.report.quarter} {model.report.year}</Text>
   </Page>;
 }
 
 function Overview({ model, assets, page }: { model: QuarterlyPropertyPresentation; assets: QuarterlyPropertyPdfAssets; page: Extract<QuarterlyPropertyPdfPage, { kind: "OVERVIEW" }> }) {
   const config = model.template.config, first = page.continuation === 1;
-  return <ContentFrame model={model} assets={assets} role="OVERVIEW"><View style={[styles.absolute, rect(config.pages.OVERVIEW.commentaryRect)]}><Text style={[styles.kicker, { color: config.brand.primary }]}>{model.property.status || "Přehled nemovitosti"}</Text><PageTitle title="Komentář managementu" continuation={page.continuation}/><Text style={styles.bodyText}>{page.content}</Text></View>{first && (assets.supportive ? <View style={[styles.absolute, rect(config.pages.OVERVIEW.supportiveImageRect)]}><Image src={assets.supportive} style={{ width: "100%", height: "100%", objectFit: "cover" }}/>{config.mediaSlots.supportive.treatment === "BLUE_VEIL" && <View style={[styles.absolute, { left: 0, top: 0, width: "100%", height: "100%", backgroundColor: config.brand.primary, opacity: config.mediaSlots.supportive.blueVeilOpacity }]}/>} {model.media.supportive?.caption && <Text style={{ position: "absolute", bottom: 6, left: 7, right: 7, color: "white", fontSize: 7 }}>{model.media.supportive.caption}</Text>}</View> : <View style={[styles.absolute, rect(config.pages.OVERVIEW.supportiveImageRect), { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}><Text style={{ color: config.brand.muted }}>Podpůrná fotografie není k dispozici</Text></View>)}</ContentFrame>;
+  const supportive = assets.supportive ? <View style={[styles.absolute, rect(config.pages.OVERVIEW.supportiveImageRect)]}>
+    <Image src={assets.supportive} style={{ width: "100%", height: "100%", objectFit: "cover" }}/>
+    {config.mediaSlots.supportive.treatment === "BLUE_VEIL" && <View style={[styles.absolute, { left: 0, top: 0, width: "100%", height: "100%", backgroundColor: config.brand.primary, opacity: config.mediaSlots.supportive.blueVeilOpacity }]}/>}
+    {model.media.supportive?.caption && <Text style={{ position: "absolute", bottom: 6, left: 7, right: 7, color: "white", fontSize: 7 }}>{model.media.supportive.caption}</Text>}
+  </View> : <View style={[styles.absolute, rect(config.pages.OVERVIEW.supportiveImageRect), { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}><Text style={{ color: config.brand.muted }}>Podpůrná fotografie není k dispozici</Text></View>;
+  return <ContentFrame model={model} assets={assets} role="OVERVIEW">
+    <View style={[styles.absolute, rect(config.pages.OVERVIEW.commentaryRect)]}><Text style={[styles.kicker, { color: config.brand.primary }]}>{model.property.status || "Přehled nemovitosti"}</Text><PageTitle title="Komentář managementu" continuation={page.continuation}/><Text style={styles.bodyText}>{page.content}</Text></View>
+    {first && supportive}
+  </ContentFrame>;
 }
 
 function Technical({ model, assets, page }: { model: QuarterlyPropertyPresentation; assets: QuarterlyPropertyPdfAssets; page: Extract<QuarterlyPropertyPdfPage, { kind: "TECHNICAL" }> }) {

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { inflateSync } from "node:zlib";
+import sharp from "sharp";
 import { flatCloudQuarterly2026Config } from "../lib/reporting/design-template-schema";
 import type { QuarterlyPropertyPresentation } from "../lib/reporting/presentation/quarterly-property-presentation-model";
 import { buildQuarterlyPropertyPdfPagePlan, paginatePdfNarrative, PDF_TECHNICAL_CELLS_PER_PAGE, PDF_VALUATION_ROWS_PER_PAGE } from "../lib/reporting/presentation/pdf/quarterly-property-pdf-plan";
@@ -15,12 +17,43 @@ function renderedPageMediaBoxes(bytes: Uint8Array) {
   const pages = [...source.matchAll(/\/Type\s*\/Page\b[\s\S]*?\/MediaBox\s*\[\s*([+-]?[\d.]+)\s+([+-]?[\d.]+)\s+([+-]?[\d.]+)\s+([+-]?[\d.]+)\s*\]/g)];
   return pages.map((match) => ({ width: Number(match[3]) - Number(match[1]), height: Number(match[4]) - Number(match[2]) }));
 }
+function renderedPageContentStreams(bytes: Uint8Array) {
+  const buffer = Buffer.from(bytes), source = buffer.toString("latin1");
+  const pages = [...source.matchAll(/\d+ 0 obj\s*<<[\s\S]*?\/Type\s*\/Page\b[\s\S]*?\/Contents\s+(\d+)\s+0\s+R[\s\S]*?endobj/g)];
+  return pages.map((page) => {
+    const object = new RegExp(`${page[1]} 0 obj\\s*<<([\\s\\S]*?)>>\\s*stream\\r?\\n`).exec(source);
+    assert.ok(object, `content stream ${page[1]} must exist`);
+    const start = object.index + object[0].length, end = source.indexOf("endstream", start);
+    let data: Uint8Array = buffer.subarray(start, end);
+    while (data.at(-1) === 10 || data.at(-1) === 13) data = data.subarray(0, -1);
+    if (/\/FlateDecode/.test(object[1])) data = inflateSync(data);
+    return Buffer.from(data).toString("latin1");
+  });
+}
 const backgrounds = Object.fromEntries(["COVER", "OVERVIEW", "TECHNICAL", "VALUATION", "TRENDS"].map((role) => [role, { role, mode: "GENERATED", imageUrl: null }])) as QuarterlyPropertyPresentation["template"]["backgrounds"];
-const tinyPng = `data:image/png;base64,${Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64").toString("base64")}`;
 const baseModel: QuarterlyPropertyPresentation = { report: { id: "report", groupId: "group", year: 2026, quarter: 3, status: "DRAFT" }, property: { id: "property", name: "Karla Aksamita", address: "Praha", status: "STABILIZED" }, template: { id: "version", name: "FlatCloud", version: 1, config: flatCloudQuarterly2026Config, backgrounds }, media: { primary: null, supportive: null }, managementCommentary: "Komentář managementu.", additionalCommentary: null, technicalSections: [], valuationRows: [], valuationTotalCents: 0, trends: [] };
-const imageModel: QuarterlyPropertyPresentation = { ...baseModel, media: { primary: { id: "primary", caption: "Hlavní fotografie", imageUrl: "server-only" }, supportive: { id: "supportive", caption: "Doplňková fotografie", imageUrl: "server-only" } } };
+const imageModel: QuarterlyPropertyPresentation = {
+  ...baseModel,
+  media: { primary: { id: "primary", caption: "Hlavní fotografie", imageUrl: "server-only" }, supportive: { id: "supportive", caption: "Doplňková fotografie", imageUrl: "server-only" } },
+  managementCommentary: "Nemovitost je stabilizovaná a správa pokračuje podle schváleného plánu.",
+  technicalSections: Array.from({ length: 9 }, (_, index) => ({ title: `Technická oblast ${index + 1}`, commentary: "Stav byl prověřen.", status: "OK" as const })),
+  valuationRows: Array.from({ length: 4 }, (_, index) => ({ kind: "UNIT" as const, unitLabel: `Jednotka ${index + 1}`, disposition: "2+kk", floor: `${index + 1}. NP`, areaM2: 52 + index, amountCents: 600_000_000 + index * 10_000_000 })),
+  valuationTotalCents: 2_460_000_000,
+  trends: [{ label: "Q3 2026", occupancyPercent: 98, monthlyNetRentCents: 1_200_000, collectionRatePercent: 99, overdueDebtCents: 0 }],
+};
 const model = (changes: Partial<QuarterlyPropertyPresentation> = {}) => ({ ...baseModel, ...changes });
 const kinds = (value: QuarterlyPropertyPresentation) => buildQuarterlyPropertyPdfPagePlan(value).map((page) => page.kind);
+async function renderWithoutWarnings(render: () => Promise<Uint8Array>) {
+  const warnings: string[] = [], originalWarn = console.warn, originalError = console.error;
+  console.warn = (...values: unknown[]) => warnings.push(values.map(String).join(" "));
+  console.error = (...values: unknown[]) => warnings.push(values.map(String).join(" "));
+  try { return { bytes: await render(), warnings }; }
+  finally { console.warn = originalWarn; console.error = originalError; }
+}
+async function syntheticPng(width: number, height: number, color: { r: number; g: number; b: number }) {
+  const bytes = await sharp({ create: { width, height, channels: 3, background: color } }).png().toBuffer();
+  return `data:image/png;base64,${bytes.toString("base64")}`;
+}
 
 async function main() {
   const schema = read("prisma/schema.prisma"), renderer = read("lib/reporting/presentation/pdf/QuarterlyPropertyLandscapePdfDocument.tsx"), assets = read("lib/reporting/presentation/pdf/quarterly-property-pdf-assets.ts"), service = read("lib/reporting/presentation/pdf/quarterly-property-pdf-service.ts"), route = read("app/api/reporting-groups/[groupId]/quarterly-reports/[reportId]/properties/[propertyId]/presentation/pdf/route.ts"), ci = read(".github/workflows/ci.yml"), quality = read("lib/reporting/quarterly-quality-gate.ts"), loader = read("lib/reporting/presentation/quarterly-property-presentation-data.ts");
@@ -50,7 +83,7 @@ async function main() {
   await check("trends consume model trend points", () => { assert.match(renderer, /PresentationTrendPoint/); assert.match(renderer, /model\.trends/); assert.doesNotMatch(renderer, /prisma\./); });
   await check("empty trends retain accepted state", () => assert.match(renderer, /Historická data zatím nejsou dostupná/));
   await check("generated polygons come from template config", () => { assert.match(renderer, /config\.contentHeader\.darkPolygon/); assert.match(renderer, /config\.contentHeader\.lightPolygon/); });
-  await check("generated header fills its exact rectangular area", () => { const header = renderer.slice(renderer.indexOf("function GeneratedHeader"), renderer.indexOf("function ContentHeaderLabels")); assert.match(header, /preserveAspectRatio="none"/); assert.match(header, /left: 0, top: 0, width: A4_LANDSCAPE_WIDTH/); assert.match(header, /config\.contentHeader\.height \* A4_LANDSCAPE_HEIGHT/); assert.doesNotMatch(header, /margin|padding/); });
+  await check("generated header owns a full-width explicit SVG viewport", () => { const header = renderer.slice(renderer.indexOf("function GeneratedHeader"), renderer.indexOf("function ContentHeaderLabels")); assert.match(header, /const headerHeight = config\.contentHeader\.height \* A4_LANDSCAPE_HEIGHT/); assert.match(header, /<Svg width=\{A4_LANDSCAPE_WIDTH\} height=\{headerHeight\} preserveAspectRatio="none"/); assert.match(header, /left: 0, top: 0/); assert.doesNotMatch(header, /margin|padding/); });
   await check("actual white logo is repository-local", () => assert.match(assets, /public.*, "flatcloud-logo-white\.png"/));
   await check("media resolves through QuarterlyPropertyReportMedia", () => { assert.match(assets, /quarterlyPropertyReport\.findFirst/); assert.match(assets, /media:/); assert.doesNotMatch(assets, /prisma\.property\./); });
   await check("background resolves from assigned template version", () => assert.match(assets, /quarterlyReport:[\s\S]*designTemplateVersion/));
@@ -78,13 +111,20 @@ async function main() {
   await check("image-bearing cover and overview add no physical pages", async () => {
     const { renderQuarterlyPropertyLandscapePdf } = await import("../lib/reporting/presentation/pdf/QuarterlyPropertyLandscapePdfDocument");
     const expectedPages = buildQuarterlyPropertyPdfPagePlan(imageModel).length;
-    const bytes = await renderQuarterlyPropertyLandscapePdf(imageModel, { logo: path.join(root, "public/flatcloud-logo-white.png"), primary: tinyPng, supportive: tinyPng, backgrounds: {} });
-    const boxes = renderedPageMediaBoxes(bytes), source = Buffer.from(bytes).toString("latin1");
+    const [primary, supportive] = await Promise.all([syntheticPng(500, 750, { r: 55, g: 105, b: 145 }), syntheticPng(900, 500, { r: 115, g: 155, b: 105 })]);
+    const { bytes, warnings } = await renderWithoutWarnings(() => renderQuarterlyPropertyLandscapePdf(imageModel, { logo: path.join(root, "public/flatcloud-logo-white.png"), primary, supportive, backgrounds: {} }));
+    const boxes = renderedPageMediaBoxes(bytes), source = Buffer.from(bytes).toString("latin1"), streams = renderedPageContentStreams(bytes);
     assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), "%PDF-"); assert.equal(expectedPages, 5); assert.equal(boxes.length, expectedPages); assert.match(source, /stream\r?\n/);
+    assert.deepEqual(warnings, [], `React-PDF emitted warnings: ${warnings.join(" | ")}`);
+    assert.ok((source.match(/\/Subtype\s*\/Image/g) || []).length >= 3, "cover/supportive/logo image resources must exist");
+    assert.ok((streams[0].match(/\/I\d+ Do/g) || []).length >= 2, "cover image and logo must draw in the first page stream");
+    assert.ok((streams[0].match(/\bBT\b/g) || []).length >= 6, "cover title/address/period text must draw in the first page stream");
+    assert.match(streams[1], /0\.84189\s+0\s+0\s+0\.59528\s+0\s+0\s+cm/, "generated header must map its 1000-unit viewport to the full physical page width");
     for (const box of boxes) { assert.ok(Math.abs(box.width - 841.89) < 0.02, JSON.stringify(box)); assert.ok(Math.abs(box.height - 595.28) < 0.02, JSON.stringify(box)); assert.ok(box.width > box.height); assert.ok(box.height > 0); }
     if (process.env.RD4A_IMAGE_SMOKE_OUTPUT) fs.writeFileSync(process.env.RD4A_IMAGE_SMOKE_OUTPUT, bytes);
   });
-  await check("cover is one atomic fixed-size inner canvas", () => { const cover = renderer.slice(renderer.indexOf("function Cover"), renderer.indexOf("function Overview")); assert.match(renderer, /pageCanvas: \{ position: "absolute", left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT \}/); assert.match(cover, /<View style=\{styles\.pageCanvas\} wrap=\{false\}>/); assert.doesNotMatch(cover, /<Page[^>]*wrap=\{false\}/); });
+  await check("cover primitives are fixed and removed from pagination flow", () => { const cover = renderer.slice(renderer.indexOf("function Cover"), renderer.indexOf("function Overview")); assert.match(cover, /<Image fixed src=\{assets\.primary\}/); assert.match(cover, /<Image fixed src=\{assets\.logo\}/); assert.match(cover, /<View fixed style=/); assert.match(cover, /<Text fixed style=/); assert.doesNotMatch(cover, /pageCanvas|wrap=\{false\}/); assert.doesNotMatch(cover, /<Page[^>]*wrap=\{false\}/); });
+  await check("React-PDF conditionals contain no explicit space children", () => assert.doesNotMatch(renderer, /\/>\}\x20+\{/));
   await check("optional missing photos render placeholders", () => { assert.match(renderer, /Fotografie není k dispozici/); assert.match(renderer, /Podpůrná fotografie není k dispozici/); });
   await check("canonical PDF renderer protected", () => assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf.tsx"), "ae22aeb7e1f81b95bb73ec7dae498811bcdbc380a6c2cd3de40e61d3809b24ff"));
   await check("canonical PDF loader protected", () => assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf-data.ts"), "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b"));
