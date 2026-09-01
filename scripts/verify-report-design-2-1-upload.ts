@@ -16,7 +16,7 @@ async function check(name: string, test: () => unknown | Promise<unknown>) { awa
 class StageStorage implements FileStorage {
   objects = new Map<string, Uint8Array>(); deleted: string[] = []; puts = 0;
   constructor(private failPut?: number) {}
-  async putObject(input: PutObjectInput) { this.puts += 1; if (this.puts === this.failPut) throw new Error("simulated storage failure"); this.objects.set(input.key, input.body); }
+  async putObject(input: PutObjectInput) { this.puts += 1; if (this.puts === this.failPut) throw new Error("simulated storage failure"); this.objects.set(input.key, input.body); return { key: input.key }; }
   async deleteObject(key: string) { this.deleted.push(key); this.objects.delete(key); }
   async getObject() { return new Uint8Array(); }
   async getSignedDownloadUrl() { return ""; }

@@ -6,6 +6,7 @@ import type { FileStorage } from "../storage/types";
 import { documentEditAccessWhere } from "./access";
 import { randomStorageKey, validateFile } from "./file-validation";
 import { createImageVariants } from "./image-processing";
+import { documentStoragePlacement } from "../storage/locations";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
 export type DocumentContext = { propertyId: string; unitId?: string; leaseId?: string; taskId?: string; taskEntryId?: string; complianceRecordId?: string };
@@ -68,12 +69,13 @@ export async function createDocumentFromUpload(input: DocumentContext & { actor:
   await requireDocumentCreateAccess(input.actor, scope);
   const metadata = validateFile(input), key = randomStorageKey(), stored: string[] = [];
   try {
-    await storage.putObject({ key, body: input.bytes, contentType: input.mimeType }); stored.push(key);
+    const placement=await documentStoragePlacement(storage,input.propertyId,input.category,input.originalName);
+    const original=await storage.putObject({ key, body: input.bytes, contentType: input.mimeType,displayName:placement.displayName,folderId:placement.folderId }); const storageKey=original.key;stored.push(storageKey);
     let previewStorageKey: string | undefined, thumbnailStorageKey: string | undefined;
-    if (input.mimeType.startsWith("image/")) { const variants = await createImageVariants(input.bytes); previewStorageKey = `${key}.preview.webp`; thumbnailStorageKey = `${key}.thumbnail.webp`; await storage.putObject({ key: previewStorageKey, body: variants.preview, contentType: "image/webp" }); stored.push(previewStorageKey); await storage.putObject({ key: thumbnailStorageKey, body: variants.thumbnail, contentType: "image/webp" }); stored.push(thumbnailStorageKey); }
+    if (input.mimeType.startsWith("image/")) { const variants = await createImageVariants(input.bytes); const preview=await storage.putObject({ key: `${key}.preview.webp`, body: variants.preview, contentType: "image/webp",displayName:`${input.originalName} – náhled.webp`,folderId:placement.variantFolderId });previewStorageKey=preview.key;stored.push(previewStorageKey);const thumbnail=await storage.putObject({key:`${key}.thumbnail.webp`,body:variants.thumbnail,contentType:"image/webp",displayName:`${input.originalName} – miniatura.webp`,folderId:placement.variantFolderId});thumbnailStorageKey=thumbnail.key;stored.push(thumbnailStorageKey); }
     return await prisma.$transaction(async (tx) => {
       await requireDocumentCreateAccess(input.actor, scope, tx);
-      const asset = await tx.fileAsset.create({ data: { storageKey: key, previewStorageKey, thumbnailStorageKey, uploadedById: input.actor.id, ...metadata } });
+      const asset = await tx.fileAsset.create({ data: { storageKey, previewStorageKey, thumbnailStorageKey, uploadedById: input.actor.id, ...metadata } });
       const document = await tx.document.create({ data: { propertyId: input.propertyId, fileAssetId: asset.id, category: input.category, photoStage: input.photoStage, title: input.title, description: input.description, documentDate: input.documentDate, unitId: input.unitId, leaseId: input.leaseId, taskId: input.taskId, taskEntryId: input.taskEntryId, complianceRecordId: input.complianceRecordId, createdById: input.actor.id } });
       await tx.auditLog.create({ data: { userId: input.actor.id, propertyId: input.propertyId, action: "DOCUMENT_UPLOADED", entityType: "Document", entityId: document.id, details: auditDetails(input, document) } });
       return document;

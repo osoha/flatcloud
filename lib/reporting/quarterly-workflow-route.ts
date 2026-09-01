@@ -1,7 +1,7 @@
 import { prisma } from "../db";
 import { CzkMoneyParseError } from "../forms";
 import { ImageProcessingError } from "../documents/image-processing";
-import { StorageTimeoutError, StorageUnavailableError } from "../storage/types";
+import { StorageDisabledError, StorageTimeoutError, StorageUnavailableError } from "../storage/types";
 
 const friendlyMessages = new Map([
   ["Reporting group is inactive.", "Skupina je neaktivní. Nový kvartální report nelze založit."],
@@ -41,6 +41,7 @@ export function quarterlyWorkflowErrorMessage(error: unknown) {
   if (error instanceof QuarterlyWorkflowRouteError) return error.message;
   if (error instanceof CzkMoneyParseError) return "Zadaná částka není platná.";
   if (error instanceof ImageProcessingError) return error.message;
+  if (error instanceof StorageDisabledError || (error instanceof Error && error.message === "Úložiště souborů není nakonfigurováno.")) return "Úložiště souborů není nakonfigurováno.";
   if (error instanceof StorageTimeoutError || error instanceof StorageUnavailableError) return error.message;
   if (error instanceof Error) {
     const friendly = friendlyMessages.get(error.message);

@@ -6,6 +6,7 @@ import { StorageDisabledError, type FileStorage } from "../storage/types";
 import { backofficePermissionForGroup } from "./backoffice-access";
 import { loadFrozenQuarterlyReportPdfData } from "./pdf/quarterly-report-pdf-data";
 import { REPORT_PDF_RENDERER_VERSION } from "./pdf/constants";
+import { reportStoragePlacement } from "../storage/locations";
 
 export type ReportAssetActor = { id: string; role: string };
 export const REPORT_PDF_MIME_TYPE = "application/pdf";
@@ -56,13 +57,13 @@ export async function generatePublishedReportAsset(reportId: string, groupId: st
   let resolvedStorage: FileStorage;
   try { resolvedStorage = storage ?? createFileStorage(); } catch (error) { throw storageUnavailable(error); }
   const bytes = await renderPublishedReportPdf(report);
-  const key = storageKey(report);
+  const key = storageKey(report);let providerKey:string|undefined;
   let storedBytes: Uint8Array;
   try {
-    await resolvedStorage.putObject({ key, body: bytes, contentType: REPORT_PDF_MIME_TYPE });
-    storedBytes = await resolvedStorage.getObject(key);
+    const placement=await reportStoragePlacement(resolvedStorage,report.year,report.quarter,filename(report));const result=await resolvedStorage.putObject({ key, body: bytes, contentType: REPORT_PDF_MIME_TYPE,displayName:placement.displayName,folderId:placement.folderId });providerKey=result.key;
+    storedBytes = await resolvedStorage.getObject(providerKey);
   } catch (error) {
-    await cleanupStoredReport(resolvedStorage, key);
+    if(providerKey)await cleanupStoredReport(resolvedStorage, providerKey);
     throw storageUnavailable(error);
   }
   const sha256 = createHash("sha256").update(storedBytes).digest("hex");
@@ -71,13 +72,13 @@ export async function generatePublishedReportAsset(reportId: string, groupId: st
       if (!current) throw new ReportAssetError("Quarterly report was not found.", 404);
       if (current.status !== "PUBLISHED") throw new ReportAssetError("Published assets can only be generated for PUBLISHED reports.", 409);
       if (current.publishedAssetId) throw new ReportAssetError("Published report asset already exists.", 409);
-      const asset = await tx.fileAsset.create({ data: { storageKey: key, originalName: filename(report), mimeType: REPORT_PDF_MIME_TYPE, sizeBytes: storedBytes.byteLength, sha256, uploadedById: actor.id } });
+      const asset = await tx.fileAsset.create({ data: { storageKey: providerKey!, originalName: filename(report), mimeType: REPORT_PDF_MIME_TYPE, sizeBytes: storedBytes.byteLength, sha256, uploadedById: actor.id } });
       const attached = await tx.quarterlyReport.updateMany({ where: { id: report.id, reportingGroupId: groupId, status: "PUBLISHED", publishedAssetId: null }, data: { publishedAssetId: asset.id } });
       if (attached.count !== 1) throw new ReportAssetError("Published report asset already exists.", 409);
       await tx.auditLog.create({ data: { userId: actor.id, action: "REPORT_PUBLISHED_ASSET_GENERATED", entityType: "QuarterlyReport", entityId: report.id, details: { reportId: report.id, reportingGroupId: groupId, revision: report.revision, fileAssetId: asset.id, sha256, rendererVersion: REPORT_PDF_RENDERER_VERSION } satisfies Prisma.InputJsonObject } });
       return { id: asset.id, originalName: asset.originalName, mimeType: asset.mimeType, sizeBytes: asset.sizeBytes };
   }); } catch (error) {
-    await cleanupStoredReport(resolvedStorage, key);
+    if(providerKey)await cleanupStoredReport(resolvedStorage, providerKey);
     throw error;
   }
 }

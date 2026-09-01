@@ -6,6 +6,7 @@ import { createFileStorage } from "../storage";
 import type { FileStorage } from "../storage/types";
 import { createImageVariants } from "./image-processing";
 import { randomStorageKey, validateFile } from "./file-validation";
+import { documentStoragePlacement } from "../storage/locations";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
 export type PreparedDocumentInput = DocumentContext & PreparedDocumentFile & { category: DocumentCategory; photoStage?: DocumentPhotoStage; title: string; description?: string; documentDate?: Date };
@@ -28,14 +29,13 @@ export async function storePreparedDocumentBatch(batch: PreparedDocumentBatch, s
   const storedKeys: string[] = [], documents: StoredDocument[] = [];
   try {
     for (const document of batch.documents) {
-      const storageKey = randomStorageKey(), metadata = validateFile(document);
-      await storage.putObject({ key: storageKey, body: document.bytes, contentType: document.mimeType }); storedKeys.push(storageKey);
+      const requestedKey = randomStorageKey(), metadata = validateFile(document),placement=await documentStoragePlacement(storage,document.propertyId,document.category,document.originalName);
+      const original=await storage.putObject({ key:requestedKey, body: document.bytes, contentType: document.mimeType,displayName:placement.displayName,folderId:placement.folderId });const storageKey=original.key; storedKeys.push(storageKey);
       let previewStorageKey: string | undefined, thumbnailStorageKey: string | undefined;
       if (document.mimeType.startsWith("image/")) {
         const variants = await createImageVariants(document.bytes);
-        previewStorageKey = `${storageKey}.preview.webp`; thumbnailStorageKey = `${storageKey}.thumbnail.webp`;
-        await storage.putObject({ key: previewStorageKey, body: variants.preview, contentType: "image/webp" }); storedKeys.push(previewStorageKey);
-        await storage.putObject({ key: thumbnailStorageKey, body: variants.thumbnail, contentType: "image/webp" }); storedKeys.push(thumbnailStorageKey);
+        const preview=await storage.putObject({ key:`${requestedKey}.preview.webp`, body: variants.preview, contentType: "image/webp",displayName:`${document.originalName} – náhled.webp`,folderId:placement.variantFolderId });previewStorageKey=preview.key; storedKeys.push(previewStorageKey);
+        const thumbnail=await storage.putObject({ key:`${requestedKey}.thumbnail.webp`, body: variants.thumbnail, contentType: "image/webp",displayName:`${document.originalName} – miniatura.webp`,folderId:placement.variantFolderId });thumbnailStorageKey=thumbnail.key; storedKeys.push(thumbnailStorageKey);
       }
       documents.push({ ...document, metadata, storageKey, previewStorageKey, thumbnailStorageKey });
     }

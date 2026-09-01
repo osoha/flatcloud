@@ -16,7 +16,7 @@ const read = (path: string) => fs.readFileSync(path, "utf8");
 
 class MemoryStorage implements FileStorage {
   objects = new Map<string, Uint8Array>();
-  async putObject(input: PutObjectInput) { this.objects.set(input.key, input.body.slice()); }
+  async putObject(input: PutObjectInput) { this.objects.set(input.key, input.body.slice()); return { key: input.key }; }
   async deleteObject(key: string) { this.objects.delete(key); }
   async getObject(key: string) { const value = this.objects.get(key); if (!value) throw new Error(`Verifier storage object is missing: ${key}`); return value.slice(); }
   async getSignedDownloadUrl(_key: string, _expires?: number, _options?: SignedDownloadOptions) { return "https://example.test/signed"; }

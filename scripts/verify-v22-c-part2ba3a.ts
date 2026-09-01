@@ -13,7 +13,7 @@ const read = (path: string) => fs.readFileSync(path, "utf8");
 
 class MemoryStorage implements FileStorage {
   objects = new Map<string, Uint8Array>();
-  async putObject(input: PutObjectInput) { this.objects.set(input.key, input.body.slice()); }
+  async putObject(input: PutObjectInput) { this.objects.set(input.key, input.body.slice()); return { key: input.key }; }
   async deleteObject(key: string) { this.objects.delete(key); }
   async getObject(key: string) { const value = this.objects.get(key); if (!value) throw new Error("missing object"); return value.slice(); }
   async getSignedDownloadUrl(_key: string, _expires?: number, _options?: SignedDownloadOptions) { return "https://example.test/signed"; }
@@ -93,7 +93,7 @@ async function main() {
   await check("schema has named report asset relation, index and restrictive FK migration", () => { assert.match(schema, /publishedAsset\s+FileAsset\?\s+@relation\("QuarterlyReportPublishedAsset"/); assert.match(schema, /@@index\(\[publishedAssetId\]\)/); assert.match(migration, /ON DELETE RESTRICT/); });
   await check("report assets are ReportingGroup-authorized and never RENT-authorized", () => { assert.match(service, /backofficePermissionForGroup/); assert.doesNotMatch(service + generation + download, /DocumentAccess|documentAccessWhere|userProperty|userUnit|property grant|lease grant|RENT/); });
   await check("generation is ADMIN/SUPER_ADMIN and PUBLISHED-only with conditional attachment", () => { assert.match(service, /\["ADMIN", "SUPER_ADMIN"\]\.includes\(permission\)/); assert.doesNotMatch(service, /\["EDIT", "ADMIN", "SUPER_ADMIN"\]\.includes\(permission\)/); assert.match(service, /status !== "PUBLISHED"/); assert.match(service, /publishedAssetId: null/); assert.match(service, /attached\.count !== 1/); });
-  await check("checksum and metadata derive from exact bytes read after storage", () => { assert.match(service, /storedBytes = await resolvedStorage\.getObject\(key\)/); assert.match(service, /createHash\("sha256"\)\.update\(storedBytes\)/); assert.match(service, /sizeBytes: storedBytes\.byteLength/); });
+  await check("checksum and metadata derive from exact bytes read by returned provider key", () => { assert.match(service, /providerKey=result\.key/); assert.match(service, /storedBytes = await resolvedStorage\.getObject\(providerKey\)/); assert.match(service, /createHash\("sha256"\)\.update\(storedBytes\)/); assert.match(service, /sizeBytes: storedBytes\.byteLength/); });
   await check("storageKey is confined to service and download transport", () => { assert.doesNotMatch(workspace + generation, /storageKey/); assert.doesNotMatch(service, /return \{[^}]*storageKey/); });
   await check("correction creation does not copy or mutate publishedAssetId", () => { const body = correction.slice(correction.indexOf("export async function createCorrectionRevision")); assert.doesNotMatch(body, /publishedAssetId/); });
   await check("download accepts VIEW membership and excludes deleted assets", () => { assert.match(service, /permission === "NONE"/); assert.match(service, /publishedAsset\.deletedAt/); });

@@ -14,10 +14,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
   const [settings, query] = await Promise.all([appSettings(), searchParams]);
   const mailboxReady = Boolean(settings.inboundMailEnabled && settings.inboundMailHost && settings.inboundMailUser && settings.inboundMailPasswordEncrypted);
+  const driveConfigured=process.env.FILE_STORAGE_DRIVER==="gdrive"&&Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID&&process.env.GOOGLE_DRIVE_CLIENT_SECRET&&process.env.GOOGLE_DRIVE_REFRESH_TOKEN&&process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID&&process.env.GOOGLE_DRIVE_PROPERTIES_FOLDER_ID&&process.env.GOOGLE_DRIVE_REPORTS_FOLDER_ID&&process.env.GOOGLE_DRIVE_TEMPLATES_FOLDER_ID&&process.env.GOOGLE_DRIVE_ARCHIVE_FOLDER_ID);
+  const driveLink=(id:string|undefined)=>id?`https://drive.google.com/drive/folders/${encodeURIComponent(id)}`:"#";
 
   return <Shell user={user}><div className="page v21-admin-page">
     <div className="page-title"><div><h1>Administrace aplikace</h1><p>Centrální sběr bankovních e-mailů, automatické párování plateb a komunikace k nájmu.</p></div></div>
     <Flash ok={query.ok} error={query.error}/>
+
+    <div className="card" style={{marginBottom:20}}><div className="card-head"><div><div className="eyebrow"><ShieldCheck size={14}/> Úložiště</div><h2>Google Drive</h2><p className="muted-copy">Kanonické soukromé úložiště binárních souborů FlatCloudu.</p></div><span className={`connection-badge ${driveConfigured?"ok":"warn"}`}>{driveConfigured?"Připojeno ke konfiguraci":"Chyba konfigurace"}</span></div><div className="summary-list"><div><span>Provider</span><strong>{process.env.FILE_STORAGE_DRIVER==="gdrive"?"Google Drive":process.env.FILE_STORAGE_DRIVER||"disabled"}</strong></div><div><span>Root</span><strong>00_Aplikace FlatCloud</strong></div></div><div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/storage/test" method="post"><button className="primary" type="submit">Test připojení</button></form>{driveConfigured&&<><a className="secondary" target="_blank" rel="noreferrer" href={driveLink(process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID)}>Otevřít root Drive složku</a><a className="secondary" target="_blank" rel="noreferrer" href={driveLink(process.env.GOOGLE_DRIVE_PROPERTIES_FOLDER_ID)}>Nemovitosti</a><a className="secondary" target="_blank" rel="noreferrer" href={driveLink(process.env.GOOGLE_DRIVE_REPORTS_FOLDER_ID)}>Reporty</a><a className="secondary" target="_blank" rel="noreferrer" href={driveLink(process.env.GOOGLE_DRIVE_TEMPLATES_FOLDER_ID)}>Šablony</a></>}</div></div>
 
     <div className="detail-grid">
       <form className="card col-8 edit-form featured-settings-card" action="/api/settings/inbound-mail" method="post">

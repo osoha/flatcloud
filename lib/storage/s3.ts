@@ -48,7 +48,7 @@ export class S3FileStorage implements FileStorage {
   }
 
   private async send<T>(operation: () => Promise<T>) { try { return await operation(); } catch (error) { throw storageError(error); } }
-  async putObject(input: PutObjectInput) { await this.send(() => this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: input.key, Body: input.body, ContentType: input.contentType }))); }
+  async putObject(input: PutObjectInput) { await this.send(() => this.client.send(new PutObjectCommand({ Bucket: this.bucket, Key: input.key, Body: input.body, ContentType: input.contentType }))); return { key: input.key }; }
   async deleteObject(key: string) { await this.send(() => this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }))); }
   async getObject(key: string) { const result = await this.send(() => this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }))); if (!result.Body) throw new StorageUnavailableError(); return new Uint8Array(await this.send(() => result.Body!.transformToByteArray())); }
   async getSignedDownloadUrl(key: string, expiresSeconds = 300, options: SignedDownloadOptions = {}) { return getSignedUrl(this.client, new GetObjectCommand({ Bucket: this.bucket, Key: key, ResponseContentDisposition: options.contentDisposition, ResponseContentType: options.contentType }), { expiresIn: expiresSeconds }); }

@@ -7,6 +7,7 @@ import { serializableTransaction } from "../serializable";
 import { createFileStorage } from "../storage";
 import type { FileStorage } from "../storage/types";
 import { REPORT_DESIGN_PAGE_ROLES, reportDesignTemplateConfigSchema } from "./design-template-schema";
+import { templateStoragePlacement } from "../storage/locations";
 
 type Actor = { id: string; role: string };
 type Tx = Prisma.TransactionClient;
@@ -91,13 +92,14 @@ export async function uploadTemplateBackground(versionId: string, role: ReportDe
   const metadata = validateFile(file), key = randomStorageKey(), storedKeys: string[] = [];
   await prisma.$transaction((tx) => editableVersion(tx, versionId, actor));
   try {
-    await storage.putObject({ key, body: file.bytes, contentType: file.mimeType }); storedKeys.push(key);
+    const editable=await prisma.reportDesignTemplateVersion.findUnique({where:{id:versionId},select:{version:true}});if(!editable)throw new Error("Report design template version was not found.");const placement=await templateStoragePlacement(storage,editable.version,role,file.originalName);
+    const original=await storage.putObject({ key, body: file.bytes, contentType: file.mimeType,displayName:placement.displayName,folderId:placement.folderId });const storageKey=original.key;storedKeys.push(storageKey);
     const variants = await createImageVariants(file.bytes), previewStorageKey = `${key}.preview.webp`, thumbnailStorageKey = `${key}.thumbnail.webp`;
-    await storage.putObject({ key: previewStorageKey, body: variants.preview, contentType: "image/webp" }); storedKeys.push(previewStorageKey);
-    await storage.putObject({ key: thumbnailStorageKey, body: variants.thumbnail, contentType: "image/webp" }); storedKeys.push(thumbnailStorageKey);
+    const preview=await storage.putObject({ key: previewStorageKey, body: variants.preview, contentType: "image/webp",displayName:`${role.toLowerCase()}-preview.webp`,folderId:placement.variantFolderId });storedKeys.push(preview.key);
+    const thumbnail=await storage.putObject({ key: thumbnailStorageKey, body: variants.thumbnail, contentType: "image/webp",displayName:`${role.toLowerCase()}-thumbnail.webp`,folderId:placement.variantFolderId });storedKeys.push(thumbnail.key);
     return await serializableTransaction(async (tx) => {
       const version = await editableVersion(tx, versionId, actor);
-      const asset = await tx.fileAsset.create({ data: { ...metadata, storageKey: key, previewStorageKey, thumbnailStorageKey, uploadedById: actor.id } });
+      const asset = await tx.fileAsset.create({ data: { ...metadata, storageKey, previewStorageKey:preview.key, thumbnailStorageKey:thumbnail.key, uploadedById: actor.id } });
       await tx.reportDesignTemplatePage.update({ where: { templateVersionId_role: { templateVersionId: version.id, role } }, data: { backgroundMode: ReportDesignBackgroundMode.ASSET, backgroundAssetId: asset.id } });
       await audit(tx, actor.id, "REPORT_DESIGN_TEMPLATE_BACKGROUND_SET", version, { pageRole: role, fileAssetId: asset.id });
       return asset;

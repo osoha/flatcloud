@@ -366,6 +366,7 @@ model OwnerBankAccount {
 model Property {
   id                       String                    @id @default(cuid())
   name                     String
+  googleDriveFolderId      String?                   @unique
   address                  String
   city                     String
   postalCode               String?
