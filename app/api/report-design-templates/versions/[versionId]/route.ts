@@ -1,7 +1,7 @@
 import { ReportDesignPageRole } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
 import { text } from "@/lib/forms";
-import { activateReportDesignTemplateVersion, applyTemplateBackgroundToContentPages, cloneReportDesignTemplateVersion, setGeneratedTemplateBackground } from "@/lib/reporting/design-template-service";
+import { activateReportDesignTemplateVersion, applyCurrentFlatCloudPreset, applyTemplateBackgroundToContentPages, cloneReportDesignTemplateVersion, setGeneratedTemplateBackground } from "@/lib/reporting/design-template-service";
 import { goWithMessage } from "@/lib/route-response";
 
 export async function POST(request: Request, { params }: { params: Promise<{ versionId: string }> }) {
@@ -12,6 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ ver
     let targetVersionId = versionId;
     if (action === "clone") targetVersionId = (await cloneReportDesignTemplateVersion(versionId, actor)).id;
     else if (action === "activate") await activateReportDesignTemplateVersion(versionId, actor);
+    else if (action === "apply-current-preset") await applyCurrentFlatCloudPreset(versionId, actor);
     else if (action === "generated" && role) await setGeneratedTemplateBackground(versionId, role, actor);
     else if (action === "apply-content" && role) await applyTemplateBackgroundToContentPages(versionId, role, actor);
     else throw new Error("Unknown template action.");

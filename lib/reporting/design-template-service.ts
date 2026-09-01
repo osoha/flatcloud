@@ -6,7 +6,7 @@ import type { PreparedDocumentFile } from "../documents/upload";
 import { serializableTransaction } from "../serializable";
 import { createFileStorage } from "../storage";
 import type { FileStorage } from "../storage/types";
-import { REPORT_DESIGN_PAGE_ROLES, reportDesignTemplateConfigSchema } from "./design-template-schema";
+import { flatCloudQuarterly2026Config, REPORT_DESIGN_PAGE_ROLES, reportDesignTemplateConfigSchema } from "./design-template-schema";
 import { templateStoragePlacement } from "../storage/locations";
 
 type Actor = { id: string; role: string };
@@ -66,6 +66,14 @@ export async function activateReportDesignTemplateVersion(versionId: string, act
     const active = await tx.reportDesignTemplateVersion.update({ where: { id: version.id }, data: { status: "ACTIVE", activatedAt } });
     await audit(tx, actor.id, "REPORT_DESIGN_TEMPLATE_VERSION_ACTIVATED", active);
     return active;
+  });
+}
+
+export async function applyCurrentFlatCloudPreset(versionId: string, actor: Actor) {
+  return serializableTransaction(async (tx) => {
+    const version = await editableVersion(tx, versionId, actor);
+    await tx.reportDesignTemplateVersion.update({ where: { id: version.id }, data: { config: flatCloudQuarterly2026Config } });
+    await audit(tx, actor.id, "REPORT_DESIGN_TEMPLATE_PRESET_APPLIED", version, { preset: flatCloudQuarterly2026Config.contentHeader.preset, schemaVersion: flatCloudQuarterly2026Config.schemaVersion });
   });
 }
 

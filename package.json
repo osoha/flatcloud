@@ -49,6 +49,7 @@
     "verify:report-design-2-1-upload": "tsx scripts/verify-report-design-2-1-upload.ts",
     "verify:report-design-3a": "tsx scripts/verify-report-design-3a.ts",
     "verify:report-design-3b": "tsx scripts/verify-report-design-3b.ts",
+    "verify:report-design-3b1": "tsx scripts/verify-report-design-3b1.ts",
     "verify:gdrive-storage-1": "tsx scripts/verify-gdrive-storage-1.ts"
   },
   "dependencies": {
