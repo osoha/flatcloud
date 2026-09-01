@@ -2,6 +2,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { prisma } from "@/lib/db";
 import { createFileStorage } from "@/lib/storage";
+import type { FileStorage } from "@/lib/storage/types";
 
 export type QuarterlyPropertyPdfAssets = {
   logo: string;
@@ -16,9 +17,9 @@ export class QuarterlyPropertyPdfAssetUnavailable extends Error {
 
 const logoPath = path.join(process.cwd(), "public", "flatcloud-logo-white.png");
 
-async function pdfSafeImage(storageKey: string) {
+async function pdfSafeImage(storage: FileStorage, storageKey: string) {
   try {
-    const source = await createFileStorage().getObject(storageKey);
+    const source = await storage.getObject(storageKey);
     const bytes = await sharp(source).rotate().resize({ width: 1800, height: 1400, fit: "inside", withoutEnlargement: true }).png({ compressionLevel: 8 }).toBuffer();
     return `data:image/png;base64,${bytes.toString("base64")}`;
   } catch (error) {
@@ -36,13 +37,18 @@ export async function resolveQuarterlyPropertyPdfAssets(input: { groupId: string
     },
   });
   if (!row) return { logo: logoPath, primary: null, supportive: null, backgrounds: {} };
+  const storage = createFileStorage();
   const primary = row.media.find((item) => item.role === "PRIMARY" && item.sortOrder === 0);
   const supportive = row.media.find((item) => item.role === "SECONDARY" && item.sortOrder === 0);
-  const mediaSource = async (item: typeof primary) => item?.fileAsset && !item.fileAsset.deletedAt ? pdfSafeImage(item.fileAsset.storageKey) : null;
-  const backgrounds: QuarterlyPropertyPdfAssets["backgrounds"] = {};
-  for (const page of row.quarterlyReport.designTemplateVersion?.pages || []) {
+  const mediaSource = async (item: typeof primary) => item?.fileAsset && !item.fileAsset.deletedAt ? pdfSafeImage(storage, item.fileAsset.storageKey) : null;
+  const backgroundPages = row.quarterlyReport.designTemplateVersion?.pages || [];
+  for (const page of backgroundPages) {
     if (!page.backgroundAsset || page.backgroundAsset.deletedAt) throw new QuarterlyPropertyPdfAssetUnavailable();
-    backgrounds[page.role] = await pdfSafeImage(page.backgroundAsset.storageKey);
   }
-  return { logo: logoPath, primary: await mediaSource(primary), supportive: await mediaSource(supportive), backgrounds };
+  const [primarySource, supportiveSource, backgroundSources] = await Promise.all([
+    mediaSource(primary),
+    mediaSource(supportive),
+    Promise.all(backgroundPages.map(async (page) => [page.role, await pdfSafeImage(storage, page.backgroundAsset!.storageKey)] as const)),
+  ]);
+  return { logo: logoPath, primary: primarySource, supportive: supportiveSource, backgrounds: Object.fromEntries(backgroundSources) };
 }

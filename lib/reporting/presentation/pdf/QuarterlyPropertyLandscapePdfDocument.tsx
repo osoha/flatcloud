@@ -9,12 +9,13 @@ import { buildQuarterlyPropertyPdfPagePlan, type QuarterlyPropertyPdfPage } from
 
 export const A4_LANDSCAPE_WIDTH = 841.89;
 export const A4_LANDSCAPE_HEIGHT = 595.28;
+export const A4_LANDSCAPE_PAGE_SIZE = { width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT } as const;
 const FONT_FAMILY = "FlatCloudPdfFallback";
 Font.register({ family: FONT_FAMILY, src: path.join(process.cwd(), "node_modules", "@fontsource", "noto-sans", "files", "noto-sans-latin-ext-400-normal.woff") });
 Font.register({ family: FONT_FAMILY, src: path.join(process.cwd(), "node_modules", "@fontsource", "noto-sans", "files", "noto-sans-latin-ext-700-normal.woff"), fontWeight: 700 });
 
 const styles = StyleSheet.create({
-  page: { fontFamily: FONT_FAMILY, fontSize: 9, color: "#1F2937", position: "relative" },
+  page: { width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT, fontFamily: FONT_FAMILY, fontSize: 9, color: "#1F2937", position: "relative" },
   absolute: { position: "absolute" },
   footer: { position: "absolute", flexDirection: "row", justifyContent: "space-between", borderTopWidth: 0.7, paddingTop: 4, fontSize: 7 },
   heading: { fontSize: 18, fontWeight: 700, marginBottom: 12 },
@@ -41,7 +42,7 @@ const number = (value: number | null | undefined) => value == null ? "—" : val
 
 function GeneratedHeader({ model }: { model: QuarterlyPropertyPresentation }) {
   const config = model.template.config;
-  return <Svg style={[styles.absolute, { left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT }]} viewBox="0 0 1000 1000">
+  return <Svg style={[styles.absolute, { left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: config.contentHeader.height * A4_LANDSCAPE_HEIGHT }]} viewBox={`0 0 1000 ${config.contentHeader.height * 1000}`}>
       <Polygon points={points(config.contentHeader.darkPolygon)} fill={config.brand.primaryDark}/>
       <Polygon points={points(config.contentHeader.lightPolygon)} fill={config.brand.primaryLight}/>
     </Svg>;
@@ -63,7 +64,7 @@ function Footer({ model }: { model: QuarterlyPropertyPresentation }) {
 
 function ContentFrame({ model, assets, role, forceGenerated, children }: { model: QuarterlyPropertyPresentation; assets: QuarterlyPropertyPdfAssets; role: Exclude<ReportDesignPageRole, "COVER">; forceGenerated?: boolean; children: React.ReactNode }) {
   const mode = forceGenerated ? "GENERATED" : model.template.backgrounds[role].mode;
-  return <Page size="A4" orientation="landscape" style={styles.page} wrap={false}>
+  return <Page size={A4_LANDSCAPE_PAGE_SIZE} style={styles.page}>
     {mode === "ASSET" && assets.backgrounds[role] && <Image src={assets.backgrounds[role]} style={[styles.absolute, { left: 0, top: 0, width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT }]}/>} 
     {mode === "GENERATED" && <GeneratedHeader model={model}/>} 
     <ContentHeaderLabels model={model} logo={assets.logo}/>
@@ -75,7 +76,7 @@ function PageTitle({ title, continuation }: { title: string; continuation: numbe
 
 function Cover({ model, assets }: { model: QuarterlyPropertyPresentation; assets: QuarterlyPropertyPdfAssets }) {
   const config = model.template.config;
-  return <Page size="A4" orientation="landscape" style={styles.page} wrap={false}>
+  return <Page size={A4_LANDSCAPE_PAGE_SIZE} style={styles.page}>
     <View style={[styles.absolute, rect(config.cover.brandRect), { backgroundColor: config.brand.primary }]}/>
     {assets.primary ? <Image src={assets.primary} style={[styles.absolute, rect(config.cover.imageRect), { objectFit: "cover" }]}/> : <View style={[styles.absolute, rect(config.cover.imageRect), { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}><Text style={{ color: config.brand.muted }}>Fotografie není k dispozici</Text></View>}
     <Image src={assets.logo} style={[styles.absolute, rect(config.cover.logoRect), { objectFit: "contain" }]}/>

@@ -10,6 +10,11 @@ const root = process.cwd(), read = (file: string) => fs.readFileSync(path.join(r
 const hash = (file: string) => createHash("sha256").update(fs.readFileSync(path.join(root, file))).digest("hex");
 let count = 0;
 function check(name: string, test: () => void | Promise<void>) { return Promise.resolve().then(test).then(() => { count++; console.log(`✓ ${count}. ${name}`); }); }
+function renderedPageMediaBoxes(bytes: Uint8Array) {
+  const source = Buffer.from(bytes).toString("latin1");
+  const pages = [...source.matchAll(/\/Type\s*\/Page\b[\s\S]*?\/MediaBox\s*\[\s*([+-]?[\d.]+)\s+([+-]?[\d.]+)\s+([+-]?[\d.]+)\s+([+-]?[\d.]+)\s*\]/g)];
+  return pages.map((match) => ({ width: Number(match[3]) - Number(match[1]), height: Number(match[4]) - Number(match[2]) }));
+}
 const backgrounds = Object.fromEntries(["COVER", "OVERVIEW", "TECHNICAL", "VALUATION", "TRENDS"].map((role) => [role, { role, mode: "GENERATED", imageUrl: null }])) as QuarterlyPropertyPresentation["template"]["backgrounds"];
 const baseModel: QuarterlyPropertyPresentation = { report: { id: "report", groupId: "group", year: 2026, quarter: 3, status: "DRAFT" }, property: { id: "property", name: "Karla Aksamita", address: "Praha", status: "STABILIZED" }, template: { id: "version", name: "FlatCloud", version: 1, config: flatCloudQuarterly2026Config, backgrounds }, media: { primary: null, supportive: null }, managementCommentary: "Komentář managementu.", additionalCommentary: null, technicalSections: [], valuationRows: [], valuationTotalCents: 0, trends: [] };
 const model = (changes: Partial<QuarterlyPropertyPresentation> = {}) => ({ ...baseModel, ...changes });
@@ -21,7 +26,7 @@ async function main() {
   await check("RD4A adds no migration", () => assert.equal(fs.readdirSync(path.join(root, "prisma/migrations")).filter((name) => /4a/i.test(name)).length, 0));
   await check("dedicated landscape renderer exists", () => assert.match(renderer, /QuarterlyPropertyLandscapePdfDocument/));
   await check("renderer uses React PDF", () => assert.match(renderer, /from "@react-pdf\/renderer"/));
-  await check("renderer declares A4 landscape", () => assert.match(renderer, /size="A4" orientation="landscape"/));
+  await check("renderer uses one explicit A4 landscape size", () => { assert.match(renderer, /A4_LANDSCAPE_PAGE_SIZE = \{ width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT \}/); assert.match(renderer, /page: \{ width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT/); assert.equal(renderer.match(/size=\{A4_LANDSCAPE_PAGE_SIZE\}/g)?.length, 2); assert.doesNotMatch(renderer, /size="A4"|orientation="landscape"/); });
   await check("HTML renderer remains protected", () => assert.equal(hash("components/reporting/quarterly-property/QuarterlyPropertyReportDocument.tsx"), "15b7b476b210c393733274da38739fafa351c24b94e7c275bf01f2df11c5b367"));
   await check("semantic loader remains protected", () => assert.equal(hash("lib/reporting/presentation/quarterly-property-presentation-data.ts"), "a69c12ec6b0ec4acce067434082828473dfcfaabd4aa72bdbd8ab15bde6f206c"));
   await check("page plan starts with Cover", () => assert.equal(kinds(baseModel)[0], "COVER"));
@@ -46,19 +51,27 @@ async function main() {
   await check("actual white logo is repository-local", () => assert.match(assets, /public.*, "flatcloud-logo-white\.png"/));
   await check("media resolves through QuarterlyPropertyReportMedia", () => { assert.match(assets, /quarterlyPropertyReport\.findFirst/); assert.match(assets, /media:/); assert.doesNotMatch(assets, /prisma\.property\./); });
   await check("background resolves from assigned template version", () => assert.match(assets, /quarterlyReport:[\s\S]*designTemplateVersion/));
-  await check("assets use server-side storage reads", () => assert.match(assets, /createFileStorage\(\)\.getObject/));
+  await check("assets reuse one server-side storage reader concurrently", () => { assert.equal(assets.match(/createFileStorage\(\)/g)?.length, 1); assert.match(assets, /storage\.getObject/); assert.match(assets, /Promise\.all/); });
   await check("RD4A performs no storage writes", () => assert.doesNotMatch(`${assets}\n${service}\n${renderer}`, /putObject|deleteObject/));
   await check("RD4A performs no FileAsset create", () => assert.doesNotMatch(`${assets}\n${service}\n${renderer}`, /fileAsset\.create/));
   await check("RD4A performs no published asset mutation", () => assert.doesNotMatch(`${assets}\n${service}\n${renderer}`, /publishedAssetId|REPORT_PUBLISHED_ASSET_GENERATED/));
   await check("service matches backoffice authorization", () => { assert.match(service, /backofficePermissionForGroup/); assert.match(service, /canReadReportingBackoffice/); });
   await check("route is group report property scoped", () => assert.match(route, /groupId, reportId, propertyId/));
   await check("response is PDF", () => assert.match(route, /"Content-Type": preview\.mimeType/));
+  await check("WIP response downloads as an attachment", () => assert.match(route, /"Content-Disposition": `attachment;/));
   await check("response is private no-store", () => assert.match(route, /"Cache-Control": "private, no-store"/));
   await check("route does not expose storage keys", () => assert.doesNotMatch(route, /storageKey|provider|OAuth|stack/));
   await check("DRAFT preview has no status gate", () => assert.doesNotMatch(service, /status.*DRAFT|DRAFT.*status/));
   await check("REVIEW preview has no status gate", () => assert.doesNotMatch(service, /status.*REVIEW|REVIEW.*status/));
   await check("PUBLISHED preview has no status gate", () => assert.doesNotMatch(service, /status.*PUBLISHED|PUBLISHED.*status/));
-  await check("synthetic render is a real PDF", async () => { const { renderQuarterlyPropertyLandscapePdf } = await import("../lib/reporting/presentation/pdf/QuarterlyPropertyLandscapePdfDocument"); const bytes = await renderQuarterlyPropertyLandscapePdf(baseModel, { logo: path.join(root, "public/flatcloud-logo-white.png"), primary: null, supportive: null, backgrounds: {} }); assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), "%PDF-"); assert.ok(bytes.length > 1000); });
+  await check("synthetic multi-page render has valid geometry and content", async () => {
+    const { renderQuarterlyPropertyLandscapePdf } = await import("../lib/reporting/presentation/pdf/QuarterlyPropertyLandscapePdfDocument");
+    const bytes = await renderQuarterlyPropertyLandscapePdf(baseModel, { logo: path.join(root, "public/flatcloud-logo-white.png"), primary: null, supportive: null, backgrounds: {} });
+    const expectedPages = buildQuarterlyPropertyPdfPagePlan(baseModel).length, boxes = renderedPageMediaBoxes(bytes), source = Buffer.from(bytes).toString("latin1");
+    if (process.env.RD4A_SMOKE_OUTPUT) fs.writeFileSync(process.env.RD4A_SMOKE_OUTPUT, bytes);
+    assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), "%PDF-"); assert.ok(bytes.length > 1000); assert.equal(boxes.length, expectedPages); assert.equal(expectedPages, 5); assert.match(source, /stream\r?\n/);
+    for (const box of boxes) { assert.ok(Math.abs(box.width - 841.89) < 0.02, JSON.stringify(box)); assert.ok(Math.abs(box.height - 595.28) < 0.02, JSON.stringify(box)); assert.ok(box.width > box.height, JSON.stringify(box)); assert.ok(box.height > 0, JSON.stringify(box)); }
+  });
   await check("optional missing photos render placeholders", () => { assert.match(renderer, /Fotografie není k dispozici/); assert.match(renderer, /Podpůrná fotografie není k dispozici/); });
   await check("canonical PDF renderer protected", () => assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf.tsx"), "ae22aeb7e1f81b95bb73ec7dae498811bcdbc380a6c2cd3de40e61d3809b24ff"));
   await check("canonical PDF loader protected", () => assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf-data.ts"), "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b"));

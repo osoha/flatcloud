@@ -9,7 +9,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ gro
   const { groupId, reportId, propertyId } = await params;
   try {
     const preview = await renderQuarterlyPropertyLandscapePdfPreview({ groupId, reportId, propertyId, actor });
-    return new Response(preview.bytes, { headers: { "Content-Type": preview.mimeType, "Content-Disposition": `inline; filename="${preview.filename}"`, "Cache-Control": "private, no-store" } });
+    return new Response(preview.bytes, { headers: { "Content-Type": preview.mimeType, "Content-Disposition": `attachment; filename="${preview.filename}"`, "Cache-Control": "private, no-store" } });
   } catch (error) {
     if (error instanceof QuarterlyPropertyPdfPreviewError) return new Response(error.message, { status: error.status });
     console.error("Quarterly property PDF preview failed.", error instanceof Error ? error.name : "Unknown error");
