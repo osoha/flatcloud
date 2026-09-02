@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import ExcelJS from "exceljs";
+import { prisma } from "../lib/db";
 import {
   parseMfRentWorkbook,
   normalizeMfHeader,
@@ -13,6 +15,13 @@ import {
   MF_XLSX_MAX_BYTES,
   MF_REQUEST_TIMEOUT_MS,
 } from "../lib/reporting/mf-rent/source";
+import {
+  importParsedMfRentRelease,
+  MF_RENT_IMPORT_BATCH_SIZE,
+  MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS,
+  syncMfRentDatasets,
+} from "../lib/reporting/mf-rent/service";
+type ParsedMfRentWorkbook = Awaited<ReturnType<typeof parseMfRentWorkbook>>;
 const root = process.cwd();
 const read = (p: string) => fs.readFileSync(path.join(root, p), "utf8");
 let count = 0;
@@ -37,6 +46,7 @@ async function fixture(
     duplicate?: boolean;
     reordered?: boolean;
     duplicateTerritory?: boolean;
+    rowCount?: number;
   } = {},
 ) {
   const w = new ExcelJS.Workbook(),
@@ -78,25 +88,26 @@ async function fixture(
     options.reordered
       ? [vk, 222, 123.45, 333, 145, 100, 500, 120, 1]
       : [vk, 123.45, 100, 145, 333, 120, 500, 222, 1];
-  s.addRow([
-    "Kraj",
-    "Území",
-    "Obec",
-    123456,
-    ...values(1),
-    "",
-    ...values(2),
-    "",
-    ...values(3),
-    "",
-    ...values(4),
-  ]);
+  for (let index = 0; index < (options.rowCount ?? 1); index++)
+    s.addRow([
+      "Kraj",
+      `Území ${index}`,
+      "Obec",
+      100000 + index,
+      ...values(1),
+      "",
+      ...values(2),
+      "",
+      ...values(3),
+      "",
+      ...values(4),
+    ]);
   if (options.duplicateTerritory)
     s.addRow([
       "Kraj",
-      "Území",
+      "Území 0",
       "Obec",
-      123456,
+      100000,
       ...values(1),
       "",
       ...values(2),
@@ -106,6 +117,51 @@ async function fixture(
       ...values(4),
     ]);
   return new Uint8Array(await w.xlsx.writeBuffer());
+}
+function release(marker: string) {
+  return {
+    url: `https://mf.gov.cz/assets/${marker}.xlsx`,
+    fileName: `${marker}.xlsx`,
+    publishedOn: new Date("2026-08-15T00:00:00.000Z"),
+    marketYear: 2026,
+    marketQuarter: 2,
+    current: true,
+  };
+}
+function parsedTerritories(marker: string, count: number) {
+  const category = {
+    referenceRentCentsPerM2: 24550,
+    lowerIntervalCentsPerM2: null,
+    upperIntervalCentsPerM2: null,
+    newBuildReferenceRentCentsPerM2: null,
+    minimumCentsPerM2: null,
+    maximumCentsPerM2: null,
+    medianCentsPerM2: null,
+    dataCoverage: 1,
+  };
+  return {
+    schemaFingerprint: `hotfix-${marker}`,
+    coverage: { vk1: count, vk2: count, vk3: count, vk4: count },
+    territories: Array.from({ length: count }, (_, index) => ({
+      territoryCode: `${marker}-${index}`,
+      territoryName: `Území ${index}`,
+      municipalityName: "Obec",
+      districtName: null,
+      regionName: "Kraj",
+      data: {
+        schemaVersion: 1 as const,
+        vk1: category,
+        vk2: category,
+        vk3: category,
+        vk4: category,
+      },
+    })),
+  } satisfies ParsedMfRentWorkbook;
+}
+function response(body: BodyInit, url: string, headers?: HeadersInit) {
+  const value = new Response(body, { status: 200, headers });
+  Object.defineProperty(value, "url", { value: url });
+  return value;
 }
 async function main() {
   const schema = read("prisma/schema.prisma"),
@@ -243,6 +299,146 @@ async function main() {
     assert.match(service, /findUnique\([\s\S]*?where:\s*\{\s*sourceSha256/);
     assert.match(service, /createMany/);
   });
+  await check("MF transaction timeout exceeds Prisma default and is scoped", () => {
+    assert.ok(MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS > 5_000);
+    assert.match(
+      service,
+      /prisma\.\$transaction\([\s\S]*timeout:\s*MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS/,
+    );
+    assert.doesNotMatch(read("lib/db.ts"), /transactionOptions|60_000/);
+  });
+  await check("territory createMany remains conservatively batched", () => {
+    assert.equal(MF_RENT_IMPORT_BATCH_SIZE, 1_000);
+    assert.ok(MF_RENT_IMPORT_BATCH_SIZE > 0 && MF_RENT_IMPORT_BATCH_SIZE < 7_630);
+    assert.match(service, /i \+= MF_RENT_IMPORT_BATCH_SIZE/);
+    assert.match(service, /slice\(i, i \+ MF_RENT_IMPORT_BATCH_SIZE\)/);
+  });
+  if (process.env.DATABASE_URL) {
+    const marker = `mf11-${Date.now()}`;
+    const failedSha = createHash("sha256").update(`${marker}-failed`).digest("hex");
+    const failing = parsedTerritories(marker, MF_RENT_IMPORT_BATCH_SIZE + 1);
+    failing.territories[MF_RENT_IMPORT_BATCH_SIZE].territoryCode =
+      failing.territories[0].territoryCode;
+    await check("later batch failure rolls back release and every territory", async () => {
+      await assert.rejects(() =>
+        importParsedMfRentRelease({
+          release: release(marker),
+          sourceSha256: failedSha,
+          parsed: failing,
+        }),
+      );
+      assert.equal(
+        await prisma.mfRentDatasetRelease.count({
+          where: { sourceSha256: failedSha },
+        }),
+        0,
+      );
+      assert.equal(
+        await prisma.mfRentTerritorySnapshot.count({
+          where: { territoryCode: { startsWith: `${marker}-` } },
+        }),
+        0,
+      );
+    });
+    await check("retry after rolled-back failure succeeds atomically", async () => {
+      const corrected = parsedTerritories(marker, MF_RENT_IMPORT_BATCH_SIZE + 1);
+      const created = await importParsedMfRentRelease({
+        release: release(marker),
+        sourceSha256: failedSha,
+        parsed: corrected,
+      });
+      assert.equal(
+        await prisma.mfRentTerritorySnapshot.count({
+          where: { releaseId: created.id },
+        }),
+        MF_RENT_IMPORT_BATCH_SIZE + 1,
+      );
+    });
+    const nationalMarker = `${marker}-national`;
+    await check("synthetic 7,630 territory release import completes", async () => {
+      const created = await importParsedMfRentRelease({
+        release: release(nationalMarker),
+        sourceSha256: createHash("sha256").update(nationalMarker).digest("hex"),
+        parsed: parsedTerritories(nationalMarker, 7_630),
+      });
+      assert.equal(
+        await prisma.mfRentTerritorySnapshot.count({
+          where: { releaseId: created.id },
+        }),
+        7_630,
+      );
+    });
+    const workbook = await fixture({ rowCount: 7_630 });
+    const workbookSha = createHash("sha256").update(workbook).digest("hex");
+    const syncMarker = `${marker}-sync`;
+    const pageUrl =
+      "https://mf.gov.cz/cs/rozpoctova-politika/podpora-projektoveho-rizeni/cenova-mapa/cenova-mapa-infografika";
+    const currentUrl = `https://mf.gov.cz/assets/${syncMarker}-2026-08-15.xlsx`;
+    const historyUrl = `https://mf.gov.cz/assets/${syncMarker}-2026-05-15.xlsx`;
+    const html = `<p>aktualizován 15.8.2026</p><a href="${currentUrl}">Cenová mapa - tabulkové výstupy</a><a href="${historyUrl}">Historická data – květen 2026</a>`;
+    const fetcher = (async (input: URL | RequestInfo) => {
+      const url = String(input);
+      if (url === pageUrl)
+        return response(html, pageUrl, { "content-type": "text/html" });
+      return response(workbook, url, {
+        "content-type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+    }) as typeof fetch;
+    await check("successful same SHA force retry is idempotent", async () => {
+      const first = await syncMfRentDatasets({ force: true, fetcher });
+      assert.equal(first.newImports, 1);
+      assert.ok(first.idempotentSkips >= 1);
+      const second = await syncMfRentDatasets({ force: true, fetcher });
+      assert.equal(second.newImports, 0);
+      assert.ok(second.idempotentSkips >= 2);
+      assert.equal(
+        await prisma.mfRentDatasetRelease.count({
+          where: { sourceSha256: workbookSha },
+        }),
+        1,
+      );
+    });
+    await check("failed force sync updates check only and sanitizes summary", async () => {
+      const before = await prisma.appSetting.findUniqueOrThrow({
+        where: { id: "global" },
+      });
+      const attemptedAt = new Date(Date.now() + 1_000);
+      const releasesBefore = await prisma.mfRentDatasetRelease.count();
+      const raw =
+        "Invalid prisma invocation Transaction already closed DATABASE_URL=secret";
+      const brokenFetcher = (async () => {
+        throw new Error(raw);
+      }) as typeof fetch;
+      await assert.rejects(
+        () =>
+          syncMfRentDatasets({
+            force: true,
+            fetcher: brokenFetcher,
+            now: attemptedAt,
+          }),
+        (error: Error) =>
+          error.message === "Synchronizace dat MF se nezdařila." &&
+          !error.message.includes(raw),
+      );
+      const after = await prisma.appSetting.findUniqueOrThrow({
+        where: { id: "global" },
+      });
+      assert.equal(after.mfRentLastCheckedAt?.getTime(), attemptedAt.getTime());
+      assert.equal(
+        after.mfRentLastSuccessAt?.getTime(),
+        before.mfRentLastSuccessAt?.getTime(),
+      );
+      assert.doesNotMatch(after.mfRentLastSummary || "", /prisma|DATABASE_URL|Transaction/i);
+      assert.match(after.mfRentLastSummary || "", /Dříve importovaná data zůstávají aktivní/);
+      assert.equal(await prisma.mfRentDatasetRelease.count(), releasesBefore);
+      assert.ok(
+        await prisma.mfRentDatasetRelease.findUnique({
+          where: { sourceSha256: workbookSha },
+        }),
+      );
+    });
+  }
   await check("bootstrap current plus seven periods", () =>
     assert.match(service, /slice\(0,\s*8\)/),
   );

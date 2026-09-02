@@ -7,9 +7,18 @@ import {
   type MfFetch,
   type MfSourceRelease,
 } from "./source";
-import { MF_RENT_PARSER_VERSION, parseMfRentWorkbook } from "./parser";
+import {
+  MF_RENT_PARSER_VERSION,
+  parseMfRentWorkbook,
+} from "./parser";
 import { mfRentTerritoryDataSchema } from "./schema";
 const FRESH_MS = 24 * 60 * 60 * 1000;
+export const MF_RENT_IMPORT_TRANSACTION_MAX_WAIT_MS = 10_000;
+export const MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS = 60_000;
+export const MF_RENT_IMPORT_BATCH_SIZE = 1_000;
+type ParsedMfRentWorkbook = Awaited<ReturnType<typeof parseMfRentWorkbook>>;
+const MF_RENT_FAILED_SYNC_SUMMARY =
+  "Neúspěšná kontrola: import dat MF se nepodařilo dokončit. Dříve importovaná data zůstávají aktivní.";
 export type MfSyncResult = {
   enabled: true;
   status: "skipped" | "ok" | "failed";
@@ -35,6 +44,54 @@ export function selectBootstrapReleases(
   return [current, ...distinct.values()]
     .filter(Boolean)
     .slice(0, 8) as MfSourceRelease[];
+}
+export async function importParsedMfRentRelease({
+  release,
+  sourceSha256,
+  parsed,
+  importedById,
+}: {
+  release: MfSourceRelease;
+  sourceSha256: string;
+  parsed: ParsedMfRentWorkbook;
+  importedById?: string;
+}) {
+  return prisma.$transaction(
+    async (tx) => {
+      const created = await tx.mfRentDatasetRelease.create({
+        data: {
+          sourceUrl: release.url,
+          sourceSha256,
+          sourceFileName: release.fileName,
+          publishedOn: release.publishedOn,
+          marketYear: release.marketYear,
+          marketQuarter: release.marketQuarter,
+          parserVersion: MF_RENT_PARSER_VERSION,
+          schemaFingerprint: parsed.schemaFingerprint,
+          importedById,
+        },
+      });
+      for (
+        let i = 0;
+        i < parsed.territories.length;
+        i += MF_RENT_IMPORT_BATCH_SIZE
+      )
+        await tx.mfRentTerritorySnapshot.createMany({
+          data: parsed.territories
+            .slice(i, i + MF_RENT_IMPORT_BATCH_SIZE)
+            .map((territory) => ({
+              ...territory,
+              releaseId: created.id,
+              data: territory.data as Prisma.InputJsonValue,
+            })),
+        });
+      return created;
+    },
+    {
+      maxWait: MF_RENT_IMPORT_TRANSACTION_MAX_WAIT_MS,
+      timeout: MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS,
+    },
+  );
 }
 export async function syncMfRentDatasets(
   options: {
@@ -96,30 +153,11 @@ export async function syncMfRentDatasets(
         continue;
       }
       const parsed = await parseMfRentWorkbook(bytes);
-      await prisma.$transaction(async (tx) => {
-        const created = await tx.mfRentDatasetRelease.create({
-          data: {
-            sourceUrl: release.url,
-            sourceSha256,
-            sourceFileName: release.fileName,
-            publishedOn: release.publishedOn,
-            marketYear: release.marketYear,
-            marketQuarter: release.marketQuarter,
-            parserVersion: MF_RENT_PARSER_VERSION,
-            schemaFingerprint: parsed.schemaFingerprint,
-            importedById: options.importedById,
-          },
-        });
-        for (let i = 0; i < parsed.territories.length; i += 500)
-          await tx.mfRentTerritorySnapshot.createMany({
-            data: parsed.territories
-              .slice(i, i + 500)
-              .map((t) => ({
-                ...t,
-                releaseId: created.id,
-                data: t.data as Prisma.InputJsonValue,
-              })),
-          });
+      await importParsedMfRentRelease({
+        release,
+        sourceSha256,
+        parsed,
+        importedById: options.importedById,
       });
       newImports++;
       territoryCounts.push(parsed.territories.length);
@@ -151,13 +189,13 @@ export async function syncMfRentDatasets(
       summary,
     };
   } catch (error) {
-    const summary =
-      error instanceof Error ? error.message : "Kontrola MF selhala.";
+    console.error("MF rent dataset synchronization failed.", {
+      errorClass: error instanceof Error ? error.name : "UnknownError",
+      error,
+    });
     await prisma.appSetting.update({
       where: { id: "global" },
-      data: {
-        mfRentLastSummary: `Neúspěšná kontrola: ${summary.slice(0, 300)}`,
-      },
+      data: { mfRentLastSummary: MF_RENT_FAILED_SYNC_SUMMARY },
     });
     throw new Error("Synchronizace dat MF se nezdařila.");
   }
