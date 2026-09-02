@@ -51,6 +51,7 @@ jobs:
       - run: npm run verify:identity-1
       - run: npm run verify:gdrive-structure-2
       - run: npm run verify:vs-structure-1
+      - run: npm run verify:lease-report-heavy-1
       - run: npm run verify:v23-a
       - run: npm run verify:v23-b
       - run: npm run verify:mail-retention-1

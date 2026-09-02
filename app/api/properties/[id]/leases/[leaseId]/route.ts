@@ -77,8 +77,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await tx.tenant.update({ where: { id: tenant.id }, data: { payerAccounts: [...tenant.payerAccounts, tenantBankAccount] } });
       }
 
-      if (rentCents !== existing.rentCents) await replaceRecurringAmount(tx, leaseId, "RENT", rentCents, effectiveFrom);
-      if (servicesCents !== existing.servicesCents) await replaceRecurringAmount(tx, leaseId, "SERVICES", servicesCents, effectiveFrom);
+      // Reconcile both canonical components on every save. Historical/imported data may
+      // contain overlapping RENT/SERVICES rows even when the raw lease totals are already
+      // correct; leaving those rows in place makes generated monthly charges look random.
+      await replaceRecurringAmount(tx, leaseId, "RENT", rentCents, effectiveFrom);
+      await replaceRecurringAmount(tx, leaseId, "SERVICES", servicesCents, effectiveFrom);
       if (depositCents !== existing.depositCents) await tx.securityDepositTerm.create({ data: { leaseId, agreedAmountCents: depositCents, annualRateBps: existing.securityDepositTerms.at(-1)?.annualRateBps || 0, effectiveFrom, createdById: access.user.id, note: "Aktualizováno z editace smlouvy." } });
 
       const updated = await tx.lease.update({
