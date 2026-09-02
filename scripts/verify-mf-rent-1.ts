@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import ExcelJS from "exceljs";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../lib/db";
 import {
   parseMfRentWorkbook,
@@ -17,6 +18,7 @@ import {
 } from "../lib/reporting/mf-rent/source";
 import {
   importParsedMfRentRelease,
+  isMfRentReleaseSourceShaCollision,
   MF_RENT_IMPORT_BATCH_SIZE,
   MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS,
   syncMfRentDatasets,
@@ -320,12 +322,17 @@ async function main() {
     failing.territories[MF_RENT_IMPORT_BATCH_SIZE].territoryCode =
       failing.territories[0].territoryCode;
     await check("later batch failure rolls back release and every territory", async () => {
-      await assert.rejects(() =>
-        importParsedMfRentRelease({
-          release: release(marker),
-          sourceSha256: failedSha,
-          parsed: failing,
-        }),
+      await assert.rejects(
+        () =>
+          importParsedMfRentRelease({
+            release: release(marker),
+            sourceSha256: failedSha,
+            parsed: failing,
+          }),
+        (error) =>
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002" &&
+          !isMfRentReleaseSourceShaCollision(error),
       );
       assert.equal(
         await prisma.mfRentDatasetRelease.count({
@@ -342,28 +349,63 @@ async function main() {
     });
     await check("retry after rolled-back failure succeeds atomically", async () => {
       const corrected = parsedTerritories(marker, MF_RENT_IMPORT_BATCH_SIZE + 1);
-      const created = await importParsedMfRentRelease({
+      const result = await importParsedMfRentRelease({
         release: release(marker),
         sourceSha256: failedSha,
         parsed: corrected,
       });
       assert.equal(
         await prisma.mfRentTerritorySnapshot.count({
-          where: { releaseId: created.id },
+          where: { releaseId: result.release.id },
         }),
         MF_RENT_IMPORT_BATCH_SIZE + 1,
       );
     });
+    const concurrentMarker = `${marker}-concurrent`;
+    const concurrentSha = createHash("sha256")
+      .update(concurrentMarker)
+      .digest("hex");
+    const concurrentParsed = parsedTerritories(concurrentMarker, 25);
+    await check("concurrent same-SHA import is an idempotent success", async () => {
+      const results = await Promise.all([
+        importParsedMfRentRelease({
+          release: release(concurrentMarker),
+          sourceSha256: concurrentSha,
+          parsed: concurrentParsed,
+        }),
+        importParsedMfRentRelease({
+          release: release(concurrentMarker),
+          sourceSha256: concurrentSha,
+          parsed: concurrentParsed,
+        }),
+      ]);
+      assert.deepEqual(
+        results.map((result) => result.status).sort(),
+        ["already_imported", "imported"],
+      );
+      assert.equal(
+        await prisma.mfRentDatasetRelease.count({
+          where: { sourceSha256: concurrentSha },
+        }),
+        1,
+      );
+      assert.equal(
+        await prisma.mfRentTerritorySnapshot.count({
+          where: { releaseId: results[0].release.id },
+        }),
+        25,
+      );
+    });
     const nationalMarker = `${marker}-national`;
     await check("synthetic 7,630 territory release import completes", async () => {
-      const created = await importParsedMfRentRelease({
+      const result = await importParsedMfRentRelease({
         release: release(nationalMarker),
         sourceSha256: createHash("sha256").update(nationalMarker).digest("hex"),
         parsed: parsedTerritories(nationalMarker, 7_630),
       });
       assert.equal(
         await prisma.mfRentTerritorySnapshot.count({
-          where: { releaseId: created.id },
+          where: { releaseId: result.release.id },
         }),
         7_630,
       );
@@ -385,19 +427,45 @@ async function main() {
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
     }) as typeof fetch;
-    await check("successful same SHA force retry is idempotent", async () => {
-      const first = await syncMfRentDatasets({ force: true, fetcher });
-      assert.equal(first.newImports, 1);
-      assert.ok(first.idempotentSkips >= 1);
-      const second = await syncMfRentDatasets({ force: true, fetcher });
-      assert.equal(second.newImports, 0);
-      assert.ok(second.idempotentSkips >= 2);
+    await check("concurrent sync counts SHA collision as idempotent success", async () => {
+      const syncAt = new Date(Date.now() + 500);
+      const results = await Promise.all([
+        syncMfRentDatasets({ force: true, fetcher, now: syncAt }),
+        syncMfRentDatasets({ force: true, fetcher, now: syncAt }),
+      ]);
+      assert.equal(results.reduce((sum, result) => sum + result.newImports, 0), 1);
+      assert.equal(
+        results.reduce((sum, result) => sum + result.idempotentSkips, 0),
+        3,
+      );
+      assert.ok(results.every((result) => result.status === "ok"));
+      assert.ok(results.every((result) => !/Neúspěšná/.test(result.summary)));
       assert.equal(
         await prisma.mfRentDatasetRelease.count({
           where: { sourceSha256: workbookSha },
         }),
         1,
       );
+      const imported = await prisma.mfRentDatasetRelease.findUniqueOrThrow({
+        where: { sourceSha256: workbookSha },
+      });
+      assert.equal(
+        await prisma.mfRentTerritorySnapshot.count({
+          where: { releaseId: imported.id },
+        }),
+        7_630,
+      );
+      const settings = await prisma.appSetting.findUniqueOrThrow({
+        where: { id: "global" },
+      });
+      assert.equal(settings.mfRentLastSuccessAt?.getTime(), syncAt.getTime());
+      assert.doesNotMatch(settings.mfRentLastSummary || "", /Neúspěšná/);
+    });
+    await check("successful same SHA force retry remains idempotent", async () => {
+      const retry = await syncMfRentDatasets({ force: true, fetcher });
+      assert.equal(retry.newImports, 0);
+      assert.equal(retry.idempotentSkips, 2);
+      assert.equal(retry.status, "ok");
     });
     await check("failed force sync updates check only and sanitizes summary", async () => {
       const before = await prisma.appSetting.findUniqueOrThrow({

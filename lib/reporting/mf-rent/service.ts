@@ -56,42 +56,71 @@ export async function importParsedMfRentRelease({
   parsed: ParsedMfRentWorkbook;
   importedById?: string;
 }) {
-  return prisma.$transaction(
-    async (tx) => {
-      const created = await tx.mfRentDatasetRelease.create({
-        data: {
-          sourceUrl: release.url,
-          sourceSha256,
-          sourceFileName: release.fileName,
-          publishedOn: release.publishedOn,
-          marketYear: release.marketYear,
-          marketQuarter: release.marketQuarter,
-          parserVersion: MF_RENT_PARSER_VERSION,
-          schemaFingerprint: parsed.schemaFingerprint,
-          importedById,
-        },
-      });
-      for (
-        let i = 0;
-        i < parsed.territories.length;
-        i += MF_RENT_IMPORT_BATCH_SIZE
-      )
-        await tx.mfRentTerritorySnapshot.createMany({
-          data: parsed.territories
-            .slice(i, i + MF_RENT_IMPORT_BATCH_SIZE)
-            .map((territory) => ({
-              ...territory,
-              releaseId: created.id,
-              data: territory.data as Prisma.InputJsonValue,
-            })),
+  try {
+    const created = await prisma.$transaction(
+      async (tx) => {
+        const releaseRow = await tx.mfRentDatasetRelease.create({
+          data: {
+            sourceUrl: release.url,
+            sourceSha256,
+            sourceFileName: release.fileName,
+            publishedOn: release.publishedOn,
+            marketYear: release.marketYear,
+            marketQuarter: release.marketQuarter,
+            parserVersion: MF_RENT_PARSER_VERSION,
+            schemaFingerprint: parsed.schemaFingerprint,
+            importedById,
+          },
         });
-      return created;
-    },
-    {
-      maxWait: MF_RENT_IMPORT_TRANSACTION_MAX_WAIT_MS,
-      timeout: MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS,
-    },
-  );
+        for (
+          let i = 0;
+          i < parsed.territories.length;
+          i += MF_RENT_IMPORT_BATCH_SIZE
+        )
+          await tx.mfRentTerritorySnapshot.createMany({
+            data: parsed.territories
+              .slice(i, i + MF_RENT_IMPORT_BATCH_SIZE)
+              .map((territory) => ({
+                ...territory,
+                releaseId: releaseRow.id,
+                data: territory.data as Prisma.InputJsonValue,
+              })),
+          });
+        return releaseRow;
+      },
+      {
+        maxWait: MF_RENT_IMPORT_TRANSACTION_MAX_WAIT_MS,
+        timeout: MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS,
+      },
+    );
+    return { status: "imported" as const, release: created };
+  } catch (error) {
+    if (!isMfRentReleaseSourceShaCollision(error)) throw error;
+
+    // This query deliberately runs after $transaction rejected and rolled back.
+    const existing = await prisma.mfRentDatasetRelease.findUnique({
+      where: { sourceSha256 },
+    });
+    if (!existing) throw error;
+    return { status: "already_imported" as const, release: existing };
+  }
+}
+
+export function isMfRentReleaseSourceShaCollision(
+  error: unknown,
+): error is Prisma.PrismaClientKnownRequestError {
+  if (
+    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+    error.code !== "P2002"
+  )
+    return false;
+  const modelName = error.meta?.modelName;
+  if (modelName !== undefined && modelName !== "MfRentDatasetRelease")
+    return false;
+  const target = error.meta?.target;
+  return Array.isArray(target)
+    ? target.length === 1 && target[0] === "sourceSha256"
+    : target === "sourceSha256";
 }
 export async function syncMfRentDatasets(
   options: {
@@ -153,14 +182,17 @@ export async function syncMfRentDatasets(
         continue;
       }
       const parsed = await parseMfRentWorkbook(bytes);
-      await importParsedMfRentRelease({
+      const result = await importParsedMfRentRelease({
         release,
         sourceSha256,
         parsed,
         importedById: options.importedById,
       });
-      newImports++;
-      territoryCounts.push(parsed.territories.length);
+      if (result.status === "already_imported") idempotentSkips++;
+      else {
+        newImports++;
+        territoryCounts.push(parsed.territories.length);
+      }
     }
     const latest = await prisma.mfRentDatasetRelease.findFirst({
       orderBy: [
