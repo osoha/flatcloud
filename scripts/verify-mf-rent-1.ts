@@ -548,12 +548,15 @@ async function main() {
     for (const vk of ["vk1", "vk2", "vk3", "vk4"])
       assert.match(service, new RegExp(vk));
   });
-  await check("no weighting or inference", () => {
+  await check("no category inference from unit label or area", () => {
     assert.doesNotMatch(
       service + location,
-      /weight|disposition|unit label|areaM2/i,
+      /unit label|areaM2/i,
     );
-    assert.doesNotMatch(schema, /disposition/);
+    assert.match(schema, /disposition\s+UnitDisposition\?/);
+    const liveBenchmark = read("lib/reporting/mf-rent/live-benchmark.ts");
+    assert.match(liveBenchmark, /dispositionToMfRentCategory/);
+    assert.doesNotMatch(liveBenchmark, /unitLabel\s*[).?]*\s*(?:includes|match)|areaM2\s*[).?]*\s*(?:includes|match)/);
   });
   await check("no contractual mutation", () =>
     assert.doesNotMatch(
