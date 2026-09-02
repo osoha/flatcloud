@@ -19,8 +19,6 @@ export async function POST(request: Request) {
     const inboundMailMailbox = text(form, "inboundMailMailbox") || "INBOX";
     const inboundMailSecure = form.get("inboundMailSecure") === "on";
     const inboundMailEnabled = form.get("inboundMailEnabled") === "on";
-    const inboundMailResolvedRetentionDays = Math.min(3650, Math.max(1, intValue(form, "inboundMailResolvedRetentionDays", 30)));
-    const inboundMailUnresolvedRetentionDays = Math.min(3650, Math.max(1, intValue(form, "inboundMailUnresolvedRetentionDays", 90)));
     if (inboundMailEnabled && (!inboundMailHost || !inboundMailUser)) throw new Error("Pro aktivní sběrný e-mail vyplňte IMAP server a uživatele.");
     if (inboundMailEnabled && !password && !current?.inboundMailPasswordEncrypted) throw new Error("Pro první aktivaci sběrného e-mailu vyplňte IMAP heslo.");
 
@@ -33,8 +31,6 @@ export async function POST(request: Request) {
     ));
     const data = {
       inboundMailEnabled,
-      inboundMailResolvedRetentionDays,
-      inboundMailUnresolvedRetentionDays,
       inboundMailHost,
       inboundMailPort,
       inboundMailSecure,
@@ -44,7 +40,7 @@ export async function POST(request: Request) {
       ...(mailboxChanged ? { inboundMailLastUid: 0, inboundMailUidValidity: null, inboundMailLastSummary: "Konfigurace schránky byla změněna; UID checkpoint byl resetován." } : {}),
     };
     await prisma.appSetting.upsert({ where: { id: "global" }, update: data, create: { id: "global", ...data } });
-    await audit(user.id, "INBOUND_MAIL_SETTINGS_UPDATED", "AppSetting", "global", { enabled: inboundMailEnabled, host: inboundMailHost, port: inboundMailPort, mailbox: inboundMailMailbox, secure: inboundMailSecure, passwordChanged: Boolean(password), uidReset: mailboxChanged, resolvedRetentionDays: inboundMailResolvedRetentionDays, unresolvedRetentionDays: inboundMailUnresolvedRetentionDays });
+    await audit(user.id, "INBOUND_MAIL_SETTINGS_UPDATED", "AppSetting", "global", { enabled: inboundMailEnabled, host: inboundMailHost, port: inboundMailPort, mailbox: inboundMailMailbox, secure: inboundMailSecure, passwordChanged: Boolean(password), uidReset: mailboxChanged });
     return goWithMessage(request, "/nastaveni", "ok", mailboxChanged ? "Nastavení sběrného e-mailu bylo uloženo a UID checkpoint resetován." : "Nastavení sběrného e-mailu bylo uloženo.");
   } catch (error) {
     return goWithMessage(request, "/nastaveni", "error", error instanceof Error ? error.message : "Nastavení sběrného e-mailu se nepodařilo uložit.");

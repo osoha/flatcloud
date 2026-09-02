@@ -523,9 +523,11 @@ model AppSetting {
   inboundMailUidValidity             String?
   inboundMailLastCheckedAt           DateTime?
   inboundMailLastSummary             String?
-  inboundMailResolvedRetentionDays   Int       @default(30)
-  inboundMailUnresolvedRetentionDays Int       @default(90)
+  inboundMailResolvedRetentionDays   Int       @default(100)
+  inboundMailUnresolvedRetentionDays Int       @default(100)
   inboundMailLastCleanupAt           DateTime?
+  inboundMailLastCleanupSuccessAt    DateTime?
+  inboundMailLastCleanupPurged       Int       @default(0)
   inboundMailLastCleanupSummary      String?
   mfRentLastCheckedAt                DateTime?
   mfRentLastSuccessAt                DateTime?
@@ -993,6 +995,7 @@ model InboxPayment {
   constantSymbol        String?
   message               String?
   rawExcerpt            String?
+  rawPurgedAt           DateTime?
   status                InboxPaymentStatus @default(RECEIVED)
   parseNote             String?
   propertyId            String?
@@ -1004,6 +1007,7 @@ model InboxPayment {
   updatedAt             DateTime           @updatedAt
 
   @@index([status, receivedAt])
+  @@index([receivedAt, rawPurgedAt])
   @@index([propertyId, status])
   @@index([imapUid])
 }

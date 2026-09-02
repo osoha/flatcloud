@@ -194,7 +194,7 @@ async function main() {
   await check("Prisma schema is unchanged for RD4A", () =>
     assert.equal(
       hash("prisma/schema.prisma"),
-      "e29e7bf91bca4d880f4462f97d717528efdf4aed48e1dc59b1a3bf37a42bbc5b",
+      "90f9dc173a71cfff484969e56572dff95ae94f2c85478d109babe1cecb8bc9eb",
     ),
   );
   await check("RD4A adds no migration", () =>

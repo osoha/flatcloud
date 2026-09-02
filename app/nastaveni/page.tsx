@@ -6,6 +6,7 @@ import { appSettings } from "@/lib/settings";
 import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { prisma } from "@/lib/db";
+import { BANK_EMAIL_RAW_RETENTION_DAYS, bankEmailRawRetentionCutoff } from "@/lib/inbound-bank/retention";
 
 export const dynamic = "force-dynamic";
 const variables = "{{property}}, {{unit}}, {{tenant}}, {{period}}, {{dueDate}}, {{oldestDueDate}}, {{amount}}, {{outstanding}}, {{iban}}, {{variableSymbol}}, {{owner}}";
@@ -13,7 +14,7 @@ const variables = "{{property}}, {{unit}}, {{tenant}}, {{period}}, {{dueDate}}, 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   const user = await requireUser();
   if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
-  const [settings, query, latestMf] = await Promise.all([appSettings(), searchParams, prisma.mfRentDatasetRelease.findFirst({include:{_count:{select:{territories:true}}},orderBy:[{marketYear:"desc"},{marketQuarter:"desc"},{publishedOn:"desc"},{importedAt:"desc"}]})]);
+  const [settings, query, latestMf, eligibleRawNotifications] = await Promise.all([appSettings(), searchParams, prisma.mfRentDatasetRelease.findFirst({include:{_count:{select:{territories:true}}},orderBy:[{marketYear:"desc"},{marketQuarter:"desc"},{publishedOn:"desc"},{importedAt:"desc"}]}), prisma.inboxPayment.count({where:{receivedAt:{lte:bankEmailRawRetentionCutoff()},OR:[{rawExcerpt:{not:null}},{rawPurgedAt:null}]}})]);
   const mailboxReady = Boolean(settings.inboundMailEnabled && settings.inboundMailHost && settings.inboundMailUser && settings.inboundMailPasswordEncrypted);
   const driveConfigured=process.env.FILE_STORAGE_DRIVER==="gdrive"&&Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID&&process.env.GOOGLE_DRIVE_CLIENT_SECRET&&process.env.GOOGLE_DRIVE_REFRESH_TOKEN&&process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID&&process.env.GOOGLE_DRIVE_PROPERTIES_FOLDER_ID&&process.env.GOOGLE_DRIVE_REPORTS_FOLDER_ID&&process.env.GOOGLE_DRIVE_TEMPLATES_FOLDER_ID&&process.env.GOOGLE_DRIVE_ARCHIVE_FOLDER_ID);
   const driveLink=(id:string|undefined)=>id?`https://drive.google.com/drive/folders/${encodeURIComponent(id)}`:"#";
@@ -37,16 +38,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <label className="field"><span>Heslo</span><input type="password" name="inboundMailPassword" autoComplete="new-password" placeholder={settings.inboundMailPasswordEncrypted?"Nastaveno – vyplňte jen při změně":""}/></label>
           <label className="field"><span>Složka</span><input name="inboundMailMailbox" defaultValue={settings.inboundMailMailbox||"INBOX"}/></label>
           <label className="checkbox-field"><input type="checkbox" name="inboundMailSecure" defaultChecked={settings.inboundMailSecure}/><span>TLS / SSL (doporučeno, obvykle port 993)</span></label>
-          <label className="field"><span>Retence zpracovaných / ignorovaných e-mailů (dny)</span><input type="number" name="inboundMailResolvedRetentionDays" min={1} max={3650} defaultValue={settings.inboundMailResolvedRetentionDays}/></label>
-          <label className="field"><span>Retence čekajících / chybných e-mailů (dny)</span><input type="number" name="inboundMailUnresolvedRetentionDays" min={1} max={3650} defaultValue={settings.inboundMailUnresolvedRetentionDays}/></label>
         </div>
         <div className="form-actions"><button className="primary" type="submit">Uložit sběrný e-mail</button></div>
       </form>
 
       <div className="card col-4 settings-status-card">
         <div className="card-head"><div><h2>Stav příjmu plateb</h2><p className="muted-copy">Poslední známý stav centrální schránky.</p></div><ShieldCheck size={20}/></div>
-        <div className="summary-list"><div><span>Poslední kontrola</span><strong>{settings.inboundMailLastCheckedAt?.toLocaleString("cs-CZ")||"Zatím neběhla"}</strong></div><div><span>Poslední UID</span><strong>{settings.inboundMailLastUid||0}</strong></div><div><span>Poslední cleanup</span><strong>{settings.inboundMailLastCleanupAt?.toLocaleString("cs-CZ")||"Zatím neběhl"}</strong></div><div><span>Výsledek cleanupu</span><strong>{settings.inboundMailLastCleanupSummary||"—"}</strong></div><div><span>Výsledek</span><strong>{settings.inboundMailLastSummary||"—"}</strong></div></div>
-        <div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/inbound-mail/test" method="post"><button className="primary full-button" type="submit"><ShieldCheck size={14}/> Otestovat IMAP připojení</button></form><form action="/api/settings/inbound-mail/run" method="post"><button className="secondary full-button" type="submit"><RefreshCw size={14}/> Zkontrolovat schránku nyní</button></form><Link className="secondary full-button" href="/platby/nesparovane">Otevřít nespárované platby</Link></div>
+        <div className="summary-list"><div><span>Poslední kontrola</span><strong>{settings.inboundMailLastCheckedAt?.toLocaleString("cs-CZ")||"Zatím neběhla"}</strong></div><div><span>Poslední UID</span><strong>{settings.inboundMailLastUid||0}</strong></div><div><span>Uchování bankovních notifikací</span><strong>{BANK_EMAIL_RAW_RETENTION_DAYS} dní</strong></div><div><span>Poslední čištění</span><strong>{settings.inboundMailLastCleanupAt?.toLocaleString("cs-CZ")||"Zatím neběhlo"}</strong></div><div><span>Poslední úspěch</span><strong>{settings.inboundMailLastCleanupSuccessAt?.toLocaleString("cs-CZ")||"—"}</strong></div><div><span>Odstraněno raw zpráv</span><strong>{settings.inboundMailLastCleanupPurged}</strong></div><div><span>Raw zprávy nyní k odstranění</span><strong>{eligibleRawNotifications}</strong></div><div><span>Výsledek cleanupu</span><strong>{settings.inboundMailLastCleanupSummary||"—"}</strong></div><div><span>Výsledek</span><strong>{settings.inboundMailLastSummary||"—"}</strong></div></div>
+        <div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/inbound-mail/test" method="post"><button className="primary full-button" type="submit"><ShieldCheck size={14}/> Otestovat IMAP připojení</button></form><form action="/api/settings/inbound-mail/run" method="post"><button className="secondary full-button" type="submit"><RefreshCw size={14}/> Zkontrolovat schránku nyní</button></form><form action="/api/settings/inbound-mail/cleanup" method="post"><button className="secondary full-button" type="submit">Spustit čištění bankovních notifikací</button></form><Link className="secondary full-button" href="/platby/nesparovane">Otevřít nespárované platby</Link></div>
       </div>
     </div>
 
