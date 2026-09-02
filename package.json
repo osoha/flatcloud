@@ -14,6 +14,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "verify:v23-a": "node --import tsx scripts/verify-v23-a.ts",
+    "verify:v23-b": "node --import tsx scripts/verify-v23-b.ts",
     "verify:v20": "tsx scripts/verify-v20.ts",
     "verify:v21": "tsx scripts/verify-v21.ts",
     "scheduler:cron": "tsx scripts/scheduler-cron.ts",
