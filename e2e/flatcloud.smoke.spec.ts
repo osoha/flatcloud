@@ -110,13 +110,11 @@ test("hlavička nemovitosti drží strukturu na desktopu i mobilu", async ({ pag
   };
 
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.reload();
   await expect(header).toBeVisible();
   await expect(header.getByText(/ID nemovitosti: P\d{4}/)).toBeVisible();
   await assertInsideWithoutOverlap();
 
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
   await expect(header).toBeVisible();
   await expect(header.getByRole("heading", { name: "Moskevská", exact: true })).toBeVisible();
   await assertInsideWithoutOverlap();
