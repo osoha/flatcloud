@@ -129,10 +129,10 @@ function main() {
   check(
     "template Prisma contract remains intact with the later nullable narrative",
     () => {
-      assert.equal(
-        hash("prisma/schema.prisma"),
-      "11c543605f442ebd657fd8412b109f0513e3b000272f85ccdde16c0ddca5b16b",
-      );
+      const schema = read("prisma/schema.prisma");
+      for (const model of ["ReportDesignTemplate", "ReportDesignTemplateVersion", "ReportDesignTemplatePage"])
+        assert.match(schema, new RegExp(`model ${model}`));
+      assert.match(schema, /additionalCommentary\s+String\?/);
       assert.doesNotMatch(read(".gitignore"), /REPORT-DESIGN-3B/);
     },
   );

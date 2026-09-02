@@ -8,6 +8,8 @@ import { calculatePropertySnapshot } from "./snapshot-calculator";
 import { overdueDebtCentsAsOf, paidCentsAsOf } from "./finance";
 import { rentRollAmountsAt } from "./rent-roll";
 import { leaseForLiveFinancialReporting, resolveActiveFinancialBoundary } from "../lease-financial-boundary";
+import { resolveLiveMfRentBenchmarks } from "./mf-rent/service";
+import { calculateLiveMfRentBenchmark } from "./mf-rent/live-benchmark";
 
 type User = { id: string; role: string; allProperties?: boolean };
 const known = (value: number | null) => value ?? 0;
@@ -27,12 +29,33 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
     prisma.property.findMany({ where: reportingPropertyAccessWhere(scope), select: { id: true, name: true, address: true, city: true, active: true }, orderBy: { name: "asc" } }),
     prisma.unit.findMany({ where: reportingUnitAccessWhere(scope), include: { property: { select: { id: true, name: true } }, operationalStatusEvents: { orderBy: [{ effectiveAt: "asc" }, { createdAt: "asc" }] }, leases: { include: { tenant: true, paymentItems: true, charges: { include: { items: true, allocations: { include: { transaction: true } }, securityDepositOffsets: true, creditApplications: true } }, securityDepositTerms: true, securityDepositMovements: true } } }, orderBy: [{ property: { name: "asc" } }, { label: "asc" }] }),
   ]);
+  const q = businessQuarter(asOf);
+  const mfSource = await resolveLiveMfRentBenchmarks({
+    propertyIds: properties.map((property) => property.id),
+    targetYear: q.year,
+    targetQuarter: q.quarter,
+    cutoff: asOf,
+  });
   const boundaryIssues = units.flatMap((unit) => unit.leases.filter((lease) => resolveActiveFinancialBoundary(lease, asOf).corrected).map((lease) => ({ code: "ACTIVE_LEASE_FUTURE_FINANCIAL_TRACKING" as const, severity: "WARNING" as const, message: "Active lease financial tracking starts after the live reporting month.", propertyId: unit.propertyId, unitId: unit.id, leaseId: lease.id })));
   const reportingUnits = units.map((unit) => ({ ...unit, leases: unit.leases.map((lease) => leaseForLiveFinancialReporting(lease, asOf)) }));
   const propertyRows = properties.map((property) => { const propertyUnits = reportingUnits.filter((unit) => unit.propertyId === property.id); const snapshot = calculatePropertySnapshot({ propertyId: property.id, asOf, units: propertyUnits }); return { property, ...snapshot.data, quality: snapshot.quality.issues }; });
   const allLeases = reportingUnits.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unit })));
-  const q = businessQuarter(asOf), quarterStart = quarterStartKey(q.year, q.quarter), asOfKey = businessDateKey(asOf), yearStart = `${q.year}-01-01`;
-  const tenancyRows = allLeases.filter((lease) => leaseStatusAt(lease, asOf) === "ACTIVE").map((lease) => { const rent = rentRollAmountsAt(lease, asOf); const deposit = securityDepositSnapshot(lease, asOf); const debt = lease.charges.reduce((sum, charge) => sum + overdueDebtCentsAsOf(charge, asOf), 0); return { leaseId: lease.id, tenantId: lease.tenantId, tenantName: lease.tenant.name, propertyId: lease.unit.propertyId, propertyName: lease.unit.property.name, unitId: lease.unitId, unitLabel: lease.unit.label, areaM2: lease.unit.areaM2, startDate: lease.startDate, endDate: effectiveLeaseEnd(lease), netRentCents: rent.rent.amountCents, servicesCents: rent.services.amountCents, rentPerM2Cents: lease.unit.areaM2 && lease.unit.areaM2 > 0 ? Math.round(rent.rent.amountCents / lease.unit.areaM2) : null, agreedDepositCents: deposit.agreedAmountCents, heldDepositCents: deposit.heldPrincipalCents, debtCents: debt }; });
+  const quarterStart = quarterStartKey(q.year, q.quarter), asOfKey = businessDateKey(asOf), yearStart = `${q.year}-01-01`;
+  const tenancyRows = allLeases.filter((lease) => leaseStatusAt(lease, asOf) === "ACTIVE").map((lease) => { const rent = rentRollAmountsAt(lease, asOf); const deposit = securityDepositSnapshot(lease, asOf); const debt = lease.charges.reduce((sum, charge) => sum + overdueDebtCentsAsOf(charge, asOf), 0); return { leaseId: lease.id, tenantId: lease.tenantId, tenantName: lease.tenant.name, propertyId: lease.unit.propertyId, propertyName: lease.unit.property.name, unitId: lease.unitId, unitLabel: lease.unit.label, unitType: lease.unit.type, disposition: lease.unit.disposition, areaM2: lease.unit.areaM2, startDate: lease.startDate, endDate: effectiveLeaseEnd(lease), netRentCents: rent.rent.amountCents, servicesCents: rent.services.amountCents, rentPerM2Cents: lease.unit.areaM2 && lease.unit.areaM2 > 0 ? Math.round(rent.rent.amountCents / lease.unit.areaM2) : null, agreedDepositCents: deposit.agreedAmountCents, heldDepositCents: deposit.heldPrincipalCents, debtCents: debt }; });
+  const mfBenchmark = calculateLiveMfRentBenchmark(
+    tenancyRows.map((row) => ({
+      leaseId: row.leaseId,
+      propertyId: row.propertyId,
+      propertyName: row.propertyName,
+      unitId: row.unitId,
+      unitLabel: row.unitLabel,
+      unitType: row.unitType,
+      disposition: row.disposition,
+      areaM2: row.areaM2,
+      actualRentPerM2Cents: row.rentPerM2Cents,
+    })),
+    mfSource.properties,
+  );
   const depositRows = allLeases.map((lease) => ({ lease, status: leaseStatusAt(lease, asOf), deposit: securityDepositSnapshot(lease, asOf) })).filter((row) => row.status === "ACTIVE" || row.deposit.status === "TO_SETTLE").map(({lease,status,deposit}) => ({ leaseId: lease.id, tenantName: lease.tenant.name, propertyName: lease.unit.property.name, unitLabel: lease.unit.label, leaseStatus: status, agreedCents: status === "ACTIVE" ? deposit.agreedAmountCents : 0, heldCents: deposit.heldPrincipalCents, missingCents: status === "ACTIVE" ? deposit.missingDepositCents : 0, depositStatus: deposit.status, amountToReturnCents: deposit.amountToReturnCents }));
   const contractRows = allLeases.map((lease) => { const status = leaseStatusAt(lease, asOf), end = effectiveLeaseEnd(lease), rent = rentRollAmountsAt(lease, asOf); const endKey = end ? businessDateKey(end) : null; return { leaseId: lease.id, propertyName: lease.unit.property.name, propertyId: lease.unit.propertyId, unitLabel: lease.unit.label, unitId: lease.unitId, tenantName: lease.tenant.name, contractNumber: lease.contractNumber, startDate: lease.startDate, effectiveEnd: end, status, rentCents: "financiallyTracked" in rent && !rent.financiallyTracked ? lease.rentCents : rent.rent.amountCents, depositCents: securityDepositSnapshot(lease, asOf).heldPrincipalCents, expiring90Days: status === "ACTIVE" && Boolean(endKey && endKey > asOfKey && endKey <= new Date(new Date(`${asOfKey}T12:00Z`).getTime() + 90 * 86_400_000).toISOString().slice(0,10)), endedYtd: status === "ENDED" && !lease.cancelledAt && Boolean(endKey && endKey >= yearStart && endKey <= asOfKey) }; });
   const periods = recentPeriods(asOf), trend = periods.map((period) => { const charges = allLeases.flatMap((lease) => lease.charges).filter((charge) => charge.active && charge.period === period); return { label: period, expected: charges.reduce((sum, charge) => sum + charge.amountCents, 0), paid: charges.reduce((sum, charge) => sum + paidCentsAsOf(charge, asOf), 0) }; });
@@ -40,6 +63,6 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
   const validAreaTenancies = tenancyRows.filter((row) => row.areaM2 && row.areaM2 > 0), totalArea = validAreaTenancies.reduce((sum,row)=>sum+(row.areaM2||0),0);
   const qualityIssues = [...boundaryIssues, ...propertyRows.flatMap((row) => row.quality)],newLeasesYtd=countNewLeasesYtd(allLeases,asOf);
   const qualityEntities = { properties: Object.fromEntries(properties.map((property) => [property.id, property.name])), units: Object.fromEntries(units.map((unit) => [unit.id, unit.label])), leases: Object.fromEntries(allLeases.map((lease) => [lease.id, lease.contractNumber || lease.tenant.name])) };
-  return { asOfDate: asOfKey, scope, availableProperties, properties, memberships, unitMemberships, aggregate: { ...aggregate, occupancyBps: aggregate.rentable ? Math.round(aggregate.occupied * 10000 / aggregate.rentable) : null, collectionRateBps: aggregate.quarterExpectedCents ? Math.round(aggregate.quarterPaidCents * 10000 / aggregate.quarterExpectedCents) : null, weightedRentPerM2Cents: totalArea ? Math.round(validAreaTenancies.reduce((sum,row)=>sum+row.netRentCents,0)/totalArea) : null, averageActiveDays: tenancyRows.length ? Math.round(tenancyRows.reduce((sum,row)=>sum+Math.max(0,(new Date(`${asOfKey}T12:00Z`).getTime()-row.startDate.getTime())/86_400_000),0)/tenancyRows.length) : null, newLeasesYtd }, propertyRows, tenancyRows, depositRows, contractRows, trend, quality: qualityIssues, qualityEntities, quarterStart };
+  return { asOfDate: asOfKey, scope, availableProperties, properties, memberships, unitMemberships, aggregate: { ...aggregate, occupancyBps: aggregate.rentable ? Math.round(aggregate.occupied * 10000 / aggregate.rentable) : null, collectionRateBps: aggregate.quarterExpectedCents ? Math.round(aggregate.quarterPaidCents * 10000 / aggregate.quarterExpectedCents) : null, weightedRentPerM2Cents: totalArea ? Math.round(validAreaTenancies.reduce((sum,row)=>sum+row.netRentCents,0)/totalArea) : null, averageActiveDays: tenancyRows.length ? Math.round(tenancyRows.reduce((sum,row)=>sum+Math.max(0,(new Date(`${asOfKey}T12:00Z`).getTime()-row.startDate.getTime())/86_400_000),0)/tenancyRows.length) : null, newLeasesYtd }, propertyRows, tenancyRows, depositRows, contractRows, trend, quality: qualityIssues, qualityEntities, quarterStart, mfBenchmark: { ...mfBenchmark, release: mfSource.release } };
 }
 export function countNewLeasesYtd(leases:Array<{startDate:Date;cancelledAt?:Date|null}>,asOf:Date){const asOfKey=businessDateKey(asOf),yearStart=`${asOfKey.slice(0,4)}-01-01`;return leases.filter(lease=>{const start=businessDateKey(lease.startDate);return start>=yearStart&&start<=asOfKey&&!(lease.cancelledAt&&lease.cancelledAt.getTime()<lease.startDate.getTime())}).length}

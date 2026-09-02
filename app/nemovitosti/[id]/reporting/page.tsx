@@ -108,6 +108,14 @@ export default async function PropertyReportingPage({
                 <strong>{mf.mapping.territoryCode}</strong>
               </div>
               <div>
+                <span>Zdroj přiřazení</span>
+                <strong>
+                  {mf.locationSource === "PROPERTY_CADASTRAL_DATA"
+                    ? "Údaje nemovitosti"
+                    : "Ruční korekce"}
+                </strong>
+              </div>
+              <div>
                 <span>Datové období MF</span>
                 <strong>
                   {mf.release
@@ -150,7 +158,15 @@ export default async function PropertyReportingPage({
             </div>
           )}
           {canWrite && (
-            <>
+            <details className="create-panel" open={!mf.mapping || Boolean(query.mfSearch)}>
+              <summary>Ruční korekce přiřazení MF</summary>
+              {mf.cadastralArea && !mf.mapping && (
+                <p className="muted-copy">
+                  Katastrální území „{mf.cadastralArea}“ z údajů nemovitosti
+                  nebylo možné jednoznačně spojit s aktuálními daty MF. Vyberte
+                  ruční korekci níže.
+                </p>
+              )}
               <form method="get" className="compact-form">
                 <label className="field">
                   <span>Hledat území, obec nebo kód</span>
@@ -181,7 +197,7 @@ export default async function PropertyReportingPage({
                   </button>
                 </form>
               ))}
-            </>
+            </details>
           )}
         </div>
         <div className="card">
