@@ -69,6 +69,7 @@ jobs:
       - run: npm run verify:v22-c-payments1
       - run: npm run verify:v22-c-payments2a
       - run: npm run verify:v22-c-inactive-property-notifications
+      - run: npm run verify:lease-reactivate-1
       - run: npm run verify:report-design-1
       - run: npm run verify:report-design-2
       - run: npm run verify:report-design-2-1

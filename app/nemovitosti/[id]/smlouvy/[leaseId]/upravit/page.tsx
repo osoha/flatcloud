@@ -11,6 +11,8 @@ import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { leaseStatuses } from "@/lib/labels";
 import { date } from "@/lib/format";
+import { hasPropertyPermission } from "@/lib/management";
+import { PropertyPermission } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,7 @@ export default async function EditLease({ params, searchParams }: { params: Prom
   const ownerAccountsByUnit = Object.fromEntries(property.units.map((unit) => { const account = unit.ownerships[0]?.ownerBankAccount; return [unit.id, account ? { id: account.id, label: ownerBankAccountLabel(account) } : null]; }));
   const tenantAccountsByTenant = Object.fromEntries(tenants.map((tenant) => [tenant.id, tenant.payerAccounts]));
   const lifecycleStatus = leaseStatusAt(lease);
+  const canReactivate = await hasPropertyPermission(user, id, PropertyPermission.ADMIN);
 
   return <Shell user={user} taskPropertyId={id} taskLeaseId={lease.id}><FormPage title={`Upravit smlouvu: ${lease.unit.label}`} description={lease.tenant.name} backHref={`/nemovitosti/${id}/jednotky/${lease.unitId}`}>
     <Flash ok={query.ok} error={query.error}/>
@@ -55,6 +58,13 @@ export default async function EditLease({ params, searchParams }: { params: Prom
         {lease.terminationReason && <div><span>Důvod ukončení</span><strong>{lease.terminationReason}</strong></div>}
         {lease.cancelledAt && <div><span>Budoucí smlouva zrušena</span><strong>{date(lease.cancelledAt)}</strong></div>}
         {lease.cancellationReason && <div><span>Důvod zrušení</span><strong>{lease.cancellationReason}</strong></div>}
+        {lease.cancelledAt && canReactivate && <div className="field field-full">
+          <form className="compact-form" action={`/api/properties/${id}/leases/${lease.id}/reactivate`} method="post">
+            <div><h3>Administrativní oprava</h3><p className="muted-copy">Tato smlouva byla zrušena před začátkem. Pokud bylo zrušení provedeno omylem nebo jde o opravu historických dat, může administrátor zrušení odstranit. Nejprve zkontrolujte správnost začátku a konce smlouvy.</p></div>
+            <label className="field field-full"><span>Důvod obnovení *</span><textarea name="restoreReason" placeholder="Oprava historického testovacího záznamu" required/></label>
+            <button className="secondary" type="submit">Obnovit zrušenou smlouvu</button>
+          </form>
+        </div>}
       </div> : <form className="compact-form" action={`/api/properties/${id}/leases/${lease.id}/terminate`} method="post">
         {lifecycleStatus === "ACTIVE" && <Field label="Skutečné datum ukončení" name="terminatedOn" type="date" defaultValue={dateInput(new Date())} required/>}
         <Textarea label={lifecycleStatus === "FUTURE" ? "Důvod zrušení budoucí smlouvy" : "Důvod ukončení"} name="reason"/>
