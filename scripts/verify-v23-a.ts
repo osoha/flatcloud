@@ -6,6 +6,7 @@ const packageJson = JSON.parse(read("package.json")) as { scripts?: Record<strin
 const workflow = read(".github/workflows/ci.yml");
 const config = read("playwright.config.ts");
 const smoke = read("e2e/flatcloud.smoke.spec.ts");
+const loginPage = read("app/login/page.tsx");
 const agentRules = read("AGENTS.md");
 const runbook = read("docs/autonomous-qa.md");
 
@@ -24,6 +25,7 @@ assert(config.includes('video: "retain-on-failure"'), "Chybí video při selhán
 assert(config.includes(".next/standalone/server.js"), "Playwright musí spouštět Next.js standalone server.");
 assert((smoke.match(/\btest\(/g) || []).length >= 8, "V23-A vyžaduje alespoň osm browser smoke scénářů.");
 assert(smoke.includes("pageerror") && smoke.includes('message.type() === "error"') && smoke.includes("response.status() >= 500"), "Smoke testy musí hlídat pageerror, console.error a HTTP 5xx.");
+assert(loginPage.includes('htmlFor="login-email"') && loginPage.includes('id="login-email"') && loginPage.includes('htmlFor="login-password"') && loginPage.includes('id="login-password"'), "Přihlašovací pole musí mít programově přístupné labely.");
 assert(/nikdy.*main/i.test(agentRules) && /výslovn/i.test(agentRules), "AGENTS.md musí vyžadovat výslovné schválení před main.");
 assert(/READY|BLOCKED/.test(runbook), "Runbook musí definovat výsledný stav READY/BLOCKED.");
 
