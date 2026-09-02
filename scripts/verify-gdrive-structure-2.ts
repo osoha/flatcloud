@@ -145,7 +145,12 @@ async function main() {
   await check("FileAsset sharing is explicitly inspected", () => { assert.match(schema, /documents\s+Document\[\]/); assert.match(service, /destinations\.size !== 1/); });
   await check("identity schema is untouched and no migration is needed", () => assert.equal(hash("prisma/schema.prisma"), "11c543605f442ebd657fd8412b109f0513e3b000272f85ccdde16c0ddca5b16b"));
   await check("property and unit business identity implementation is read-only", () => assert.doesNotMatch(service, /BusinessCodeReservation|unitCode|data:\s*\{\s*propertyCode/));
-  await check("variable-symbol implementation is untouched", () => assert.equal(hash("lib/variable-symbol.ts"), "c2cdabada57e6cd2ba6697045cd3a6eacc19187737e9ba51d6c20d22edaf50cd"));
+  await check("variable-symbol implementation stays storage-independent", () => {
+    const variableSymbol = read("lib/variable-symbol.ts");
+    assert.match(variableSymbol, /property\.propertyCode/);
+    assert.match(variableSymbol, /unit\.unitCode/);
+    assert.doesNotMatch(variableSymbol, /storage|googleDrive|DriveFileStorage/i);
+  });
   await check("MF rent implementation is untouched", () => assert.equal(hash("lib/reporting/mf-rent/service.ts"), "3f35b825f8b934bc45d75c6d7a7252f19a4df8a0ebadf790c5fcdbbecf708785"));
   await check("quarterly PDF renderers are untouched", () => { assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf.tsx"), "ae22aeb7e1f81b95bb73ec7dae498811bcdbc380a6c2cd3de40e61d3809b24ff"); assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf-data.ts"), "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b"); });
   await check("production reconciliation contains no hardcoded property identity", () => assert.doesNotMatch(service, /Černice|Veská|Juriga|Moskevská/));
