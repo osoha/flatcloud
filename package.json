@@ -66,7 +66,8 @@
     "verify:gdrive-structure-2": "tsx scripts/verify-gdrive-structure-2.ts",
     "verify:lease-reactivate-1": "tsx scripts/verify-lease-reactivate-1.ts",
     "verify:mail-retention-1": "tsx scripts/verify-mail-retention-1.ts",
-    "verify:identity-1": "tsx scripts/verify-identity-1.ts"
+    "verify:identity-1": "tsx scripts/verify-identity-1.ts",
+    "verify:vs-structure-1": "tsx scripts/verify-vs-structure-1.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

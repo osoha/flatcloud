@@ -1,46 +1,39 @@
 import type { Prisma } from "@prisma/client";
-import { readPropertyTechnicalData } from "./property-technical";
+import { isPropertyCode, isUnitCode } from "./business-identity";
 
-type PropertyForVs = { address: string; technicalData?: Prisma.JsonValue | null };
-type UnitForVs = { label: string; leases: { id?: string }[] };
+type PropertyForLeaseIdentity = { propertyCode: string };
+type UnitForLeaseIdentity = { unitCode: string; leases: { id?: string }[] };
 
-function digits(value: string | null | undefined) {
-  return (value || "").replace(/\D/g, "");
-}
-
-function buildingNumber(property: PropertyForVs) {
-  const technical = readPropertyTechnicalData(property.technicalData);
-  const technicalDigits = digits(technical.buildingNumber);
-  if (technicalDigits) return technicalDigits;
-  const slashNumber = property.address.match(/\b\d+\s*\/\s*\d+[a-zA-Z]?\b/)?.[0];
-  if (slashNumber) return digits(slashNumber);
-  return digits(property.address.match(/\b\d+[a-zA-Z]?\b/)?.[0]);
-}
-
-function unitNumber(label: string) {
-  const explicit = label.match(/(?:byt|bj|jednotka|č\.?)[^\d]{0,8}(\d+)/i)?.[1];
-  if (explicit) return explicit;
-  const matches = label.match(/\d+/g);
-  return matches?.at(-1) || "";
-}
+export type ProposedLeaseIdentity = {
+  sequence: number;
+  variableSymbol: string;
+  contractNumber: string;
+};
 
 export function validateVariableSymbol(value: string) {
   if (!/^\d{1,10}$/.test(value)) throw new Error("Variabilní symbol musí obsahovat 1 až 10 číslic.");
   return value;
 }
 
-export function proposedVariableSymbol(property: PropertyForVs, unit: UnitForVs, used: Set<string>) {
-  const building = buildingNumber(property);
-  const unitPartRaw = unitNumber(unit.label);
-  if (!building || !unitPartRaw) return null;
-  const unitPart = unitPartRaw.padStart(2, "0");
+export function proposedLeaseIdentity(property: PropertyForLeaseIdentity, unit: UnitForLeaseIdentity, used: Set<string>): ProposedLeaseIdentity | null {
+  if (!isPropertyCode(property.propertyCode) || !isUnitCode(unit.unitCode)) return null;
   let order = unit.leases.length + 1;
-  for (let attempts = 0; attempts < 99; attempts += 1, order += 1) {
-    const candidate = `${building}${unitPart}${String(order).padStart(2, "0")}`;
-    if (candidate.length > 10) return null;
-    if (!used.has(candidate)) return candidate;
+  for (; order <= 99; order += 1) {
+    const sequence = String(order).padStart(2, "0");
+    const variableSymbol = `${property.propertyCode}${unit.unitCode}${sequence}`;
+    if (!used.has(variableSymbol)) {
+      return {
+        sequence: order,
+        variableSymbol,
+        contractNumber: `NS-P${property.propertyCode}-U${unit.unitCode}-${sequence}`,
+      };
+    }
   }
   return null;
+}
+
+export function proposedVariableSymbol(property: PropertyForLeaseIdentity, unit: UnitForLeaseIdentity, used: Set<string>) {
+  return proposedLeaseIdentity(property, unit, used)?.variableSymbol ?? null;
 }
 export async function assertUniqueVariableSymbol(
   tx: Prisma.TransactionClient,

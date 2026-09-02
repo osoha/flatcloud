@@ -6,7 +6,7 @@ import { Shell } from "@/components/Shell";
 import { Field, Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
 import { LeaseCoreFields } from "@/components/LeaseCoreFields";
 import { dateInput, moneyInput } from "@/lib/forms";
-import { proposedVariableSymbol } from "@/lib/variable-symbol";
+import { proposedLeaseIdentity } from "@/lib/variable-symbol";
 import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { leaseStatuses } from "@/lib/labels";
@@ -28,7 +28,8 @@ export default async function EditLease({ params, searchParams }: { params: Prom
   ]);
   if (!property || !lease) notFound();
   const used = new Set(usedRows.map((row) => row.variableSymbol));
-  const proposals = Object.fromEntries(property.units.map((unit) => [unit.id, proposedVariableSymbol(property, unit, used)]));
+  const identities = Object.fromEntries(property.units.map((unit) => [unit.id, proposedLeaseIdentity(property, unit, used)]));
+  const proposals = Object.fromEntries(property.units.map((unit) => [unit.id, identities[unit.id]?.variableSymbol ?? null]));
   const ownerAccountsByUnit = Object.fromEntries(property.units.map((unit) => { const account = unit.ownerships[0]?.ownerBankAccount; return [unit.id, account ? { id: account.id, label: ownerBankAccountLabel(account) } : null]; }));
   const tenantAccountsByTenant = Object.fromEntries(tenants.map((tenant) => [tenant.id, tenant.payerAccounts]));
   const lifecycleStatus = leaseStatusAt(lease);

@@ -99,6 +99,36 @@ test("nájemník a jeho smlouva jsou dostupné z registrů", async ({ page }) =>
   assertNoBrowserFailures();
 });
 
+test("nová smlouva navrhne stabilní VS a stejné pořadí v čísle smlouvy", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  const propertyIdentity = await page.getByText(/ID nemovitosti: P\d{4}/).textContent();
+  const propertyCode = propertyIdentity?.match(/P(\d{4})/)?.[1];
+  expect(propertyCode).toBeTruthy();
+
+  await page.getByRole("link", { name: "Jednotky", exact: true }).click();
+  await page.getByRole("link", { name: /1\.01/ }).first().click();
+  const unitIdentity = await page.getByText(/ID jednotky: P\d{4}-U\d{3}/).textContent();
+  const unitCode = unitIdentity?.match(/-U(\d{3})/)?.[1];
+  expect(unitCode).toBeTruthy();
+
+  await page.getByRole("link", { name: "Nová smlouva", exact: true }).click();
+  const variableSymbolInput = page.getByLabel("Variabilní symbol *");
+  const contractNumberInput = page.getByLabel("Číslo smlouvy");
+  const variableSymbol = await variableSymbolInput.inputValue();
+  const contractNumber = await contractNumberInput.inputValue();
+  expect(variableSymbol).toMatch(new RegExp(`^${propertyCode}${unitCode}\\d{2}$`));
+  const sequence = variableSymbol.slice(-2);
+  expect(contractNumber).toBe(`NS-P${propertyCode}-U${unitCode}-${sequence}`);
+
+  await variableSymbolInput.fill("987654321");
+  await contractNumberInput.fill("VLASTNI-CISLO");
+  await expect(variableSymbolInput).toHaveValue("987654321");
+  await expect(contractNumberInput).toHaveValue("VLASTNI-CISLO");
+  assertNoBrowserFailures();
+});
+
 test("administrátor vytvoří úkol přes skutečný formulář", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   const taskTitle = "V23-A automatický smoke úkol";
