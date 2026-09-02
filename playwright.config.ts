@@ -36,6 +36,7 @@ export default defineConfig({
         timeout: 120_000,
         env: {
           DATABASE_URL: process.env.DATABASE_URL || "",
+          APP_URL: localBaseUrl,
           NEXT_TELEMETRY_DISABLED: "1",
           SESSION_SECRET:
             process.env.SESSION_SECRET ||

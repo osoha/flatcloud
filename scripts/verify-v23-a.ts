@@ -23,6 +23,7 @@ assert(config.includes('trace: "retain-on-failure"'), "Chybí trace při selhán
 assert(config.includes('screenshot: "only-on-failure"'), "Chybí screenshot při selhání.");
 assert(config.includes('video: "retain-on-failure"'), "Chybí video při selhání.");
 assert(config.includes(".next/standalone/server.js"), "Playwright musí spouštět Next.js standalone server.");
+assert(config.includes("APP_URL: localBaseUrl"), "E2E redirecty a session cookie musí používat stejný origin.");
 assert((smoke.match(/\btest\(/g) || []).length >= 8, "V23-A vyžaduje alespoň osm browser smoke scénářů.");
 assert(smoke.includes("pageerror") && smoke.includes('message.type() === "error"') && smoke.includes("response.status() >= 500"), "Smoke testy musí hlídat pageerror, console.error a HTTP 5xx.");
 assert(loginPage.includes('htmlFor="login-email"') && loginPage.includes('id="login-email"') && loginPage.includes('htmlFor="login-password"') && loginPage.includes('id="login-password"'), "Přihlašovací pole musí mít programově přístupné labely.");
