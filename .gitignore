@@ -6,3 +6,7 @@ node_modules/
 *.log
 .DS_Store
 flatcloud-render-*.zip
+playwright-report/
+test-results/
+blob-report/
+*.tsbuildinfo

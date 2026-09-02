@@ -9,6 +9,10 @@
     "db:migrate": "node scripts/migrate-deploy.mjs",
     "db:bootstrap": "tsx prisma/bootstrap.ts",
     "db:seed:demo": "tsx prisma/seed.ts",
+    "e2e:seed": "npm run db:bootstrap && npm run db:seed:demo",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "verify:v23-a": "node --import tsx scripts/verify-v23-a.ts",
     "verify:v20": "tsx scripts/verify-v20.ts",
     "verify:v21": "tsx scripts/verify-v21.ts",
     "scheduler:cron": "tsx scripts/scheduler-cron.ts",
@@ -82,6 +86,7 @@
     "zod": "4.1.12"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/node": "22.10.2",
     "@types/nodemailer": "^7.0.4",
     "@types/react": "19.0.3",
