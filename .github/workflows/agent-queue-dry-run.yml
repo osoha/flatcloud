@@ -1,0 +1,74 @@
+name: Agent queue dry run
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: flatcloud-agent-queue
+  cancel-in-progress: false
+
+jobs:
+  select-one:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Fetch bounded queue state without executing issue content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const pulls = await github.paginate(github.rest.pulls.list, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            fs.writeFileSync("agent-issues.json", JSON.stringify(issues.map((issue) => ({
+              number: issue.number,
+              title: issue.title,
+              body: issue.body,
+              state: issue.state,
+              html_url: issue.html_url,
+              pull_request: issue.pull_request ? true : undefined,
+            }))));
+            fs.writeFileSync("agent-pulls.json", JSON.stringify(pulls.map((pull) => ({
+              number: pull.number,
+              state: pull.state,
+              head: { ref: pull.head.ref },
+            }))));
+
+      - name: Select at most one validated work item
+        run: >-
+          node scripts/select-agent-work.mjs
+          --issues-file agent-issues.json
+          --pulls-file agent-pulls.json
+          --audit-file agent-queue-audit.md
+          --decision-file agent-queue-decision.json
+
+      - name: Upload non-sensitive queue evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-queue-audit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            agent-queue-audit.md
+            agent-queue-decision.json
+          if-no-files-found: error
+          retention-days: 7

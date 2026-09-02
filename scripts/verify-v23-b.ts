@@ -6,7 +6,8 @@ import { join } from "node:path";
 
 const workflow = readFileSync(".github/workflows/agent-dry-run.yml", "utf8");
 const template = readFileSync(".github/ISSUE_TEMPLATE/agent-ready.yml", "utf8");
-const validator = readFileSync("scripts/validate-agent-issue.mjs", "utf8");
+const validator = readFileSync("scripts/validate-agent-issue.mjs", "utf8") +
+  readFileSync("scripts/agent-intake-core.mjs", "utf8");
 const docs = readFileSync("docs/autonomous-qa.md", "utf8");
 
 assert.match(workflow, /workflow_dispatch:/);

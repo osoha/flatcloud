@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { validateAgentIssue } from "./agent-intake-core.mjs";
 
 function argument(name) {
   const index = process.argv.indexOf(name);
@@ -13,34 +14,8 @@ if (!issueFile || !auditFile) {
 }
 
 const issue = JSON.parse(await readFile(issueFile, "utf8"));
-const body = typeof issue.body === "string" ? issue.body : "";
 const number = Number(issue.number);
-
-const requiredSections = [
-  "Cíl",
-  "Rozsah",
-  "Acceptance criteria",
-  "Riziko",
-  "Lidská brána",
-];
-const missingSections = requiredSections.filter(
-  (section) => !new RegExp(`^#{1,3}\\s+.*${section}`, "imu").test(body),
-);
-const checklistItems = body.match(/^\s*-\s*\[[ xX]\]\s+.+$/gmu) ?? [];
-const risk = body.match(/\b(LOW|MEDIUM|HIGH)\b/u)?.[1] ?? null;
-const mentionsMain = /\bmain\b/iu.test(body);
-const mentionsApproval = /(schválen|souhlas|approval)/iu.test(body);
-
-const failures = [];
-if (!Number.isInteger(number) || number <= 0) failures.push("invalid issue number");
-if (issue.state !== "open") failures.push("issue is not open");
-if (!issue.title?.trim()) failures.push("missing title");
-if (missingSections.length) failures.push(`missing sections: ${missingSections.join(", ")}`);
-if (checklistItems.length === 0) failures.push("acceptance criteria contain no checklist item");
-if (!risk) failures.push("missing LOW/MEDIUM/HIGH risk class");
-if (!mentionsMain || !mentionsApproval) failures.push("missing explicit human approval gate for main");
-
-const status = failures.length === 0 ? "READY_FOR_IMPLEMENTATION" : "BLOCKED";
+const { status, failures, risk, checklistItems } = validateAgentIssue(issue);
 const repository = process.env.GITHUB_REPOSITORY ?? "local/flatcloud";
 const sha = process.env.GITHUB_SHA ?? "local-dry-run";
 const ref = process.env.GITHUB_REF_NAME ?? "local";

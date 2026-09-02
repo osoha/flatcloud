@@ -54,6 +54,7 @@ jobs:
       - run: npm run verify:lease-report-heavy-1
       - run: npm run verify:v23-a
       - run: npm run verify:v23-b
+      - run: npm run verify:v23-c
       - run: npm run verify:mail-retention-1
       - run: npm run verify:v21.6
       - run: npm run verify:v21.6.1
