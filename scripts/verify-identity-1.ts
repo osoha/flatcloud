@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import { prisma } from "../lib/db";
 import { formatCompoundUnitBusinessId, formatPropertyBusinessId, formatUnitBusinessId, isPropertyCode, isUnitCode, unitCodeCandidateFromLabel } from "../lib/business-identity";
-import { proposedVariableSymbol } from "../lib/variable-symbol";
+import { proposedLeaseIdentity } from "../lib/variable-symbol";
 
 const read = (path: string) => fs.readFileSync(path, "utf8");
 const hash = (path: string) => createHash("sha256").update(read(path)).digest("hex");
@@ -77,8 +77,7 @@ async function main() {
     await check("database check constraints protect malformed codes", () => { assert.match(migration, /Property_propertyCode_check/); assert.match(migration, /Unit_unitCode_check/); });
     await check("database unique constraints have correct scope", () => { assert.match(migration, /Property_propertyCode_key/); assert.match(migration, /Unit_propertyId_unitCode_key/); });
     await check("migration is additive and preserves domain data", () => assert.doesNotMatch(migration, /DROP|TRUNCATE|DELETE FROM/i));
-    await check("existing proposedVariableSymbol behavior is compatible", () => assert.equal(proposedVariableSymbol({ address: "Veská 137", technicalData: null }, { label: "Byt 1 / 2+kk", leases: [] }, new Set()), "1370101"));
-    await check("variable-symbol source is unchanged", () => assert.equal(hash("lib/variable-symbol.ts"), "c2cdabada57e6cd2ba6697045cd3a6eacc19187737e9ba51d6c20d22edaf50cd"));
+    await check("lease identity consumes accepted immutable business codes", () => assert.deepEqual(proposedLeaseIdentity({ propertyCode: "1201" }, { unitCode: "005", leases: [] }, new Set()), { sequence: 1, variableSymbol: "120100501", contractNumber: "NS-P1201-U005-01" }));
     await check("Drive location behavior is unchanged", () => assert.equal(hash("lib/storage/locations.ts"), "6eca90cce50ceada1b737885b625a7583cba6b2974a454283b20dbfa41a3fcb9"));
     await check("googleDriveFolderId is not migrated", () => assert.doesNotMatch(migration, /googleDriveFolderId/));
     await check("MF implementation is outside identity changes", () => assert.doesNotMatch(read("lib/business-identity.ts"), /MfRent|mf-rent/));

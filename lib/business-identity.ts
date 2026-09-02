@@ -25,7 +25,7 @@ export function formatCompoundUnitBusinessId(propertyCode: string, unitCode: str
   return `${formatPropertyBusinessId(propertyCode)}-${formatUnitBusinessId(unitCode)}`;
 }
 
-// Kept behavior-compatible with the existing VS parser, which remains untouched.
+// Used only when allocating a permanent unit business code. Lease identities never parse labels.
 export function unitNumberFromLabel(label: string) {
   const explicit = label.match(/(?:byt|bj|jednotka|č\.?)[^\d]{0,8}(\d+)/i)?.[1];
   if (explicit) return explicit;
