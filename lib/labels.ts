@@ -50,6 +50,15 @@ export const leaseStatuses: Record<string, string> = {
   ENDED: "Ukončená",
 };
 
+export const securityDepositStatuses = {
+  NOT_CONFIGURED: "Nesjednána",
+  UNPAID: "Nesložena",
+  PARTIAL: "Částečně složena",
+  FUNDED: "Složena",
+  TO_SETTLE: "K vypořádání",
+  SETTLED: "Vypořádána",
+} as const;
+
 export const chargeCategories: Record<string, string> = {
   RENT: "Nájemné",
   WATER: "Voda",
