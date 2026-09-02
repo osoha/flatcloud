@@ -37,3 +37,12 @@ Rent scope is an explicit discriminated value: `ALL` means the whole portfolio, 
 Quarterly reports are group/year/quarter revisions. Every property row has mandatory snapshot ID, retaining its numerical origin. `PUBLISHED` is designed for immutable publication; future PDF/media must be explicitly published assets rather than mutable live output.
 
 Reporting-group property membership uses inclusive Prague business-date intervals. For one group/property pair intervals must not overlap; adjacent `...-06-30` then `...-07-01` intervals are valid. This is an application-level invariant enforced by the shared interval validator (PostgreSQL has no extension-dependent exclusion constraint in V22-A).
+## MF-1 — externí benchmark nájemného
+
+FlatCloud importuje výhradně oficiální tabulkové výstupy Cenové mapy nájemního bydlení Ministerstva financí ČR. Základní územní jednotkou je katastrální území a data jsou vedena samostatně pro čtyři oficiální velikostní kategorie VK1–VK4. Čtvrtletní XLSX přílohy se objevují až po skončení měřeného období.
+
+Každý stažený zdroj je uložen jako neměnná release identifikovaná unikátním SHA-256; opravená příloha stejného tržního čtvrtletí vytváří novou release a starou zachová. Nemovitost se ke katastrálnímu území přiřazuje jen výslovným lidským potvrzením. Obec může řadit návrhy, nikdy však volbu automaticky nepotvrdí.
+
+Resolver používá nejnovější skutečně dostupné tržní období, jehož publikace nepřekročila cutoff. Proto může report Q3 korektně uvádět MF data Q2. U budoucího publikovaného reportu bude cutoff jeho `publishedAt`, aby pozdější revize neměnily historický výstup.
+
+CMNB je pouze informační a analytický benchmark. Nikdy nemění smluvní nájemné, předpisy, platby, dluh ani indexaci. MF-1 nedefinuje vážení budovy podle mixu jednotek, neodvozuje VK z jednotek a neukládá MF data do `QuarterSnapshot` ani `PresentationTrendPoint`.

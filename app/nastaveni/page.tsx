@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { appSettings } from "@/lib/settings";
 import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
+import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 const variables = "{{property}}, {{unit}}, {{tenant}}, {{period}}, {{dueDate}}, {{oldestDueDate}}, {{amount}}, {{outstanding}}, {{iban}}, {{variableSymbol}}, {{owner}}";
@@ -12,7 +13,7 @@ const variables = "{{property}}, {{unit}}, {{tenant}}, {{period}}, {{dueDate}}, 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string }> }) {
   const user = await requireUser();
   if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
-  const [settings, query] = await Promise.all([appSettings(), searchParams]);
+  const [settings, query, latestMf] = await Promise.all([appSettings(), searchParams, prisma.mfRentDatasetRelease.findFirst({include:{_count:{select:{territories:true}}},orderBy:[{marketYear:"desc"},{marketQuarter:"desc"},{publishedOn:"desc"},{importedAt:"desc"}]})]);
   const mailboxReady = Boolean(settings.inboundMailEnabled && settings.inboundMailHost && settings.inboundMailUser && settings.inboundMailPasswordEncrypted);
   const driveConfigured=process.env.FILE_STORAGE_DRIVER==="gdrive"&&Boolean(process.env.GOOGLE_DRIVE_CLIENT_ID&&process.env.GOOGLE_DRIVE_CLIENT_SECRET&&process.env.GOOGLE_DRIVE_REFRESH_TOKEN&&process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID&&process.env.GOOGLE_DRIVE_PROPERTIES_FOLDER_ID&&process.env.GOOGLE_DRIVE_REPORTS_FOLDER_ID&&process.env.GOOGLE_DRIVE_TEMPLATES_FOLDER_ID&&process.env.GOOGLE_DRIVE_ARCHIVE_FOLDER_ID);
   const driveLink=(id:string|undefined)=>id?`https://drive.google.com/drive/folders/${encodeURIComponent(id)}`:"#";
@@ -20,6 +21,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   return <Shell user={user}><div className="page v21-admin-page">
     <div className="page-title"><div><h1>Administrace aplikace</h1><p>Centrální sběr bankovních e-mailů, automatické párování plateb a komunikace k nájmu.</p></div></div>
     <Flash ok={query.ok} error={query.error}/>
+
+    <div className="card" style={{marginBottom:20}}><div className="card-head"><div><h2>Cenová mapa nájemného MF</h2><p className="muted-copy">Oficiální čtvrtletní referenční nájemné Ministerstva financí.</p></div></div><div className="summary-list"><div><span>Poslední kontrola</span><strong>{settings.mfRentLastCheckedAt?.toLocaleString("cs-CZ")||"Zatím neběhla"}</strong></div><div><span>Poslední úspěch</span><strong>{settings.mfRentLastSuccessAt?.toLocaleString("cs-CZ")||"—"}</strong></div><div><span>Nejnovější období</span><strong>{latestMf?`Q${latestMf.marketQuarter} ${latestMf.marketYear}`:"—"}</strong></div><div><span>Publikováno</span><strong>{latestMf?.publishedOn.toLocaleDateString("cs-CZ")||"—"}</strong></div><div><span>Území</span><strong>{latestMf?latestMf._count.territories:"—"}</strong></div><div><span>Soubor</span><strong>{latestMf?.sourceFileName||"—"}</strong></div><div><span>Stav</span><strong>{settings.mfRentLastSummary||"—"}</strong></div></div><form action="/api/settings/mf-rent/sync" method="post" style={{marginTop:16}}><button className="primary" type="submit"><RefreshCw size={14}/> Zkontrolovat data MF</button></form></div>
 
     <div className="card" style={{marginBottom:20}}><div className="card-head"><div><div className="eyebrow"><ShieldCheck size={14}/> Úložiště</div><h2>Google Drive</h2><p className="muted-copy">Kanonické soukromé úložiště binárních souborů FlatCloudu.</p></div><span className={`connection-badge ${driveConfigured?"ok":"warn"}`}>{driveConfigured?"Připojeno ke konfiguraci":"Chyba konfigurace"}</span></div><div className="summary-list"><div><span>Provider</span><strong>{process.env.FILE_STORAGE_DRIVER==="gdrive"?"Google Drive":process.env.FILE_STORAGE_DRIVER||"disabled"}</strong></div><div><span>Root</span><strong>00_Aplikace FlatCloud</strong></div></div><div className="stack-actions" style={{marginTop:16}}><form action="/api/settings/storage/test" method="post"><button className="primary" type="submit">Test připojení</button></form>{driveConfigured&&<><a className="secondary" target="_blank" rel="noreferrer" href={driveLink(process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID)}>Otevřít root Drive složku</a><a className="secondary" target="_blank" rel="noreferrer" href={driveLink(process.env.GOOGLE_DRIVE_PROPERTIES_FOLDER_ID)}>Nemovitosti</a><a className="secondary" target="_blank" rel="noreferrer" href={driveLink(process.env.GOOGLE_DRIVE_REPORTS_FOLDER_ID)}>Reporty</a><a className="secondary" target="_blank" rel="noreferrer" href={driveLink(process.env.GOOGLE_DRIVE_TEMPLATES_FOLDER_ID)}>Šablony</a></>}</div></div>
 

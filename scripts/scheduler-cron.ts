@@ -4,6 +4,7 @@ import { cleanupInboundMailbox } from "../lib/inbound-bank/retention";
 import { runRentNotifications } from "../lib/rent-notifications";
 import { runChargeAutomation } from "../lib/charge-automation";
 import { syncLifecycleCaches } from "../lib/lease-lifecycle";
+import { syncMfRentDatasets } from "../lib/reporting/mf-rent/service";
 
 type StepResult = { name: string; status: "ok" | "skipped" | "failed"; summary: string };
 
@@ -58,6 +59,13 @@ async function main() {
   } catch (error) {
     steps.push({ name: "notifications", status: "failed", summary: messageOf(error) });
     hardFailure = true;
+  }
+
+  try {
+    const mf = await syncMfRentDatasets();
+    steps.push({ name: "mf-rent", status: mf.status === "skipped" ? "skipped" : "ok", summary: mf.summary });
+  } catch (error) {
+    steps.push({ name: "mf-rent", status: "failed", summary: `${messageOf(error)} Předchozí platná data zůstávají aktivní.` });
   }
 
   const summary = steps.map((step) => `${step.name}: ${step.status} – ${step.summary}`).join(" | ");

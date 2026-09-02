@@ -318,6 +318,8 @@ model User {
   fileAssetsUploaded                  FileAsset[]                    @relation("FileAssetUploader")
   documentsCreated                    Document[]                     @relation("DocumentCreator")
   quarterlyPropertyReportMediaCreated QuarterlyPropertyReportMedia[] @relation("QuarterlyPropertyReportMediaCreator")
+  mfRentDatasetReleasesImported       MfRentDatasetRelease[]          @relation("MfRentDatasetImporter")
+  mfRentLocationsConfirmed            PropertyMfRentLocation[]        @relation("MfRentLocationConfirmer")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @updatedAt
 }
@@ -396,6 +398,7 @@ model Property {
   quarterSnapshots         QuarterSnapshot[]
   quarterlyPropertyReports QuarterlyPropertyReport[]
   documents                Document[]
+  mfRentLocation            PropertyMfRentLocation?
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
 
@@ -524,8 +527,61 @@ model AppSetting {
   inboundMailUnresolvedRetentionDays Int       @default(90)
   inboundMailLastCleanupAt           DateTime?
   inboundMailLastCleanupSummary      String?
+  mfRentLastCheckedAt                DateTime?
+  mfRentLastSuccessAt                DateTime?
+  mfRentLastSummary                  String?
   createdAt                          DateTime  @default(now())
   updatedAt                          DateTime  @updatedAt
+}
+
+model MfRentDatasetRelease {
+  id                String                    @id @default(cuid())
+  sourceUrl         String
+  sourceSha256      String                    @unique
+  sourceFileName    String
+  publishedOn       DateTime
+  marketYear        Int
+  marketQuarter     Int
+  parserVersion     String
+  schemaFingerprint String
+  importedAt        DateTime                  @default(now())
+  importedById      String?
+  importedBy        User?                     @relation("MfRentDatasetImporter", fields: [importedById], references: [id], onDelete: SetNull)
+  territories       MfRentTerritorySnapshot[]
+
+  @@index([marketYear, marketQuarter])
+  @@index([publishedOn])
+}
+
+model MfRentTerritorySnapshot {
+  id               String               @id @default(cuid())
+  releaseId        String
+  release          MfRentDatasetRelease @relation(fields: [releaseId], references: [id], onDelete: Cascade)
+  territoryCode    String
+  territoryName    String
+  municipalityName String?
+  districtName     String?
+  regionName       String?
+  data              Json
+
+  @@unique([releaseId, territoryCode])
+  @@index([territoryCode])
+  @@index([releaseId])
+  @@index([municipalityName])
+}
+
+model PropertyMfRentLocation {
+  propertyId       String   @id
+  property         Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  territoryCode    String
+  territoryName    String
+  municipalityName String?
+  confirmedById    String
+  confirmedBy      User     @relation("MfRentLocationConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+  confirmedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([territoryCode])
 }
 
 model Unit {
