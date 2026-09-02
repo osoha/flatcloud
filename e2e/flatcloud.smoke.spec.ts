@@ -86,6 +86,44 @@ test("uživatel projde z portfolia do nemovitosti a jednotky", async ({ page }) 
   assertNoBrowserFailures();
 });
 
+test("hlavička nemovitosti drží strukturu na desktopu i mobilu", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+
+  const header = page.getByTestId("property-header");
+  const identity = page.getByTestId("property-header-identity");
+  const summary = page.getByTestId("property-header-summary");
+  const side = header.locator(".property-header-side");
+  const assertInsideWithoutOverlap = async () => {
+    const [headerBox, identityBox, summaryBox, sideBox] = await Promise.all([
+      header.boundingBox(), identity.boundingBox(), summary.boundingBox(), side.boundingBox(),
+    ]);
+    for (const box of [headerBox, identityBox, summaryBox, sideBox]) expect(box).not.toBeNull();
+    expect(identityBox!.x).toBeGreaterThanOrEqual(headerBox!.x);
+    expect(summaryBox!.x + summaryBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width + 1);
+    expect(sideBox!.x + sideBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width + 1);
+    const overlaps = (a: NonNullable<typeof identityBox>, b: NonNullable<typeof identityBox>) =>
+      a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+    expect(overlaps(identityBox!, summaryBox!)).toBeFalsy();
+    expect(overlaps(summaryBox!, sideBox!)).toBeFalsy();
+  };
+
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.reload();
+  await expect(header).toBeVisible();
+  await expect(header.getByText(/ID nemovitosti: P\d{4}/)).toBeVisible();
+  await assertInsideWithoutOverlap();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.reload();
+  await expect(header).toBeVisible();
+  await expect(header.getByRole("heading", { name: "Moskevská", exact: true })).toBeVisible();
+  await assertInsideWithoutOverlap();
+  expect(await header.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy();
+  assertNoBrowserFailures();
+});
+
 test("nájemník a jeho smlouva jsou dostupné z registrů", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

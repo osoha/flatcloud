@@ -157,6 +157,13 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .avatar img{border-radius:inherit;image-rendering:auto;backface-visibility:hidden;transform:translateZ(0)}
 .account-avatar-card{margin-bottom:16px}.account-avatar-form{display:flex;align-items:flex-start;gap:18px}.account-avatar-form .avatar-lg{width:72px;height:72px;font-size:18px}.account-avatar-fields{display:grid;gap:9px;min-width:min(440px,100%)}.account-avatar-fields input[type=file]{width:100%;font-size:10px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px}.account-avatar-fields small{color:var(--muted);font-size:9px}.account-avatar-fields .checkbox-field{padding:2px 0}.account-avatar-fields .primary{width:max-content;min-width:150px}
 .property-header-report{color:inherit;text-decoration:none}.property-header-report:hover strong{color:var(--blue)}
+
+/* POLISH: stabilní hlavička nemovitosti po zavedení business ID */
+.property-header{grid-template-columns:minmax(120px,auto) minmax(260px,1fr) minmax(320px,auto);align-items:center;column-gap:24px;row-gap:16px}
+.property-header-identity{display:grid;justify-items:center;gap:8px;min-width:0}.property-header-identity small{color:var(--muted);font-size:10px;white-space:nowrap}
+.property-header-summary{min-width:0}.property-header-summary h1{overflow-wrap:anywhere}.property-header-side{min-width:0}
+@media(max-width:1100px){.property-header{grid-template-columns:auto minmax(0,1fr)}.property-header-identity{grid-row:1}.property-header-side{grid-column:1/-1;width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px}}
+@media(max-width:700px){.property-header{grid-template-columns:1fr;align-items:start}.property-header-identity{grid-row:auto;justify-items:start;grid-template-columns:auto 1fr;align-items:center}.property-header-summary,.property-header-side{grid-column:1;width:100%}.property-header-side{align-items:stretch;flex-direction:column}.property-header-actions{display:grid;grid-template-columns:1fr}.property-header-actions .primary,.property-header-actions .secondary{width:100%;justify-content:center}.property-header-right{text-align:left}.property-meta{max-width:100%}}
 @media(max-width:620px){.account-avatar-form{flex-direction:column}.account-avatar-fields{min-width:0;width:100%}.account-avatar-fields .primary{width:100%;justify-content:center}}
 
 /* V15: splatnost, klikací jednotky, osoby a měřidla */
