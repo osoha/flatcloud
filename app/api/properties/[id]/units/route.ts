@@ -39,7 +39,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
       });
     });
-    await audit(access.user.id, "UNIT_CREATED", "Unit", unit.id, { propertyId: id, label: unit.label, ownerId, ownerBankAccountId }, id);
+    await audit(access.user.id, "UNIT_CREATED", "Unit", unit.id, { propertyId: id, unitCode: unit.unitCode, label: unit.label, ownerId, ownerBankAccountId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky`, "ok", "Jednotka byla vytvořena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/nova`, "error", error instanceof Error ? error.message : "Jednotku se nepodařilo vytvořit.");

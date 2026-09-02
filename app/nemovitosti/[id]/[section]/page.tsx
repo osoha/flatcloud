@@ -24,6 +24,7 @@ import { currentLeaseForUnit, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { ownerSelfServiceScope } from "@/lib/owner-self-service";
 import { PropertyIcon } from "@/components/PropertyIcon";
 import { isPropertyLocalInvitation } from "@/lib/user-access-management";
+import { formatPropertyBusinessId } from "@/lib/business-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -127,6 +128,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>{p.name}</span></div>
     <div className="property-header">
       <div className="property-icon-frame property-icon-frame-lg"><PropertyIcon technicalData={p.technicalData} unitCount={p.units.length} size={26}/></div>
+      <small>ID nemovitosti: {formatPropertyBusinessId(p.propertyCode)}</small>
       <div><h1>{p.name}</h1><a className="property-map-link" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.address}, ${p.postalCode ? `${p.postalCode} ` : ""}${p.city}`)}`} target="_blank" rel="noreferrer"><MapPin size={12}/>{p.address}, {p.postalCode ? `${p.postalCode} ` : ""}{p.city}<ExternalLink size={11}/></a><div className="property-meta"><span className="meta-pill">{propertyOwnerNames}</span><span className="meta-pill">{p.units.length} jednotek</span><span className={`meta-pill ${allPaymentLinksVerified?"verified-pill":""}`}>{bankEmailPropertyLabel}</span></div></div>
       <div className="property-header-side">{canManage&&<div className="property-header-actions">{p.googleDriveFolderId&&<a className="secondary" target="_blank" rel="noreferrer" href={`https://drive.google.com/drive/folders/${encodeURIComponent(p.googleDriveFolderId)}`}><ExternalLink size={14}/> Otevřít složku na Google Drive</a>}<Link className="secondary" href={`/nemovitosti/${id}/najemnici/novy`}><Plus size={15}/> Nový nájemník</Link><Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova`}><Plus size={15}/> Nová smlouva</Link></div>}<Link className="property-header-right property-header-report" href={`/reporty/saldo?propertyId=${id}`}><span>Dluh po splatnosti</span><strong className={overdueDebt ? "negative" : "positive"}>{money(overdueDebt)}</strong></Link></div>
     </div>

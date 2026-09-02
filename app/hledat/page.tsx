@@ -17,11 +17,11 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
   const propertyIds = properties.map((property) => property.id);
 
   const propertyResults = needle ? properties.filter((property) =>
-    [property.name, property.address, property.city, property.postalCode || ""].some((value) => value.toLocaleLowerCase("cs-CZ").includes(needle)),
+    [property.name, property.address, property.city, property.postalCode || "", property.propertyCode, `P${property.propertyCode}`].some((value) => value.toLocaleLowerCase("cs-CZ").includes(needle)),
   ).slice(0, 12) : [];
 
   const unitResults = needle ? properties.flatMap((property) => property.units
-    .filter((unit) => unit.label.toLocaleLowerCase("cs-CZ").includes(needle))
+    .filter((unit) => [unit.label, unit.unitCode, `U${unit.unitCode}`, `P${property.propertyCode}-U${unit.unitCode}`].some(value => value.toLocaleLowerCase("cs-CZ").includes(needle)))
     .map((unit) => ({ property, unit }))).slice(0, 15) : [];
 
   const tenantMap = new Map<string, { propertyId: string; propertyName: string; unitLabel: string; tenant: { id: string; name: string; email: string | null; phone: string | null } }>();

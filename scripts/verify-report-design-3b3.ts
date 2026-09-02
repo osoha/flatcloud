@@ -183,7 +183,7 @@ function main() {
     );
     assert.equal(
       hash("prisma/schema.prisma"),
-      "90f9dc173a71cfff484969e56572dff95ae94f2c85478d109babe1cecb8bc9eb",
+      "11c543605f442ebd657fd8412b109f0513e3b000272f85ccdde16c0ddca5b16b",
     );
     assert.equal(
       fs

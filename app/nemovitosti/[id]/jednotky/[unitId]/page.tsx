@@ -19,6 +19,7 @@ import { DocumentAttachments } from "@/components/documents/DocumentAttachments"
 import { DocumentUploadForm } from "@/components/documents/DocumentUploadForm";
 import { PaymentLedgerTable } from "@/components/PaymentLedgerTable";
 import { loadPaymentLedgerRows } from "@/lib/payment-ledger";
+import { formatCompoundUnitBusinessId } from "@/lib/business-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,7 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
 
   return <Shell user={user} taskPropertyId={id} taskLeaseId={activeLease?.id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><Link href={`/nemovitosti/${id}/jednotky`}>Jednotky</Link><span>›</span><span>{unit.label}</span></div>
-    <div className="unit-hero card"><div><span className="eyebrow">{unitTypes[unit.type]}</span><h1>{unit.label}</h1><p>{property.name} · {unit.floor || "podlaží neuvedeno"} · {unit.areaM2 ? `${unit.areaM2} m²` : "plocha neuvedena"}</p></div><div className="action-row">{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unit.id}/upravit`}><Pencil size={15}/> Upravit jednotku</Link>}{canManage && <Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova?unitId=${unit.id}`}><Plus size={15}/> Nová smlouva</Link>}</div></div>
+    <div className="unit-hero card"><div><span className="eyebrow">{unitTypes[unit.type]}</span><h1>{unit.label}</h1><p>{property.name} · {unit.floor || "podlaží neuvedeno"} · {unit.areaM2 ? `${unit.areaM2} m²` : "plocha neuvedena"}</p><small>ID jednotky: {formatCompoundUnitBusinessId(property.propertyCode, unit.unitCode)}</small></div><div className="action-row">{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unit.id}/upravit`}><Pencil size={15}/> Upravit jednotku</Link>}{canManage && <Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova?unitId=${unit.id}`}><Plus size={15}/> Nová smlouva</Link>}</div></div>
     <Flash ok={query.ok} error={query.error}/>
     <nav className="unit-tabs"><a href="#prehled">Přehled</a>{activeLease && <><a href="#predpisy">Předpisy</a><a href="#platby">Platby</a><a href="#smlouva">Smlouva</a><a href="#komunikace">Upomínky</a><a href="#osoby">Osoby</a></>}<a href="#dokumenty">Dokumenty</a><a href="#meridla">Měřidla</a></nav>
     <div id="prehled" className="unit-kpi-grid">

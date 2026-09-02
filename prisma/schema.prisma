@@ -367,6 +367,7 @@ model OwnerBankAccount {
 
 model Property {
   id                       String                    @id @default(cuid())
+  propertyCode             String                    @unique @default(dbgenerated())
   name                     String
   googleDriveFolderId      String?                   @unique
   address                  String
@@ -588,6 +589,7 @@ model PropertyMfRentLocation {
 
 model Unit {
   id                      String                       @id @default(cuid())
+  unitCode                String                       @default(dbgenerated())
   label                   String
   floor                   String?
   type                    UnitType                     @default(APARTMENT)
@@ -608,6 +610,7 @@ model Unit {
   updatedAt               DateTime                     @updatedAt
 
   @@unique([propertyId, label])
+  @@unique([propertyId, unitCode])
   @@index([propertyId])
 }
 
