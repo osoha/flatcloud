@@ -1,5 +1,5 @@
 import { z } from "zod";
-export const reportingQualityCodes = ["UNKNOWN_OPERATIONAL_HISTORY", "MISSING_UNIT_AREA", "RENT_SOURCE_LEGACY_FALLBACK", "MISSING_RENT_SOURCE", "MISSING_CHARGE_FOR_PERIOD", "DEPOSIT_CONFIGURATION_WARNING", "NO_RENTABLE_UNITS"] as const;
+export const reportingQualityCodes = ["UNKNOWN_OPERATIONAL_HISTORY", "MISSING_UNIT_AREA", "RENT_SOURCE_LEGACY_FALLBACK", "MISSING_RENT_SOURCE", "MISSING_CHARGE_FOR_PERIOD", "DEPOSIT_CONFIGURATION_WARNING", "NO_RENTABLE_UNITS", "ACTIVE_LEASE_FUTURE_FINANCIAL_TRACKING"] as const;
 export const reportingQualityIssueSchema = z.object({ code: z.enum(reportingQualityCodes), severity: z.enum(["INFO", "WARNING", "BLOCKER"]), message: z.string().min(1), propertyId: z.string().optional(), unitId: z.string().optional(), leaseId: z.string().optional() }).strict();
 export const reportingQualitySchema = z.object({ issues: z.array(reportingQualityIssueSchema) }).strict();
 export type ReportingQualityIssue = z.infer<typeof reportingQualityIssueSchema>;
@@ -12,6 +12,7 @@ export const reportingQualityCopy: Record<ReportingQualityIssue["code"], { label
   MISSING_CHARGE_FOR_PERIOD: { label: "Chybí předpis za období", description: "Aktivní smlouva nemá za rozhodný měsíc vytvořený předpis." },
   DEPOSIT_CONFIGURATION_WARNING: { label: "Kauce není nastavena", description: "U smlouvy nejsou evidované podmínky kauce." },
   NO_RENTABLE_UNITS: { label: "Nemovitost nemá pronajímatelné jednotky", description: "U nemovitosti není k rozhodnému datu známá žádná pronajímatelná jednotka." },
+  ACTIVE_LEASE_FUTURE_FINANCIAL_TRACKING: { label: "Aktivní smlouva má finanční evidenci v budoucnu", description: "LIVE report dočasně používá smluvní částky. Plánovač posune finanční evidenci nejdříve na aktuální měsíc a znovu vytvoří pouze současné a budoucí předpisy." },
 };
 
 export type ReportingQualityTargetUser = { role: string; allProperties?: boolean; memberships?: Array<{ propertyId: string; permission?: string }>; unitMemberships?: Array<{ unitId: string; permission?: string; unit?: { propertyId: string } }>; reportingGroupMemberships?: Array<{ reportingGroupId: string; permission: string }> };
@@ -29,6 +30,7 @@ export function reportingQualityIssueTarget(issue: ReportingQualityIssue, user: 
   const leaseDetail = issue.leaseId ? `/smlouvy/${issue.leaseId}` : null;
   let href: string;
   if (issue.code === "MISSING_UNIT_AREA" || issue.code === "UNKNOWN_OPERATIONAL_HISTORY") href = canEdit && unitDetail ? `${unitDetail}/upravit` : unitDetail || `/nemovitosti/${issue.propertyId}/jednotky`;
+  else if (issue.code === "ACTIVE_LEASE_FUTURE_FINANCIAL_TRACKING") href = canEdit && issue.leaseId ? `/nemovitosti/${issue.propertyId}/smlouvy/${issue.leaseId}/upravit` : leaseDetail || unitDetail || `/nemovitosti/${issue.propertyId}/smlouvy`;
   else if (["MISSING_RENT_SOURCE", "RENT_SOURCE_LEGACY_FALLBACK", "MISSING_CHARGE_FOR_PERIOD"].includes(issue.code)) href = canEdit && issue.leaseId ? `/nemovitosti/${issue.propertyId}/predpisy/${issue.leaseId}` : leaseDetail || unitDetail || `/nemovitosti/${issue.propertyId}/predpisy`;
   else if (issue.code === "DEPOSIT_CONFIGURATION_WARNING") href = leaseDetail ? `${leaseDetail}#kauce` : unitDetail || `/nemovitosti/${issue.propertyId}/jednotky`;
   else href = `/nemovitosti/${issue.propertyId}/jednotky`;

@@ -3,6 +3,7 @@ import { prisma } from "./db";
 import { syncLeaseCharges } from "./charge-automation";
 import { leaseStatusAt } from "./lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "./lease-lifecycle";
+import { resolveActiveFinancialBoundary } from "./lease-financial-boundary";
 import { assertUniqueVariableSymbol } from "./variable-symbol";
 
 export const LEASE_NOT_CANCELLED_ERROR = "Smlouva není evidována jako zrušená budoucí smlouva.";
@@ -60,14 +61,15 @@ export async function restoreCancelledLease(input: RestoreCancelledLeaseInput) {
 
     const previousCancelledAt = lease.cancelledAt;
     const previousCancellationReason = lease.cancellationReason;
+    const financialBoundary = resolveActiveFinancialBoundary({ ...lease, cancelledAt: null }, now);
     await tx.lease.update({
       where: { id: lease.id },
-      data: { cancelledAt: null, cancellationReason: null, status: derivedStatus },
+      data: { cancelledAt: null, cancellationReason: null, status: derivedStatus, financialTrackingFromPeriod: financialBoundary.period },
     });
     await syncUnitOccupancyCache(tx, lease.unitId, now);
     await syncLeaseCharges(tx, lease.id, {
       now,
-      fromPeriod: lease.financialTrackingFromPeriod,
+      fromPeriod: financialBoundary.period,
     });
     await tx.auditLog.create({
       data: {
@@ -83,6 +85,10 @@ export async function restoreCancelledLease(input: RestoreCancelledLeaseInput) {
           ...(previousCancellationReason ? { previousCancellationReason } : {}),
           restoreReason,
           derivedLifecycleStatus: derivedStatus,
+          ...(financialBoundary.corrected ? {
+            previousFinancialTrackingFromPeriod: financialBoundary.previousPeriod,
+            correctedFinancialTrackingFromPeriod: financialBoundary.period,
+          } : {}),
         } satisfies Prisma.InputJsonObject,
       },
     });

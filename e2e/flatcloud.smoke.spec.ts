@@ -99,6 +99,39 @@ test("nájemník a jeho smlouva jsou dostupné z registrů", async ({ page }) =>
   assertNoBrowserFailures();
 });
 
+test("nájemné a služby jsou shodné v reportu, smlouvách, nájemníkovi a jednotce", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  const rent = /11\s*500\s*Kč/;
+  const services = /2\s*500\s*Kč/;
+  const recurringTotal = /14\s*000\s*Kč/;
+  await login(page);
+
+  await page.goto("/reporty?view=tenancy");
+  const tenancyRow = page.getByRole("row").filter({ hasText: "Jan Novák" }).filter({ hasText: "Moskevská" }).first();
+  await expect(tenancyRow).toBeVisible();
+  await expect(tenancyRow).toContainText(rent);
+  await expect(tenancyRow).toContainText(services);
+
+  await page.goto("/smlouvy");
+  const contractRow = page.getByRole("row").filter({ hasText: "Jan Novák" }).filter({ hasText: "Moskevská" }).first();
+  await expect(contractRow).toBeVisible();
+  await expect(contractRow).toContainText(rent);
+  await expect(contractRow).toContainText(services);
+
+  await page.goto("/najemnici");
+  await page.getByRole("link", { name: "Jan Novák", exact: true }).first().click();
+  const tenantLeaseRow = page.getByRole("row").filter({ hasText: "Moskevská" }).first();
+  await expect(tenantLeaseRow).toContainText(rent);
+
+  await page.goto("/portfolio");
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Jednotky", exact: true }).click();
+  await page.getByRole("link", { name: /1\.01/ }).first().click();
+  const currentChargeCard = page.getByText("Aktuální předpis", { exact: true }).locator("..");
+  await expect(currentChargeCard).toContainText(recurringTotal);
+  assertNoBrowserFailures();
+});
+
 test("nová smlouva navrhne stabilní VS a stejné pořadí v čísle smlouvy", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

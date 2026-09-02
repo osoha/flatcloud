@@ -2,6 +2,7 @@ import { ChargeCategory, Prisma, type RentTiming } from "@prisma/client";
 import { prisma } from "./db";
 import { periodDueDate, periodsBetween, periodStart } from "./period";
 import { effectiveLeaseEnd, leaseStatusAt } from "./lease-lifecycle-core";
+import { resolveActiveFinancialBoundary } from "./lease-financial-boundary";
 
 export const INDEFINITE_CHARGE_HORIZON_MONTHS = 12;
 
@@ -186,6 +187,25 @@ export async function runChargeAutomation(now = new Date()) {
       let firstChangedPeriod: string | undefined;
       let lease = await tx.lease.findUnique({ where: { id: row.id }, include: { unit: { select: { propertyId: true } } } });
       if (!lease) return { created: 0, updated: 0, skippedPaid: 0, deactivated: 0, indexed: 0 };
+      const financialBoundary = resolveActiveFinancialBoundary(lease, now);
+      if (financialBoundary.corrected) {
+        await tx.lease.update({ where: { id: lease.id }, data: { financialTrackingFromPeriod: financialBoundary.period } });
+        await tx.auditLog.create({
+          data: {
+            propertyId: lease.unit.propertyId,
+            action: "LEASE_FINANCIAL_TRACKING_CORRECTED",
+            entityType: "Lease",
+            entityId: lease.id,
+            details: {
+              previousFinancialTrackingFromPeriod: financialBoundary.previousPeriod,
+              correctedFinancialTrackingFromPeriod: financialBoundary.period,
+              reason: "ACTIVE_LEASE_FUTURE_FINANCIAL_TRACKING",
+              source: "CHARGE_AUTOMATION",
+            },
+          },
+        });
+        lease = { ...lease, financialTrackingFromPeriod: financialBoundary.period };
+      }
       let indexCount = 0;
       const end = effectiveLeaseEnd(lease);
       while (
