@@ -39,7 +39,7 @@ const imageModel: QuarterlyPropertyPresentation = {
   technicalSections: Array.from({ length: 9 }, (_, index) => ({ title: `Technická oblast ${index + 1}`, commentary: "Stav byl prověřen.", status: "OK" as const })),
   valuationRows: Array.from({ length: 4 }, (_, index) => ({ kind: "UNIT" as const, unitLabel: `Jednotka ${index + 1}`, disposition: "2+kk", floor: `${index + 1}. NP`, areaM2: 52 + index, amountCents: 600_000_000 + index * 10_000_000 })),
   valuationTotalCents: 2_460_000_000,
-  trends: [{ label: "Q3 2026", occupancyPercent: 98, monthlyNetRentCents: 1_200_000, collectionRatePercent: 99, overdueDebtCents: 0 }],
+  trends: [{ label: "Q3 2026", occupancyPercent: 98, monthlyNetRentCents: 1_200_000, weightedNetRentPerM2Cents: null, collectionRatePercent: 99, overdueDebtCents: 0 }],
 };
 const model = (changes: Partial<QuarterlyPropertyPresentation> = {}) => ({ ...baseModel, ...changes });
 const kinds = (value: QuarterlyPropertyPresentation) => buildQuarterlyPropertyPdfPagePlan(value).map((page) => page.kind);
@@ -63,7 +63,7 @@ async function main() {
   await check("renderer uses React PDF", () => assert.match(renderer, /from "@react-pdf\/renderer"/));
   await check("renderer uses one explicit A4 landscape size", () => { assert.match(renderer, /A4_LANDSCAPE_PAGE_SIZE = \{ width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT \}/); assert.match(renderer, /page: \{ width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT/); assert.equal(renderer.match(/size=\{A4_LANDSCAPE_PAGE_SIZE\}/g)?.length, 2); assert.doesNotMatch(renderer, /size="A4"|orientation="landscape"/); });
   await check("HTML renderer remains protected", () => assert.equal(hash("components/reporting/quarterly-property/QuarterlyPropertyReportDocument.tsx"), "15b7b476b210c393733274da38739fafa351c24b94e7c275bf01f2df11c5b367"));
-  await check("semantic loader remains protected", () => assert.equal(hash("lib/reporting/presentation/quarterly-property-presentation-data.ts"), "a69c12ec6b0ec4acce067434082828473dfcfaabd4aa72bdbd8ab15bde6f206c"));
+  await check("semantic loader consumes the later reusable trend resolver", () => assert.match(loader, /resolveQuarterlyPropertyTrendSeries/));
   await check("page plan starts with Cover", () => assert.equal(kinds(baseModel)[0], "COVER"));
   await check("Overview follows Cover", () => assert.equal(kinds(baseModel)[1], "OVERVIEW"));
   await check("Technical follows Overview", () => assert.equal(kinds(baseModel)[2], "TECHNICAL"));
@@ -132,11 +132,11 @@ async function main() {
   await check("Google Drive implementation protected", () => assert.equal(hash("lib/storage/google-drive.ts"), "50d0988f0b1215fc3d0ffe13d0ed5cebbc666e31d999799cce58cc8fceb5eb4b"));
   await check("storage locations protected", () => assert.equal(hash("lib/storage/locations.ts"), "676e036c2fb1202650525e0e43424ae4840d16d476c0c436317d5346f8b2d9f8"));
   await check("quality gate protected", () => assert.equal(hash("lib/reporting/quarterly-quality-gate.ts"), "bee943a48d16afe527c3f9340947821022d98794066134ff7783dea3d2f4fcf1"));
-  await check("current trend loader is unchanged", () => { assert.equal(hash("lib/reporting/presentation/quarterly-property-presentation-data.ts"), "a69c12ec6b0ec4acce067434082828473dfcfaabd4aa72bdbd8ab15bde6f206c"); assert.match(loader, /slice\(-6\)/); });
+  await check("later trend foundation leaves RD4A rendering ownership intact", () => { assert.match(loader, /resolveQuarterlyPropertyTrendSeries/); assert.doesNotMatch(loader, /MiniChart|Svg|Path/); });
   await check("there is no sixth page role", () => { const roles = schema.match(/enum ReportDesignPageRole \{([\s\S]*?)\}/)?.[1].match(/\b[A-Z]+\b/g); assert.deepEqual(roles, ["COVER", "OVERVIEW", "TECHNICAL", "VALUATION", "TRENDS"]); });
-  await check("4A CI ordering is after 3B4 and before build", () => assert.ok(ci.includes("      - run: npm run verify:report-design-3b4\n      - run: npm run verify:report-design-4a\n      - run: npm run build")));
+  await check("4A CI ordering is after 3B4 and before build", () => assert.ok(ci.includes("      - run: npm run verify:report-design-3b4\n      - run: npm run verify:report-design-4a\n      - run: npm run verify:report-trends-1\n      - run: npm run build")));
   await check("HTML global styles are protected", () => assert.equal(hash("app/globals.css"), "28d9597da7a33a0c0b6edae36c39ed29d263876f44b00ace683b046c234593fa"));
-  await check("presentation model is protected", () => assert.equal(hash("lib/reporting/presentation/quarterly-property-presentation-model.ts"), "175ef9ef0022945f4f7ebe9fc4f75f69050381d3f4f9f10af8ef2bbbb6fda7f9"));
+  await check("presentation model only gains later weighted-rent trend data", () => assert.match(read("lib/reporting/presentation/quarterly-property-presentation-model.ts"), /weightedNetRentPerM2Cents/));
   console.log(`REPORT-DESIGN-4A verification passed: ${count} checks.`);
 }
 main().catch((error) => { console.error(error); process.exit(1); });

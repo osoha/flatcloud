@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { reportingQualitySchema } from "./data-quality";
 export const SNAPSHOT_SCHEMA_VERSION = 1 as const;
+export const MANUAL_BASELINE_SCHEMA_VERSION = 2 as const;
 const nullableCount = z.number().int().nonnegative().nullable();
 const units = z.object({ total:z.number().int().nonnegative(), rentable:nullableCount, occupied:nullableCount, vacant:nullableCount, renovation:nullableCount, inactive:nullableCount, unknownOperationalStatus:z.number().int().nonnegative() }).strict();
 const rentRoll = z.object({ monthlyNetRentCents:nullableCount, monthlyServicesCents:nullableCount, monthlyTotalCents:nullableCount, rentableAreaM2:z.number().nonnegative().nullable(), occupiedAreaM2:z.number().nonnegative().nullable(), weightedNetRentPerM2Cents:nullableCount, missingAreaUnits:z.number().int().nonnegative() }).strict();
@@ -9,8 +10,11 @@ const deposits = z.object({ agreedCents:nullableCount, heldPrincipalCents:nullab
 const leases = z.object({ active:nullableCount, future:nullableCount, expiring90Days:nullableCount, endedYtd:nullableCount }).strict();
 const payload = { schemaVersion:z.literal(1), asOfDate:z.string().regex(/^\d{4}-\d{2}-\d{2}$/), units, rentRoll, collections, deposits, leases };
 export const calculatedSnapshotDataSchema = z.object({ source:z.literal("CALCULATED"), ...payload }).strict().superRefine((v,c)=>{ for(const section of [v.units,v.rentRoll,v.collections,v.deposits,v.leases]) for(const [key,value] of Object.entries(section)) if(value===null && !["collectionRateBps","weightedNetRentPerM2Cents"].includes(key)) c.addIssue({code:"custom",message:`Calculated field ${key} is required`}); });
-export const manualBaselineSnapshotDataSchema = z.object({ source:z.literal("MANUAL_BASELINE"), schemaVersion:z.literal(1), asOfDate:payload.asOfDate, units:units.partial().optional(), rentRoll:rentRoll.partial().optional(), collections:collections.partial().optional(), deposits:deposits.partial().optional(), leases:leases.partial().optional() }).strict().superRefine((value,ctx)=>{const complete=[units.safeParse(value.units),rentRoll.safeParse(value.rentRoll),collections.safeParse(value.collections),deposits.safeParse(value.deposits),leases.safeParse(value.leases)].every(result=>result.success);if(complete)ctx.addIssue({code:"custom",message:"A complete automatic KPI set must use CALCULATED source."})});
-export const quarterSnapshotDataSchema = z.discriminatedUnion("source", [calculatedSnapshotDataSchema, manualBaselineSnapshotDataSchema]);
+const manualV1 = z.object({ source:z.literal("MANUAL_BASELINE"), schemaVersion:z.literal(1), asOfDate:payload.asOfDate, units:units.partial().optional(), rentRoll:rentRoll.partial().optional(), collections:collections.partial().optional(), deposits:deposits.partial().optional(), leases:leases.partial().optional() }).strict();
+const manualV2Units = units.partial().extend({ occupancyBps:z.number().int().min(0).max(10000).optional() }).strict();
+const manualV2 = z.object({ source:z.literal("MANUAL_BASELINE"), schemaVersion:z.literal(2), asOfDate:payload.asOfDate, units:manualV2Units.optional(), rentRoll:rentRoll.partial().optional(), collections:collections.partial().optional(), deposits:deposits.partial().optional(), leases:leases.partial().optional() }).strict();
+export const manualBaselineSnapshotDataSchema = z.union([manualV1, manualV2]).superRefine((value,ctx)=>{const complete=[units.safeParse(value.units),rentRoll.safeParse(value.rentRoll),collections.safeParse(value.collections),deposits.safeParse(value.deposits),leases.safeParse(value.leases)].every(result=>result.success);if(complete)ctx.addIssue({code:"custom",message:"A complete automatic KPI set must use CALCULATED source."})});
+export const quarterSnapshotDataSchema = z.union([calculatedSnapshotDataSchema, manualBaselineSnapshotDataSchema]);
 export const quarterSnapshotQualitySchema = reportingQualitySchema;
 export type QuarterSnapshotData = z.infer<typeof quarterSnapshotDataSchema>;
 export type CalculatedSnapshotData = z.infer<typeof calculatedSnapshotDataSchema>;

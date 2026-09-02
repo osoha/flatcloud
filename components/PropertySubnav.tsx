@@ -10,6 +10,7 @@ const fullSections = [
   ["banka", "Banka a pravidla"],
   ["technicke-udaje", "Technické údaje"],
   ["dokumenty", "Dokumenty"],
+  ["reporting", "Reporty"],
   ["nastaveni", "Nastavení"],
 ];
 const unitSections = [["prehled","Přehled"],["jednotky","Moje jednotky"],["najemnici","Nájemníci"],["smlouvy","Smlouvy"],["platby","Platby"],["dluznici","Saldo"],["banka","Bankovní účet"],["dokumenty","Dokumenty"]];

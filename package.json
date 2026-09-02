@@ -54,6 +54,7 @@
     "verify:report-design-3b3": "tsx scripts/verify-report-design-3b3.ts",
     "verify:report-design-3b4": "tsx scripts/verify-report-design-3b4.ts",
     "verify:report-design-4a": "tsx scripts/verify-report-design-4a.ts",
+    "verify:report-trends-1": "tsx scripts/verify-report-trends-1.ts",
     "verify:gdrive-storage-1": "tsx scripts/verify-gdrive-storage-1.ts"
   },
   "dependencies": {

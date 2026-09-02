@@ -4,7 +4,7 @@ import type { TechnicalSection, ValuationRow } from "../editorial-schema";
 
 export type PresentationBackground = { role: ReportDesignPageRole; mode: "GENERATED" | "ASSET"; imageUrl: string | null };
 export type PresentationMedia = { id: string; caption: string | null; imageUrl: string } | null;
-export type PresentationTrendPoint = { label: string; occupancyPercent: number | null; monthlyNetRentCents: number | null; collectionRatePercent: number | null; overdueDebtCents: number | null };
+export type PresentationTrendPoint = { label: string; occupancyPercent: number | null; monthlyNetRentCents: number | null; weightedNetRentPerM2Cents: number | null; collectionRatePercent: number | null; overdueDebtCents: number | null };
 
 export type QuarterlyPropertyPresentation = {
   report: { id: string; groupId: string; year: number; quarter: number; status: string };
