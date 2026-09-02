@@ -31,3 +31,18 @@ Demo seed je deterministický a nedestruktivní: pokud databáze už obsahuje ne
 ## Hranice V23-A
 
 Tato fáze staví QA základ. Automatické vybírání 1–2 GitHub issues, opravné smyčky a `release-ready` štítky patří do navazující fáze až po ověření stability V23-A na reálných pull requestech.
+
+## V23-B – řízený vstup a dry run
+
+V23-B přidává fail-closed vstupní bránu před samotnou autonomní implementací. Operátor založí jedno otevřené Issue pomocí šablony `Agent-ready úkol` a uvede cíl, povolený rozsah, checklist, rizikovou třídu, zakázané operace, povinné ověření a lidskou bránu.
+
+Workflow `Agent intake dry run` se spouští ručně s jedním číslem Issue. Má pouze `contents: read` a `issues: read`, checkout neponechává přihlašovací údaje a výsledkem je sedmidenní auditní artefakt. Nemůže měnit kód, Issue, PR ani `main`; neobsahuje automatický merge, produkční secrets ani deploy.
+
+První řízený cyklus je záměrně dvoufázový:
+
+1. příjem Issue a audit vstupní smlouvy,
+2. samostatná implementační větev → plné CI → browser smoke → `release-ready` audit → lidské rozhodnutí.
+
+Skutečné bezobslužné spuštění `openai/codex-action` v GitHub Actions vyžaduje samostatný GitHub Secret `OPENAI_API_KEY` a API billing. Pro dry run V23-B se klíč nepoužívá ani neukládá. Dokud nebude samostatně schváleno jeho zavedení, provádí implementační část Codex z autorizované ChatGPT relace a GitHub zůstává společnou auditní pamětí.
+
+Stav `READY_FOR_IMPLEMENTATION` pouze potvrzuje úplnost vstupu. Stav `release-ready` pouze potvrzuje zelené release gates. Ani jeden stav nepovoluje merge do `main`.

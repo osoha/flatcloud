@@ -1,0 +1,70 @@
+name: Agent-ready úkol
+description: Bezpečné zadání pro řízenou autonomní implementaci
+title: "[AGENT] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tato šablona je vstupní smlouva pro vývojového agenta. Nevyplněné nebo nejednoznačné zadání musí skončit jako `BLOCKED`.
+  - type: textarea
+    id: goal
+    attributes:
+      label: Cíl
+      description: Popište uživatelský nebo provozní výsledek, nikoli konkrétní řádky kódu.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Povolený rozsah
+      description: Co agent smí změnit a které části systému musí zůstat nedotčené.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Jednoznačné, samostatně ověřitelné body ve formátu checklistu.
+      placeholder: "- [ ] Očekávaný výsledek"
+    validations:
+      required: true
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Riziková třída
+      options:
+        - LOW — dokumentace, testy nebo izolované UX
+        - MEDIUM — aplikační logika bez migrace a produkčních dat
+        - HIGH — databáze, autentizace, platby, oprávnění nebo externí data
+    validations:
+      required: true
+  - type: textarea
+    id: forbidden
+    attributes:
+      label: Zakázané operace
+      description: Produkční data, secrets, deploy, main a další hranice, které agent nesmí překročit.
+      value: |
+        - žádný přímý push ani merge do main
+        - žádný produkční deploy
+        - žádná změna produkční databáze, secrets nebo externích produkčních dat
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Povinné ověření
+      value: |
+        - relevantní verify skripty
+        - Prisma validate/migrate nad izolovanou databází
+        - production build
+        - Playwright browser smoke
+        - audit diffu a rizik
+    validations:
+      required: true
+  - type: checkboxes
+    id: human_gate
+    attributes:
+      label: Lidská brána
+      options:
+        - label: Rozumím, že stav `release-ready` nepovoluje merge do `main` bez samostatného výslovného schválení.
+          required: true
