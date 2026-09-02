@@ -11,8 +11,9 @@ Použij izolovanou PostgreSQL databázi a testovací přihlašovací údaje. Nik
 3. nastav `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD` a bezpečný testovací `SESSION_SECRET`
 4. `npm run e2e:seed`
 5. `npm run build`
-6. `npx playwright install chromium`
-7. `npm run test:e2e`
+6. `npm run e2e:prepare` připraví `public` a `.next/static` pro standalone server (příkaz se zopakuje automaticky i při startu Playwrightu)
+7. `npx playwright install chromium`
+8. `npm run test:e2e`
 
 Demo seed je deterministický a nedestruktivní: pokud databáze už obsahuje nemovitosti, skončí bez jejich přepsání. CI proto pro každý běh vytváří čistou databázi `flatcloud_e2e`.
 

@@ -30,7 +30,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: `npm run start -- --hostname 127.0.0.1 -p ${port}`,
+        command: `npm run e2e:prepare && HOSTNAME=127.0.0.1 PORT=${port} node .next/standalone/server.js`,
         url: `${localBaseUrl}/api/health`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,

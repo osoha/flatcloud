@@ -10,6 +10,7 @@
     "db:bootstrap": "tsx prisma/bootstrap.ts",
     "db:seed:demo": "tsx prisma/seed.ts",
     "e2e:seed": "npm run db:bootstrap && npm run db:seed:demo",
+    "e2e:prepare": "node scripts/prepare-e2e-standalone.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "verify:v23-a": "node --import tsx scripts/verify-v23-a.ts",

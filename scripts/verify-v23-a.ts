@@ -12,6 +12,7 @@ const runbook = read("docs/autonomous-qa.md");
 assert(packageJson.devDependencies?.["@playwright/test"], "Chybí @playwright/test.");
 assert.equal(packageJson.scripts?.["test:e2e"], "playwright test", "Chybí stabilní test:e2e příkaz.");
 assert.equal(packageJson.scripts?.["e2e:seed"], "npm run db:bootstrap && npm run db:seed:demo", "E2E seed musí používat bootstrap a demo seed.");
+assert.equal(packageJson.scripts?.["e2e:prepare"], "node scripts/prepare-e2e-standalone.mjs", "E2E musí připravit standalone assety.");
 assert(workflow.includes("browser-smoke:"), "CI nemá samostatný browser-smoke job.");
 assert(workflow.includes("needs: build"), "Browser smoke musí čekat na code/build gate.");
 assert(workflow.includes("POSTGRES_DB: flatcloud_e2e"), "Browser smoke nemá izolovanou databázi.");
@@ -20,6 +21,7 @@ assert(workflow.includes("Upload browser evidence"), "CI neukládá diagnostick�
 assert(config.includes('trace: "retain-on-failure"'), "Chybí trace při selhání.");
 assert(config.includes('screenshot: "only-on-failure"'), "Chybí screenshot při selhání.");
 assert(config.includes('video: "retain-on-failure"'), "Chybí video při selhání.");
+assert(config.includes(".next/standalone/server.js"), "Playwright musí spouštět Next.js standalone server.");
 assert((smoke.match(/\btest\(/g) || []).length >= 8, "V23-A vyžaduje alespoň osm browser smoke scénářů.");
 assert(smoke.includes("pageerror") && smoke.includes('message.type() === "error"') && smoke.includes("response.status() >= 500"), "Smoke testy musí hlídat pageerror, console.error a HTTP 5xx.");
 assert(/nikdy.*main/i.test(agentRules) && /výslovn/i.test(agentRules), "AGENTS.md musí vyžadovat výslovné schválení před main.");
