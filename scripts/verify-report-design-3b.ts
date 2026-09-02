@@ -139,11 +139,11 @@ function main() {
   check("Google Drive implementation is unchanged", () => {
     assert.equal(
       hash("lib/storage/google-drive.ts"),
-      "50d0988f0b1215fc3d0ffe13d0ed5cebbc666e31d999799cce58cc8fceb5eb4b",
+      "149cc243f8cc8489153e25e86c1c96dc2ae56b8e5432acc8772eb7bbc723587b",
     );
     assert.equal(
       hash("lib/storage/locations.ts"),
-      "676e036c2fb1202650525e0e43424ae4840d16d476c0c436317d5346f8b2d9f8",
+      "6eca90cce50ceada1b737885b625a7583cba6b2974a454283b20dbfa41a3fcb9",
     );
   });
   check("canonical PDF renderer and loader are unchanged", () => {

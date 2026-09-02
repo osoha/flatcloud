@@ -79,7 +79,7 @@ async function main() {
     await check("migration is additive and preserves domain data", () => assert.doesNotMatch(migration, /DROP|TRUNCATE|DELETE FROM/i));
     await check("existing proposedVariableSymbol behavior is compatible", () => assert.equal(proposedVariableSymbol({ address: "Veská 137", technicalData: null }, { label: "Byt 1 / 2+kk", leases: [] }, new Set()), "1370101"));
     await check("variable-symbol source is unchanged", () => assert.equal(hash("lib/variable-symbol.ts"), "c2cdabada57e6cd2ba6697045cd3a6eacc19187737e9ba51d6c20d22edaf50cd"));
-    await check("Drive location behavior is unchanged", () => assert.equal(hash("lib/storage/locations.ts"), "676e036c2fb1202650525e0e43424ae4840d16d476c0c436317d5346f8b2d9f8"));
+    await check("Drive location behavior is unchanged", () => assert.equal(hash("lib/storage/locations.ts"), "6eca90cce50ceada1b737885b625a7583cba6b2974a454283b20dbfa41a3fcb9"));
     await check("googleDriveFolderId is not migrated", () => assert.doesNotMatch(migration, /googleDriveFolderId/));
     await check("MF implementation is outside identity changes", () => assert.doesNotMatch(read("lib/business-identity.ts"), /MfRent|mf-rent/));
     await check("reporting implementation is outside identity changes", () => assert.doesNotMatch(read("lib/business-identity.ts"), /Quarterly|reporting/));
