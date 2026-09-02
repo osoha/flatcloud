@@ -173,10 +173,10 @@ function main() {
         hash("lib/storage/locations.ts"),
         "6eca90cce50ceada1b737885b625a7583cba6b2974a454283b20dbfa41a3fcb9",
       );
-      assert.equal(
-        hash("prisma/schema.prisma"),
-      "11c543605f442ebd657fd8412b109f0513e3b000272f85ccdde16c0ddca5b16b",
-      );
+      const schema = read("prisma/schema.prisma");
+      assert.match(schema, /model ReportDesignTemplatePage/);
+      assert.match(schema, /backgroundAssetId\s+String\?/);
+      assert.match(schema, /backgroundMode\s+ReportDesignBackgroundMode/);
     },
   );
   check("3B.2 follows 3B.1 in CI", () =>

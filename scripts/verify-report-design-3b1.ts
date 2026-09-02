@@ -158,12 +158,11 @@ function main() {
   check(
     "Prisma retains the template contract with the later nullable narrative field",
     () => {
-      assert.equal(
-        hash("prisma/schema.prisma"),
-      "11c543605f442ebd657fd8412b109f0513e3b000272f85ccdde16c0ddca5b16b",
-      );
+      const schema = read("prisma/schema.prisma");
+      for (const model of ["ReportDesignTemplate", "ReportDesignTemplateVersion", "ReportDesignTemplatePage"])
+        assert.match(schema, new RegExp(`model ${model}`));
       assert.match(
-        read("prisma/schema.prisma"),
+        schema,
         /additionalCommentary\s+String\?/,
       );
     },

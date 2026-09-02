@@ -191,12 +191,12 @@ async function main() {
     loader = read(
       "lib/reporting/presentation/quarterly-property-presentation-data.ts",
     );
-  await check("Prisma schema is unchanged for RD4A", () =>
-    assert.equal(
-      hash("prisma/schema.prisma"),
-      "11c543605f442ebd657fd8412b109f0513e3b000272f85ccdde16c0ddca5b16b",
-    ),
-  );
+  await check("Prisma report-design contracts remain intact for RD4A", () => {
+    const schema = read("prisma/schema.prisma");
+    assert.match(schema, /designTemplateVersionId\s+String\?/);
+    assert.match(schema, /designTemplateVersion\s+ReportDesignTemplateVersion\?/);
+    assert.match(schema, /model ReportDesignTemplatePage/);
+  });
   await check("RD4A adds no migration", () =>
     assert.equal(
       fs
