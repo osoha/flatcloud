@@ -77,7 +77,7 @@ test("kritické registry a administrace se otevřou bez browser chyb", async ({ 
 test("uživatel projde z portfolia do nemovitosti a jednotky", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
-  await page.getByRole("link", { name: "Moskevská", exact: true }).first().click();
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
   await expect(page.getByRole("heading", { name: "Moskevská", exact: true })).toBeVisible();
   await expect(page.getByText(/ID nemovitosti: P\d{4}/)).toBeVisible();
   await page.getByRole("link", { name: "Jednotky", exact: true }).click();
