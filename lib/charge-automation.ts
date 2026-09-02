@@ -44,33 +44,46 @@ export async function replaceRecurringAmount(
   amountCents: number,
   effectiveFrom: Date,
 ) {
-  const current = await tx.leasePaymentItem.findFirst({
-    where: { leaseId, category: category as ChargeCategory, active: true },
+  const overlapping = await tx.leasePaymentItem.findMany({
+    where: {
+      leaseId,
+      category: category as ChargeCategory,
+      active: true,
+      OR: [{ validTo: null }, { validTo: { gte: effectiveFrom } }],
+    },
     orderBy: [{ validFrom: "desc" }, { createdAt: "desc" }],
   });
-  if (current?.amountCents === amountCents) return false;
+  const alreadyCanonical = amountCents > 0
+    && overlapping.length === 1
+    && overlapping[0].validFrom <= effectiveFrom
+    && !overlapping[0].validTo
+    && overlapping[0].amountCents === amountCents;
+  if (alreadyCanonical) return false;
 
-  if (current) {
-    if (current.validFrom >= effectiveFrom) {
-      if (amountCents > 0) {
-        await tx.leasePaymentItem.update({ where: { id: current.id }, data: { amountCents, validFrom: effectiveFrom } });
-        return true;
-      }
-      await tx.leasePaymentItem.update({ where: { id: current.id }, data: { active: false, validTo: dayBefore(effectiveFrom) } });
-      return true;
+  const reusable = overlapping.find((item) => item.validFrom.getTime() === effectiveFrom.getTime());
+  for (const item of overlapping) {
+    if (item.id === reusable?.id) continue;
+    if (item.validFrom >= effectiveFrom) {
+      await tx.leasePaymentItem.update({ where: { id: item.id }, data: { active: false } });
+    } else {
+      await tx.leasePaymentItem.update({ where: { id: item.id }, data: { validTo: dayBefore(effectiveFrom) } });
     }
-    await tx.leasePaymentItem.update({ where: { id: current.id }, data: { validTo: dayBefore(effectiveFrom) } });
   }
-  if (amountCents > 0) {
+
+  const canonical = {
+    name: category === "RENT" ? "Nájemné" : "Zálohy na služby",
+    category: category as ChargeCategory,
+    amountCents,
+    validFrom: effectiveFrom,
+    validTo: null,
+    active: amountCents > 0,
+    sortOrder: category === "RENT" ? 10 : 20,
+  };
+  if (reusable) {
+    await tx.leasePaymentItem.update({ where: { id: reusable.id }, data: canonical });
+  } else if (amountCents > 0) {
     await tx.leasePaymentItem.create({
-      data: {
-        leaseId,
-        name: category === "RENT" ? "Nájemné" : "Zálohy na služby",
-        category: category as ChargeCategory,
-        amountCents,
-        validFrom: effectiveFrom,
-        sortOrder: category === "RENT" ? 10 : 20,
-      },
+      data: { leaseId, ...canonical, active: true },
     });
   }
   return true;
@@ -190,6 +203,9 @@ export async function runChargeAutomation(now = new Date()) {
       const financialBoundary = resolveActiveFinancialBoundary(lease, now);
       if (financialBoundary.corrected) {
         await tx.lease.update({ where: { id: lease.id }, data: { financialTrackingFromPeriod: financialBoundary.period } });
+        const recurringEffectiveFrom = periodStart(financialBoundary.period);
+        await replaceRecurringAmount(tx, lease.id, "RENT", lease.rentCents, recurringEffectiveFrom);
+        await replaceRecurringAmount(tx, lease.id, "SERVICES", lease.servicesCents, recurringEffectiveFrom);
         await tx.auditLog.create({
           data: {
             propertyId: lease.unit.propertyId,

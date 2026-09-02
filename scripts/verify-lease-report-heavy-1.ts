@@ -96,22 +96,48 @@ async function main() {
     await check("amount edit updates current and future generated charges", async () => { const charges = await prisma.charge.findMany({ where: { leaseId: created.lease.id, period: { in: [currentPeriod, "2026-10"] } }, orderBy: { period: "asc" }, select: { period: true, amountCents: true, active: true } }); assert.deepEqual(charges, [{ period: currentPeriod, amountCents: 2900000, active: true }, { period: "2026-10", amountCents: 2900000, active: true }]); });
     await check("amount edit preserves prior manual history", async () => assert.deepEqual(await prisma.charge.findUnique({ where: { id: priorManual.id }, select: { amountCents: true, active: true, manualOverride: true } }), { amountCents: 77700, active: false, manualOverride: true }));
 
+    await prisma.leasePaymentItem.createMany({ data: [
+      { leaseId: created.lease.id, name: "Legacy duplicate rent", category: "RENT", amountCents: 630000, validFrom: new Date("2026-04-01T12:00Z"), sortOrder: 11 },
+      { leaseId: created.lease.id, name: "Legacy future rent", category: "RENT", amountCents: 1800000, validFrom: new Date("2026-10-01T12:00Z"), sortOrder: 12 },
+      { leaseId: created.lease.id, name: "Legacy duplicate services", category: "SERVICES", amountCents: 750000, validFrom: new Date("2026-04-01T12:00Z"), sortOrder: 21 },
+    ] });
+    await prisma.$transaction(async (tx) => {
+      const effectiveFrom = new Date("2026-09-01T12:00Z");
+      await replaceRecurringAmount(tx, created.lease.id, "RENT", 2400000, effectiveFrom);
+      await replaceRecurringAmount(tx, created.lease.id, "SERVICES", 500000, effectiveFrom);
+      await syncLeaseCharges(tx, created.lease.id, { now, fromPeriod: currentPeriod, force: true });
+    });
+    await check("saving unchanged contract totals collapses overlapping RENT and SERVICES schedules", async () => { const items = await prisma.leasePaymentItem.findMany({ where: { leaseId: created.lease.id, active: true, validFrom: { lte: now }, OR: [{ validTo: null }, { validTo: { gte: now } }], category: { in: ["RENT", "SERVICES"] } }, orderBy: { category: "asc" }, select: { category: true, amountCents: true } }); assert.deepEqual(items, [{ category: "RENT", amountCents: 2400000 }, { category: "SERVICES", amountCents: 500000 }]); });
+    await check("schedule normalization makes every unpaid current and future charge consistent", async () => { const charges = await prisma.charge.findMany({ where: { leaseId: created.lease.id, period: { in: [currentPeriod, "2026-10"] } }, orderBy: { period: "asc" }, select: { period: true, amountCents: true } }); assert.deepEqual(charges, [{ period: currentPeriod, amountCents: 2900000 }, { period: "2026-10", amountCents: 2900000 }]); });
+
     const correctedUnit = await makeUnit("Dominik corrected");
     const corrected = await directLease(correctedUnit.id, "920100201", { startDate: new Date("2026-04-01T12:00Z"), endDate: new Date("2026-12-30T12:00Z"), cancelledAt: new Date("2026-08-01T12:00Z"), boundary: "2027-07", rent: 2300000, services: 470000, status: LeaseStatus.ENDED, contractNumber: "NS-DOMINIK" });
+    await prisma.leasePaymentItem.createMany({ data: [
+      { leaseId: corrected.id, name: "Legacy overlapping rent", category: "RENT", amountCents: 1220000, validFrom: new Date("2026-04-01T12:00Z"), sortOrder: 11 },
+      { leaseId: corrected.id, name: "Legacy overlapping services", category: "SERVICES", amountCents: 800000, validFrom: new Date("2026-10-01T12:00Z"), sortOrder: 21 },
+    ] });
+    for (const [period, amountCents] of [["2026-09", 3520000], ["2026-10", 2030000], ["2026-11", 2980000], ["2026-12", 2980000], ["2027-01", 120000]] as const) {
+      await prisma.charge.create({ data: { leaseId: corrected.id, period, dueDate: new Date(`${period}-05T12:00Z`), amountCents } });
+    }
     const restored = await restoreCancelledLease({ propertyId: property.id, leaseId: corrected.id, actor: admin, restoreReason: "Oprava ručně vrácené smlouvy", now });
     await check("Dominik-like correction restores ACTIVE lifecycle", () => assert.equal(restored.derivedStatus, LeaseStatus.ACTIVE));
     await check("reactivation clamps future financial boundary to current month", async () => assert.equal((await prisma.lease.findUniqueOrThrow({ where: { id: corrected.id } })).financialTrackingFromPeriod, currentPeriod));
     await check("reactivation never backfills months before corrected boundary", async () => assert.equal(await prisma.charge.count({ where: { leaseId: corrected.id, period: { lt: currentPeriod } } }), 0));
     await check("reactivation creates current rent plus services charge", async () => assert.deepEqual(await prisma.charge.findFirst({ where: { leaseId: corrected.id, period: currentPeriod }, select: { amountCents: true, active: true } }), { amountCents: 2770000, active: true }));
+    await check("reactivation normalizes every unpaid in-term prescription", async () => { const charges = await prisma.charge.findMany({ where: { leaseId: corrected.id, period: { in: ["2026-09", "2026-10", "2026-11", "2026-12"] } }, orderBy: { period: "asc" }, select: { period: true, amountCents: true, active: true } }); assert.deepEqual(charges, ["2026-09", "2026-10", "2026-11", "2026-12"].map((period) => ({ period, amountCents: 2770000, active: true }))); });
+    await check("reactivation disables but does not rewrite a prescription beyond contract end", async () => assert.deepEqual(await prisma.charge.findFirst({ where: { leaseId: corrected.id, period: "2027-01" }, select: { amountCents: true, active: true } }), { amountCents: 120000, active: false }));
+    await check("reactivation collapses overlapping recurring components to stored contract totals", async () => { const items = await prisma.leasePaymentItem.findMany({ where: { leaseId: corrected.id, active: true, validFrom: { lte: now }, OR: [{ validTo: null }, { validTo: { gte: now } }], category: { in: ["RENT", "SERVICES"] } }, orderBy: { category: "asc" }, select: { category: true, amountCents: true } }); assert.deepEqual(items, [{ category: "RENT", amountCents: 2300000 }, { category: "SERVICES", amountCents: 470000 }]); });
     await check("reactivated lease is occupied and visible with non-zero tenancy amounts", async () => { const data = await report(); const row = data.tenancyRows.find((item) => item.leaseId === corrected.id); assert.equal((await prisma.unit.findUniqueOrThrow({ where: { id: correctedUnit.id } })).status, UnitStatus.OCCUPIED); assert.deepEqual(row && [row.netRentCents, row.servicesCents], [2300000, 470000]); });
     await check("reactivation audit records financial correction provenance", async () => { const audit = await prisma.auditLog.findFirstOrThrow({ where: { entityId: corrected.id, action: "LEASE_REACTIVATED" } }); assert.deepEqual(audit.details && [(audit.details as any).previousFinancialTrackingFromPeriod, (audit.details as any).correctedFinancialTrackingFromPeriod], ["2027-07", currentPeriod]); });
 
     const existingUnit = await makeUnit("Existing anomaly");
     const existing = await directLease(existingUnit.id, "920100301", { startDate: new Date("2026-04-01T12:00Z"), boundary: "2027-07", rent: 1700000, services: 310000, status: LeaseStatus.ACTIVE, contractNumber: "NS-EXISTING" });
+    await prisma.leasePaymentItem.create({ data: { leaseId: existing.id, name: "Existing duplicate", category: "RENT", amountCents: 900000, validFrom: new Date("2026-04-01T12:00Z"), sortOrder: 11 } });
+    await prisma.charge.create({ data: { leaseId: existing.id, period: currentPeriod, dueDate: new Date("2026-09-05T12:00Z"), amountCents: 2910000 } });
     await check("LIVE report immediately recovers contractual values for an existing anomaly", async () => { const data = await report(); const row = data.tenancyRows.find((item) => item.leaseId === existing.id); assert.deepEqual(row && [row.netRentCents, row.servicesCents], [1700000, 310000]); assert.ok(data.quality.some((issue) => issue.code === "ACTIVE_LEASE_FUTURE_FINANCIAL_TRACKING" && issue.leaseId === existing.id)); });
     await runChargeAutomation(now);
     await check("scheduler permanently self-heals existing active anomaly", async () => assert.equal((await prisma.lease.findUniqueOrThrow({ where: { id: existing.id } })).financialTrackingFromPeriod, currentPeriod));
-    await check("scheduler creates no historical backfill during self-heal", async () => { assert.equal(await prisma.charge.count({ where: { leaseId: existing.id, period: { lt: currentPeriod } } }), 0); assert.deepEqual(await prisma.charge.findFirst({ where: { leaseId: existing.id, period: currentPeriod }, select: { amountCents: true, active: true } }), { amountCents: 2010000, active: true }); });
+    await check("scheduler normalizes random current charge without historical backfill", async () => { assert.equal(await prisma.charge.count({ where: { leaseId: existing.id, period: { lt: currentPeriod } } }), 0); assert.deepEqual(await prisma.charge.findFirst({ where: { leaseId: existing.id, period: currentPeriod }, select: { amountCents: true, active: true } }), { amountCents: 2010000, active: true }); });
     await check("scheduler correction is audited and clears LIVE anomaly", async () => { assert.ok(await prisma.auditLog.findFirst({ where: { entityId: existing.id, action: "LEASE_FINANCIAL_TRACKING_CORRECTED" } })); assert.ok(!(await report()).quality.some((issue) => issue.code === "ACTIVE_LEASE_FUTURE_FINANCIAL_TRACKING" && issue.leaseId === existing.id)); });
 
     const futureUnit = await makeUnit("Future restored");
@@ -126,7 +152,7 @@ async function main() {
 
     const cardSources = [read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx"), read("app/najemnici/[tenantId]/page.tsx"), read("app/smlouvy/page.tsx"), read("app/nemovitosti/[id]/[section]/page.tsx")];
     await check("unit tenant contract and property cards use shared lifecycle and stored amounts", () => { assert.ok(cardSources.every((source) => /leaseStatusAt|currentLeaseForUnit/.test(source))); assert.ok(cardSources.every((source) => /rentCents/.test(source))); assert.match(cardSources[0], /rentCents \+ activeLease\.servicesCents/); });
-    await check("edit route updates raw amounts recurring templates and generated charges together", () => { const route = read("app/api/properties/[id]/leases/[leaseId]/route.ts"); for (const token of ["replaceRecurringAmount", "rentCents", "servicesCents", "syncLeaseCharges"]) assert.ok(route.includes(token)); });
+    await check("edit route always reconciles raw amounts recurring templates and generated charges together", () => { const route = read("app/api/properties/[id]/leases/[leaseId]/route.ts"); for (const token of ["await replaceRecurringAmount(tx, leaseId, \"RENT\", rentCents", "await replaceRecurringAmount(tx, leaseId, \"SERVICES\", servicesCents", "rentCents", "servicesCents", "syncLeaseCharges"]) assert.ok(route.includes(token)); });
     await check("report routes link tenancy rows back to tenant unit and contract cards", () => { const page = read("app/reporty/page.tsx"); for (const token of ["/najemnici/${row.tenantId}", "/jednotky/${row.unitId}", "/smlouvy/${row.leaseId}"]) assert.ok(page.includes(token)); });
   } finally {
     await prisma.auditLog.deleteMany({ where: { OR: [{ propertyId: property.id }, { entityId: { in: leaseIds } }] } });

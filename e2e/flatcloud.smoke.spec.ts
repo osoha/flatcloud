@@ -119,7 +119,9 @@ test("nájemné a služby jsou shodné v reportu, smlouvách, nájemníkovi a je
   await expect(contractRow).toContainText(services);
 
   await page.goto("/najemnici");
-  await page.getByRole("link", { name: "Jan Novák", exact: true }).first().click();
+  const tenantRegistryRow = page.getByRole("row").filter({ hasText: "Jan Novák" }).filter({ hasText: "Moskevská" }).first();
+  await tenantRegistryRow.getByRole("link", { name: "Jan Novák", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Jan Novák", exact: true })).toBeVisible();
   const tenantLeaseRow = page.getByRole("row").filter({ hasText: "Moskevská" }).first();
   await expect(tenantLeaseRow).toContainText(rent);
 

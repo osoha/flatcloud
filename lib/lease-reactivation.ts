@@ -1,6 +1,7 @@
 import { LeaseStatus, Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { syncLeaseCharges } from "./charge-automation";
+import { periodKeyForDate, replaceRecurringAmount, syncLeaseCharges } from "./charge-automation";
+import { periodStart } from "./period";
 import { leaseStatusAt } from "./lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "./lease-lifecycle";
 import { resolveActiveFinancialBoundary } from "./lease-financial-boundary";
@@ -66,10 +67,13 @@ export async function restoreCancelledLease(input: RestoreCancelledLeaseInput) {
       where: { id: lease.id },
       data: { cancelledAt: null, cancellationReason: null, status: derivedStatus, financialTrackingFromPeriod: financialBoundary.period },
     });
+    const recurringEffectiveFrom = periodStart(financialBoundary.period);
+    await replaceRecurringAmount(tx, lease.id, "RENT", lease.rentCents, recurringEffectiveFrom);
+    await replaceRecurringAmount(tx, lease.id, "SERVICES", lease.servicesCents, recurringEffectiveFrom);
     await syncUnitOccupancyCache(tx, lease.unitId, now);
     await syncLeaseCharges(tx, lease.id, {
       now,
-      fromPeriod: financialBoundary.period,
+      fromPeriod: periodKeyForDate(recurringEffectiveFrom),
     });
     await tx.auditLog.create({
       data: {

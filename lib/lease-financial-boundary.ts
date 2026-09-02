@@ -29,7 +29,7 @@ export function resolveActiveFinancialBoundary(lease: LeaseFinancialBoundary, no
   };
 }
 
-export function leaseForLiveFinancialReporting<T extends LeaseFinancialBoundary>(lease: T, asOf = new Date()): T {
+export function leaseForLiveFinancialReporting<T extends LeaseFinancialBoundary>(lease: T, asOf = new Date()): T & { forceContractAmountsForLiveReporting?: boolean } {
   const resolution = resolveActiveFinancialBoundary(lease, asOf);
-  return resolution.corrected ? { ...lease, financialTrackingFromPeriod: resolution.period } : lease;
+  return resolution.corrected ? { ...lease, financialTrackingFromPeriod: resolution.period, forceContractAmountsForLiveReporting: true } : lease;
 }
