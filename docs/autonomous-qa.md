@@ -46,3 +46,19 @@ První řízený cyklus je záměrně dvoufázový:
 Skutečné bezobslužné spuštění `openai/codex-action` v GitHub Actions vyžaduje samostatný GitHub Secret `OPENAI_API_KEY` a API billing. Pro dry run V23-B se klíč nepoužívá ani neukládá. Dokud nebude samostatně schváleno jeho zavedení, provádí implementační část Codex z autorizované ChatGPT relace a GitHub zůstává společnou auditní pamětí.
 
 Stav `READY_FOR_IMPLEMENTATION` pouze potvrzuje úplnost vstupu. Stav `release-ready` pouze potvrzuje zelené release gates. Ani jeden stav nepovoluje merge do `main`.
+
+## V23-C – autonomní fronta a řízené opravné cykly
+
+Workflow `Agent queue dry run` běží každou hodinu a lze jej spustit i ručně. Jde o deterministický, read-only heartbeat: načte otevřené Issues a PR, ale nesmí je upravit. Z fronty označené prefixem `[AGENT]` vybere nejvýše jeden nejstarší úkol. Pokud je vstup neúplný, má riziko HIGH nebo už existuje otevřený PR z větve `agent/issue-…`, skončí `BLOCKED` nebo `IDLE`; nikdy nepřeskočí nevalidní první úkol a nezačne další práci.
+
+Výstupem je pouze auditní artefakt a strojově čitelné rozhodnutí. Workflow nemá write oprávnění, credentials pro push, `OPENAI_API_KEY`, Codex Action, merge ani deploy. Samotnou implementaci spouští autorizovaná ChatGPT/Codex relace podle auditovaného rozhodnutí.
+
+Implementační řadič dodržuje následující smlouvu:
+
+1. vytvoří větev `agent/issue-<číslo>-<slug>` a pracuje pouze v ní,
+2. po změně spustí všechny relevantní verify kontroly, production build a Playwright smoke,
+3. při selhání smí provést nejvýše **2 opravné cykly**; potom označí výsledek `needs-human`,
+4. při zelených branách vytvoří nebo aktualizuje PR a audit `release-ready`,
+5. nikdy sám nemerguje do `main`, nenasazuje produkci ani nepoužívá produkční data či secrets.
+
+Nouzové zastavení je fail-closed: vypnutí workflow, odebrání prefixu `[AGENT]` nebo ponechání otevřeného agentního PR zabrání výběru dalšího bodu. Plánovaný heartbeat tedy frontu pouze kontroluje; právo měnit repozitář zůstává v oddělené autorizované relaci a konečný merge vždy vyžaduje výslovný lidský souhlas.
