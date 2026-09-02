@@ -1,4 +1,4 @@
-import { UnitOperationalStatus, UnitType } from "@prisma/client";
+import { UnitDisposition, UnitOperationalStatus, UnitType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { floatValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
@@ -10,6 +10,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!access) return go(request, "/login");
   try {
     const form = await request.formData();
+    const rawDisposition = text(form, "disposition");
+    const disposition = rawDisposition && Object.values(UnitDisposition).includes(rawDisposition as UnitDisposition)
+      ? (rawDisposition as UnitDisposition)
+      : null;
+    if (rawDisposition && !disposition) throw new Error("Neplatná dispozice jednotky.");
+    const dispositionCustom = text(form, "dispositionCustom");
+    if (disposition === "OTHER" && !dispositionCustom) throw new Error("U jiné dispozice doplňte vlastní označení.");
     const ownerId = text(form, "ownerId", true)!;
     const ownerBankAccountId = text(form, "ownerBankAccountId", true)!;
     const [property, account] = await Promise.all([
@@ -31,6 +38,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         label: text(form, "label", true)!,
         floor: text(form, "floor"),
         type: (text(form, "type") || "APARTMENT") as UnitType,
+        disposition,
+        dispositionCustom: disposition === "OTHER" ? dispositionCustom : null,
         operationalStatus,
         areaM2: floatValue(form, "areaM2"),
         note: text(form, "note"),

@@ -74,6 +74,17 @@ test("kritické registry a administrace se otevřou bez browser chyb", async ({ 
   assertNoBrowserFailures();
 });
 
+test("MF benchmark se otevře jako read-only LIVE report", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty?view=benchmark");
+  await expect(page.getByRole("heading", { name: "Reporty", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "MF benchmark", exact: true })).toBeVisible();
+  await expect(page.getByText("Datové období MF", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Srovnání pouze ke čtení/)).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("uživatel projde z portfolia do nemovitosti a jednotky", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

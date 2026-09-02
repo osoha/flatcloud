@@ -82,6 +82,19 @@ enum UnitType {
   OTHER
 }
 
+enum UnitDisposition {
+  STUDIO
+  ONE_KK
+  ONE_PLUS_ONE
+  TWO_KK
+  TWO_PLUS_ONE
+  THREE_KK
+  THREE_PLUS_ONE
+  FOUR_KK
+  FOUR_PLUS_ONE
+  OTHER
+}
+
 enum UnitStatus {
   VACANT
   OCCUPIED
@@ -593,6 +606,8 @@ model Unit {
   label                   String
   floor                   String?
   type                    UnitType                     @default(APARTMENT)
+  disposition             UnitDisposition?
+  dispositionCustom       String?
   status                  UnitStatus                   @default(VACANT)
   operationalStatus       UnitOperationalStatus        @default(STANDARD)
   areaM2                  Float?

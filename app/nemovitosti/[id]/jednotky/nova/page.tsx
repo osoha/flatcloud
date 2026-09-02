@@ -6,7 +6,7 @@ import { Shell } from "@/components/Shell";
 import { Field, Flash, FormCard, FormPage, Select, Textarea } from "@/components/FormUi";
 import { UnitOwnerFields } from "@/components/UnitOwnerFields";
 import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
-import { unitOperationalStatuses, unitTypes } from "@/lib/labels";
+import { unitDispositions, unitOperationalStatuses, unitTypes } from "@/lib/labels";
 
 export const dynamic = "force-dynamic";
 export default async function NewUnit({ params, searchParams }: { params: Promise<{id:string}>; searchParams: Promise<{ok?:string;error?:string}> }) {
@@ -26,6 +26,8 @@ export default async function NewUnit({ params, searchParams }: { params: Promis
       <Field label="Označení jednotky" name="label" required placeholder="např. Byt 12 nebo 3.02"/>
       <Field label="Podlaží" name="floor" placeholder="např. 3. NP"/>
       <Select label="Typ jednotky" name="type" options={Object.entries(unitTypes)}/>
+      <Select label="Dispozice pro MF benchmark" name="disposition" options={[["", "Nevyplněno"], ...Object.entries(unitDispositions)]}/>
+      <Field label="Vlastní označení dispozice" name="dispositionCustom" placeholder="Pouze pro Jiná dispozice"/>
       <Select label="Provozní režim" name="operationalStatus" options={Object.entries(unitOperationalStatuses)}/><div className="field field-full notice"><strong>Obsazenost se počítá automaticky</strong><span>Volná / Obsazená se od V21.3 odvozuje pouze z platných nájemních smluv a nelze ji měnit ručně.</span></div>
       <Field label="Plocha v m²" name="areaM2" type="number" step="0.01" min={0}/>
       <Textarea label="Poznámka" name="note"/>

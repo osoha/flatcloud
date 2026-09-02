@@ -5,7 +5,7 @@ import { requireUser, canSeeAll } from "@/lib/auth";
 import { requirePropertyAccess } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Field, Flash, FormCard, FormPage, Select, Textarea } from "@/components/FormUi";
-import { unitOperationalStatuses, unitTypes } from "@/lib/labels";
+import { unitDispositions, unitOperationalStatuses, unitTypes } from "@/lib/labels";
 import { UnitOwnerFields } from "@/components/UnitOwnerFields";
 import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 
@@ -32,6 +32,8 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
       <Field label="Označení jednotky" name="label" defaultValue={unit.label} required/>
       <Field label="Podlaží" name="floor" defaultValue={unit.floor}/>
       <Select label="Typ jednotky" name="type" defaultValue={unit.type} options={Object.entries(unitTypes)}/>
+      <Select label="Dispozice pro MF benchmark" name="disposition" defaultValue={unit.disposition || ""} options={[["", "Nevyplněno"], ...Object.entries(unitDispositions)]}/>
+      <Field label="Vlastní označení dispozice" name="dispositionCustom" defaultValue={unit.dispositionCustom} placeholder="Pouze pro Jiná dispozice"/>
       <Select label="Provozní režim" name="operationalStatus" defaultValue={unit.operationalStatus} options={Object.entries(unitOperationalStatuses)}/><div className="field field-full notice"><strong>Obsazenost se počítá automaticky</strong><span>Volná / Obsazená je dána smlouvou platnou k dnešnímu dni. Zde se eviduje pouze provozní režim jednotky.</span></div>
       <Field label="Plocha v m²" name="areaM2" type="number" step="0.01" min={0} defaultValue={unit.areaM2}/>
       <Textarea label="Poznámka" name="note" defaultValue={unit.note}/>

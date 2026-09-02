@@ -12,6 +12,8 @@ import {
   parseMfRentWorkbook,
 } from "./parser";
 import { mfRentTerritoryDataSchema } from "./schema";
+import { readPropertyTechnicalData } from "@/lib/property-technical";
+import { selectMfTerritoryFromPropertyData } from "./property-location";
 const FRESH_MS = 24 * 60 * 60 * 1000;
 export const MF_RENT_IMPORT_TRANSACTION_MAX_WAIT_MS = 10_000;
 export const MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS = 60_000;
@@ -266,22 +268,66 @@ export async function resolvePropertyMfRentBenchmarks(args: {
   targetQuarter: number;
   cutoff: Date;
 }) {
-  const mapping = await prisma.propertyMfRentLocation.findUnique({
-    where: { propertyId: args.propertyId },
-  });
+  const release = await resolveMfRentRelease(args);
+  const [explicitMapping, property] = await Promise.all([
+    prisma.propertyMfRentLocation.findUnique({
+      where: { propertyId: args.propertyId },
+    }),
+    prisma.property.findUnique({
+      where: { id: args.propertyId },
+      select: { city: true, technicalData: true },
+    }),
+  ]);
+  const cadastralArea = readPropertyTechnicalData(property?.technicalData).cadastralArea;
+  let locationSource: "EXPLICIT" | "PROPERTY_CADASTRAL_DATA" | null = explicitMapping
+    ? "EXPLICIT"
+    : null;
+  let mapping: {
+    propertyId: string;
+    territoryCode: string;
+    territoryName: string;
+    municipalityName: string | null;
+  } | null = explicitMapping;
+
+  if (!mapping && release && cadastralArea) {
+    const candidates = await prisma.mfRentTerritorySnapshot.findMany({
+      where: {
+        releaseId: release.id,
+        territoryName: { contains: cadastralArea.trim(), mode: "insensitive" },
+      },
+      select: {
+        territoryCode: true,
+        territoryName: true,
+        municipalityName: true,
+      },
+    });
+    const selected = selectMfTerritoryFromPropertyData({
+      cadastralArea,
+      city: property?.city,
+      candidates,
+    });
+    if (selected) {
+      mapping = { propertyId: args.propertyId, ...selected };
+      locationSource = "PROPERTY_CADASTRAL_DATA";
+    }
+  }
+
   if (!mapping)
     return {
       mapping: null,
-      release: null,
+      locationSource: null,
+      cadastralArea: cadastralArea ?? null,
+      release,
       vk1: null,
       vk2: null,
       vk3: null,
       vk4: null,
     };
-  const release = await resolveMfRentRelease(args);
   if (!release)
     return {
       mapping,
+      locationSource,
+      cadastralArea: cadastralArea ?? null,
       release: null,
       vk1: null,
       vk2: null,
@@ -297,14 +343,106 @@ export async function resolvePropertyMfRentBenchmarks(args: {
     },
   });
   if (!snapshot)
-    return { mapping, release, vk1: null, vk2: null, vk3: null, vk4: null };
+    return { mapping, locationSource, cadastralArea: cadastralArea ?? null, release, vk1: null, vk2: null, vk3: null, vk4: null };
   const data = mfRentTerritoryDataSchema.parse(snapshot.data);
   return {
     mapping,
+    locationSource,
+    cadastralArea: cadastralArea ?? null,
     release,
     vk1: data.vk1,
     vk2: data.vk2,
     vk3: data.vk3,
     vk4: data.vk4,
+  };
+}
+
+export async function resolveLiveMfRentBenchmarks(args: {
+  propertyIds: string[];
+  targetYear: number;
+  targetQuarter: number;
+  cutoff: Date;
+}) {
+  const release = await resolveMfRentRelease(args);
+  if (!release || args.propertyIds.length === 0) return { release, properties: [] };
+  const [mappings, properties] = await Promise.all([
+    prisma.propertyMfRentLocation.findMany({
+      where: { propertyId: { in: args.propertyIds } },
+    }),
+    prisma.property.findMany({
+      where: { id: { in: args.propertyIds } },
+      select: { id: true, city: true, technicalData: true },
+    }),
+  ]);
+  const explicitByProperty = new Map(mappings.map((row) => [row.propertyId, row]));
+  const unresolvedProperties = properties.flatMap((property) => {
+    if (explicitByProperty.has(property.id)) return [];
+    const cadastralArea = readPropertyTechnicalData(property.technicalData).cadastralArea?.trim();
+    return cadastralArea ? [{ ...property, cadastralArea }] : [];
+  });
+  const cadastralCandidates = unresolvedProperties.length
+    ? await prisma.mfRentTerritorySnapshot.findMany({
+        where: {
+          releaseId: release.id,
+          OR: unresolvedProperties.map((property) => ({
+            territoryName: { contains: property.cadastralArea, mode: "insensitive" as const },
+          })),
+        },
+        select: {
+          territoryCode: true,
+          territoryName: true,
+          municipalityName: true,
+        },
+      })
+    : [];
+  type ResolvedMapping = {
+    propertyId: string;
+    territoryCode: string;
+    territoryName: string;
+    municipalityName: string | null;
+    locationSource: "EXPLICIT" | "PROPERTY_CADASTRAL_DATA";
+  };
+  const resolvedMappings = properties.map((property): ResolvedMapping | null => {
+    const explicit = explicitByProperty.get(property.id);
+    if (explicit)
+      return {
+        propertyId: explicit.propertyId,
+        territoryCode: explicit.territoryCode,
+        territoryName: explicit.territoryName,
+        municipalityName: explicit.municipalityName,
+        locationSource: "EXPLICIT",
+      };
+    const cadastralArea = readPropertyTechnicalData(property.technicalData).cadastralArea;
+    const selected = selectMfTerritoryFromPropertyData({
+      cadastralArea,
+      city: property.city,
+      candidates: cadastralCandidates,
+    });
+    return selected
+      ? { propertyId: property.id, ...selected, locationSource: "PROPERTY_CADASTRAL_DATA" }
+      : null;
+  }).filter((mapping): mapping is ResolvedMapping => mapping !== null);
+  const snapshots = await prisma.mfRentTerritorySnapshot.findMany({
+    where: {
+      releaseId: release.id,
+      territoryCode: { in: [...new Set(resolvedMappings.map((row) => row.territoryCode))] },
+    },
+  });
+  const byTerritory = new Map(snapshots.map((row) => [row.territoryCode, row]));
+  return {
+    release,
+    properties: resolvedMappings.flatMap((mapping) => {
+      const snapshot = byTerritory.get(mapping.territoryCode);
+      if (!snapshot) return [];
+      const parsed = mfRentTerritoryDataSchema.safeParse(snapshot.data);
+      if (!parsed.success) return [];
+      return [{
+        propertyId: mapping.propertyId,
+        territoryCode: mapping.territoryCode,
+        territoryName: mapping.territoryName,
+        locationSource: mapping.locationSource,
+        data: parsed.data,
+      }];
+    }),
   };
 }

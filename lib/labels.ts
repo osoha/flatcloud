@@ -13,6 +13,19 @@ export const unitTypes: Record<string, string> = {
   OTHER: "Jiné",
 };
 
+export const unitDispositions: Record<string, string> = {
+  STUDIO: "Garsoniéra / studio",
+  ONE_KK: "1+kk",
+  ONE_PLUS_ONE: "1+1",
+  TWO_KK: "2+kk",
+  TWO_PLUS_ONE: "2+1",
+  THREE_KK: "3+kk",
+  THREE_PLUS_ONE: "3+1",
+  FOUR_KK: "4+kk",
+  FOUR_PLUS_ONE: "4+1",
+  OTHER: "Jiná dispozice",
+};
+
 export const unitStatuses: Record<string, string> = {
   VACANT: "Volná",
   OCCUPIED: "Obsazená",
