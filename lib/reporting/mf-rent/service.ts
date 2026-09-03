@@ -13,7 +13,7 @@ import {
 } from "./parser";
 import { mfRentTerritoryDataSchema } from "./schema";
 import { readPropertyTechnicalData } from "@/lib/property-technical";
-import { selectMfTerritoryFromPropertyData } from "./property-location";
+import { parseMfCadastralArea, selectMfTerritoryFromPropertyData } from "./property-location";
 const FRESH_MS = 24 * 60 * 60 * 1000;
 export const MF_RENT_IMPORT_TRANSACTION_MAX_WAIT_MS = 10_000;
 export const MF_RENT_IMPORT_TRANSACTION_TIMEOUT_MS = 60_000;
@@ -290,10 +290,18 @@ export async function resolvePropertyMfRentBenchmarks(args: {
   } | null = explicitMapping;
 
   if (!mapping && release && cadastralArea) {
+    const parsedCadastralArea = parseMfCadastralArea(cadastralArea);
     const candidates = await prisma.mfRentTerritorySnapshot.findMany({
       where: {
         releaseId: release.id,
-        territoryName: { contains: cadastralArea.trim(), mode: "insensitive" },
+        OR: [
+          ...(parsedCadastralArea.name
+            ? [{ territoryName: { contains: parsedCadastralArea.name, mode: "insensitive" as const } }]
+            : []),
+          ...(parsedCadastralArea.code
+            ? [{ territoryCode: { startsWith: `${parsedCadastralArea.code}/`, mode: "insensitive" as const } }]
+            : []),
+        ],
       },
       select: {
         territoryCode: true,
@@ -378,15 +386,22 @@ export async function resolveLiveMfRentBenchmarks(args: {
   const unresolvedProperties = properties.flatMap((property) => {
     if (explicitByProperty.has(property.id)) return [];
     const cadastralArea = readPropertyTechnicalData(property.technicalData).cadastralArea?.trim();
-    return cadastralArea ? [{ ...property, cadastralArea }] : [];
+    return cadastralArea
+      ? [{ ...property, cadastralArea, parsedCadastralArea: parseMfCadastralArea(cadastralArea) }]
+      : [];
   });
   const cadastralCandidates = unresolvedProperties.length
     ? await prisma.mfRentTerritorySnapshot.findMany({
         where: {
           releaseId: release.id,
-          OR: unresolvedProperties.map((property) => ({
-            territoryName: { contains: property.cadastralArea, mode: "insensitive" as const },
-          })),
+          OR: unresolvedProperties.flatMap((property) => [
+            ...(property.parsedCadastralArea.name
+              ? [{ territoryName: { contains: property.parsedCadastralArea.name, mode: "insensitive" as const } }]
+              : []),
+            ...(property.parsedCadastralArea.code
+              ? [{ territoryCode: { startsWith: `${property.parsedCadastralArea.code}/`, mode: "insensitive" as const } }]
+              : []),
+          ]),
         },
         select: {
           territoryCode: true,
