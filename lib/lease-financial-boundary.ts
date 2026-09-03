@@ -31,5 +31,14 @@ export function resolveActiveFinancialBoundary(lease: LeaseFinancialBoundary, no
 
 export function leaseForLiveFinancialReporting<T extends LeaseFinancialBoundary>(lease: T, asOf = new Date()): T & { forceContractAmountsForLiveReporting?: boolean } {
   const resolution = resolveActiveFinancialBoundary(lease, asOf);
-  return resolution.corrected ? { ...lease, financialTrackingFromPeriod: resolution.period, forceContractAmountsForLiveReporting: true } : lease;
+  const active = leaseStatusAt(lease, asOf) === "ACTIVE";
+  if (!active) return lease;
+  return {
+    ...lease,
+    financialTrackingFromPeriod: resolution.corrected ? resolution.period : lease.financialTrackingFromPeriod,
+    // LIVE rent roll is a contractual KPI. A concrete charge may contain a
+    // manual one-off correction or legacy duplicate items and belongs to the
+    // collections ledger, not to the current contractual rent amount.
+    forceContractAmountsForLiveReporting: true,
+  };
 }

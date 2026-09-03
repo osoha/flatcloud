@@ -79,7 +79,7 @@ check("live reports expose both charts and preserve range with portfolio scope",
   const chart = fs.readFileSync("components/ReportChart.tsx", "utf8");
   for (const token of ["OccupancyChart", "ReportPeriodPicker", "rangeSuffix", "occupancyTrend"]) assert.ok(page.includes(token), token);
   for (const token of ["rolling12", "ytd", "custom", "properties"]) assert.ok(picker.includes(token), token);
-  assert.ok(chart.includes("Chybějící historie"));
+  for (const token of ["Chybějící historie", "ChartModeSwitch", "ChartTooltip", "onPointerEnter", "aria-pressed"]) assert.ok(chart.includes(token), token);
 });
 
 console.log(`Live report periods: ${count}/${count} checks green.`);
