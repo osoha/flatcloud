@@ -92,7 +92,7 @@ test("MF benchmark se otevře jako read-only LIVE report", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Reporty", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "MF benchmark", exact: true })).toBeVisible();
   await expect(page.getByText("Datové období MF", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Srovnání pouze ke čtení/)).toBeVisible();
+  await expect(page.getByText(/Srovnání je pouze ke čtení/)).toBeVisible();
   const property = page.locator("tr.mf-property-toggle").first();
   await expect(property).toBeVisible();
   await property.click();
