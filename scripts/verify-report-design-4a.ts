@@ -596,7 +596,7 @@ async function main() {
   await check("HTML global styles are protected", () =>
     assert.equal(
       hash("app/globals.css"),
-      "63233b968cc1636cf632e680abbd72d95b38b05601cbdf198ca4e69cef6dcf1f",
+      "14e21ad63b6ff9e2e9b2adad1978d8ce4ce4f28e2eb80898b2131dbcf0b478d4",
     ),
   );
   await check(

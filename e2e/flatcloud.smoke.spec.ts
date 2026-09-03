@@ -84,6 +84,12 @@ test("reporty zobrazí historii obsazenosti a přepnou období grafů", async ({
   await page.goto("/reporty?view=occupancy");
   await expect(page.getByRole("img", { name: "Historický vývoj obsazenosti" })).toBeVisible();
   await expect(page.locator(".occupancy-point")).toHaveCount(12);
+  await expect(page.getByRole("button", { name: "Linie", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Sloupce", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sloupce", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator(".occupancy-bar").first()).toBeVisible();
+  await page.locator(".chart-checkpoint").first().hover();
+  await expect(page.locator(".chart-tooltip")).toContainText(/Obsazenost|Bez průkazných dat/);
   await page.getByRole("link", { name: "YTD", exact: true }).click();
   await expect(page).toHaveURL(/view=occupancy&range=ytd/);
   await expect(page.getByRole("link", { name: "YTD", exact: true })).toHaveClass(/active/);
@@ -96,6 +102,10 @@ test("reporty zobrazí historii obsazenosti a přepnou období grafů", async ({
   await page.getByRole("link", { name: "Inkaso", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`view=collections.*range=custom.*from=${currentYear}-01.*to=${currentYear}-02`));
   await expect(page.getByRole("img", { name: "Vývoj předpisů a úhrad" })).toBeVisible();
+  await page.getByRole("button", { name: "Linie", exact: true }).click();
+  await expect(page.locator(".chart-line")).toHaveCount(2);
+  await page.locator(".chart-checkpoint").first().hover();
+  await expect(page.locator(".chart-tooltip")).toContainText("Předpis:");
   assertNoBrowserFailures();
 });
 
