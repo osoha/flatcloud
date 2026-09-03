@@ -22,12 +22,13 @@ export function dispositionToMfRentCategory(
 }
 
 type LiveUnit = {
-  leaseId: string;
+  leaseId: string | null;
   propertyId: string;
   propertyName: string;
   unitId: string;
   unitLabel: string;
   unitType: string;
+  occupancyStatus: "OCCUPIED" | "VACANT";
   disposition: UnitDisposition | null;
   areaM2: number | null;
   actualRentPerM2Cents: number | null;
@@ -77,7 +78,7 @@ export function calculateLiveMfRentBenchmark(
             message: "Unit has no MF-supported disposition.",
             propertyId: unit.propertyId,
             unitId: unit.unitId,
-            leaseId: unit.leaseId,
+            ...(unit.leaseId ? { leaseId: unit.leaseId } : {}),
           }],
     ),
     ...[...new Set(comparableUnits.map((unit) => unit.propertyId))].flatMap((propertyId) =>
