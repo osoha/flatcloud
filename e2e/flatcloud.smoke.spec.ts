@@ -78,6 +78,27 @@ test("report kaucí používá české a významově přesné stavy", async ({ p
   assertNoBrowserFailures();
 });
 
+test("reporty zobrazí historii obsazenosti a přepnou období grafů", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty?view=occupancy");
+  await expect(page.getByRole("img", { name: "Historický vývoj obsazenosti" })).toBeVisible();
+  await expect(page.locator(".occupancy-point")).toHaveCount(12);
+  await page.getByRole("link", { name: "YTD", exact: true }).click();
+  await expect(page).toHaveURL(/view=occupancy&range=ytd/);
+  await expect(page.getByRole("link", { name: "YTD", exact: true })).toHaveClass(/active/);
+  const currentYear = new Date().getUTCFullYear();
+  await page.getByLabel("Období od").fill(`${currentYear}-01`);
+  await page.getByLabel("Období do").fill(`${currentYear}-02`);
+  await page.getByRole("button", { name: "Použít", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`range=custom&from=${currentYear}-01&to=${currentYear}-02`));
+  await expect(page.locator(".occupancy-point")).toHaveCount(2);
+  await page.getByRole("link", { name: "Inkaso", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`view=collections.*range=custom.*from=${currentYear}-01.*to=${currentYear}-02`));
+  await expect(page.getByRole("img", { name: "Vývoj předpisů a úhrad" })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("kritické registry a administrace se otevřou bez browser chyb", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
