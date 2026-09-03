@@ -37,6 +37,7 @@ const unit = (overrides: Record<string, unknown> = {}) => ({
   unitId: "unit-1",
   unitLabel: "1",
   unitType: "APARTMENT",
+  benchmarkEligible: true,
   occupancyStatus: "OCCUPIED" as const,
   disposition: "ONE_KK" as const,
   areaM2: 50,
@@ -98,6 +99,17 @@ check("vacant apartments contribute zero actual rent and full MF letting potenti
   assert.equal(vacant?.marketRentPerM2Cents, 30_000);
   assert.equal(vacant?.rentToMarketBps, 0);
   assert.equal(vacant?.reversionaryPotentialCents, 1_800_000);
+});
+
+check("properties remain visible when no unit is currently benchmark eligible", () => {
+  const result = calculateLiveMfRentBenchmark(
+    [unit({ benchmarkEligible: false })],
+    [],
+  );
+  assert.equal(result.propertyRows.length, 1);
+  assert.equal(result.propertyRows[0].propertyName, "Veská");
+  assert.equal(result.propertyRows[0].comparableUnits, 0);
+  assert.equal(result.propertyRows[0].coveredUnits, 0);
 });
 
 check("coverage fails closed for missing area, disposition, territory or non-apartment", () => {
@@ -181,8 +193,8 @@ check("live report is read-only and shows period, coverage and source provenance
   const drilldown = read("components/MfBenchmarkTable.tsx");
   for (const token of ["aria-expanded", "mf-unit-drilldown", "Kategorie MF", "Potenciál / měsíc", "Volná", "Obsazená"])
     assert.ok(drilldown.includes(token), token);
-  assert.ok(liveService.includes("const mfUnits = reportingUnits.flatMap"));
-  assert.ok(liveService.includes('operational.status !== "STANDARD"'));
+  assert.ok(liveService.includes("const mfUnits = reportingUnits.map"));
+  assert.ok(liveService.includes('operational.status === "STANDARD"'));
   assert.doesNotMatch(read("lib/reporting/mf-rent/live-benchmark.ts"), /servicesCents|charge|update\(|create\(|delete\(/);
 });
 
