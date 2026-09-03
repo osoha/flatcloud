@@ -87,7 +87,7 @@ test("reporty zobrazí historii obsazenosti a přepnou období grafů", async ({
   await expect(page.getByRole("button", { name: "Linie", exact: true })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Sloupce", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sloupce", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".occupancy-bar").first()).toBeVisible();
+  await expect(page.getByRole("img", { name: "Historický vývoj obsazenosti" })).toHaveAttribute("data-chart-mode", "bar");
   await page.locator(".chart-checkpoint").first().hover();
   await expect(page.locator(".chart-tooltip")).toContainText(/Obsazenost|Bez průkazných dat/);
   await page.getByRole("link", { name: "YTD", exact: true }).click();

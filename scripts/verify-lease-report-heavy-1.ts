@@ -110,6 +110,24 @@ async function main() {
     await check("saving unchanged contract totals collapses overlapping RENT and SERVICES schedules", async () => { const items = await prisma.leasePaymentItem.findMany({ where: { leaseId: created.lease.id, active: true, validFrom: { lte: now }, OR: [{ validTo: null }, { validTo: { gte: now } }], category: { in: ["RENT", "SERVICES"] } }, orderBy: { category: "asc" }, select: { category: true, amountCents: true } }); assert.deepEqual(items, [{ category: "RENT", amountCents: 2400000 }, { category: "SERVICES", amountCents: 500000 }]); });
     await check("schedule normalization makes every unpaid current and future charge consistent", async () => { const charges = await prisma.charge.findMany({ where: { leaseId: created.lease.id, period: { in: [currentPeriod, "2026-10"] } }, orderBy: { period: "asc" }, select: { period: true, amountCents: true } }); assert.deepEqual(charges, [{ period: currentPeriod, amountCents: 2900000 }, { period: "2026-10", amountCents: 2900000 }]); });
 
+    const currentCharge = await prisma.charge.findFirstOrThrow({ where: { leaseId: created.lease.id, period: currentPeriod } });
+    await prisma.charge.update({
+      where: { id: currentCharge.id },
+      data: {
+        manualOverride: true,
+        amountCents: 5300000,
+        items: {
+          deleteMany: {},
+          create: [
+            { name: "Nájemné", category: "RENT", amountCents: 2400000 },
+            { name: "Legacy duplicate rent", category: "RENT", amountCents: 2400000 },
+            { name: "Zálohy na služby", category: "SERVICES", amountCents: 500000 },
+          ],
+        },
+      },
+    });
+    await check("manual or legacy charge items never double contractual LIVE rent", async () => { const row = (await report()).tenancyRows.find((item) => item.leaseId === created.lease.id); assert.deepEqual(row && [row.netRentCents, row.servicesCents], [2400000, 500000]); });
+
     const correctedUnit = await makeUnit("Dominik corrected");
     const corrected = await directLease(correctedUnit.id, "920100201", { startDate: new Date("2026-04-01T12:00Z"), endDate: new Date("2026-12-30T12:00Z"), cancelledAt: new Date("2026-08-01T12:00Z"), boundary: "2027-07", rent: 2300000, services: 470000, status: LeaseStatus.ENDED, contractNumber: "NS-DOMINIK" });
     await prisma.leasePaymentItem.createMany({ data: [
