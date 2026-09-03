@@ -65,6 +65,16 @@ test("report kaucí používá české a významově přesné stavy", async ({ p
   await expect(page.getByRole("heading", { name: "Kauce", exact: true })).toBeVisible();
   await expect(page.getByText(/ACTIVE|FUTURE|ENDED|NOT_CONFIGURED|UNPAID|PARTIAL|FUNDED|TO_SETTLE|SETTLED/, { exact: true })).toHaveCount(0);
   await expect(page.getByText(/Aktivní|Budoucí|Ukončená/).first()).toBeVisible();
+  const depositCards = page.locator(".deposit-kpis .stat");
+  await expect(depositCards).toHaveCount(4);
+  const cardBoxes = await depositCards.evaluateAll((cards) => cards.map((card) => card.getBoundingClientRect()));
+  expect(new Set(cardBoxes.map((box) => Math.round(box.y))).size).toBe(1);
+  expect(new Set(cardBoxes.map((box) => Math.round(box.height))).size).toBe(1);
+  const layers = await page.evaluate(() => ({
+    header: Number(getComputedStyle(document.querySelector(".topbar")!).zIndex),
+    scope: Number(getComputedStyle(document.querySelector(".scope-picker")!).zIndex),
+  }));
+  expect(layers.scope).toBeLessThan(layers.header);
   assertNoBrowserFailures();
 });
 
