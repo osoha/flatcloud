@@ -1,4 +1,5 @@
 import type { UnitDisposition } from "@prisma/client";
+import type { ReportingQualityIssue } from "../data-quality";
 import type { MfRentTerritoryData } from "./schema";
 
 export type MfRentCategoryKey = "vk1" | "vk2" | "vk3" | "vk4";
@@ -66,6 +67,30 @@ export function calculateLiveMfRentBenchmark(
       marketComparableRentCents: Math.round(marketRentPerM2Cents * areaM2),
     }];
   });
+  const dataQualityIssues: ReportingQualityIssue[] = [
+    ...comparableUnits.flatMap((unit) =>
+      dispositionToMfRentCategory(unit.disposition)
+        ? []
+        : [{
+            code: "MISSING_MF_UNIT_DISPOSITION" as const,
+            severity: "WARNING" as const,
+            message: "Unit has no MF-supported disposition.",
+            propertyId: unit.propertyId,
+            unitId: unit.unitId,
+            leaseId: unit.leaseId,
+          }],
+    ),
+    ...[...new Set(comparableUnits.map((unit) => unit.propertyId))].flatMap((propertyId) =>
+      byProperty.has(propertyId)
+        ? []
+        : [{
+            code: "MISSING_MF_PROPERTY_LOCATION" as const,
+            severity: "WARNING" as const,
+            message: "Property has no current MF territory mapping.",
+            propertyId,
+          }],
+    ),
+  ];
   const propertyIds = new Set([...units.map((unit) => unit.propertyId), ...benchmarks.map((row) => row.propertyId)]);
   const propertyRows = [...propertyIds].map((propertyId) => {
     const propertyUnits = comparableUnits.filter((unit) => unit.propertyId === propertyId);
@@ -96,6 +121,7 @@ export function calculateLiveMfRentBenchmark(
   return {
     rows,
     propertyRows,
+    dataQualityIssues,
     aggregate: {
       comparableUnits: comparableUnits.length,
       coveredUnits: rows.length,
