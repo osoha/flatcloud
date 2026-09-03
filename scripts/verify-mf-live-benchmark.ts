@@ -89,6 +89,10 @@ check("coverage fails closed for missing area, disposition, territory or non-apa
   assert.equal(result.aggregate.comparableUnits, 3);
   assert.equal(result.aggregate.coveredUnits, 1);
   assert.equal(result.aggregate.coverageBps, 3_333);
+  assert.deepEqual(
+    result.dataQualityIssues.map((issue) => issue.code).sort(),
+    ["MISSING_MF_PROPERTY_LOCATION", "MISSING_MF_UNIT_DISPOSITION"],
+  );
 });
 
 check("property cadastral data resolves exact unique territory including accents", () => {
@@ -144,6 +148,8 @@ check("live report is read-only and shows period, coverage and source provenance
   assert.ok(propertyPage.includes("Údaje nemovitosti"));
   assert.ok(propertyPage.includes("Plzeň Černice nebo 620106"));
   assert.ok(read("app/nemovitosti/[id]/upravit/page.tsx").includes("Černice [620106]"));
+  assert.ok(page.indexOf("<QualityPanel") < page.indexOf('{view==="overview"'));
+  assert.ok(page.includes('open={issues.some((issue)=>issue.severity!=="INFO")}'));
   assert.doesNotMatch(read("lib/reporting/mf-rent/live-benchmark.ts"), /servicesCents|charge|update\(|create\(|delete\(/);
 });
 
