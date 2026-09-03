@@ -60,7 +60,7 @@ export function calculatePropertySnapshot(input: { propertyId: string; asOf: Dat
       if (deposit.status === "FUNDED") funded += 1;
       if (deposit.status === "PARTIAL") partial += 1;
       if (deposit.status === "UNPAID") unpaid += 1;
-      if (deposit.status === "NOT_CONFIGURED") issues.push({ code: "DEPOSIT_CONFIGURATION_WARNING", severity: "INFO", message: "Deposit is not configured.", propertyId: input.propertyId, unitId: lease.unitId, leaseId: lease.id });
+      if (deposit.status === "NOT_CONFIGURED" && !lease.securityDepositTerms?.length) issues.push({ code: "DEPOSIT_CONFIGURATION_WARNING", severity: "INFO", message: "Deposit is not configured.", propertyId: input.propertyId, unitId: lease.unitId, leaseId: lease.id });
     } else if (deposit.status === "TO_SETTLE") { held += deposit.heldPrincipalCents; toSettle += 1; }
   }
 
