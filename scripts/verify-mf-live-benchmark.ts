@@ -37,6 +37,8 @@ const unit = (overrides: Record<string, unknown> = {}) => ({
   unitId: "unit-1",
   unitLabel: "1",
   unitType: "APARTMENT",
+  benchmarkEligible: true,
+  occupancyStatus: "OCCUPIED" as const,
   disposition: "ONE_KK" as const,
   areaM2: 50,
   actualRentPerM2Cents: 18_000,
@@ -72,6 +74,42 @@ check("benchmark preserves signed rent gap and area-weighted portfolio values", 
   assert.equal(result.aggregate.actualRentPerM2Cents, 28_000);
   assert.equal(result.aggregate.marketRentPerM2Cents, 26_667);
   assert.equal(result.aggregate.reversionaryPotentialCents, -200_000);
+});
+
+check("vacant apartments contribute zero actual rent and full MF letting potential", () => {
+  const result = calculateLiveMfRentBenchmark(
+    [
+      unit(),
+      unit({
+        leaseId: null,
+        unitId: "unit-vacant",
+        unitLabel: "3",
+        occupancyStatus: "VACANT",
+        areaM2: 60,
+        actualRentPerM2Cents: 0,
+        disposition: "TWO_KK",
+      }),
+    ],
+    [{ propertyId: "property-1", territoryName: "Veská", data: benchmarkData }],
+  );
+  const vacant = result.rows.find((row) => row.unitId === "unit-vacant");
+  assert.equal(result.propertyRows[0].coveredUnits, 2);
+  assert.equal(result.propertyRows[0].comparableUnits, 2);
+  assert.equal(vacant?.actualRentPerM2Cents, 0);
+  assert.equal(vacant?.marketRentPerM2Cents, 30_000);
+  assert.equal(vacant?.rentToMarketBps, 0);
+  assert.equal(vacant?.reversionaryPotentialCents, 1_800_000);
+});
+
+check("properties remain visible when no unit is currently benchmark eligible", () => {
+  const result = calculateLiveMfRentBenchmark(
+    [unit({ benchmarkEligible: false })],
+    [],
+  );
+  assert.equal(result.propertyRows.length, 1);
+  assert.equal(result.propertyRows[0].propertyName, "Veská");
+  assert.equal(result.propertyRows[0].comparableUnits, 0);
+  assert.equal(result.propertyRows[0].coveredUnits, 0);
 });
 
 check("coverage fails closed for missing area, disposition, territory or non-apartment", () => {
@@ -141,6 +179,7 @@ check("schema and migration are additive", () => {
 check("live report is read-only and shows period, coverage and source provenance", () => {
   const page = read("app/reporty/page.tsx");
   const service = read("lib/reporting/mf-rent/service.ts");
+  const liveService = read("lib/reporting/live-service.ts");
   const propertyPage = read("app/nemovitosti/[id]/reporting/page.tsx");
   for (const token of ["MF benchmark", "Pokrytí", "Datové období MF", "pouze ke čtení"])
     assert.ok(page.includes(token), token);
@@ -152,8 +191,10 @@ check("live report is read-only and shows period, coverage and source provenance
   assert.doesNotMatch(page, /<details className="card quality-panel" open=/);
   assert.ok(page.includes("<MfBenchmarkTable"));
   const drilldown = read("components/MfBenchmarkTable.tsx");
-  for (const token of ["aria-expanded", "mf-unit-drilldown", "Kategorie MF", "Potenciál / měsíc"])
+  for (const token of ["aria-expanded", "mf-unit-drilldown", "Kategorie MF", "Potenciál / měsíc", "Volná", "Obsazená"])
     assert.ok(drilldown.includes(token), token);
+  assert.ok(liveService.includes("const mfUnits = reportingUnits.map"));
+  assert.ok(liveService.includes('operational.status === "STANDARD"'));
   assert.doesNotMatch(read("lib/reporting/mf-rent/live-benchmark.ts"), /servicesCents|charge|update\(|create\(|delete\(/);
 });
 

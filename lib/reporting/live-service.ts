@@ -11,6 +11,7 @@ import { leaseForLiveFinancialReporting, resolveActiveFinancialBoundary } from "
 import { resolveLiveMfRentBenchmarks } from "./mf-rent/service";
 import { calculateLiveMfRentBenchmark } from "./mf-rent/live-benchmark";
 import { calculateLiveOccupancyTrend } from "./live-occupancy-trend";
+import { operationalStatusAt } from "../unit-operational-history";
 
 type User = { id: string; role: string; allProperties?: boolean };
 const known = (value: number | null) => value ?? 0;
@@ -43,20 +44,25 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
   const allLeases = reportingUnits.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unit })));
   const quarterStart = quarterStartKey(q.year, q.quarter), asOfKey = businessDateKey(asOf), yearStart = `${q.year}-01-01`;
   const tenancyRows = allLeases.filter((lease) => leaseStatusAt(lease, asOf) === "ACTIVE").map((lease) => { const rent = rentRollAmountsAt(lease, asOf); const deposit = securityDepositSnapshot(lease, asOf); const debt = lease.charges.reduce((sum, charge) => sum + overdueDebtCentsAsOf(charge, asOf), 0); return { leaseId: lease.id, tenantId: lease.tenantId, tenantName: lease.tenant.name, propertyId: lease.unit.propertyId, propertyName: lease.unit.property.name, unitId: lease.unitId, unitLabel: lease.unit.label, unitType: lease.unit.type, disposition: lease.unit.disposition, areaM2: lease.unit.areaM2, startDate: lease.startDate, endDate: effectiveLeaseEnd(lease), netRentCents: rent.rent.amountCents, servicesCents: rent.services.amountCents, rentPerM2Cents: lease.unit.areaM2 && lease.unit.areaM2 > 0 ? Math.round(rent.rent.amountCents / lease.unit.areaM2) : null, agreedDepositCents: deposit.agreedAmountCents, heldDepositCents: deposit.heldPrincipalCents, debtCents: debt }; });
-  const mfBenchmark = calculateLiveMfRentBenchmark(
-    tenancyRows.map((row) => ({
-      leaseId: row.leaseId,
-      propertyId: row.propertyId,
-      propertyName: row.propertyName,
-      unitId: row.unitId,
-      unitLabel: row.unitLabel,
-      unitType: row.unitType,
-      disposition: row.disposition,
-      areaM2: row.areaM2,
-      actualRentPerM2Cents: row.rentPerM2Cents,
-    })),
-    mfSource.properties,
-  );
+  const mfUnits = reportingUnits.map((unit) => {
+    const operational = operationalStatusAt(unit.operationalStatusEvents, asOf);
+    const activeLease = unit.leases.find((lease) => leaseStatusAt(lease, asOf) === "ACTIVE");
+    const rent = activeLease ? rentRollAmountsAt(activeLease, asOf).rent.amountCents : 0;
+    return {
+      leaseId: activeLease?.id ?? null,
+      propertyId: unit.propertyId,
+      propertyName: unit.property.name,
+      unitId: unit.id,
+      unitLabel: unit.label,
+      unitType: unit.type,
+      benchmarkEligible: operational.kind === "KNOWN" && operational.status === "STANDARD",
+      occupancyStatus: activeLease ? "OCCUPIED" as const : "VACANT" as const,
+      disposition: unit.disposition,
+      areaM2: unit.areaM2,
+      actualRentPerM2Cents: unit.areaM2 && unit.areaM2 > 0 ? Math.round(rent / unit.areaM2) : null,
+    };
+  });
+  const mfBenchmark = calculateLiveMfRentBenchmark(mfUnits, mfSource.properties);
   const depositRows = allLeases.map((lease) => ({ lease, status: leaseStatusAt(lease, asOf), deposit: securityDepositSnapshot(lease, asOf) })).filter((row) => row.status === "ACTIVE" || row.deposit.status === "TO_SETTLE").map(({lease,status,deposit}) => ({ leaseId: lease.id, tenantName: lease.tenant.name, propertyName: lease.unit.property.name, unitLabel: lease.unit.label, leaseStatus: status, agreedCents: status === "ACTIVE" ? deposit.agreedAmountCents : 0, heldCents: deposit.heldPrincipalCents, missingCents: status === "ACTIVE" ? deposit.missingDepositCents : 0, depositStatus: deposit.status, amountToReturnCents: deposit.amountToReturnCents }));
   const contractRows = allLeases.map((lease) => { const status = leaseStatusAt(lease, asOf), end = effectiveLeaseEnd(lease), rent = rentRollAmountsAt(lease, asOf); const endKey = end ? businessDateKey(end) : null; return { leaseId: lease.id, propertyName: lease.unit.property.name, propertyId: lease.unit.propertyId, unitLabel: lease.unit.label, unitId: lease.unitId, tenantName: lease.tenant.name, contractNumber: lease.contractNumber, startDate: lease.startDate, effectiveEnd: end, status, rentCents: "financiallyTracked" in rent && !rent.financiallyTracked ? lease.rentCents : rent.rent.amountCents, depositCents: securityDepositSnapshot(lease, asOf).heldPrincipalCents, expiring90Days: status === "ACTIVE" && Boolean(endKey && endKey > asOfKey && endKey <= new Date(new Date(`${asOfKey}T12:00Z`).getTime() + 90 * 86_400_000).toISOString().slice(0,10)), endedYtd: status === "ENDED" && !lease.cancelledAt && Boolean(endKey && endKey >= yearStart && endKey <= asOfKey) }; });
   const periods = requestedPeriods?.length ? requestedPeriods : recentPeriods(asOf);
