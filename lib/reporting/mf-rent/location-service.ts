@@ -22,6 +22,8 @@ export async function searchMfRentTerritories(
 ) {
   const q = query.trim();
   if (q.length < 2) return [];
+  const terms = q.match(/[\p{L}\p{N}]+/gu) ?? [];
+  if (terms.length === 0) return [];
   const take = Math.min(Math.max(limit, 1), 30);
   const rows = await prisma.mfRentTerritorySnapshot.findMany({
     where: {
@@ -37,11 +39,13 @@ export async function searchMfRentTerritories(
             })
           )?.id ?? "",
       },
-      OR: [
-        { territoryName: { contains: q, mode: "insensitive" } },
-        { municipalityName: { contains: q, mode: "insensitive" } },
-        { territoryCode: { contains: q, mode: "insensitive" } },
-      ],
+      AND: terms.map((term) => ({
+        OR: [
+          { territoryName: { contains: term, mode: "insensitive" as const } },
+          { municipalityName: { contains: term, mode: "insensitive" as const } },
+          { territoryCode: { contains: term, mode: "insensitive" as const } },
+        ],
+      })),
     },
     distinct: ["territoryCode"],
     take: take * 2,

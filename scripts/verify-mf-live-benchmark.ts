@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { calculateLiveMfRentBenchmark, dispositionToMfRentCategory } from "../lib/reporting/mf-rent/live-benchmark";
-import { selectMfTerritoryFromPropertyData } from "../lib/reporting/mf-rent/property-location";
+import { parseMfCadastralArea, selectMfTerritoryFromPropertyData } from "../lib/reporting/mf-rent/property-location";
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
@@ -100,6 +100,23 @@ check("property cadastral data resolves exact unique territory including accents
   assert.equal(selected?.territoryCode, "785");
 });
 
+check("property cadastral descriptor accepts the stable six-digit MF code", () => {
+  assert.deepEqual(parseMfCadastralArea(" Černice [620106] "), {
+    raw: "Černice [620106]",
+    name: "Černice",
+    code: "620106",
+  });
+  const selected = selectMfTerritoryFromPropertyData({
+    cadastralArea: "Černice [620106]",
+    city: "Plzeň",
+    candidates: [
+      { territoryCode: "620106/cernice", territoryName: "Černice", municipalityName: "Plzeň" },
+      { territoryCode: "999999/cernice", territoryName: "Černice", municipalityName: "Jiná obec" },
+    ],
+  });
+  assert.equal(selected?.territoryCode, "620106/cernice");
+});
+
 check("duplicate territory names require a unique municipality match", () => {
   const candidates = [
     { territoryCode: "1", territoryName: "Nová Ves", municipalityName: "Obec A" },
@@ -125,6 +142,8 @@ check("live report is read-only and shows period, coverage and source provenance
     assert.ok(page.includes(token), token);
   assert.ok(service.includes("PROPERTY_CADASTRAL_DATA"));
   assert.ok(propertyPage.includes("Údaje nemovitosti"));
+  assert.ok(propertyPage.includes("Plzeň Černice nebo 620106"));
+  assert.ok(read("app/nemovitosti/[id]/upravit/page.tsx").includes("Černice [620106]"));
   assert.doesNotMatch(read("lib/reporting/mf-rent/live-benchmark.ts"), /servicesCents|charge|update\(|create\(|delete\(/);
 });
 

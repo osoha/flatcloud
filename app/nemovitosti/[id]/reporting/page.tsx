@@ -170,7 +170,11 @@ export default async function PropertyReportingPage({
               <form method="get" className="compact-form">
                 <label className="field">
                   <span>Hledat území, obec nebo kód</span>
-                  <input name="mfSearch" defaultValue={query.mfSearch || ""} />
+                  <input
+                    name="mfSearch"
+                    defaultValue={query.mfSearch || ""}
+                    placeholder="např. Černice, Plzeň Černice nebo 620106"
+                  />
                 </label>
                 <button className="secondary" type="submit">
                   Vyhledat
