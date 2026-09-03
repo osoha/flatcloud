@@ -148,8 +148,12 @@ check("live report is read-only and shows period, coverage and source provenance
   assert.ok(propertyPage.includes("Údaje nemovitosti"));
   assert.ok(propertyPage.includes("Plzeň Černice nebo 620106"));
   assert.ok(read("app/nemovitosti/[id]/upravit/page.tsx").includes("Černice [620106]"));
-  assert.ok(page.indexOf("<QualityPanel") < page.indexOf('{view==="overview"'));
-  assert.ok(page.includes('open={issues.some((issue)=>issue.severity!=="INFO")}'));
+  assert.ok(page.indexOf("<QualityPanel") > page.indexOf("<PropertyPerformance"));
+  assert.doesNotMatch(page, /<details className="card quality-panel" open=/);
+  assert.ok(page.includes("<MfBenchmarkTable"));
+  const drilldown = read("components/MfBenchmarkTable.tsx");
+  for (const token of ["aria-expanded", "mf-unit-drilldown", "Kategorie MF", "Potenciál / měsíc"])
+    assert.ok(drilldown.includes(token), token);
   assert.doesNotMatch(read("lib/reporting/mf-rent/live-benchmark.ts"), /servicesCents|charge|update\(|create\(|delete\(/);
 });
 
