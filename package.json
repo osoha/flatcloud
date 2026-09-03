@@ -64,6 +64,7 @@
     "verify:report-trends-1": "tsx scripts/verify-report-trends-1.ts",
     "verify:mf-rent-1": "node --import tsx scripts/verify-mf-rent-1.ts && node --import tsx scripts/verify-mf-live-benchmark.ts",
     "verify:portfolio-deposit-polish": "node --import tsx scripts/verify-portfolio-deposit-polish.ts",
+    "verify:live-report-periods": "node --import tsx scripts/verify-live-report-periods.ts",
     "verify:gdrive-storage-1": "tsx scripts/verify-gdrive-storage-1.ts",
     "verify:gdrive-structure-2": "tsx scripts/verify-gdrive-structure-2.ts",
     "verify:lease-reactivate-1": "tsx scripts/verify-lease-reactivate-1.ts",
