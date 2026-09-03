@@ -28,6 +28,7 @@ type LiveUnit = {
   unitId: string;
   unitLabel: string;
   unitType: string;
+  benchmarkEligible: boolean;
   occupancyStatus: "OCCUPIED" | "VACANT";
   disposition: UnitDisposition | null;
   areaM2: number | null;
@@ -45,7 +46,7 @@ export function calculateLiveMfRentBenchmark(
   benchmarks: PropertyBenchmark[],
 ) {
   const byProperty = new Map(benchmarks.map((row) => [row.propertyId, row]));
-  const comparableUnits = units.filter((unit) => unit.unitType === "APARTMENT" && unit.areaM2 != null && unit.areaM2 > 0);
+  const comparableUnits = units.filter((unit) => unit.benchmarkEligible && unit.unitType === "APARTMENT" && unit.areaM2 != null && unit.areaM2 > 0);
   const rows = comparableUnits.flatMap((unit) => {
     const benchmark = byProperty.get(unit.propertyId);
     const category = dispositionToMfRentCategory(unit.disposition);
