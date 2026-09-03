@@ -1,6 +1,3 @@
-npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
-[report-occupancy-periods 9f9a86e] Expose active report period accessibly
- 1 file changed, 2 insertions(+), 2 deletions(-)
 import Link from "next/link";
 import type { LiveReportPeriodRange } from "@/lib/reporting/live-period";
 
