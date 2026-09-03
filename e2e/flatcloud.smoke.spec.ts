@@ -54,6 +54,17 @@ test("administrátor se přihlásí a vidí deterministické portfolio", async (
   await expect(page.getByText("Moskevská", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Karla Aksamita", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Dům ve správě", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Rozpracováno", { exact: true })).toHaveCount(0);
+  assertNoBrowserFailures();
+});
+
+test("report kaucí používá české a významově přesné stavy", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty?view=deposits");
+  await expect(page.getByRole("heading", { name: "Kauce", exact: true })).toBeVisible();
+  await expect(page.getByText(/ACTIVE|FUTURE|ENDED|NOT_CONFIGURED|UNPAID|PARTIAL|FUNDED|TO_SETTLE|SETTLED/, { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/Aktivní|Budoucí|Ukončená/).first()).toBeVisible();
   assertNoBrowserFailures();
 });
 

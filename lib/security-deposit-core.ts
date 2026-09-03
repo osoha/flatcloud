@@ -103,7 +103,7 @@ export function calculateSecurityDepositSnapshot(input: {
   const offsetCents = movements.filter((movement) => movement.type === "OFFSET").reduce((sum, movement) => sum + movement.amountCents, 0);
   const principalAdjustmentsCents = movements.filter((movement) => movement.type === "ADJUSTMENT_INCREASE" || movement.type === "ADJUSTMENT_DECREASE").reduce((sum, movement) => sum + (movement.type === "ADJUSTMENT_INCREASE" ? movement.amountCents : -movement.amountCents), 0);
   const interestDueCents = Math.max(0, accruedInterestCents + interestAdjustmentsCents - interestPaidCents);
-  const status = !terms.length && agreedAmountCents === 0 ? "NOT_CONFIGURED" : input.leaseEnded && (principal > 0 || interestDueCents > 0) ? "TO_SETTLE" : principal === 0 && interestDueCents === 0 && movements.length > 0 ? "SETTLED" : principal === 0 ? "UNPAID" : principal < agreedAmountCents ? "PARTIAL" : "FUNDED";
+  const status = agreedAmountCents === 0 && principal === 0 && interestDueCents === 0 && movements.length === 0 ? "NOT_CONFIGURED" : input.leaseEnded && (principal > 0 || interestDueCents > 0) ? "TO_SETTLE" : principal === 0 && interestDueCents === 0 && movements.length > 0 ? "SETTLED" : principal === 0 ? "UNPAID" : principal < agreedAmountCents ? "PARTIAL" : "FUNDED";
   return { agreedAmountCents, heldPrincipalCents: principal, receivedCents, returnedCents, offsetCents, principalAdjustmentsCents, currentAnnualRateBps: rateBps, accruedInterestCents, interestPaidCents, interestAdjustmentsCents, interestDueCents, amountToReturnCents: principal + interestDueCents, missingDepositCents: Math.max(0, agreedAmountCents - principal), excessDepositCents: Math.max(0, principal - agreedAmountCents), hasLedger: movements.length > 0, status };
 }
 

@@ -52,7 +52,10 @@ const css = read("app/globals.css");
 assert.match(css, /V21\.3\.5 typography, archive and bank-notification polish/);
 assert.match(css, /\.archived-property-row/);
 assert.match(css, /\.status\.archived\{color:#667085;background:#eef0f3\}/);
-assert.match(portfolio, /archived\?"archived":propertyDebt\?"bad"/);
+assert.match(portfolio, /portfolioPropertyStatus\(\{archived,expectedCents:propertyExpected,paidCents:propertyPaid,overdueDebtCents:propertyDebt\}\)/);
+const portfolioStatus = read("lib/portfolio-property-status.ts");
+assert.match(portfolioStatus, /if \(input\.archived\) return \{ label: "Archivováno", tone: "archived" \}/);
+assert.match(portfolioStatus, /if \(input\.overdueDebtCents > 0\) return \{ label: "Vyžaduje pozornost", tone: "bad" \}/);
 assert.match(css, /\.discussion-content>p\{font-size:14px/);
 
 console.log("V21.3.5 verification passed.");

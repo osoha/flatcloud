@@ -92,6 +92,7 @@ jobs:
       - run: npm run verify:report-design-4a
       - run: npm run verify:report-trends-1
       - run: npm run verify:mf-rent-1
+      - run: npm run verify:portfolio-deposit-polish
       - run: npm run build
 
   browser-smoke:
