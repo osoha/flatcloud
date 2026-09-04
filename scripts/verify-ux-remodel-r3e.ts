@@ -66,6 +66,9 @@ check("valuation writes require managed property access and audit", () => {
   assert.match(route, /requireManagedProperty/);
   assert.match(route, /PROPERTY_VALUATION_SNAPSHOT_CREATED/);
   assert.match(route, /createdById: access\.user\.id/);
+  const response = read("lib/route-response.ts");
+  assert.match(response, /const hashIndex = path\.indexOf\("#"\)/);
+  assert.match(response, /`\$\{base\}\$\{separator\}\$\{kind\}=\$\{encodeURIComponent\(message\)\}\$\{hash\}`/);
 });
 
 check("asset loader uses only confirmed assets and point-in-time valuation", () => {

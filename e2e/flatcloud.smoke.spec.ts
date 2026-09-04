@@ -89,7 +89,8 @@ test("globální správce vidí provozní rozsah napříč vlastníky", async ({
   await expect(assetTable).toContainText("Karla Aksamita");
   await expect(assetTable).not.toContainText("Dům ve správě");
   await expect(page.getByText(/Indikativní LIVE run-rate:/)).toBeVisible();
-  for (const label of ["NOI · run-rate", "Cashflow po dluhové službě", "Yield", "ROE", "LTV", "DSCR"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
+  const assetCockpit = page.locator(".contract-cockpit");
+  for (const label of ["NOI · run-rate", "Cashflow po dluhové službě", "Yield", "ROE", "LTV", "DSCR"]) await expect(assetCockpit.getByText(label, { exact: true })).toBeVisible();
   await expect(page.getByText("Ocenění není úplné", { exact: false })).toHaveCount(0);
   await expect(page.getByRole("table").filter({ hasText: "OPEX TTM" })).not.toContainText("Dům ve správě");
   assertNoBrowserFailures();
