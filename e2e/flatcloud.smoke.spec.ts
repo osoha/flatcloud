@@ -235,6 +235,34 @@ test("asset finance odděluje náklady a úvěry od nájemních financí", async
   assertNoBrowserFailures();
 });
 
+test("správce porovná rozpočet a zapíše nový stav úvěru", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  await expect(page.getByText("Schválený rozpočet 2026", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Servis a údržba", { exact: true })).toBeVisible();
+
+  const budget = page.locator("#rozpocet");
+  await budget.getByText("Přidat do rozpočtu", { exact: true }).click();
+  await budget.getByLabel("Název položky *").fill("Rezerva na havárie");
+  await budget.getByLabel("Částka v Kč *").fill("45000");
+  await budget.getByRole("button", { name: "Uložit rozpočtovou položku", exact: true }).click();
+  await expect(page.getByText("Rozpočtová položka byla přidána.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Rezerva na havárie", { exact: true })).toBeVisible();
+
+  const loanHistory = page.locator('div.card[id^="uver-"]').filter({ hasText: "Investiční úvěr 2024" });
+  await expect(loanHistory).toContainText("Starší záznamy se nepřepisují.");
+  await loanHistory.getByText("Zapsat nový stav", { exact: true }).click();
+  await loanHistory.getByLabel("Zbývající jistina v Kč *").fill("9100000");
+  await loanHistory.getByLabel("Roční úrok v % *").fill("4.75");
+  await loanHistory.getByLabel("Poznámka ke změně").fill("Mimořádná splátka");
+  await loanHistory.getByRole("button", { name: "Uložit stav do historie", exact: true }).click();
+  await expect(page.getByText("Nový stav úvěru byl uložen do historie.", { exact: true })).toBeVisible();
+  await expect(page.locator('div.card[id^="uver-"]').filter({ hasText: "Investiční úvěr 2024" })).toContainText("Mimořádná splátka");
+  assertNoBrowserFailures();
+});
+
 test("hlavička nemovitosti drží strukturu na desktopu i mobilu", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

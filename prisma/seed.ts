@@ -51,7 +51,11 @@ async function main() {
         { propertyId: property.id, kind: "OPEX", status: "ACTUAL", category: "MAINTENANCE", title: "Servis výtahu", amountCents: cents(18_500), effectiveAt: new Date("2026-03-15"), vendor: "Výtahy Servis s.r.o." },
         { propertyId: property.id, kind: "CAPEX", status: "PLANNED", category: "CONSTRUCTION", title: "Revitalizace fasády", amountCents: cents(480_000), effectiveAt: new Date("2026-11-01") },
       ] });
-      await prisma.propertyLoan.create({ data: { propertyId: property.id, lender: "Česká spořitelna", label: "Investiční úvěr 2024", principalCents: cents(12_000_000), outstandingPrincipalCents: cents(9_250_000), annualInterestRateBps: 489, rateType: "FIXED", fixedUntil: new Date("2028-06-30"), maturityDate: new Date("2044-06-30"), monthlyDebtServiceCents: cents(78_000) } });
+      await prisma.propertyBudgetLine.createMany({ data: [
+        { propertyId: property.id, year: 2026, kind: "OPEX", category: "MAINTENANCE", title: "Servis a údržba", amountCents: cents(120_000), note: "Schválený roční plán" },
+        { propertyId: property.id, year: 2026, kind: "CAPEX", category: "CONSTRUCTION", title: "Investice do domu", amountCents: cents(600_000), note: "Schválený investiční rámec" },
+      ] });
+      await prisma.propertyLoan.create({ data: { propertyId: property.id, lender: "Česká spořitelna", label: "Investiční úvěr 2024", principalCents: cents(12_000_000), outstandingPrincipalCents: cents(9_250_000), annualInterestRateBps: 489, rateType: "FIXED", fixedUntil: new Date("2028-06-30"), maturityDate: new Date("2044-06-30"), monthlyDebtServiceCents: cents(78_000), snapshots: { create: { asOfDate: new Date("2026-08-31"), outstandingPrincipalCents: cents(9_250_000), annualInterestRateBps: 489, monthlyDebtServiceCents: cents(78_000), note: "Výpis banky" } } } });
     }
 
     for (let index = 1; index <= 5; index += 1) {

@@ -42,6 +42,25 @@ export function percentFromBasisPoints(basisPoints: number) {
   return `${(basisPoints / 100).toLocaleString("cs-CZ", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} %`;
 }
 
+export function normalizeFinanceYear(raw: string | undefined, fallback = new Date().getUTCFullYear()) {
+  if (!raw || !/^\d{4}$/.test(raw)) return fallback;
+  const year = Number(raw);
+  return year >= 2000 && year <= 2200 ? year : fallback;
+}
+
+export function calculateBudgetSummary(
+  budgets: Array<{ kind: PropertyCostKind; category: PropertyCostCategory; amountCents: number; year: number }>,
+  costs: Array<{ kind: PropertyCostKind; category: PropertyCostCategory; status: PropertyCostStatus; amountCents: number; effectiveAt: Date }>,
+  year: number,
+) {
+  const budgetRows = budgets.filter((line) => line.year === year);
+  const costRows = costs.filter((cost) => cost.effectiveAt.getUTCFullYear() === year);
+  const budgetCents = budgetRows.reduce((sum, line) => sum + line.amountCents, 0);
+  const committedCents = costRows.filter((cost) => cost.status === "COMMITTED").reduce((sum, cost) => sum + cost.amountCents, 0);
+  const actualCents = costRows.filter((cost) => cost.status === "ACTUAL").reduce((sum, cost) => sum + cost.amountCents, 0);
+  return { budgetCents, committedCents, actualCents, remainingCents: budgetCents - committedCents - actualCents };
+}
+
 export function calculateAssetFinanceSummary(
   costs: Array<{ kind: PropertyCostKind; status: PropertyCostStatus; amountCents: number; effectiveAt: Date }>,
   loans: Array<{ active: boolean; outstandingPrincipalCents: number; monthlyDebtServiceCents: number | null }>,

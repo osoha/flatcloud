@@ -49,7 +49,8 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 
 - **R3A implementováno aditivně:** karta objektu odděluje asset finance od nájemních financí, eviduje plán/objednávku/skutečnost OPEX a CAPEX a základní parametry úvěru,
 - **R3A KPI:** skutečný OPEX, skutečný CAPEX, plán a závazky, aktuální jistina a měsíční dluhová služba,
-- další řezy R3 doplní verzované změny zůstatku úvěru, doklady, rozpočty a konsolidované asset KPI,
+- **R3B implementováno aditivně:** schválený roční rozpočet je oddělený od pracovního plánu a závazků; změny zůstatku, sazby a splátky úvěru mají datovanou neměnnou historii,
+- další řezy R3 doplní vazby na účetní doklady, rozdělení nákladů a konsolidované asset KPI,
 - OPEX, CAPEX, rozpočet a skutečnost,
 - účetní doklady a rozdělení nákladů na objekt/jednotku,
 - jistina, sazba, fixace, splátkový kalendář a zajištění,

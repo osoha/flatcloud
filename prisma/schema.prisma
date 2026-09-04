@@ -463,6 +463,7 @@ model Property {
   contacts                          PropertyContact[]
   complianceItems                   ComplianceItem[]
   costs                             PropertyCost[]
+  budgets                           PropertyBudgetLine[]
   loans                             PropertyLoan[]
   auditLogs                         AuditLog[]
   reportingGroups                   ReportingGroupProperty[]
@@ -499,27 +500,59 @@ model PropertyCost {
   @@index([propertyId, kind, status])
 }
 
+model PropertyBudgetLine {
+  id          String               @id @default(cuid())
+  propertyId  String
+  property    Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  year        Int
+  kind        PropertyCostKind
+  category    PropertyCostCategory @default(OTHER)
+  title       String
+  amountCents Int
+  note        String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([propertyId, year])
+  @@index([propertyId, year, kind, category])
+}
+
 model PropertyLoan {
-  id                        String       @id @default(cuid())
+  id                        String                 @id @default(cuid())
   propertyId                String
-  property                  Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property                  Property               @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   lender                    String
   label                     String
   principalCents            Int
   outstandingPrincipalCents Int
   annualInterestRateBps     Int
-  rateType                  LoanRateType @default(FIXED)
+  rateType                  LoanRateType           @default(FIXED)
   fixedUntil                DateTime?
   maturityDate              DateTime?
   monthlyDebtServiceCents   Int?
   note                      String?
-  active                    Boolean      @default(true)
-  createdAt                 DateTime     @default(now())
-  updatedAt                 DateTime     @updatedAt
+  active                    Boolean                @default(true)
+  snapshots                 PropertyLoanSnapshot[]
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
 
   @@index([propertyId, active])
   @@index([fixedUntil])
   @@index([maturityDate])
+}
+
+model PropertyLoanSnapshot {
+  id                        String       @id @default(cuid())
+  loanId                    String
+  loan                      PropertyLoan @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  asOfDate                  DateTime
+  outstandingPrincipalCents Int
+  annualInterestRateBps     Int
+  monthlyDebtServiceCents   Int?
+  note                      String?
+  createdAt                 DateTime     @default(now())
+
+  @@index([loanId, asOfDate])
 }
 
 model PropertyPaymentAccount {

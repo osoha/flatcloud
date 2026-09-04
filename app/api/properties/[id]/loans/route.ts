@@ -18,6 +18,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const principalCents = moneyToCents(form, "principal");
     const outstandingPrincipalCents = moneyToCents(form, "outstandingPrincipal");
     const monthlyDebtServiceCents = moneyToCents(form, "monthlyDebtService");
+    const annualInterestRateBps = basisPointsFromPercent(String(form.get("annualInterestRatePercent") || ""));
+    const asOfDate = dateValue(form, "asOfDate", true)!;
     if (principalCents <= 0) throw new Error("Původní jistina musí být vyšší než nula.");
     if (outstandingPrincipalCents < 0) throw new Error("Aktuální jistina nesmí být záporná.");
     const loan = await prisma.propertyLoan.create({ data: {
@@ -26,12 +28,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       label: text(form, "label", true)!,
       principalCents,
       outstandingPrincipalCents,
-      annualInterestRateBps: basisPointsFromPercent(String(form.get("annualInterestRatePercent") || "")),
+      annualInterestRateBps,
       rateType: rateType as LoanRateType,
       fixedUntil: dateValue(form, "fixedUntil"),
       maturityDate: dateValue(form, "maturityDate"),
       monthlyDebtServiceCents: monthlyDebtServiceCents > 0 ? monthlyDebtServiceCents : null,
       note: text(form, "note"),
+      snapshots: { create: {
+        asOfDate,
+        outstandingPrincipalCents,
+        annualInterestRateBps,
+        monthlyDebtServiceCents: monthlyDebtServiceCents > 0 ? monthlyDebtServiceCents : null,
+        note: "Počáteční stav úvěru",
+      } },
     } });
     await audit(access.user.id, "PROPERTY_LOAN_CREATED", "PropertyLoan", loan.id, { lender: loan.lender, principalCents, outstandingPrincipalCents, annualInterestRateBps: loan.annualInterestRateBps }, id);
     return goWithMessage(request, `/nemovitosti/${id}/finance`, "ok", "Úvěr byl přidán do asset finance.");
