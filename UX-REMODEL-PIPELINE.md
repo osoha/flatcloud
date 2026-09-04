@@ -63,6 +63,8 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 
 ### R4 — valorizace a forecast
 
+- **R4A implementováno bez migrace:** samostatná read-only scénářová laboratoř porovnává smluvní vývoj s evidovanou indexací a expiracemi, pracovní plán s viditelnými předpoklady a MF referenci; konzervativní, základní a optimistický scénář promítají plánované hrubé nájemné i očekávané inkaso na 12, 24 nebo 36 měsíců a nic automaticky nezapisují do smluv ani předpisů,
+- další řez R4 doplní uživatelské verze scénářů, schvalování a bezpečný preview převodu do dodatku,
 - smluvní, plánované a tržní nájemné jako oddělené hodnoty,
 - pevná valorizace, index, individuální změna a dorovnání na trh,
 - konzervativní / základní / optimistický scénář,

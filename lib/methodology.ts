@@ -56,8 +56,8 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Valorizace a plán nájemného",
     summary: "Oddělení smluvní indexace od plánovacího scénáře a tržního benchmarku.",
     audience: "Asset manager",
-    steps: ["Porovnejte smluvní a tržní nájemné.", "Vytvořte scénáře dalšího vývoje.", "Zahrňte expirace, neobsazenost a očekávané inkaso.", "Teprve schválený plán převeďte do dodatku a budoucích předpisů."],
-    check: "Forecast nesmí bez potvrzení změnit smlouvu ani existující předpis.",
+    steps: ["Porovnejte současné smluvní nájemné s poslední dostupnou MF referencí; chybějící pokrytí nepovažujte za nulový potenciál.", "Přepněte konzervativní, základní a optimistický scénář a vždy čtěte jeho viditelné předpoklady růstu, vacancy, inkasa a využití tržního rozdílu.", "Ve smluvní křivce zkontrolujte nastavenou pevnou indexaci a expirace; po konci smlouvy tato křivka klesá na nulu.", "Plánovanou křivku čtěte jako předpoklad pokračování nebo nového obsazení, ne jako právně platné nájemné.", "Teprve schválený plán převeďte do dodatku a budoucích předpisů."],
+    check: "Forecast nesmí bez potvrzení změnit smlouvu ani existující předpis; každý scénář musí ukázat předpoklady a pokrytí MF dat.",
     href: "/reporty",
   },
   {

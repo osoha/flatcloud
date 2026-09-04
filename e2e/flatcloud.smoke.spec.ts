@@ -122,6 +122,25 @@ test("report kaucí používá české a významově přesné stavy", async ({ p
   assertNoBrowserFailures();
 });
 
+test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty?view=forecast");
+  const workspace = page.locator(".rent-forecast-workspace");
+  await expect(workspace.getByRole("heading", { name: "Valorizace a forecast nájemného", exact: true })).toBeVisible();
+  await expect(workspace).toContainText("Pracovní scénář · nic nemění ve smlouvách ani předpisech");
+  await expect(workspace.getByText("Model · ne schválený plán", { exact: true })).toBeVisible();
+  await expect(workspace.getByRole("img", { name: "Scénář valorizace a očekávaného inkasa" })).toBeVisible();
+  await expect(workspace.locator(".forecast-point")).toHaveCount(24);
+  await expect(workspace.locator('form[method="post"]')).toHaveCount(0);
+  await workspace.getByRole("link", { name: "Konzervativní", exact: true }).click();
+  await expect(page).toHaveURL(/view=forecast&scenario=conservative&horizon=24/);
+  await expect(page.locator(".rent-forecast-workspace")).toContainText("1,0 % ročně");
+  await page.getByRole("link", { name: "12 měsíců", exact: true }).click();
+  await expect(page.locator(".forecast-point")).toHaveCount(12);
+  assertNoBrowserFailures();
+});
+
 test("reporty zobrazí historii obsazenosti a přepnou období grafů", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
