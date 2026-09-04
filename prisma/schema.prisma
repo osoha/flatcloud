@@ -135,6 +135,12 @@ enum RentForecastPlanStatus {
   ARCHIVED
 }
 
+enum RentChangeProposalStatus {
+  DRAFT
+  CONFIRMED
+  CANCELLED
+}
+
 enum UnitType {
   APARTMENT
   COMMERCIAL
@@ -398,6 +404,8 @@ model User {
   propertyValuationsCreated           PropertyValuationSnapshot[]    @relation("PropertyValuationCreator")
   rentForecastPlansCreated            RentForecastPlan[]             @relation("RentForecastPlanCreator")
   rentForecastPlansApproved           RentForecastPlan[]             @relation("RentForecastPlanApprover")
+  rentChangeProposalsCreated           RentChangeProposal[]           @relation("RentChangeProposalCreator")
+  rentChangeProposalsConfirmed         RentChangeProposal[]           @relation("RentChangeProposalConfirmer")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @updatedAt
 }
@@ -628,6 +636,7 @@ model RentForecastPlan {
   approvedBy          User?                      @relation("RentForecastPlanApprover", fields: [approvedById], references: [id], onDelete: Restrict)
   approvedAt          DateTime?
   properties          RentForecastPlanProperty[]
+  rentChangeProposals RentChangeProposal[]
   createdAt           DateTime                   @default(now())
   updatedAt           DateTime                   @updatedAt
 
@@ -644,6 +653,31 @@ model RentForecastPlanProperty {
 
   @@id([planId, propertyId])
   @@index([propertyId])
+}
+
+model RentChangeProposal {
+  id                    String                   @id @default(cuid())
+  forecastPlanId        String
+  forecastPlan          RentForecastPlan         @relation(fields: [forecastPlanId], references: [id], onDelete: Restrict)
+  leaseId               String
+  lease                 Lease                    @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  status                RentChangeProposalStatus @default(DRAFT)
+  previousRentCents     Int
+  proposedRentCents     Int
+  effectiveFrom         DateTime
+  legalBasis            String
+  note                  String?
+  createdById           String
+  createdBy             User                     @relation("RentChangeProposalCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  confirmedById         String?
+  confirmedBy           User?                    @relation("RentChangeProposalConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+  confirmedAt           DateTime?
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  @@unique([forecastPlanId, leaseId])
+  @@index([leaseId, status, effectiveFrom])
+  @@index([status, effectiveFrom])
 }
 
 model PropertyPaymentAccount {
@@ -959,6 +993,7 @@ model Lease {
   securityDepositTerms        SecurityDepositTerm[]
   securityDepositMovements    SecurityDepositMovement[]
   credits                     LeaseCredit[]
+  rentChangeProposals         RentChangeProposal[]
   documents                   Document[]
   createdAt                   DateTime                  @default(now())
   updatedAt                   DateTime                  @updatedAt

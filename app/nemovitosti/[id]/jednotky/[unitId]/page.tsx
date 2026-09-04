@@ -20,6 +20,7 @@ import { DocumentUploadForm } from "@/components/documents/DocumentUploadForm";
 import { PaymentLedgerTable } from "@/components/PaymentLedgerTable";
 import { loadPaymentLedgerRows } from "@/lib/payment-ledger";
 import { formatCompoundUnitBusinessId } from "@/lib/business-identity";
+import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,8 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const tenant = activeLease?.tenant;
   const primaryEmail = tenant?.type === "COMPANY" ? tenant.communicationEmail || tenant.billingEmail || tenant.email : tenant?.email;
   const primaryAddress = tenant?.type === "COMPANY" ? tenant.billingAddress || tenant.address : tenant?.permanentAddress || tenant?.address;
-  const recurringCharge = activeLease ? activeLease.rentCents + activeLease.servicesCents : 0;
+  const recurringAmounts = activeLease ? rentRollAmountsAt(activeLease, new Date()) : null;
+  const recurringCharge = recurringAmounts ? recurringAmounts.rent.amountCents + recurringAmounts.services.amountCents : 0;
   const statusTone = activeLease ? "occupied" : "vacant";
   const deposit = activeLease ? securityDepositSnapshot(activeLease) : null;
   const depositLabel = deposit ? deposit.status === "PARTIAL" ? `${money(deposit.heldPrincipalCents)} / ${money(deposit.agreedAmountCents)} · Částečně` : deposit.status === "FUNDED" ? `${money(deposit.agreedAmountCents)} · Složeno` : deposit.status === "UNPAID" ? `${money(deposit.agreedAmountCents)} · Nesloženo` : deposit.status === "TO_SETTLE" ? `K vypořádání · drženo ${money(deposit.heldPrincipalCents)}` : deposit.status === "SETTLED" ? "Vypořádáno" : "Neevidováno" : "Neevidováno";

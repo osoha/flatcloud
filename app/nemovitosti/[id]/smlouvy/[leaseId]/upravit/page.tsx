@@ -10,9 +10,10 @@ import { proposedLeaseIdentity } from "@/lib/variable-symbol";
 import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { leaseStatuses } from "@/lib/labels";
-import { date } from "@/lib/format";
+import { date, money } from "@/lib/format";
 import { hasPropertyPermission } from "@/lib/management";
 import { PropertyPermission } from "@prisma/client";
+import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export default async function EditLease({ params, searchParams }: { params: Prom
   const { id, leaseId } = await params;
   const [property, lease, tenants, query, usedRows] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.lease.findFirst({ where: { id: leaseId, unit: unitAccessWhere(user, id) }, include: { tenant: true, unit: true, ownerBankAccount: true, parties: { include: { tenant: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] } } }),
+    prisma.lease.findFirst({ where: { id: leaseId, unit: unitAccessWhere(user, id) }, include: { tenant: true, unit: true, ownerBankAccount: true, parties: { include: { tenant: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] }, paymentItems: true, charges: { include: { items: true } }, rentChangeProposals: { where: { status: "CONFIRMED", effectiveFrom: { gt: new Date() } }, orderBy: { effectiveFrom: "asc" }, take: 1 } } }),
     prisma.tenant.findMany({ where: tenantAccessWhere(user), orderBy: { name: "asc" } }),
     searchParams,
     prisma.lease.findMany({ where: { id: { not: leaseId } }, select: { variableSymbol: true } }),
@@ -34,15 +35,18 @@ export default async function EditLease({ params, searchParams }: { params: Prom
   const tenantAccountsByTenant = Object.fromEntries(tenants.map((tenant) => [tenant.id, tenant.payerAccounts]));
   const lifecycleStatus = leaseStatusAt(lease);
   const canReactivate = await hasPropertyPermission(user, id, PropertyPermission.ADMIN);
+  const liveAmounts = rentRollAmountsAt(lease, new Date());
+  const futureRentChange = lease.rentChangeProposals[0] || null;
 
   return <Shell user={user} taskPropertyId={id} taskLeaseId={lease.id}><FormPage title={`Upravit smlouvu: ${lease.unit.label}`} description={lease.tenant.name} backHref={`/nemovitosti/${id}/jednotky/${lease.unitId}`}>
     <Flash ok={query.ok} error={query.error}/>
     <div className="notice"><strong>Stav smlouvy: {leaseStatuses[lifecycleStatus]}</strong><span>Stav je odvozen automaticky z data platnosti a lifecycle událostí a nelze jej ručně přepnout.</span></div>
     <div className="notice"><strong>Finanční evidence od: {lease.financialTrackingFromPeriod}</strong><span>Hranice finanční evidence je po založení pouze pro čtení. Její změna vyžaduje samostatný korekční workflow, aby nebyla dotčena existující finanční historie.</span></div>
+    {futureRentChange&&<div className="notice"><strong>Potvrzená budoucí změna: {money(futureRentChange.proposedRentCents)} od {date(futureRentChange.effectiveFrom)}</strong><span>Formulář zobrazuje dnešní účinné nájemné. Uložení ostatních údajů zachová schválenou budoucí verzi; změna indexace nebo zkrácení smlouvy před účinnost je blokováno.</span></div>}
     <FormCard action={`/api/properties/${id}/leases/${lease.id}`} cancelHref={`/nemovitosti/${id}/jednotky/${lease.unitId}`}>
       <LeaseCoreFields unitOptions={property.units.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={lease.unitId} defaultTenantId={lease.tenantId} defaultContractingPartyIds={lease.parties.filter((party) => party.role === "CONTRACTING_PARTY" && !party.isPrimary).map((party) => party.tenantId)} defaultContractNumber={lease.contractNumber} defaultStartDate={dateInput(lease.startDate)} defaultEndDate={dateInput(lease.endDate)} defaultDueDay={lease.dueDay} defaultRentTiming={lease.rentTiming} defaultVariableSymbol={lease.variableSymbol} defaultTenantBankAccount={lease.tenantBankAccount} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges defaultAutoChargesEnabled={lease.autoChargesEnabled} defaultIndexationEnabled={lease.indexationEnabled} defaultIndexationPercent={lease.indexationPercentBps == null ? "" : lease.indexationPercentBps / 100} defaultDeposit={moneyInput(lease.depositCents).replace(",", ".")}/>
-      <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.rentCents).replace(",", ".")}/>
-      <Field label="Služby Kč / měsíc" name="services" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.servicesCents).replace(",", ".")}/>
+      <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} defaultValue={moneyInput(liveAmounts.rent.amountCents).replace(",", ".")}/>
+      <Field label="Služby Kč / měsíc" name="services" type="number" step="0.01" min={0} defaultValue={moneyInput(liveAmounts.services.amountCents).replace(",", ".")}/>
       <Textarea label="Poznámka" name="note" defaultValue={lease.note}/>
       <div className="field field-full"><h3>Upomínky a inkaso</h3><p className="muted-copy">Dočasné pozastavení má přednost před globálním automatickým plánem.</p></div>
       <Field label="Pozastavit automatické upomínky do" name="remindersPausedUntil" type="date" defaultValue={dateInput(lease.remindersPausedUntil)}/>

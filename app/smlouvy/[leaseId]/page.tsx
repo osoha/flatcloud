@@ -18,6 +18,7 @@ import { DocumentUploadForm } from "@/components/documents/DocumentUploadForm";
 import { currentPeriod, periodLabel } from "@/lib/period";
 import { MethodologyCallout } from "@/components/MethodologyCallout";
 import { contractingPartyNames } from "@/lib/lease-parties";
+import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
 
 export const dynamic = "force-dynamic";
 const depositStatuses = { NOT_CONFIGURED: "Neevidováno", UNPAID: "Nesloženo", PARTIAL: "Částečně složeno", FUNDED: "Složeno", TO_SETTLE: "K vypořádání", SETTLED: "Vypořádáno" };
@@ -28,9 +29,10 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
   const { leaseId } = await params;
   const [lease, query] = await Promise.all([prisma.lease.findFirst({ where: { id: leaseId, ...leaseAccessWhere(user) }, include: {
     tenant: true, parties: { include: { tenant: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] }, ownerBankAccount: true, unit: { include: { property: true } },
+    paymentItems: { orderBy: [{ validFrom: "asc" }, { createdAt: "asc" }] },
     securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] },
     securityDepositMovements: { include: { offsetCharge: true }, orderBy: [{ effectiveAt: "asc" }, { createdAt: "asc" }] },
-    charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true }, orderBy: { dueDate: "asc" } },
+    charges: { where: { active: true }, include: { items: true, allocations: true, securityDepositOffsets: true, creditApplications: true }, orderBy: { dueDate: "asc" } },
     credits: { include: { applications: { include: { charge: true } } }, orderBy: [{ effectiveAt: "desc" }, { createdAt: "desc" }] },
   } }), searchParams]);
   if (!lease) notFound();
@@ -41,6 +43,8 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
   const today = dateInput(new Date());
   const activePeriod = currentPeriod();
   const currentCharge = lease.charges.find((charge) => charge.period === activePeriod);
+  const liveAmounts = rentRollAmountsAt(lease, new Date());
+  const upcomingRent = lease.paymentItems.find((item) => item.active && item.category === "RENT" && item.validFrom > new Date());
   const currentPaid = currentCharge ? paidCents(currentCharge) : 0;
   const currentRemaining = currentCharge ? outstandingCents(currentCharge) : 0;
   const paymentState = currentCharge ? chargeDisplayState(currentCharge) : null;
@@ -57,13 +61,13 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
     <section className="card contract-cockpit" aria-labelledby="contract-finance-title">
       <div className="card-head"><div><span className="eyebrow">Rychlý přehled smlouvy</span><h2 id="contract-finance-title">Finance · {periodLabel(activePeriod)}</h2><p className="muted-copy">Smluvní nastavení a stav aktuálního předpisu bez otevření editace.</p></div>{currentCharge&&<Link className="secondary" href={`/nemovitosti/${lease.unit.propertyId}/predpisy/mesicni/${currentCharge.id}`}>Otevřít aktuální předpis</Link>}</div>
       <div className="contract-kpi-grid">
-        <ContractKpi label="Nájemné" value={money(lease.rentCents)} note="měsíčně"/>
-        <ContractKpi label="Zálohy na služby" value={money(lease.servicesCents)} note="měsíčně"/>
-        <ContractKpi label="Celkem měsíčně" value={money(lease.rentCents + lease.servicesCents)} note={`splatnost ${lease.dueDay}. den`}/>
+        <ContractKpi label="Nájemné" value={money(liveAmounts.rent.amountCents)} note="aktuálně měsíčně"/>
+        <ContractKpi label="Zálohy na služby" value={money(liveAmounts.services.amountCents)} note="aktuálně měsíčně"/>
+        <ContractKpi label="Celkem měsíčně" value={money(liveAmounts.rent.amountCents + liveAmounts.services.amountCents)} note={`splatnost ${lease.dueDay}. den`}/>
         <ContractKpi label="Aktuální úhrada" value={paymentStateLabel} note={currentCharge ? `${money(currentPaid)} z ${money(currentCharge.amountCents)} · zbývá ${money(currentRemaining)}` : "Zkontrolujte automatické předpisy"} tone={paymentState === "paid" ? "ok" : paymentState === "overdue" ? "bad" : paymentState === "partial" ? "warn" : ""}/>
         <ContractKpi label="Kauce" value={money(snapshot.heldPrincipalCents)} note={`sjednáno ${money(snapshot.agreedAmountCents)}`} tone={snapshot.missingDepositCents > 0 ? "warn" : "ok"}/>
       </div>
-      <div className="contract-meta-row"><span><b>Variabilní symbol</b>{lease.variableSymbol}</span><span><b>Účet pro inkaso</b>{lease.ownerBankAccount ? lease.ownerBankAccount.label || lease.ownerBankAccount.iban || lease.ownerBankAccount.accountNumber || "Nastaven" : "Nenastaven"}</span><span><b>Platnost</b>{date(lease.startDate)} – {effectiveEnd ? date(effectiveEnd) : "neurčito"}</span><span><b>Stav</b>{leaseStatuses[lifecycleState]}</span></div>
+      <div className="contract-meta-row"><span><b>Variabilní symbol</b>{lease.variableSymbol}</span><span><b>Účet pro inkaso</b>{lease.ownerBankAccount ? lease.ownerBankAccount.label || lease.ownerBankAccount.iban || lease.ownerBankAccount.accountNumber || "Nastaven" : "Nenastaven"}</span><span><b>Platnost</b>{date(lease.startDate)} – {effectiveEnd ? date(effectiveEnd) : "neurčito"}</span><span><b>Stav</b>{leaseStatuses[lifecycleState]}</span>{upcomingRent&&<span><b>Potvrzená budoucí změna</b>{money(upcomingRent.amountCents)} od {date(upcomingRent.validFrom)}</span>}</div>
     </section>
     <MethodologyCallout slug="najemni-smlouva" compact/>
     <div className="detail-grid">
@@ -72,7 +76,7 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
         <div className="deposit-kpis"><Kpi label="Sjednáno" value={money(snapshot.agreedAmountCents)}/><Kpi label="Drženo" value={money(snapshot.heldPrincipalCents)}/><Kpi label="Chybí doplatit / přebytek" value={snapshot.excessDepositCents?`+ ${money(snapshot.excessDepositCents)}`:money(snapshot.missingDepositCents)}/><Kpi label="Úrok p.a." value={`${(snapshot.currentAnnualRateBps/100).toLocaleString("cs-CZ")} %`}/><Kpi label="Naběhlý úrok" value={money(snapshot.accruedInterestCents)}/><Kpi label="Vyplacený úrok" value={money(snapshot.interestPaidCents)}/><Kpi label="Započteno" value={money(snapshot.offsetCents)}/><Kpi label="Vráceno" value={money(snapshot.returnedCents)}/><Kpi label="K vrácení dnes" value={money(snapshot.amountToReturnCents)}/><Kpi label="Stav" value={depositStatuses[snapshot.status]}/></div>
         {snapshot.agreedAmountCents>0&&snapshot.heldPrincipalCents===0&&<p className="notice">Sjednaná kauce je evidována, ale skutečné složení není potvrzeno pohybem Přijato.</p>}
         {lease.unit.type==="APARTMENT"&&snapshot.currentAnnualRateBps===0&&<p className="legal-warning">Právní upozornění: u nájmu bytu ověřte zákonný nárok nájemce na úroky z jistoty. Nulová sazba zůstává povolena.</p>}
-        {snapshot.agreedAmountCents>lease.rentCents*3&&<p className="legal-warning">Sjednaná jistota přesahuje trojnásobek měsíčního nájemného. Zkontrolujte zákonný limit; uložení není blokováno.</p>}
+        {snapshot.agreedAmountCents>liveAmounts.rent.amountCents*3&&<p className="legal-warning">Sjednaná jistota přesahuje trojnásobek měsíčního nájemného. Zkontrolujte zákonný limit; uložení není blokováno.</p>}
         {canEdit&&<div className="deposit-actions">
           <details><summary>Přijmout kauci</summary><MovementForm action={`${action}/deposit/movements`} type="RECEIVED" today={today}/></details>
           <details><summary>Vrátit kauci</summary><MovementForm action={`${action}/deposit/movements`} type="RETURNED" today={today}/></details>

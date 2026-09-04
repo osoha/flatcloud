@@ -41,7 +41,7 @@ check("UI explains immutable snapshot and no-write approval",()=>{
 check("routes, methodology, browser smoke, pipeline and CI cover R4B",()=>{
   assert.match(read("app/api/rent-forecast-plans/[planId]/approve/route.ts"),/Smlouvy ani předpisy se nezměnily/);
   assert.match(read("lib/methodology.ts"),/Uložte projednávanou variantu jako koncept/);
-  assert.match(read("e2e/flatcloud.smoke.spec.ts"),/uloží, schválí a verzují scénář valorizace/);
+  assert.match(read("e2e/flatcloud.smoke.spec.ts"),/uloží, schválí a převede scénář/);
   assert.match(read("UX-REMODEL-PIPELINE.md"),/R4B implementováno aditivně/);
   assert.match(read(".github/workflows/ci.yml"),/verify:ux-remodel-r4b/);
 });
