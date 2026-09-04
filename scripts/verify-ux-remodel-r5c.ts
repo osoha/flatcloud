@@ -1,0 +1,14 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { normalizeAnnualPackageYear } from "../lib/reporting/annual-owner-package";
+
+const read=(path:string)=>readFileSync(path,"utf8");let checks=0;
+function check(name:string,run:()=>void){run();checks++;console.log(`✓ ${checks}. ${name}`)}
+check("year defaults to the previous closed calendar year",()=>{assert.equal(normalizeAnnualPackageYear(undefined,new Date("2026-09-04T12:00:00Z")),2025);assert.equal(normalizeAnnualPackageYear("2024",new Date("2026-09-04T12:00:00Z")),2024);assert.equal(normalizeAnnualPackageYear("1999",new Date("2026-09-04T12:00:00Z")),2025)});
+check("loader intersects report access and never uses consolidation scope",()=>{const source=read("lib/reporting/annual-owner-package.ts");for(const marker of ["reportingScopeForUser(user)","reportingPropertyAccessWhere(scope)","reportingUnitAccessWhere(scope)","scope.wholePropertyIds","scope.unitIds"])assert.match(source,new RegExp(marker.replace(/[()]/g,"\\$&")));assert.doesNotMatch(source,/flatcloudConsolidationBasisPoints/)});
+check("cash income uses booked allocated payments and excludes deposits from working difference",()=>{const source=read("lib/reporting/annual-owner-package.ts");assert.match(source,/paymentAllocation\.findMany/);assert.match(source,/transaction: \{ bookedAt:/);assert.match(source,/differenceCents:incomeCents-depositIncomeCents-expenseCents/)});
+check("expenses are actual and allocation provenance remains visible",()=>{const source=read("lib/reporting/annual-owner-package.ts");assert.match(source,/status: "ACTUAL"/);assert.match(source,/Uložené rozdělení na jednotky/);assert.match(source,/UNALLOCATED_COST/);assert.match(source,/MISSING_COST_DOCUMENT/)});
+check("loan rates cannot masquerade as paid interest",()=>{const source=read("lib/reporting/annual-owner-package.ts")+read("app/reporty/rocni-podklady/page.tsx");for(const marker of ["LOAN_INTEREST_SOURCE","nejsou dokladem zaplaceného úroku","Nedoloženo","nejde o automatické stanovení základu daně"])assert.match(source,new RegExp(marker,"i"))});
+check("CSV is private scoped and explicitly a working export",()=>{const route=read("app/api/reports/annual-owner-package.csv/route.ts");for(const marker of ["requireUser()","loadAnnualOwnerPackage","private, no-store","Pracovní export","text/csv; charset=utf-8"])assert.match(route,new RegExp(marker.replace(/[()]/g,"\\$&")))});
+check("report center methodology pipeline and UI expose R5C",()=>{assert.match(read("app/reporty/page.tsx"),/Roční podklady/);assert.match(read("lib/methodology.ts"),/slug: "rocni-podklady"/);assert.match(read("UX-REMODEL-PIPELINE.md"),/R5C implementováno bez migrace/);const page=read("app/reporty/rocni-podklady/page.tsx");for(const marker of ["Kontrola úplnosti","Přijaté úhrady","Skutečné výdaje","Úvěry a úroky","Stáhnout CSV"])assert.match(page,new RegExp(marker))});
+console.log(`UX remodel R5C ověřen: ${checks} kontrol.`);
