@@ -20,8 +20,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!kinds.has(kind as PropertyCostKind) || !statuses.has(status as PropertyCostStatus) || !categories.has(category as PropertyCostCategory)) throw new Error("Vyberte platný typ, stav a kategorii nákladu.");
     const amountCents = moneyToCents(form, "amount");
     if (amountCents <= 0) throw new Error("Částka nákladu musí být vyšší než nula.");
+    const unitId = text(form, "unitId");
+    if (unitId && !await prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, select: { id: true } })) throw new Error("Vybraná jednotka do této nemovitosti nepatří.");
     const cost = await prisma.propertyCost.create({ data: {
       propertyId: id,
+      unitId,
       kind: kind as PropertyCostKind,
       status: status as PropertyCostStatus,
       category: category as PropertyCostCategory,
@@ -29,9 +32,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       amountCents,
       effectiveAt: dateValue(form, "effectiveAt", true)!,
       vendor: text(form, "vendor"),
+      documentNumber: text(form, "documentNumber"),
       note: text(form, "note"),
     } });
-    await audit(access.user.id, "PROPERTY_COST_CREATED", "PropertyCost", cost.id, { kind, status, category, amountCents }, id);
+    await audit(access.user.id, "PROPERTY_COST_CREATED", "PropertyCost", cost.id, { kind, status, category, amountCents, unitId, documentNumber: cost.documentNumber }, id);
     return goWithMessage(request, `/nemovitosti/${id}/finance`, "ok", "Náklad byl přidán do asset finance.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/finance`, "error", error instanceof Error ? error.message : "Náklad se nepodařilo uložit.");

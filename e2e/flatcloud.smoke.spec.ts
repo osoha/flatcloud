@@ -263,6 +263,30 @@ test("správce porovná rozpočet a zapíše nový stav úvěru", async ({ page 
   assertNoBrowserFailures();
 });
 
+test("správce přiřadí náklad jednotce a dohledá účetní podklad", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  const costs = page.locator("#naklady");
+  await costs.getByText("Přidat náklad", { exact: true }).click();
+  await costs.getByLabel("Název *").fill("Výměna baterie v bytě");
+  await costs.getByLabel("Částka v Kč *").fill("3200");
+  await costs.getByLabel("Stav *").selectOption("ACTUAL");
+  await costs.getByLabel("Rozsah nákladu").selectOption({ label: "Jednotka 1.01" });
+  await costs.getByLabel("Dodavatel").fill("Instalatérství Demo");
+  await costs.getByLabel("Číslo dokladu").fill("FV-2026-UNIT-01");
+  await costs.getByRole("button", { name: "Uložit náklad", exact: true }).click();
+  await expect(page.getByText("Náklad byl přidán do asset finance.", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Výměna baterie v bytě", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Výměna baterie v bytě", exact: true })).toBeVisible();
+  await expect(page.getByText("Účetní kontext", { exact: true })).toBeVisible();
+  await expect(page.getByText("Jednotka 1.01", { exact: true })).toBeVisible();
+  await expect(page.getByText("FV-2026-UNIT-01", { exact: true })).toBeVisible();
+  await expect(page.getByText("Účetní podklady", { exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("hlavička nemovitosti drží strukturu na desktopu i mobilu", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

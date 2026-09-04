@@ -482,22 +482,27 @@ model Property {
 }
 
 model PropertyCost {
-  id          String               @id @default(cuid())
-  propertyId  String
-  property    Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  kind        PropertyCostKind
-  status      PropertyCostStatus   @default(PLANNED)
-  category    PropertyCostCategory @default(OTHER)
-  title       String
-  amountCents Int
-  effectiveAt DateTime
-  vendor      String?
-  note        String?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  id             String               @id @default(cuid())
+  propertyId     String
+  property       Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId         String?
+  unit           Unit?                @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  kind           PropertyCostKind
+  status         PropertyCostStatus   @default(PLANNED)
+  category       PropertyCostCategory @default(OTHER)
+  title          String
+  amountCents    Int
+  effectiveAt    DateTime
+  vendor         String?
+  documentNumber String?
+  note           String?
+  documents      Document[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@index([propertyId, effectiveAt])
   @@index([propertyId, kind, status])
+  @@index([unitId])
 }
 
 model PropertyBudgetLine {
@@ -755,6 +760,7 @@ model Unit {
   tasks                   Task[]
   operationalStatusEvents UnitOperationalStatusEvent[]
   documents               Document[]
+  assetCosts              PropertyCost[]
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
 
@@ -1526,6 +1532,8 @@ model Document {
   taskEntry                    TaskEntry?                     @relation(fields: [taskEntryId], references: [id], onDelete: SetNull)
   complianceRecordId           String?
   complianceRecord             ComplianceRecord?              @relation(fields: [complianceRecordId], references: [id], onDelete: SetNull)
+  propertyCostId               String?
+  propertyCost                 PropertyCost?                  @relation(fields: [propertyCostId], references: [id], onDelete: SetNull)
   createdById                  String
   createdBy                    User                           @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
   quarterlyPropertyReportMedia QuarterlyPropertyReportMedia[]
@@ -1539,6 +1547,7 @@ model Document {
   @@index([taskId])
   @@index([taskEntryId])
   @@index([complianceRecordId])
+  @@index([propertyCostId])
 }
 
 model QuarterlyPropertyReportMedia {

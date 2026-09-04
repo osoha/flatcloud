@@ -48,7 +48,7 @@ async function main() {
 
     if (propertyIndex === 0) {
       await prisma.propertyCost.createMany({ data: [
-        { propertyId: property.id, kind: "OPEX", status: "ACTUAL", category: "MAINTENANCE", title: "Servis výtahu", amountCents: cents(18_500), effectiveAt: new Date("2026-03-15"), vendor: "Výtahy Servis s.r.o." },
+        { propertyId: property.id, kind: "OPEX", status: "ACTUAL", category: "MAINTENANCE", title: "Servis výtahu", amountCents: cents(18_500), effectiveAt: new Date("2026-03-15"), vendor: "Výtahy Servis s.r.o.", documentNumber: "FV-2026-0315" },
         { propertyId: property.id, kind: "CAPEX", status: "PLANNED", category: "CONSTRUCTION", title: "Revitalizace fasády", amountCents: cents(480_000), effectiveAt: new Date("2026-11-01") },
       ] });
       await prisma.propertyBudgetLine.createMany({ data: [
