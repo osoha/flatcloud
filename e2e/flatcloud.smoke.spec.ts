@@ -287,6 +287,30 @@ test("správce přiřadí náklad jednotce a dohledá účetní podklad", async 
   assertNoBrowserFailures();
 });
 
+test("správce rozdělí společný náklad mezi více jednotek", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  await page.getByRole("link", { name: "Servis výtahu", exact: true }).click();
+  const allocation = page.getByTestId("cost-allocation");
+  await expect(allocation.getByRole("heading", { name: "Rozdělení nákladu na jednotky", exact: true })).toBeVisible();
+  await allocation.getByLabel("Jednotka 1.01 (%)", { exact: true }).fill("60");
+  await allocation.getByLabel("Jednotka 2.02 (%)", { exact: true }).fill("40");
+  await allocation.getByRole("button", { name: "Uložit vlastní rozdělení", exact: true }).click();
+  await expect(page.getByText("Náklad byl rozdělen mezi 2 jednotky.", { exact: true })).toBeVisible();
+  const firstUnit = allocation.getByRole("row").filter({ hasText: "1.01" });
+  const secondUnit = allocation.getByRole("row").filter({ hasText: "2.02" });
+  await expect(firstUnit).toContainText("60 %");
+  await expect(firstUnit).toContainText("11 100 Kč");
+  await expect(secondUnit).toContainText("40 %");
+  await expect(secondUnit).toContainText("7 400 Kč");
+  await allocation.getByRole("button", { name: "Rozdělit rovnoměrně", exact: true }).click();
+  await expect(page.getByText("Náklad byl rozdělen mezi 5 jednotek.", { exact: true })).toBeVisible();
+  await expect(allocation.getByText("20 %", { exact: true })).toHaveCount(5);
+  assertNoBrowserFailures();
+});
+
 test("hlavička nemovitosti drží strukturu na desktopu i mobilu", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

@@ -60,7 +60,7 @@ async function main() {
 
     for (let index = 1; index <= 5; index += 1) {
       const unit = await prisma.unit.create({
-        data: { propertyId: property.id, label: `${index}.0${index}`, floor: `${index}. NP`, status: "OCCUPIED", type: "APARTMENT", ownerships: { create: { ownerId: definition.ownerId, ownerBankAccountId: paymentAccount.id, shareBasisPoints: 10000 } } },
+        data: { propertyId: property.id, label: `${index}.0${index}`, floor: `${index}. NP`, status: "OCCUPIED", type: "APARTMENT", areaM2: 35 + index * 5, ownerships: { create: { ownerId: definition.ownerId, ownerBankAccountId: paymentAccount.id, shareBasisPoints: 10000 } } },
       });
       const tenantName = ["Jan Novák", "Petra Malá", "Tomáš Dvořák", "Eva Veselá", "Martin Černý"][index - 1];
       const tenant = await prisma.tenant.create({

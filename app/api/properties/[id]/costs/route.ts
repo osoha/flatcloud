@@ -34,6 +34,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       vendor: text(form, "vendor"),
       documentNumber: text(form, "documentNumber"),
       note: text(form, "note"),
+      allocations: unitId ? { create: { unitId, shareBasisPoints: 10_000, amountCents } } : undefined,
     } });
     await audit(access.user.id, "PROPERTY_COST_CREATED", "PropertyCost", cost.id, { kind, status, category, amountCents, unitId, documentNumber: cost.documentNumber }, id);
     return goWithMessage(request, `/nemovitosti/${id}/finance`, "ok", "Náklad byl přidán do asset finance.");

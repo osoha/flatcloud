@@ -497,11 +497,27 @@ model PropertyCost {
   documentNumber String?
   note           String?
   documents      Document[]
+  allocations    PropertyCostAllocation[]
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
   @@index([propertyId, effectiveAt])
   @@index([propertyId, kind, status])
+  @@index([unitId])
+}
+
+model PropertyCostAllocation {
+  id               String       @id @default(cuid())
+  propertyCostId   String
+  propertyCost     PropertyCost @relation(fields: [propertyCostId], references: [id], onDelete: Cascade)
+  unitId           String
+  unit             Unit         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  shareBasisPoints Int
+  amountCents      Int
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@unique([propertyCostId, unitId])
   @@index([unitId])
 }
 
@@ -761,6 +777,7 @@ model Unit {
   operationalStatusEvents UnitOperationalStatusEvent[]
   documents               Document[]
   assetCosts              PropertyCost[]
+  assetCostAllocations    PropertyCostAllocation[]
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
 
