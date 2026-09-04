@@ -488,7 +488,7 @@ test("vyúčtování ukáže read-only zdroje a blokátory před zaúčtováním
   await expect(page.getByRole("heading", { name: "Skutečné náklady a způsob rozdělení", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Předepsané zálohy", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Odečty měřidel", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Vystavit protokol · naváže R5B", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Nejprve odstraňte blokátory", exact: true })).toBeDisabled();
   assertNoBrowserFailures();
 });
 

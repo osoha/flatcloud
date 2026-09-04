@@ -406,6 +406,7 @@ model User {
   rentForecastPlansApproved           RentForecastPlan[]             @relation("RentForecastPlanApprover")
   rentChangeProposalsCreated           RentChangeProposal[]           @relation("RentChangeProposalCreator")
   rentChangeProposalsConfirmed         RentChangeProposal[]           @relation("RentChangeProposalConfirmer")
+  serviceSettlementProtocolsIssued     ServiceSettlementProtocol[]    @relation("ServiceSettlementProtocolIssuer")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @updatedAt
 }
@@ -994,6 +995,7 @@ model Lease {
   securityDepositMovements    SecurityDepositMovement[]
   credits                     LeaseCredit[]
   rentChangeProposals         RentChangeProposal[]
+  serviceSettlementProtocols ServiceSettlementProtocol[]
   documents                   Document[]
   createdAt                   DateTime                  @default(now())
   updatedAt                   DateTime                  @updatedAt
@@ -1104,6 +1106,7 @@ model Charge {
   createdAt              DateTime                  @default(now())
   updatedAt              DateTime                  @updatedAt
   notifications          RentNotification[]
+  serviceSettlementProtocol ServiceSettlementProtocol?
 
   @@unique([leaseId, period])
   @@index([leaseId, dueDate])
@@ -1248,8 +1251,32 @@ model LeaseCredit {
   createdBy    User?                    @relation("LeaseCreditCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt    DateTime                 @default(now())
   applications LeaseCreditApplication[]
+  serviceSettlementProtocol ServiceSettlementProtocol?
 
   @@index([leaseId, effectiveAt])
+}
+
+model ServiceSettlementProtocol {
+  id               String      @id @default(cuid())
+  leaseId          String
+  lease            Lease       @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  periodFrom       DateTime
+  periodTo         DateTime
+  advancesCents    Int
+  actualCostsCents Int
+  balanceCents     Int
+  dueDate          DateTime?
+  snapshot         Json
+  chargeId         String?     @unique
+  charge           Charge?     @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+  creditId         String?     @unique
+  credit           LeaseCredit? @relation(fields: [creditId], references: [id], onDelete: Restrict)
+  issuedById       String
+  issuedBy         User        @relation("ServiceSettlementProtocolIssuer", fields: [issuedById], references: [id], onDelete: Restrict)
+  issuedAt         DateTime    @default(now())
+
+  @@unique([leaseId, periodFrom, periodTo])
+  @@index([leaseId, issuedAt])
 }
 
 model LeaseCreditApplication {

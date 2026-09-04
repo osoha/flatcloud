@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { leaseAccessWhere } from "./access";
 import { businessDateEndInstant, businessDateKey, businessDateKeyToInstant, businessTodayKey, type BusinessDateKey } from "./calendar";
@@ -34,9 +35,10 @@ export function parseServiceSettlementPeriod(from: string | undefined, to: strin
   return { from: fromKey, to: toKey, fromDate: businessDateKeyToInstant(fromKey), toDate: businessDateEndInstant(toKey) };
 }
 
-export async function loadServiceSettlementPreview(actor: Actor, leaseId: string, from?: string, to?: string) {
-  const period = parseServiceSettlementPeriod(from, to);
-  const lease = await prisma.lease.findFirst({ where: { id: leaseId, ...leaseAccessWhere(actor) }, include: {
+async function loadServiceSettlementPreviewFrom(db: Prisma.TransactionClient | typeof prisma, actor: Actor, leaseId: string, from?: string, to?: string, now = new Date()) {
+  const database = db as typeof prisma;
+  const period = parseServiceSettlementPeriod(from, to, now);
+  const lease = await database.lease.findFirst({ where: { id: leaseId, ...leaseAccessWhere(actor) }, include: {
     tenant: true,
     parties: { where: { role: "CONTRACTING_PARTY" }, include: { tenant: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] },
     unit: { include: {
@@ -51,7 +53,7 @@ export async function loadServiceSettlementPreview(actor: Actor, leaseId: string
   } });
   if (!lease) throw new Error("Smlouva nebyla nalezena nebo k ní nemáte přístup.");
 
-  const costs = await prisma.propertyCost.findMany({ where: { propertyId: lease.unit.propertyId, status: "ACTUAL", kind: "OPEX", category: "UTILITIES", effectiveAt: { gte: period.fromDate, lte: period.toDate } }, include: { allocations: true, documents: { where: { deletedAt: null }, select: { id: true, title: true } } }, orderBy: [{ effectiveAt: "asc" }, { createdAt: "asc" }] });
+  const costs = await database.propertyCost.findMany({ where: { propertyId: lease.unit.propertyId, status: "ACTUAL", kind: "OPEX", category: "UTILITIES", effectiveAt: { gte: period.fromDate, lte: period.toDate } }, include: { allocations: true, documents: { where: { deletedAt: null }, select: { id: true, title: true } } }, orderBy: [{ effectiveAt: "asc" }, { createdAt: "asc" }] });
   const monthlyCharges = lease.charges.filter((charge) => /^\d{4}-\d{2}$/.test(charge.period) && charge.period >= period.from.slice(0, 7) && charge.period <= period.to.slice(0, 7));
   const advanceRows = monthlyCharges.map((charge) => ({ id: charge.id, period: charge.period, amountCents: charge.items.filter((item) => serviceCategories.has(item.category)).reduce((sum, item) => sum + item.amountCents, 0) })).filter((row) => row.amountCents > 0);
   const costRows = costs.flatMap((cost) => {
@@ -74,4 +76,12 @@ export async function loadServiceSettlementPreview(actor: Actor, leaseId: string
   if (meterRows.some((row) => !row.opening || !row.closing || row.consumption == null)) warnings.push("Alespoň jednomu aktivnímu měřidlu chybí použitelný počáteční nebo koncový odečet.");
   if (monthlyCharges.some((charge) => !charge.items.length)) warnings.push("Některý měsíční předpis nemá položkový rozpad; z jeho celkové částky nelze bezpečně určit zálohu na služby.");
   return { lease, period, advanceRows, costRows, unallocatedCosts, meterRows, advancesCents, actualCostsCents, balanceCents: actualCostsCents - advancesCents, blockers, warnings, ready: blockers.length === 0 };
+}
+
+export function loadServiceSettlementPreview(actor: Actor, leaseId: string, from?: string, to?: string, now = new Date()) {
+  return loadServiceSettlementPreviewFrom(prisma, actor, leaseId, from, to, now);
+}
+
+export function loadServiceSettlementPreviewTx(tx: Prisma.TransactionClient, actor: Actor, leaseId: string, from?: string, to?: string, now = new Date()) {
+  return loadServiceSettlementPreviewFrom(tx, actor, leaseId, from, to, now);
 }

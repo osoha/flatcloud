@@ -34,7 +34,7 @@ check("preview is scoped and separates service advances from rent",()=>{
 
 check("UI leads with preview sources blockers and no-write language",()=>{
   const page=read("app/smlouvy/[leaseId]/vyuctovani/page.tsx"),lease=read("app/smlouvy/[leaseId]/page.tsx"),styles=read("app/globals.css");
-  for(const marker of ["Pracovní náhled · bez zaúčtování","Předepsané zálohy","Skutečné náklady a způsob rozdělení","Odečty měřidel","Vystavit protokol · naváže R5B"])assert.match(page,new RegExp(marker));
+  for(const marker of ["Pracovní náhled · bez zaúčtování","Předepsané zálohy","Skutečné náklady a způsob rozdělení","Odečty měřidel","Vystavit a zaúčtovat"])assert.match(page,new RegExp(marker));
   assert.match(lease,/Připravit vyúčtování/);assert.match(lease,/Korekční zápis výsledku bez protokolu/);
   for(const marker of ["service-settlement-page","settlement-summary-grid","settlement-readiness"])assert.match(styles,new RegExp(marker));
 });
