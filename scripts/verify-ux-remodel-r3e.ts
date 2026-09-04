@@ -53,10 +53,11 @@ check("missing debt service fails closed without hiding NOI or LTV", () => {
 
 check("valuation history schema and migration are additive, sourced and immutable", () => {
   const schema = read("prisma/schema.prisma");
-  for (const marker of ["enum PropertyValuationSource", "model PropertyValuationSnapshot", "marketValueCents Int", "createdBy        User", "valuations                        PropertyValuationSnapshot[]"]) assert.match(schema, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
+  for (const marker of ["enum PropertyValuationSource", "model PropertyValuationSnapshot", "marketValueCents BigInt", "createdBy        User", "valuations                        PropertyValuationSnapshot[]"]) assert.match(schema, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
   const migration = read("prisma/migrations/20260905010000_asset_kpi_valuations/migration.sql");
   assert.doesNotMatch(migration, /(?:^|\n)\s*(?:DROP|DELETE|TRUNCATE|UPDATE)\b/im);
   assert.match(migration, /PropertyValuationSnapshot_marketValueCents_check/);
+  assert.match(migration, /"marketValueCents" BIGINT NOT NULL/);
   assert.match(migration, /ON DELETE RESTRICT/);
 });
 

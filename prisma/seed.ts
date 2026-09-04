@@ -57,7 +57,7 @@ async function main() {
       ] });
       await prisma.propertyLoan.create({ data: { propertyId: property.id, lender: "Česká spořitelna", label: "Investiční úvěr 2024", principalCents: cents(12_000_000), outstandingPrincipalCents: cents(9_250_000), annualInterestRateBps: 489, rateType: "FIXED", fixedUntil: new Date("2028-06-30"), maturityDate: new Date("2044-06-30"), monthlyDebtServiceCents: cents(78_000), snapshots: { create: { asOfDate: new Date("2026-08-31"), outstandingPrincipalCents: cents(9_250_000), annualInterestRateBps: 489, monthlyDebtServiceCents: cents(78_000), note: "Výpis banky" } } } });
     }
-    if (propertyIndex < 2) await prisma.propertyValuationSnapshot.create({ data: { propertyId: property.id, asOfDate: new Date("2026-08-31"), marketValueCents: cents(propertyIndex === 0 ? 25_000_000 : 18_000_000), source: "INTERNAL", note: "Demo interní ocenění pro asset KPI", createdById: admin.id } });
+    if (propertyIndex < 2) await prisma.propertyValuationSnapshot.create({ data: { propertyId: property.id, asOfDate: new Date("2026-08-31"), marketValueCents: BigInt(cents(propertyIndex === 0 ? 25_000_000 : 18_000_000)), source: "INTERNAL", note: "Demo interní ocenění pro asset KPI", createdById: admin.id } });
 
     for (let index = 1; index <= 5; index += 1) {
       const unit = await prisma.unit.create({

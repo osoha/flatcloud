@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const valuation = await prisma.propertyValuationSnapshot.create({ data: {
       propertyId: id,
       asOfDate: dateValue(form, "asOfDate", true)!,
-      marketValueCents,
+      marketValueCents: BigInt(marketValueCents),
       source: source as PropertyValuationSource,
       note: text(form, "note"),
       createdById: access.user.id,

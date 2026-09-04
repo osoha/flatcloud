@@ -6,7 +6,7 @@ CREATE TABLE "PropertyValuationSnapshot" (
     "id" TEXT NOT NULL,
     "propertyId" TEXT NOT NULL,
     "asOfDate" TIMESTAMP(3) NOT NULL,
-    "marketValueCents" INTEGER NOT NULL,
+    "marketValueCents" BIGINT NOT NULL,
     "source" "PropertyValuationSource" NOT NULL,
     "note" TEXT,
     "createdById" TEXT NOT NULL,

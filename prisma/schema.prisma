@@ -589,7 +589,7 @@ model PropertyValuationSnapshot {
   propertyId       String
   property         Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   asOfDate         DateTime
-  marketValueCents Int
+  marketValueCents BigInt
   source           PropertyValuationSource
   note             String?
   createdById      String

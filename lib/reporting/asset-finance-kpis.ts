@@ -23,6 +23,12 @@ function ratioBasisPoints(numerator: number, denominator: number) {
   return Number.isSafeInteger(value) ? value : null;
 }
 
+function safeBigIntToNumber(value: bigint) {
+  const converted = Number(value);
+  if (!Number.isSafeInteger(converted)) throw new Error("Tržní hodnota je mimo bezpečný rozsah finančního reportu.");
+  return converted;
+}
+
 export function calculateAssetFinanceKpis(rows: AssetFinanceInputRow[]) {
   const propertyRows = rows.map((row) => {
     const annualRentCents = row.monthlyNetRentCents * 12;
@@ -95,7 +101,7 @@ export async function loadAssetFinanceKpis(rows: Array<{ property: { id: string;
       actualOpexTtmCents: costs.filter((cost) => cost.propertyId === row.property.id).reduce((sum, cost) => sum + cost.amountCents, 0),
       outstandingPrincipalCents: propertyLoans.reduce((sum, loan) => sum + loan.outstandingPrincipalCents, 0),
       annualDebtServiceCents: propertyLoans.some((loan) => loan.monthlyDebtServiceCents == null) ? null : propertyLoans.reduce((sum, loan) => sum + (loan.monthlyDebtServiceCents || 0) * 12, 0),
-      marketValueCents: latestValuation?.marketValueCents ?? null,
+      marketValueCents: latestValuation ? safeBigIntToNumber(latestValuation.marketValueCents) : null,
       valuationAsOfDate: latestValuation?.asOfDate ?? null,
     };
   }));
