@@ -76,8 +76,9 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Vyúčtování služeb",
     summary: "Podklady, odečty, pravidla rozúčtování a srozumitelný protokol pro nájemníka.",
     audience: "Správce nájmů",
-    steps: ["Uzavřete zúčtovací období a odečty.", "Přiřaďte skutečné náklady a pravidla rozdělení.", "Porovnejte náklady se zaplacenými zálohami.", "Vytvořte protokol a návazný nedoplatek nebo vratku."],
-    check: "Každá částka v protokolu musí mít zdroj a způsob výpočtu.",
+    steps: ["Otevřete vyúčtování přímo ze smlouvy a zvolte uzavřené období nejvýše 370 dní.", "Zkontrolujte předepsané zálohy odděleně od nájemného; inkaso celého předpisu není totéž jako výše zálohy.", "Doplňte skutečné OPEX náklady kategorie Energie a služby a u společných dokladů uložte rozdělení na jednotky.", "Ověřte počáteční a koncové odečty aktivních měřidel i platnost smlouvy v celém období.", "Nejprve odstraňte všechny blokátory. Pracovní náhled nic nezaúčtuje; až samostatné vystavení protokolu smí vytvořit nedoplatek nebo přeplatek."],
+    check: "Každá částka má zdroj a uložený způsob rozdělení; pracovní náhled je read-only a nesmí se vydávat za vystavený protokol.",
+    href: "/smlouvy",
   },
   {
     slug: "revize",
