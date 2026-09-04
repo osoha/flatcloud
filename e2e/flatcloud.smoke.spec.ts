@@ -132,12 +132,38 @@ test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ 
   await expect(workspace.getByText("Model · ne schválený plán", { exact: true })).toBeVisible();
   await expect(workspace.getByRole("img", { name: "Scénář valorizace a očekávaného inkasa" })).toBeVisible();
   await expect(workspace.locator(".forecast-point")).toHaveCount(24);
-  await expect(workspace.locator('form[method="post"]')).toHaveCount(0);
+  await expect(workspace.getByText("Uložit tuto variantu", { exact: true })).toBeVisible();
   await workspace.getByRole("link", { name: "Konzervativní", exact: true }).click();
   await expect(page).toHaveURL(/view=forecast&scenario=conservative&horizon=24/);
   await expect(page.locator(".rent-forecast-workspace")).toContainText("1,0 % ročně");
   await page.getByRole("link", { name: "12 měsíců", exact: true }).click();
   await expect(page.locator(".forecast-point")).toHaveCount(12);
+  assertNoBrowserFailures();
+});
+
+test("uloží, schválí a verzují scénář valorizace bez zápisu do smluv", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty?view=forecast&scenario=base&horizon=12");
+  const name = `E2E plán ${Date.now()}`;
+  await page.getByText("Uložit tuto variantu", { exact: true }).click();
+  await page.getByLabel("Název scénáře *").fill(name);
+  await page.getByLabel("Poznámka").fill("Kontrolní rozhodovací podklad");
+  await page.getByRole("button", { name: "Uložit jako koncept", exact: true }).click();
+  await expect(page).toHaveURL(/\/reporty\/valorizace\//);
+  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+  await expect(page.getByText("Koncept", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/Schválení potvrzuje plán pro další rozhodování, ale nevytváří dodatky ani nové předpisy/)).toBeVisible();
+  await page.getByText("Schválit tuto revizi", { exact: true }).click();
+  await page.getByRole("button", { name: "Potvrdit schválení plánu", exact: true }).click();
+  await expect(page.getByText("Scénář byl schválen. Smlouvy ani předpisy se nezměnily.")).toBeVisible();
+  await expect(page.getByText("Schváleno", { exact: true }).first()).toBeVisible();
+  const approvedUrl = page.url();
+  await page.getByRole("button", { name: "Nová revize z LIVE dat", exact: true }).click();
+  await expect(page).not.toHaveURL(approvedUrl);
+  await expect(page.getByText("Byla vytvořena revize 2 z aktuálních LIVE dat ve stavu Koncept.")).toBeVisible();
+  await expect(page.getByText("Koncept", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".revision-list>a")).toHaveCount(2);
   assertNoBrowserFailures();
 });
 

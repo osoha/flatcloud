@@ -129,6 +129,12 @@ enum PropertyValuationSource {
   EXTERNAL
 }
 
+enum RentForecastPlanStatus {
+  DRAFT
+  APPROVED
+  ARCHIVED
+}
+
 enum UnitType {
   APARTMENT
   COMMERCIAL
@@ -390,6 +396,8 @@ model User {
   mfRentDatasetReleasesImported       MfRentDatasetRelease[]         @relation("MfRentDatasetImporter")
   mfRentLocationsConfirmed            PropertyMfRentLocation[]       @relation("MfRentLocationConfirmer")
   propertyValuationsCreated           PropertyValuationSnapshot[]    @relation("PropertyValuationCreator")
+  rentForecastPlansCreated            RentForecastPlan[]             @relation("RentForecastPlanCreator")
+  rentForecastPlansApproved           RentForecastPlan[]             @relation("RentForecastPlanApprover")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @updatedAt
 }
@@ -439,24 +447,24 @@ model OwnerBankAccount {
 }
 
 model Property {
-  id                                String                    @id @default(cuid())
-  propertyCode                      String                    @unique @default(dbgenerated())
+  id                                String                      @id @default(cuid())
+  propertyCode                      String                      @unique @default(dbgenerated())
   name                              String
-  googleDriveFolderId               String?                   @unique
+  googleDriveFolderId               String?                     @unique
   address                           String
   city                              String
   postalCode                        String?
   note                              String?
   technicalData                     Json?
-  active                            Boolean                   @default(true)
+  active                            Boolean                     @default(true)
   ownerId                           String
-  owner                             Owner                     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  ownershipMode                     PropertyOwnershipMode     @default(WHOLE_OBJECT)
+  owner                             Owner                       @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownershipMode                     PropertyOwnershipMode       @default(WHOLE_OBJECT)
   communicationOwnerId              String?
-  communicationOwner                Owner?                    @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  communicationOwner                Owner?                      @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
   managerId                         String?
-  manager                           User?                     @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
-  managementScope                   PropertyManagementScope   @default(FULL_MANAGEMENT)
+  manager                           User?                       @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
+  managementScope                   PropertyManagementScope     @default(FULL_MANAGEMENT)
   flatcloudConsolidationBasisPoints Int?
   ownerships                        PropertyOwnership[]
   units                             Unit[]
@@ -473,14 +481,15 @@ model Property {
   budgets                           PropertyBudgetLine[]
   loans                             PropertyLoan[]
   valuations                        PropertyValuationSnapshot[]
+  rentForecastPlans                 RentForecastPlanProperty[]
   auditLogs                         AuditLog[]
   reportingGroups                   ReportingGroupProperty[]
   quarterSnapshots                  QuarterSnapshot[]
   quarterlyPropertyReports          QuarterlyPropertyReport[]
   documents                         Document[]
   mfRentLocation                    PropertyMfRentLocation?
-  createdAt                         DateTime                  @default(now())
-  updatedAt                         DateTime                  @updatedAt
+  createdAt                         DateTime                    @default(now())
+  updatedAt                         DateTime                    @updatedAt
 
   @@index([ownerId])
   @@index([communicationOwnerId])
@@ -490,14 +499,14 @@ model Property {
 }
 
 model PropertyCost {
-  id             String               @id @default(cuid())
+  id             String                   @id @default(cuid())
   propertyId     String
-  property       Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property       Property                 @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   unitId         String?
-  unit           Unit?                @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  unit           Unit?                    @relation(fields: [unitId], references: [id], onDelete: SetNull)
   kind           PropertyCostKind
-  status         PropertyCostStatus   @default(PLANNED)
-  category       PropertyCostCategory @default(OTHER)
+  status         PropertyCostStatus       @default(PLANNED)
+  category       PropertyCostCategory     @default(OTHER)
   title          String
   amountCents    Int
   effectiveAt    DateTime
@@ -506,8 +515,8 @@ model PropertyCost {
   note           String?
   documents      Document[]
   allocations    PropertyCostAllocation[]
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
 
   @@index([propertyId, effectiveAt])
   @@index([propertyId, kind, status])
@@ -597,6 +606,44 @@ model PropertyValuationSnapshot {
   createdAt        DateTime                @default(now())
 
   @@index([propertyId, asOfDate])
+}
+
+model RentForecastPlan {
+  id                  String                     @id @default(cuid())
+  seriesId            String
+  revision            Int                        @default(1)
+  name                String
+  status              RentForecastPlanStatus     @default(DRAFT)
+  asOfDate            DateTime
+  horizonMonths       Int
+  annualGrowthBps     Int
+  vacancyBps          Int
+  collectionBps       Int
+  marketGapCaptureBps Int
+  inputSnapshot       Json
+  note                String?
+  createdById         String
+  createdBy           User                       @relation("RentForecastPlanCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedById        String?
+  approvedBy          User?                      @relation("RentForecastPlanApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  approvedAt          DateTime?
+  properties          RentForecastPlanProperty[]
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+
+  @@unique([seriesId, revision])
+  @@index([status, updatedAt])
+  @@index([createdById, updatedAt])
+}
+
+model RentForecastPlanProperty {
+  planId     String
+  propertyId String
+  plan       RentForecastPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  property   Property         @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+
+  @@id([planId, propertyId])
+  @@index([propertyId])
 }
 
 model PropertyPaymentAccount {

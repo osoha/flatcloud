@@ -5,6 +5,13 @@ export const rentForecastScenarios = {
 } as const;
 
 export type RentForecastScenario = keyof typeof rentForecastScenarios;
+export type RentForecastAssumptions = {
+  label: string;
+  annualGrowthBps: number;
+  vacancyBps: number;
+  collectionBps: number;
+  marketGapCaptureBps: number;
+};
 
 export type RentForecastInput = {
   leaseId: string;
@@ -39,7 +46,7 @@ function contractualRentAt(row: RentForecastInput, month: Date) {
   return rent;
 }
 
-function plannedRentAt(row: RentForecastInput, monthIndex: number, horizonMonths: number, scenario: typeof rentForecastScenarios[RentForecastScenario]) {
+function plannedRentAt(row: RentForecastInput, monthIndex: number, horizonMonths: number, scenario: RentForecastAssumptions) {
   const positiveMarketGap = Math.max(0, (row.mfMarketRentCents ?? row.currentRentCents) - row.currentRentCents);
   const captureProgress = Math.min(1, (monthIndex + 1) / Math.max(1, horizonMonths));
   let rent = row.currentRentCents + Math.round(positiveMarketGap * scenario.marketGapCaptureBps / 10_000 * captureProgress);
@@ -57,7 +64,10 @@ export function parseRentForecastHorizon(value?: string) {
 }
 
 export function calculateRentForecast(rows: RentForecastInput[], asOf: Date, scenarioKey: RentForecastScenario, horizonMonths: number) {
-  const scenario = rentForecastScenarios[scenarioKey];
+  return calculateRentForecastWithAssumptions(rows, asOf, scenarioKey, rentForecastScenarios[scenarioKey], horizonMonths);
+}
+
+export function calculateRentForecastWithAssumptions(rows: RentForecastInput[], asOf: Date, scenarioKey: string, scenario: RentForecastAssumptions, horizonMonths: number) {
   const firstMonth = new Date(Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), 1));
   const months = Array.from({ length: horizonMonths }, (_, index) => {
     const month = addMonths(firstMonth, index);
