@@ -86,6 +86,8 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 
 ### R6 — kategorizace a distribuce FlatCloud
 
+- **R6A implementováno aditivně:** interní cockpit zahrnuje pouze potvrzená konsolidovaná aktiva FlatCloud a ukládá neměnné datované hodnocení kvality jednotky, naléhavosti investice, odhadu CAPEX a interní distribuční připravenosti; rating není tržní ocenění a nic nezveřejňuje,
+- další řez R6B doplní datovanou valuaci jednotlivých jednotek a vazbu na zdroj ocenění,
 - rating stavu a připravenosti jednotky,
 - odhad CAPEX a valuace jednotek,
 - prodejní matice, CRM zájemců, rezervace a smluvní milníky,

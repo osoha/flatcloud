@@ -138,6 +138,24 @@ test("roční podklady vedou od vlastníka ke zdrojům a bezpečnému exportu", 
   assertNoBrowserFailures();
 });
 
+test("interní kategorizace ukládá nový neměnný snapshot jednotky", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/distribuce");
+  await expect(page.getByRole("heading", { name: "Kategorizace a distribuce", exact: true })).toBeVisible();
+  await expect(page.getByText("Interní modul · pouze FlatCloud Group", { exact: true })).toBeVisible();
+  const firstAssessment = page.locator(".distribution-assessment").first();
+  await firstAssessment.getByText("Nové hodnocení", { exact: true }).click();
+  await firstAssessment.getByLabel("Rating kvality *").selectOption("B_GOOD");
+  await firstAssessment.getByLabel("Nutnost investice *").selectOption("MONITOR");
+  await firstAssessment.getByLabel("Odhad CAPEX Kč").fill("125000");
+  await firstAssessment.getByLabel("Poznámka / důvod").fill("E2E kontrolní hodnocení");
+  await firstAssessment.getByRole("button", { name: "Uložit nový snapshot", exact: true }).click();
+  await expect(page.getByText("Nové hodnocení jednotky bylo uloženo do historie.")).toBeVisible();
+  await expect(page.getByText("125 000 Kč", { exact: true }).first()).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

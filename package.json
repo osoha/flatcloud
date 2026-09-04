@@ -87,6 +87,7 @@
     "verify:ux-remodel-r5a": "node --import tsx scripts/verify-ux-remodel-r5a.ts",
     "verify:ux-remodel-r5b": "node --import tsx scripts/verify-ux-remodel-r5b.ts",
     "verify:ux-remodel-r5c": "node --import tsx scripts/verify-ux-remodel-r5c.ts",
+    "verify:ux-remodel-r6a": "node --import tsx scripts/verify-ux-remodel-r6a.ts",
     "verify:ux-remodel-r2d": "node --import tsx scripts/verify-ux-remodel-r2d.ts"
   },
   "dependencies": {
