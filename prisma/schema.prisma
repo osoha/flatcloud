@@ -197,6 +197,17 @@ enum UnitValuationSource {
   TRANSACTION
 }
 
+enum DistributionOpportunityStage {
+  NEW
+  CONTACTED
+  QUALIFIED
+  VIEWING
+  OFFER
+  RESERVED
+  WON
+  LOST
+}
+
 enum TenantType {
   PERSON
   COMPANY
@@ -430,6 +441,8 @@ model User {
   serviceSettlementProtocolsIssued     ServiceSettlementProtocol[]    @relation("ServiceSettlementProtocolIssuer")
   unitAssetAssessmentsCreated           UnitAssetAssessment[]          @relation("UnitAssetAssessmentCreator")
   unitValuationsCreated                  UnitValuationSnapshot[]        @relation("UnitValuationCreator")
+  distributionProspectsCreated           DistributionProspect[]        @relation("DistributionProspectCreator")
+  distributionOpportunitiesCreated       DistributionOpportunity[]     @relation("DistributionOpportunityCreator")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @updatedAt
 }
@@ -908,6 +921,7 @@ model Unit {
   assetCostAllocations    PropertyCostAllocation[]
   assetAssessments        UnitAssetAssessment[]
   valuationSnapshots      UnitValuationSnapshot[]
+  distributionOpportunities DistributionOpportunity[]
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
 
@@ -949,6 +963,44 @@ model UnitValuationSnapshot {
 
   @@index([unitId, valuationDate])
   @@index([source, valuationDate])
+}
+
+model DistributionProspect {
+  id            String                    @id @default(cuid())
+  name          String
+  email         String?
+  phone         String?
+  source        String?
+  note          String?
+  active        Boolean                   @default(true)
+  createdById   String
+  createdBy     User                      @relation("DistributionProspectCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  opportunities DistributionOpportunity[]
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  @@index([active, name])
+}
+
+model DistributionOpportunity {
+  id                String                       @id @default(cuid())
+  prospectId        String
+  prospect          DistributionProspect         @relation(fields: [prospectId], references: [id], onDelete: Restrict)
+  unitId            String
+  unit              Unit                         @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  stage             DistributionOpportunityStage @default(NEW)
+  askingPriceCents  BigInt?
+  offeredPriceCents BigInt?
+  nextActionAt      DateTime?
+  note              String?
+  createdById       String
+  createdBy         User                         @relation("DistributionOpportunityCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime                     @default(now())
+  updatedAt         DateTime                     @updatedAt
+
+  @@unique([prospectId, unitId])
+  @@index([unitId, stage])
+  @@index([stage, nextActionAt])
 }
 
 model UnitOperationalStatusEvent {

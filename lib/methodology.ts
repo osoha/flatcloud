@@ -130,6 +130,16 @@ export const methodologyChapters: MethodologyChapter[] = [
     check: "Poslední valuace má datum, zdroj a referenci a není zaměněna s technickým ratingem, CAPEX ani automatickou prodejní cenou.",
     href: "/distribuce",
   },
+  {
+    slug: "crm-distribuce",
+    category: "Asset management",
+    title: "CRM zájemců pro distribuci",
+    summary: "Interní vedení zájemce od prvního kontaktu přes prohlídku a nabídku až k rezervaci nebo uzavření.",
+    audience: "Interní distribuční tým",
+    steps: ["Založte zájemce až s alespoň jedním použitelným kontaktem a uveďte zdroj.", "Zájem o každou jednotku veďte jako samostatnou příležitost.", "Nastavte věcnou fázi, cenu a konkrétní datum dalšího kroku.", "Po každém kontaktu aktualizujte fázi a poznámku; systém změnu zaznamená do auditu.", "Rezervaci v CRM nepovažujte za právní rezervaci a bez samostatného souhlasu neposílejte automatickou komunikaci."],
+    check: "Každá otevřená příležitost má vlastníka kontaktu, jednotku, aktuální fázi a budoucí další krok; osobní údaje zůstávají interní.",
+    href: "/distribuce/zajemci",
+  },
 ];
 
 export function methodologyChapter(slug: string) {
