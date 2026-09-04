@@ -75,7 +75,9 @@ test("globální správce vidí provozní rozsah napříč vlastníky", async ({
   await expect(page.getByText("FlatCloud · 100 %", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Externí · 0 %", { exact: true }).first()).toBeVisible();
   await page.goto("/vlastnici");
-  await expect(page.getByText("FlatCloud a.s. – mateřská společnost", { exact: true })).toBeVisible();
+  await expect(page.locator(".owner-affiliation-flatcloud_parent")).toHaveText(
+    "FlatCloud a.s. – mateřská společnost",
+  );
   await page.goto("/reporty");
   await expect(page.locator(".operational-scope-note")).toContainText("Nejde o konsolidované finanční KPI skupiny FlatCloud");
   await page.getByRole("link", { name: "FlatCloud Asset", exact: true }).click();
@@ -294,8 +296,9 @@ test("detail smlouvy má čitelný finanční cockpit a životní akce", async (
   await expect(cockpit).toContainText("Zálohy na služby");
   await expect(cockpit).toContainText("Celkem měsíčně");
   await expect(cockpit).toContainText("Aktuální úhrada");
-  await expect(page.getByRole("link", { name: "Předpisy", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Ukončit vztah", exact: true })).toBeVisible();
+  const actions = page.locator(".lease-action-bar");
+  await expect(actions.getByRole("link", { name: "Předpisy", exact: true })).toBeVisible();
+  await expect(actions.getByRole("link", { name: "Ukončit vztah", exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
 
