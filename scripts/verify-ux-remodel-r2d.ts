@@ -25,7 +25,7 @@ check("schema keeps canonical tenant while adding role-ready parties", () => {
 });
 
 check("migration is additive, backfills primary parties and protects one primary", () => {
-  const migration = read("prisma/migrations/20260904170000_lease_contracting_parties/migration.sql");
+  const migration = read("prisma/migrations/20260904170000_lease_parties/migration.sql");
   assert.match(migration, /CREATE TABLE "LeaseParty"/);
   assert.match(migration, /INSERT INTO "LeaseParty"/);
   assert.match(migration, /LeaseParty_primary_contracting_party_key/);
