@@ -5,6 +5,7 @@ import { Shell } from "@/components/Shell";
 import { Checkbox, Field, Flash, FormCard, FormPage, Select, Textarea } from "@/components/FormUi";
 import { ownerTypes } from "@/lib/labels";
 import { formatIban, ownerBankAccountLabel } from "@/lib/owner-bank-account";
+import { ownerAffiliationLabels } from "@/lib/ownership-scope";
 
 export const dynamic = "force-dynamic";
 export default async function OwnerEdit({ params, searchParams }: { params: Promise<{id:string}>; searchParams: Promise<{ok?:string;error?:string}> }) {
@@ -23,6 +24,8 @@ export default async function OwnerEdit({ params, searchParams }: { params: Prom
         <FormCard action={`/api/owners/${owner.id}`} cancelHref="/vlastnici">
           <Field label="Název" name="name" defaultValue={owner.name} required/>
           <Select label="Typ" name="type" defaultValue={owner.type} options={Object.entries(ownerTypes)}/>
+          <Select label="Vztah ke skupině FlatCloud" name="affiliation" defaultValue={owner.affiliation} options={Object.entries(ownerAffiliationLabels)}/>
+          <p className="field-full classification-help">Zařazení vlastníka popisuje právní vztah ke skupině. Samo o sobě nemění přístupy uživatelů ani konsolidaci konkrétní nemovitosti.</p>
           <Field label="IČO" name="ico" defaultValue={owner.ico}/>
           <Field label="E-mail" name="email" type="email" defaultValue={owner.email}/>
           <Field label="Telefon" name="phone" defaultValue={owner.phone}/>

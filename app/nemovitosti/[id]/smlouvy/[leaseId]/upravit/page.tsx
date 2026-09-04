@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { requirePropertyAccess, unitAccessWhere } from "@/lib/access";
+import { requirePropertyAccess, tenantAccessWhere, unitAccessWhere } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Field, Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
 import { LeaseCoreFields } from "@/components/LeaseCoreFields";
@@ -21,8 +21,8 @@ export default async function EditLease({ params, searchParams }: { params: Prom
   const { id, leaseId } = await params;
   const [property, lease, tenants, query, usedRows] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.lease.findFirst({ where: { id: leaseId, unit: unitAccessWhere(user, id) }, include: { tenant: true, unit: true, ownerBankAccount: true } }),
-    prisma.tenant.findMany({ where: { leases: { some: { unit: { propertyId: id } } } }, orderBy: { name: "asc" } }),
+    prisma.lease.findFirst({ where: { id: leaseId, unit: unitAccessWhere(user, id) }, include: { tenant: true, unit: true, ownerBankAccount: true, parties: { include: { tenant: true }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] } } }),
+    prisma.tenant.findMany({ where: tenantAccessWhere(user), orderBy: { name: "asc" } }),
     searchParams,
     prisma.lease.findMany({ where: { id: { not: leaseId } }, select: { variableSymbol: true } }),
   ]);
@@ -40,7 +40,7 @@ export default async function EditLease({ params, searchParams }: { params: Prom
     <div className="notice"><strong>Stav smlouvy: {leaseStatuses[lifecycleStatus]}</strong><span>Stav je odvozen automaticky z data platnosti a lifecycle událostí a nelze jej ručně přepnout.</span></div>
     <div className="notice"><strong>Finanční evidence od: {lease.financialTrackingFromPeriod}</strong><span>Hranice finanční evidence je po založení pouze pro čtení. Její změna vyžaduje samostatný korekční workflow, aby nebyla dotčena existující finanční historie.</span></div>
     <FormCard action={`/api/properties/${id}/leases/${lease.id}`} cancelHref={`/nemovitosti/${id}/jednotky/${lease.unitId}`}>
-      <LeaseCoreFields unitOptions={property.units.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={lease.unitId} defaultTenantId={lease.tenantId} defaultContractNumber={lease.contractNumber} defaultStartDate={dateInput(lease.startDate)} defaultEndDate={dateInput(lease.endDate)} defaultDueDay={lease.dueDay} defaultRentTiming={lease.rentTiming} defaultVariableSymbol={lease.variableSymbol} defaultTenantBankAccount={lease.tenantBankAccount} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges defaultAutoChargesEnabled={lease.autoChargesEnabled} defaultIndexationEnabled={lease.indexationEnabled} defaultIndexationPercent={lease.indexationPercentBps == null ? "" : lease.indexationPercentBps / 100} defaultDeposit={moneyInput(lease.depositCents).replace(",", ".")}/>
+      <LeaseCoreFields unitOptions={property.units.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={lease.unitId} defaultTenantId={lease.tenantId} defaultContractingPartyIds={lease.parties.filter((party) => party.role === "CONTRACTING_PARTY" && !party.isPrimary).map((party) => party.tenantId)} defaultContractNumber={lease.contractNumber} defaultStartDate={dateInput(lease.startDate)} defaultEndDate={dateInput(lease.endDate)} defaultDueDay={lease.dueDay} defaultRentTiming={lease.rentTiming} defaultVariableSymbol={lease.variableSymbol} defaultTenantBankAccount={lease.tenantBankAccount} proposals={proposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges defaultAutoChargesEnabled={lease.autoChargesEnabled} defaultIndexationEnabled={lease.indexationEnabled} defaultIndexationPercent={lease.indexationPercentBps == null ? "" : lease.indexationPercentBps / 100} defaultDeposit={moneyInput(lease.depositCents).replace(",", ".")}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.rentCents).replace(",", ".")}/>
       <Field label="Služby Kč / měsíc" name="services" type="number" step="0.01" min={0} defaultValue={moneyInput(lease.servicesCents).replace(",", ".")}/>
       <Textarea label="Poznámka" name="note" defaultValue={lease.note}/>
@@ -51,7 +51,7 @@ export default async function EditLease({ params, searchParams }: { params: Prom
       <Textarea label="Důvod pozastavení" name="reminderPauseReason" defaultValue={lease.reminderPauseReason}/>
       <Textarea label="Interní poznámka k inkasu" name="collectionNote" defaultValue={lease.collectionNote}/>
     </FormCard>
-    <div className="card ownership-simple-card">
+    <div className="card ownership-simple-card" id="lifecycle">
       <div className="card-head"><div><h2>Lifecycle nájemního vztahu</h2><p className="muted-copy">Nájemník ani smlouva se nemažou. Ukončení vytvoří historickou lifecycle událost a uvolní jednotku podle skutečného data.</p></div></div>
       {lifecycleStatus === "ENDED" ? <div className="summary-list">
         <div><span>Stav</span><strong>Ukončená</strong></div>

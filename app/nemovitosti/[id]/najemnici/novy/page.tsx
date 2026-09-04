@@ -10,6 +10,7 @@ import { dateInput } from "@/lib/forms";
 import { proposedLeaseIdentity } from "@/lib/variable-symbol";
 import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 import { currentPeriod } from "@/lib/period";
+import { MethodologyCallout } from "@/components/MethodologyCallout";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
 
   return <Shell user={user}><FormPage title="Nový nájemník a smlouva" description="Nájemník bude rovnou přiřazen ke konkrétní jednotce. Kontaktní údaje se přizpůsobí fyzické nebo právnické osobě." backHref={`/nemovitosti/${id}/najemnici`}>
     <Flash ok={query.ok} error={query.error}/>
+    <MethodologyCallout slug="najemni-smlouva"/>
     {availableUnits.length ? <FormCard action={`/api/properties/${id}/tenants`} cancelHref={`/nemovitosti/${id}/najemnici`} submitLabel="Vytvořit nájemníka a smlouvu">
       <h2 className="form-section-title field-full">Nájemník</h2>
       <TenantFields/>

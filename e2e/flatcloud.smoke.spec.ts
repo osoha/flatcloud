@@ -58,6 +58,50 @@ test("administrátor se přihlásí a vidí deterministické portfolio", async (
   assertNoBrowserFailures();
 });
 
+test("globální správce vidí provozní rozsah napříč vlastníky", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await expect(page.getByText("Provozní cockpit · napříč vlastníky", { exact: true })).toBeVisible();
+  const picker = page.locator(".scope-picker-trigger");
+  await expect(picker).toContainText("Rozsah správy");
+  await expect(picker).toContainText("Vše ve správě");
+  await picker.click();
+  const dialog = page.getByRole("dialog", { name: "Vybrat zobrazené objekty" });
+  await expect(dialog.getByRole("button", { name: "Vybrat vše ve správě", exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /FlatCloud Group/ })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: /Externí správa/ })).toBeVisible();
+  await expect(dialog.locator(".scope-owner-preset").first()).toBeVisible();
+  await page.getByRole("button", { name: "Zrušit změny", exact: true }).click();
+  await expect(page.getByText("FlatCloud · 100 %", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Externí · 0 %", { exact: true }).first()).toBeVisible();
+  await page.goto("/vlastnici");
+  await expect(page.locator(".owner-affiliation-flatcloud_parent")).toHaveText(
+    "FlatCloud a.s. – mateřská společnost",
+  );
+  await page.goto("/reporty");
+  await expect(page.locator(".operational-scope-note")).toContainText("Nejde o konsolidované finanční KPI skupiny FlatCloud");
+  await page.getByRole("link", { name: "FlatCloud Asset", exact: true }).click();
+  await expect(page).toHaveURL(/view=asset/);
+  await expect(page.getByText("KPI skupiny · potvrzená aktiva", { exact: true })).toBeVisible();
+  const assetTable = page.getByRole("table").filter({ hasText: "Konsolidační podíl" });
+  await expect(assetTable.getByRole("row")).toHaveCount(3);
+  await expect(assetTable).toContainText("Moskevská");
+  await expect(assetTable).toContainText("Karla Aksamita");
+  await expect(assetTable).not.toContainText("Dům ve správě");
+  await expect(page.getByText(/Indikativní LIVE run-rate:/)).toBeVisible();
+  const financeAlerts = page.locator(".asset-alert-card");
+  await expect(financeAlerts.getByRole("heading", { name: "Finanční alarmy", exact: true })).toBeVisible();
+  await expect(financeAlerts).toContainText("DSCR kleslo pod 1,00×");
+  await expect(financeAlerts).toContainText(`Chybí schválený rozpočet ${new Date().getUTCFullYear()}`);
+  await expect(financeAlerts.getByRole("link").first()).toHaveAttribute("href", /\/nemovitosti\/.+\/finance#/);
+  await expect(financeAlerts).toContainText("LTV varování nad 60 %");
+  const assetCockpit = page.locator(".contract-cockpit");
+  for (const label of ["NOI · run-rate", "Cashflow po dluhové službě", "Yield", "ROE", "LTV", "DSCR"]) await expect(assetCockpit.getByText(label, { exact: true })).toBeVisible();
+  await expect(page.getByText("Ocenění není úplné", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("table").filter({ hasText: "OPEX TTM" })).not.toContainText("Dům ve správě");
+  assertNoBrowserFailures();
+});
+
 test("report kaucí používá české a významově přesné stavy", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
@@ -75,6 +119,51 @@ test("report kaucí používá české a významově přesné stavy", async ({ p
     scope: Number(getComputedStyle(document.querySelector(".scope-picker")!).zIndex),
   }));
   expect(layers.scope).toBeLessThan(layers.header);
+  assertNoBrowserFailures();
+});
+
+test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty?view=forecast");
+  const workspace = page.locator(".rent-forecast-workspace");
+  await expect(workspace.getByRole("heading", { name: "Valorizace a forecast nájemného", exact: true })).toBeVisible();
+  await expect(workspace).toContainText("Pracovní scénář · nic nemění ve smlouvách ani předpisech");
+  await expect(workspace.getByText("Model · ne schválený plán", { exact: true })).toBeVisible();
+  await expect(workspace.getByRole("img", { name: "Scénář valorizace a očekávaného inkasa" })).toBeVisible();
+  await expect(workspace.locator(".forecast-point")).toHaveCount(24);
+  await expect(workspace.getByText("Uložit tuto variantu", { exact: true })).toBeVisible();
+  await workspace.getByRole("link", { name: "Konzervativní", exact: true }).click();
+  await expect(page).toHaveURL(/view=forecast&scenario=conservative&horizon=24/);
+  await expect(page.locator(".rent-forecast-workspace")).toContainText("1,0 % ročně");
+  await page.getByRole("link", { name: "12 měsíců", exact: true }).click();
+  await expect(page.locator(".forecast-point")).toHaveCount(12);
+  assertNoBrowserFailures();
+});
+
+test("uloží, schválí a verzují scénář valorizace bez zápisu do smluv", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty?view=forecast&scenario=base&horizon=12");
+  const name = `E2E plán ${Date.now()}`;
+  await page.getByText("Uložit tuto variantu", { exact: true }).click();
+  await page.getByLabel("Název scénáře *").fill(name);
+  await page.getByLabel("Poznámka").fill("Kontrolní rozhodovací podklad");
+  await page.getByRole("button", { name: "Uložit jako koncept", exact: true }).click();
+  await expect(page).toHaveURL(/\/reporty\/valorizace\//);
+  await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
+  await expect(page.getByText("Koncept", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/Schválení potvrzuje plán pro další rozhodování, ale nevytváří dodatky ani nové předpisy/)).toBeVisible();
+  await page.getByText("Schválit tuto revizi", { exact: true }).click();
+  await page.getByRole("button", { name: "Potvrdit schválení plánu", exact: true }).click();
+  await expect(page.getByText("Scénář byl schválen. Smlouvy ani předpisy se nezměnily.")).toBeVisible();
+  await expect(page.getByText("Schváleno", { exact: true }).first()).toBeVisible();
+  const approvedUrl = page.url();
+  await page.getByRole("button", { name: "Nová revize z LIVE dat", exact: true }).click();
+  await expect(page).not.toHaveURL(approvedUrl);
+  await expect(page.getByText("Byla vytvořena revize 2 z aktuálních LIVE dat ve stavu Koncept.")).toBeVisible();
+  await expect(page.getByText("Koncept", { exact: true }).first()).toBeVisible();
+  await expect(page.locator(".revision-list>a")).toHaveCount(2);
   assertNoBrowserFailures();
 });
 
@@ -126,6 +215,19 @@ test("kritické registry a administrace se otevřou bez browser chyb", async ({ 
   assertNoBrowserFailures();
 });
 
+test("metodika je dohledatelná globálně a umí filtrovat životní situace", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.getByRole("link", { name: "Metodika", exact: true }).click();
+  await expect(page).toHaveURL(/\/metodika(?:\?|$)/);
+  await expect(page.getByRole("heading", { name: "Metodika správy", exact: true })).toBeVisible();
+  await page.getByLabel("Hledat v metodice").fill("valorizace");
+  await page.getByRole("button", { name: "Hledat", exact: true }).click();
+  await expect(page).toHaveURL(/\/metodika\?q=valorizace/);
+  await expect(page.getByRole("heading", { name: "Valorizace a plán nájemného", exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("MF benchmark se otevře jako read-only LIVE report", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
@@ -151,6 +253,136 @@ test("uživatel projde z portfolia do nemovitosti a jednotky", async ({ page }) 
   await page.getByRole("link", { name: "Jednotky", exact: true }).click();
   await page.getByRole("link", { name: /1\.01/ }).first().click();
   await expect(page.getByRole("heading", { name: "1.01", exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
+test("přehled nemovitosti ukazuje stav založení a další doporučený krok", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  const checklist = page.locator(".onboarding-checklist");
+  await expect(checklist).toBeVisible();
+  await expect(checklist).toContainText("Připravenost objektu");
+  await expect(checklist).toContainText("Jednotky");
+  await expect(checklist).toContainText("Nájemní smlouvy");
+  await expect(checklist).toContainText("Předpisy");
+  assertNoBrowserFailures();
+});
+
+test("asset finance odděluje náklady a úvěry od nájemních financí", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  await expect(page.getByText("Finance objektu, ne nájemní smlouvy.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Servis výtahu", { exact: true })).toBeVisible();
+  await expect(page.getByText("Revitalizace fasády", { exact: true })).toBeVisible();
+  await expect(page.getByText("Investiční úvěr 2024", { exact: true })).toBeVisible();
+  await expect(page.getByText("Česká spořitelna", { exact: true })).toBeVisible();
+  await expect(page.getByText("Měsíční dluhová služba", { exact: true })).toBeVisible();
+  const createCost = page.locator("#naklady details");
+  await createCost.getByText("Přidat náklad", { exact: true }).click();
+  await createCost.getByLabel("Název *").fill("Kontrolní servis střechy");
+  await createCost.getByLabel("Částka v Kč *").fill("12500");
+  await createCost.getByLabel("Stav *").selectOption("ACTUAL");
+  await createCost.getByRole("button", { name: "Uložit náklad", exact: true }).click();
+  await expect(page.getByText("Náklad byl přidán do asset finance.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Kontrolní servis střechy", { exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
+test("správce porovná rozpočet a zapíše nový stav úvěru", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  await expect(page.getByText("Schválený rozpočet 2026", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Servis a údržba", { exact: true })).toBeVisible();
+
+  const budget = page.locator("#rozpocet");
+  await budget.getByText("Přidat do rozpočtu", { exact: true }).click();
+  await budget.getByLabel("Název položky *").fill("Rezerva na havárie");
+  await budget.getByLabel("Částka v Kč *").fill("45000");
+  await budget.getByRole("button", { name: "Uložit rozpočtovou položku", exact: true }).click();
+  await expect(page.getByText("Rozpočtová položka byla přidána.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Rezerva na havárie", { exact: true })).toBeVisible();
+
+  const loanHistory = page.locator('div.card[id^="uver-"]').filter({ hasText: "Investiční úvěr 2024" });
+  await expect(loanHistory).toContainText("Starší záznamy se nepřepisují.");
+  await loanHistory.getByText("Zapsat nový stav", { exact: true }).click();
+  await loanHistory.getByLabel("Zbývající jistina v Kč *").fill("9100000");
+  await loanHistory.getByLabel("Roční úrok v % *").fill("4.75");
+  await loanHistory.getByLabel("Poznámka ke změně").fill("Mimořádná splátka");
+  await loanHistory.getByRole("button", { name: "Uložit stav do historie", exact: true }).click();
+  await expect(page.getByText("Nový stav úvěru byl uložen do historie.", { exact: true })).toBeVisible();
+  await expect(page.locator('div.card[id^="uver-"]').filter({ hasText: "Investiční úvěr 2024" })).toContainText("Mimořádná splátka");
+  assertNoBrowserFailures();
+});
+
+test("správce přiřadí náklad jednotce a dohledá účetní podklad", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  const costs = page.locator("#naklady");
+  await costs.getByText("Přidat náklad", { exact: true }).click();
+  await costs.getByLabel("Název *").fill("Výměna baterie v bytě");
+  await costs.getByLabel("Částka v Kč *").fill("3200");
+  await costs.getByLabel("Stav *").selectOption("ACTUAL");
+  await costs.getByLabel("Rozsah nákladu").selectOption({ label: "Jednotka 1.01" });
+  await costs.getByLabel("Dodavatel").fill("Instalatérství Demo");
+  await costs.getByLabel("Číslo dokladu").fill("FV-2026-UNIT-01");
+  await costs.getByRole("button", { name: "Uložit náklad", exact: true }).click();
+  await expect(page.getByText("Náklad byl přidán do asset finance.", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Výměna baterie v bytě", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Výměna baterie v bytě", exact: true })).toBeVisible();
+  await expect(page.getByText("Účetní kontext", { exact: true })).toBeVisible();
+  await expect(page.getByText("Jednotka 1.01", { exact: true })).toBeVisible();
+  await expect(page.getByText("FV-2026-UNIT-01", { exact: true })).toBeVisible();
+  await expect(page.getByText("Účetní podklady", { exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
+test("správce rozdělí společný náklad mezi více jednotek", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  await page.getByRole("link", { name: "Servis výtahu", exact: true }).click();
+  const allocation = page.getByTestId("cost-allocation");
+  await expect(allocation.getByRole("heading", { name: "Rozdělení nákladu na jednotky", exact: true })).toBeVisible();
+  await allocation.getByLabel("Jednotka 1.01 (%)", { exact: true }).fill("60");
+  await allocation.getByLabel("Jednotka 2.02 (%)", { exact: true }).fill("40");
+  await allocation.getByRole("button", { name: "Uložit vlastní rozdělení", exact: true }).click();
+  await expect(page.getByText("Náklad byl rozdělen mezi 2 jednotky.", { exact: true })).toBeVisible();
+  const firstUnit = allocation.getByRole("row").filter({ hasText: "1.01" });
+  const secondUnit = allocation.getByRole("row").filter({ hasText: "2.02" });
+  await expect(firstUnit).toContainText("60 %");
+  await expect(firstUnit).toContainText("11 100 Kč");
+  await expect(secondUnit).toContainText("40 %");
+  await expect(secondUnit).toContainText("7 400 Kč");
+  await allocation.getByRole("button", { name: "Rozdělit rovnoměrně", exact: true }).click();
+  await expect(page.getByText("Náklad byl rozdělen mezi 5 jednotek.", { exact: true })).toBeVisible();
+  await expect(allocation.getByText("20 %", { exact: true })).toHaveCount(5);
+  assertNoBrowserFailures();
+});
+
+test("správce zapíše nové ocenění pro asset KPI", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  const valuations = page.locator("#oceneni");
+  await expect(valuations).toContainText("25 000 000 Kč");
+  await valuations.getByText("Zapsat ocenění", { exact: true }).click();
+  await valuations.getByLabel("Tržní hodnota v Kč *").fill("26000000");
+  await valuations.getByLabel("Zdroj *").selectOption("EXTERNAL");
+  await valuations.getByLabel("Poznámka / podklad").fill("Aktualizovaný externí posudek");
+  await valuations.getByRole("button", { name: "Uložit ocenění do historie", exact: true }).click();
+  await expect(page.getByText("Nové ocenění bylo uloženo do historie.", { exact: true })).toBeVisible();
+  await expect(valuations).toContainText("26 000 000 Kč");
+  await expect(valuations).toContainText("Externí posudek");
+  await expect(valuations).toContainText("Aktualizovaný externí posudek");
   assertNoBrowserFailures();
 });
 
@@ -200,6 +432,46 @@ test("nájemník a jeho smlouva jsou dostupné z registrů", async ({ page }) =>
   await page.getByRole("link", { name: /Jan Novák/ }).first().click();
   await expect(page.getByText("Jan Novák", { exact: true }).first()).toBeVisible();
   await expect(page.getByRole("heading").first()).toBeVisible();
+  assertNoBrowserFailures();
+});
+
+test("detail smlouvy má čitelný finanční cockpit a životní akce", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/smlouvy");
+  await page.getByRole("link", { name: /Jan Novák/ }).first().click();
+  const cockpit = page.locator(".contract-cockpit");
+  await expect(cockpit).toBeVisible();
+  await expect(cockpit.getByRole("heading", { name: /Finance ·/ })).toBeVisible();
+  await expect(cockpit).toContainText("Nájemné");
+  await expect(cockpit).toContainText("Zálohy na služby");
+  await expect(cockpit).toContainText("Celkem měsíčně");
+  await expect(cockpit).toContainText("Aktuální úhrada");
+  const actions = page.locator(".lease-action-bar");
+  await expect(actions.getByRole("link", { name: "Předpisy", exact: true })).toBeVisible();
+  await expect(actions.getByRole("link", { name: "Ukončit vztah", exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
+test("správce přidá dalšího smluvního partnera a vztah zůstane čitelný", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/smlouvy");
+  const leaseLink = page.getByRole("link", { name: /Jan Novák/ }).first();
+  const leaseUrl = await leaseLink.getAttribute("href");
+  expect(leaseUrl).toMatch(/^\/smlouvy\//);
+  await leaseLink.click();
+  await expect(page).toHaveURL(new RegExp(`${leaseUrl}$`));
+  await page.getByRole("link", { name: "Upravit smlouvu", exact: true }).click();
+  const partyPicker = page.getByRole("group", { name: "Další smluvní partneři" });
+  await expect(partyPicker).toBeVisible();
+  const secondParty = partyPicker.locator("label").filter({ hasText: "Petra Malá" }).first();
+  await secondParty.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Uložit", exact: true }).click();
+  await page.goto(leaseUrl!);
+  const parties = page.locator(".lease-party-summary");
+  await expect(parties.getByRole("link", { name: /Jan Novák/ })).toBeVisible();
+  await expect(parties.getByRole("link", { name: "Petra Malá", exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
 
