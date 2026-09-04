@@ -140,6 +140,16 @@ export const methodologyChapters: MethodologyChapter[] = [
     check: "Každá otevřená příležitost má vlastníka kontaktu, jednotku, aktuální fázi a budoucí další krok; osobní údaje zůstávají interní.",
     href: "/distribuce/zajemci",
   },
+  {
+    slug: "reporting-distribuce",
+    category: "Asset management",
+    title: "Distribuční podklady pro akcionáře",
+    summary: "Kvartální a roční agregace ratingů, valuací, CAPEX a distribuční pipeline bez osobních údajů zájemců.",
+    audience: "Interní reporting FlatCloud",
+    steps: ["Vyberte kvartál nebo celý rok aktivity.", "Ověřte úplnost ratingů a valuací po nemovitostech.", "Čtěte fáze jako dnešní LIVE stav a nové příležitosti jako aktivitu podle data založení.", "Před předáním vysvětlete chybějící historizaci přechodů fází.", "Exportujte pouze agregované CSV bez osobních údajů a odborně ověřte komentář reportu."],
+    check: "Podklad obsahuje jen potvrzená aktiva FlatCloud, neobsahuje PII a jasně označuje rozdíl mezi LIVE stavem a periodickou aktivitou.",
+    href: "/distribuce/reporting",
+  },
 ];
 
 export function methodologyChapter(slug: string) {

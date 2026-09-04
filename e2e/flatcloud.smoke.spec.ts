@@ -190,6 +190,20 @@ test("interní CRM vede zájemce přes příležitost a další krok", async ({ 
   assertNoBrowserFailures();
 });
 
+test("distribuční podklad odděluje LIVE stav od aktivity a exportuje bez PII", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/distribuce/reporting");
+  await expect(page.getByRole("heading", { name: "Distribuční podklady pro akcionáře", exact: true })).toBeVisible();
+  await expect(page.getByText("Bez PII a bez historizace fáze", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "LIVE fáze pipeline", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Stáhnout CSV bez osobních údajů", exact: true })).toHaveAttribute("href", /\/api\/distribution\/report\.csv\?period=\d{4}-Q[1-4]/);
+  await page.getByLabel("Období aktivity").selectOption({ index: 4 });
+  await page.getByRole("button", { name: "Načíst období", exact: true }).click();
+  await expect(page).toHaveURL(/period=\d{4}-Q[1-4]/);
+  assertNoBrowserFailures();
+});
+
 test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
