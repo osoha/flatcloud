@@ -120,6 +120,16 @@ export const methodologyChapters: MethodologyChapter[] = [
     check: "Každá jednotka má aktuální datované hodnocení, zdůvodněný CAPEX a oddělenou informaci o připravenosti; rating se nevydává za valuaci.",
     href: "/distribuce",
   },
+  {
+    slug: "valuace-jednotek",
+    category: "Asset management",
+    title: "Valuace jednotek pro distribuci",
+    summary: "Oddělená historie tržní hodnoty jednotlivé jednotky, zdroje ocenění a kontrolního přepočtu na m².",
+    audience: "Interní asset manager",
+    steps: ["Nejdřív doplňte plochu, technický rating a odhad potřebného CAPEX.", "Zvolte zdroj valuace: interní srovnání, externí posudek, nabídkovou cenu nebo realizovanou transakci.", "Uveďte datum a dohledatelnou referenci; interní srovnání popište v poznámce.", "Novou informaci uložte jako další snapshot, původní hodnotu nepřepisujte.", "Hodnotu Kč/m² používejte jako kontrolu konzistence, ne jako samostatný zdroj ocenění."],
+    check: "Poslední valuace má datum, zdroj a referenci a není zaměněna s technickým ratingem, CAPEX ani automatickou prodejní cenou.",
+    href: "/distribuce",
+  },
 ];
 
 export function methodologyChapter(slug: string) {

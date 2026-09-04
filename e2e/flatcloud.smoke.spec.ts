@@ -153,6 +153,14 @@ test("interní kategorizace ukládá nový neměnný snapshot jednotky", async (
   await firstAssessment.getByRole("button", { name: "Uložit nový snapshot", exact: true }).click();
   await expect(page.getByText("Nové hodnocení jednotky bylo uloženo do historie.")).toBeVisible();
   await expect(page.getByText("125 000 Kč", { exact: true }).first()).toBeVisible();
+  const firstValuation = page.locator(".distribution-valuation").first();
+  await firstValuation.getByText("Nová valuace", { exact: true }).click();
+  await firstValuation.getByLabel("Tržní hodnota Kč *").fill("5000000");
+  await firstValuation.getByLabel("Zdroj *").selectOption("INTERNAL_COMPARABLES");
+  await firstValuation.getByLabel("Reference / číslo posudku").fill("E2E-COMP");
+  await firstValuation.getByRole("button", { name: "Uložit novou valuaci", exact: true }).click();
+  await expect(page.getByText("Nová valuace jednotky byla uložena do historie.")).toBeVisible();
+  await expect(page.getByText("5 000 000 Kč", { exact: true }).first()).toBeVisible();
   assertNoBrowserFailures();
 });
 

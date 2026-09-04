@@ -190,6 +190,13 @@ enum UnitInvestmentUrgency {
   IMMEDIATE
 }
 
+enum UnitValuationSource {
+  INTERNAL_COMPARABLES
+  EXTERNAL_APPRAISAL
+  OFFER_PRICE
+  TRANSACTION
+}
+
 enum TenantType {
   PERSON
   COMPANY
@@ -422,6 +429,7 @@ model User {
   rentChangeProposalsConfirmed         RentChangeProposal[]           @relation("RentChangeProposalConfirmer")
   serviceSettlementProtocolsIssued     ServiceSettlementProtocol[]    @relation("ServiceSettlementProtocolIssuer")
   unitAssetAssessmentsCreated           UnitAssetAssessment[]          @relation("UnitAssetAssessmentCreator")
+  unitValuationsCreated                  UnitValuationSnapshot[]        @relation("UnitValuationCreator")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @updatedAt
 }
@@ -899,6 +907,7 @@ model Unit {
   assetCosts              PropertyCost[]
   assetCostAllocations    PropertyCostAllocation[]
   assetAssessments        UnitAssetAssessment[]
+  valuationSnapshots      UnitValuationSnapshot[]
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
 
@@ -923,6 +932,23 @@ model UnitAssetAssessment {
 
   @@index([unitId, assessedAt])
   @@index([rating, investmentUrgency])
+}
+
+model UnitValuationSnapshot {
+  id               String              @id @default(cuid())
+  unitId           String
+  unit             Unit                @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  marketValueCents BigInt
+  source           UnitValuationSource
+  valuationDate    DateTime
+  reference        String?
+  note             String?
+  createdById      String
+  createdBy        User                @relation("UnitValuationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt        DateTime            @default(now())
+
+  @@index([unitId, valuationDate])
+  @@index([source, valuationDate])
 }
 
 model UnitOperationalStatusEvent {

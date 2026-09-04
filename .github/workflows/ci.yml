@@ -110,6 +110,7 @@ jobs:
       - run: npm run verify:ux-remodel-r5b
       - run: npm run verify:ux-remodel-r5c
       - run: npm run verify:ux-remodel-r6a
+      - run: npm run verify:ux-remodel-r6b
       - run: npm run verify:ux-remodel-r2d
       - run: npm run verify:live-report-periods
 
