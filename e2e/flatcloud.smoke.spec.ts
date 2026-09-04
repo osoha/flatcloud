@@ -148,10 +148,10 @@ test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ 
   assertNoBrowserFailures();
 });
 
-test("uloží, schválí a verzují scénář valorizace bez zápisu do smluv", async ({ page }) => {
+test("uloží, schválí a převede scénář do dvoukrokové změny nájemného", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
-  await page.goto("/reporty?view=forecast&scenario=base&horizon=12");
+  await page.goto("/reporty?view=forecast&scenario=base&horizon=24");
   const name = `E2E plán ${Date.now()}`;
   await page.getByText("Uložit tuto variantu", { exact: true }).click();
   await page.getByLabel("Název scénáře *").fill(name);
@@ -168,6 +168,19 @@ test("uloží, schválí a verzují scénář valorizace bez zápisu do smluv", 
   await expect(page.getByRole("heading", { name: "Náhled převodu do dodatků", exact: true })).toBeVisible();
   await expect(page.getByText("Dry run · bez zápisu", { exact: true })).toBeVisible();
   await expect(page.getByText("Nic se zatím nepřenáší do evidence", { exact: true })).toBeVisible();
+  const createChange = page.locator(".rent-change-create").first();
+  await expect(createChange).toBeVisible();
+  await createChange.getByText("Připravit změnu", { exact: true }).click();
+  await createChange.getByLabel("Poznámka", { exact: true }).fill("E2E kontrola změny");
+  await createChange.getByRole("button", { name: "Pokračovat ke kontrole", exact: true }).click();
+  await expect(page).toHaveURL(/\/reporty\/valorizace\/.+\/navrhy\/.+/);
+  await expect(page.getByRole("heading", { name: "Návrh změny nájemného", exact: true })).toBeVisible();
+  await expect(page.getByText("Druhý krok · právní a finanční kontrola", { exact: true })).toBeVisible();
+  await page.getByLabel(/Zkontroloval\/a jsem částku/).check();
+  await page.getByRole("button", { name: "Potvrdit změnu nájemného", exact: true }).click();
+  await expect(page.getByText("Změna nájemného byla potvrzena a budoucí neuhrazené předpisy synchronizovány.")).toBeVisible();
+  await expect(page.getByText("Potvrzeno", { exact: true }).first()).toBeVisible();
+  await page.getByRole("link", { name: "← Schválený plán", exact: true }).click();
   const approvedUrl = page.url();
   await page.getByRole("button", { name: "Nová revize z LIVE dat", exact: true }).click();
   await expect(page).not.toHaveURL(approvedUrl);

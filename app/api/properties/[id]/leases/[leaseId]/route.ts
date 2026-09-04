@@ -11,6 +11,7 @@ import { firstFutureAnniversary, periodKeyForDate, replaceRecurringAmount, syncL
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "@/lib/lease-lifecycle";
 import { businessMonthKey } from "@/lib/calendar";
+import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
 
 function percentToBps(value: string | null) {
   if (!value) return null;
@@ -28,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const access = await requireManagedProperty(id);
   if (!access) return go(request, "/login");
   try {
-    const existing = await prisma.lease.findFirst({ where: { id: leaseId, unit: { propertyId: id } }, include: { securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] } } });
+    const existing = await prisma.lease.findFirst({ where: { id: leaseId, unit: { propertyId: id } }, include: { securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] }, paymentItems: true, charges: { include: { items: true } }, rentChangeProposals: { where: { status: "CONFIRMED", effectiveFrom: { gt: currentMonthStart() } }, orderBy: { effectiveFrom: "asc" }, take: 1 } } });
     if (!existing) throw new Error("Smlouva nebyla nalezena.");
 
     const form = await request.formData();
@@ -69,6 +70,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const indexationChanged = indexationEnabled !== existing.indexationEnabled || indexationPercentBps !== existing.indexationPercentBps || startDate.getTime() !== existing.startDate.getTime();
     const nextIndexationAt = indexationEnabled ? (indexationChanged || !existing.nextIndexationAt ? firstFutureAnniversary(startDate) : existing.nextIndexationAt) : null;
     const effectiveFrom = startDate > currentMonthStart() ? startDate : currentMonthStart();
+    const futureRentChange = existing.rentChangeProposals[0] || null;
+    const liveAmounts = rentRollAmountsAt(existing, new Date());
+    if (futureRentChange && indexationChanged) throw new Error("Smlouva má potvrzenou budoucí změnu nájemného. Indexaci upravte až po nové revizi valorizačního plánu.");
+    if (futureRentChange && endDate && endDate < futureRentChange.effectiveFrom) throw new Error("Konec smlouvy je před potvrzenou budoucí změnou nájemného. Nejprve opravte valorizační plán.");
     const derivedStatus = leaseStatusAt({ startDate, endDate, terminatedOn: existing.terminatedOn, cancelledAt: existing.cancelledAt }) as LeaseStatus;
 
     const lease = await prisma.$transaction(async (tx) => {
@@ -86,7 +91,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // Reconcile both canonical components on every save. Historical/imported data may
       // contain overlapping RENT/SERVICES rows even when the raw lease totals are already
       // correct; leaving those rows in place makes generated monthly charges look random.
-      await replaceRecurringAmount(tx, leaseId, "RENT", rentCents, effectiveFrom);
+      await replaceRecurringAmount(tx, leaseId, "RENT", rentCents, effectiveFrom, futureRentChange ? { preserveFutureFrom: futureRentChange.effectiveFrom } : {});
       await replaceRecurringAmount(tx, leaseId, "SERVICES", servicesCents, effectiveFrom);
       if (depositCents !== existing.depositCents) await tx.securityDepositTerm.create({ data: { leaseId, agreedAmountCents: depositCents, annualRateBps: existing.securityDepositTerms.at(-1)?.annualRateBps || 0, effectiveFrom, createdById: access.user.id, note: "Aktualizováno z editace smlouvy." } });
 
@@ -103,7 +108,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           dueDay,
           variableSymbol,
           rentTiming,
-          rentCents,
+          rentCents: futureRentChange ? existing.rentCents : rentCents,
           servicesCents,
           depositCents,
           note: text(form, "note"),
@@ -127,8 +132,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return updated;
     });
 
-    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, lifecycleStatus: derivedStatus, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), contractingPartyIds: requestedTenantIds, autoChargesEnabled, indexationEnabled, amountsChanged: rentCents !== existing.rentCents || servicesCents !== existing.servicesCents }, id);
-    return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", autoChargesEnabled ? "Smlouva byla upravena a budoucí předpisy synchronizovány." : "Smlouva byla upravena.");
+    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, lifecycleStatus: derivedStatus, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), contractingPartyIds: requestedTenantIds, autoChargesEnabled, indexationEnabled, confirmedFutureRentChangePreserved: Boolean(futureRentChange), amountsChanged: rentCents !== liveAmounts.rent.amountCents || servicesCents !== liveAmounts.services.amountCents }, id);
+    return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", futureRentChange ? "Smlouva byla upravena; potvrzená budoucí změna nájemného zůstala zachována." : autoChargesEnabled ? "Smlouva byla upravena a budoucí předpisy synchronizovány." : "Smlouva byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo upravit.");
   }
