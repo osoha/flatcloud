@@ -36,7 +36,7 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R2A implementováno bez migrace:** provozní cockpit je označený jako pohled napříč vlastníky, rozsah se jmenuje „Vše ve správě“ a umožňuje rychlý výběr podle vlastníka,
 - **R2B implementováno aditivně:** vlastník má explicitní vztah ke skupině, nemovitost samostatný rozsah správy a nullable konsolidační podíl; stávající data se automaticky nezařazují,
 - **R2C implementováno:** samostatný asset pohled počítá finanční KPI pouze z aktiv s potvrzeným podílem nad 0 %; externí a nezařazená aktiva jsou vyloučena,
-- více smluvních stran v jednom vztahu a role spolunájemce, plátce, ručitel, kontakt a obyvatel,
+- **R2D implementováno aditivně:** více smluvních stran v jednom vztahu, explicitní hlavní smluvní strana a dohledatelnost stejné smlouvy z profilu každého partnera; datový základ připravuje role plátce, ručitele a kontaktu, zatímco obyvatel zůstává samostatnou evidencí,
 - společná či oddělená korespondence a odpovědnost za platby bez slučování osob do jednoho záznamu,
 - právní vlastník a ekonomická skupina,
 - vztah ke skupině FlatCloud,

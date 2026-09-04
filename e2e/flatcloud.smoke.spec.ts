@@ -302,6 +302,25 @@ test("detail smlouvy má čitelný finanční cockpit a životní akce", async (
   assertNoBrowserFailures();
 });
 
+test("správce přidá dalšího smluvního partnera a vztah zůstane čitelný", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/smlouvy");
+  await page.getByRole("link", { name: /Jan Novák/ }).first().click();
+  const leaseUrl = page.url();
+  await page.getByRole("link", { name: "Upravit smlouvu", exact: true }).click();
+  const partyPicker = page.getByRole("group", { name: "Další smluvní partneři" });
+  await expect(partyPicker).toBeVisible();
+  const secondParty = partyPicker.locator("label").filter({ hasText: "Petra Malá" }).first();
+  await secondParty.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Uložit", exact: true }).click();
+  await page.goto(leaseUrl);
+  const parties = page.locator(".lease-party-summary");
+  await expect(parties.getByRole("link", { name: /Jan Novák/ })).toBeVisible();
+  await expect(parties.getByRole("link", { name: "Petra Malá", exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("nájemné a služby jsou shodné v reportu, smlouvách, nájemníkovi a jednotce", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   const rent = /11\s*500\s*Kč/;

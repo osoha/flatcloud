@@ -7,6 +7,7 @@ import { leaseStatusAt } from "./lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "./lease-lifecycle";
 import { ratePercentToBps } from "./security-deposit-core";
 import { createOpeningBalance, createOpeningDepositBalance, resolveLeaseFinancialOnboarding } from "./lease-financial-onboarding";
+import { syncContractingParties } from "./lease-parties";
 
 type Tx = Prisma.TransactionClient;
 
@@ -17,7 +18,7 @@ function percentToBps(value: string | null) {
   return Math.round(parsed * 100);
 }
 
-export async function createLeaseFromForm(tx: Tx, propertyId: string, form: FormData, tenantId?: string, createdById?: string) {
+export async function createLeaseFromForm(tx: Tx, propertyId: string, form: FormData, tenantId?: string, createdById?: string, additionalContractingPartyIds: string[] = []) {
   const unitId = text(form, "unitId", true)!;
   const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
   if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
@@ -65,10 +66,11 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
 
   const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
   const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : [])] } } });
+  const contractingPartyIds = await syncContractingParties(tx, lease.id, tenant.id, additionalContractingPartyIds);
   const opening = await createOpeningBalance(tx, { leaseId: lease.id, dueDay, rentTiming, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, type: onboarding.openingBalanceType, amountCents: onboarding.openingBalanceCents, note: onboarding.openingBalanceNote, createdById });
   if (depositCents > 0 || depositInterestBps > 0) await tx.securityDepositTerm.create({ data: { leaseId: lease.id, agreedAmountCents: depositCents, annualRateBps: depositInterestBps, effectiveFrom: startDate } });
   const openingDeposit = await createOpeningDepositBalance(tx, { leaseId: lease.id, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, heldCents: onboarding.openingDepositHeldCents, createdById });
   await syncUnitOccupancyCache(tx, unitId);
   if (autoChargesEnabled) await syncLeaseCharges(tx, lease.id, { force: true, fromPeriod: onboarding.financialTrackingFromPeriod });
-  return { tenant, lease, unitId, ownerBankAccountId, derivedStatus, autoChargesEnabled, indexationEnabled, termType, tenantBankAccount, ...onboarding, ...opening, ...openingDeposit };
+  return { tenant, lease, contractingPartyIds, unitId, ownerBankAccountId, derivedStatus, autoChargesEnabled, indexationEnabled, termType, tenantBankAccount, ...onboarding, ...opening, ...openingDeposit };
 }

@@ -1,8 +1,10 @@
 import { LeaseStatus, RentTiming } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { boolValue, dateValue, intValue, moneyToCents, text } from "@/lib/forms";
+import { boolValue, dateValue, intValue, moneyToCents, stringArray, text } from "@/lib/forms";
 import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
+import { tenantAccessWhere } from "@/lib/access";
+import { normalizeContractingPartyIds, syncContractingParties } from "@/lib/lease-parties";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
 import { firstFutureAnniversary, periodKeyForDate, replaceRecurringAmount, syncLeaseCharges } from "@/lib/charge-automation";
@@ -32,15 +34,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const unitId = text(form, "unitId", true)!;
     const tenantId = text(form, "tenantId", true)!;
+    const additionalTenantIds = normalizeContractingPartyIds(tenantId, stringArray(form, "contractingPartyIds"));
+    const requestedTenantIds = [tenantId, ...additionalTenantIds];
     const timingRaw = text(form, "rentTiming") || "ADVANCE";
     const rentTiming = Object.values(RentTiming).includes(timingRaw as RentTiming) ? timingRaw as RentTiming : RentTiming.ADVANCE;
 
-    const [unit, tenant] = await Promise.all([
+    const [unit, allowedTenants] = await Promise.all([
       prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, include: { ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } }),
-      prisma.tenant.findFirst({ where: { id: tenantId, OR: [{ leases: { some: { unit: { propertyId: id } } } }, { id: existing.tenantId }] } }),
+      prisma.tenant.findMany({ where: { AND: [{ id: { in: requestedTenantIds } }, tenantAccessWhere(access.user)] } }),
     ]);
+    const tenant = allowedTenants.find((row) => row.id === tenantId);
     if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
-    if (!tenant) throw new Error("Vybraný nájemník nepatří k této nemovitosti.");
+    if (!tenant) throw new Error("Vybraný nájemník není v rozsahu vašich oprávnění.");
+    if (allowedTenants.length !== requestedTenantIds.length) throw new Error("Některá další smluvní strana není v rozsahu vašich oprávnění.");
     const ownerBankAccountId = unit.ownerships[0]?.ownerBankAccountId;
     if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
 
@@ -113,6 +119,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           nextIndexationAt,
         },
       });
+      await syncContractingParties(tx, leaseId, tenantId, additionalTenantIds);
 
       await syncUnitOccupancyCache(tx, unitId);
       if (existing.unitId !== unitId) await syncUnitOccupancyCache(tx, existing.unitId);
@@ -120,7 +127,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return updated;
     });
 
-    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, lifecycleStatus: derivedStatus, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), autoChargesEnabled, indexationEnabled, amountsChanged: rentCents !== existing.rentCents || servicesCents !== existing.servicesCents }, id);
+    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, lifecycleStatus: derivedStatus, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), contractingPartyIds: requestedTenantIds, autoChargesEnabled, indexationEnabled, amountsChanged: rentCents !== existing.rentCents || servicesCents !== existing.servicesCents }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", autoChargesEnabled ? "Smlouva byla upravena a budoucí předpisy synchronizovány." : "Smlouva byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo upravit.");

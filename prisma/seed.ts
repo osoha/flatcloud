@@ -78,6 +78,7 @@ async function main() {
           rentCents: cents(11_000 + index * 500),
           servicesCents: cents(2_500),
           depositCents: cents(30_000),
+          parties: { create: { tenantId: tenant.id, role: "CONTRACTING_PARTY", isPrimary: true } },
           paymentItems: {
             create: [
               { name: "Nájemné", category: "RENT", amountCents: cents(11_000 + index * 500), validFrom: new Date("2025-01-01"), sortOrder: 10 },

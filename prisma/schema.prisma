@@ -42,6 +42,13 @@ enum LeaseStatus {
   FUTURE
 }
 
+enum LeasePartyRole {
+  CONTRACTING_PARTY
+  PAYER
+  GUARANTOR
+  CONTACT
+}
+
 enum InboxPaymentStatus {
   RECEIVED
   UNMATCHED
@@ -757,8 +764,8 @@ model UnitOwnership {
 }
 
 model Tenant {
-  id                    String     @id @default(cuid())
-  type                  TenantType @default(PERSON)
+  id                    String       @id @default(cuid())
+  type                  TenantType   @default(PERSON)
   name                  String
   email                 String?
   phone                 String?
@@ -770,12 +777,13 @@ model Tenant {
   billingEmail          String?
   communicationEmail    String?
   note                  String?
-  active                Boolean    @default(true)
+  active                Boolean      @default(true)
   payerAccounts         String[]
   leases                Lease[]
+  leaseParties          LeaseParty[]
   tasks                 Task[]
-  createdAt             DateTime   @default(now())
-  updatedAt             DateTime   @updatedAt
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 }
 
 model Lease {
@@ -801,6 +809,7 @@ model Lease {
   depositCents                Int                       @default(0)
   note                        String?
   status                      LeaseStatus               @default(ACTIVE)
+  parties                     LeaseParty[]
   paymentItems                LeasePaymentItem[]
   charges                     Charge[]
   matchingRules               BankMatchingRule[]        @relation("RuleTargetLease")
@@ -834,6 +843,22 @@ model Lease {
   @@index([tenantId, startDate])
   @@index([variableSymbol])
   @@index([ownerBankAccountId])
+}
+
+model LeaseParty {
+  id        String         @id @default(cuid())
+  leaseId   String
+  tenantId  String
+  role      LeasePartyRole @default(CONTRACTING_PARTY)
+  isPrimary Boolean        @default(false)
+  lease     Lease          @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([leaseId, tenantId, role])
+  @@index([tenantId, leaseId])
+  @@index([leaseId, role])
 }
 
 model Occupant {

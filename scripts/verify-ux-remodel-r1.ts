@@ -48,12 +48,13 @@ check("R1 UI remains schema-neutral", () => {
   assert.doesNotMatch(read("prisma/schema.prisma"), /MethodologyChapter|OnboardingChecklist/);
 });
 
-check("joint tenant limitation is explicit and future support is planned", () => {
+check("contracting parties are explicit and occupants remain separate", () => {
   const fields = read("components/LeaseCoreFields.tsx");
   const pipeline = read("UX-REMODEL-PIPELINE.md");
   assert.match(fields, /Hlavní smluvní strana/);
-  assert.match(fields, /Aktuální verze podporuje jednu smluvní stranu/);
-  assert.match(pipeline, /více smluvních stran/);
+  assert.match(fields, /Další smluvní partneři/);
+  assert.match(fields, /Obyvatele bez smluvní odpovědnosti evidujte zvlášť/);
+  assert.match(pipeline, /R2D implementováno aditivně/);
 });
 
 check("CI and browser smoke cover the first remodel slice", () => {

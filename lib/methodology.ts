@@ -26,7 +26,7 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Nájemní smlouva a osoby",
     summary: "Jak oddělit smluvní stranu, plátce, kontaktní osobu a další obyvatele jednotky.",
     audience: "Správce nájmů",
-    steps: ["Ověřte jednotku a právní smluvní stranu.", "Zadejte platnost, splatnost, variabilní symbol a účet.", "Rozlište nájemné, zálohy na služby a kauci.", "Před aktivací zkontrolujte vznikající předpisy."],
+    steps: ["Ověřte jednotku a všechny právní smluvní strany; jednu označte jako hlavní kontakt a plátce.", "Další osoby přidejte jako smluvní partnery jen tehdy, jsou-li uvedené ve stejné smlouvě; pouhé obyvatele evidujte zvlášť.", "Zadejte platnost, splatnost, variabilní symbol a účet.", "Rozlište nájemné, zálohy na služby a kauci a před aktivací zkontrolujte vznikající předpisy."],
     check: "Smlouva musí odpovědět kdo, kde, od kdy, do kdy, kolik a kam platí.",
     href: "/smlouvy/nova",
   },
