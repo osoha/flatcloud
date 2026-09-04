@@ -89,6 +89,12 @@ test("globální správce vidí provozní rozsah napříč vlastníky", async ({
   await expect(assetTable).toContainText("Karla Aksamita");
   await expect(assetTable).not.toContainText("Dům ve správě");
   await expect(page.getByText(/Indikativní LIVE run-rate:/)).toBeVisible();
+  const financeAlerts = page.locator(".asset-alert-card");
+  await expect(financeAlerts.getByRole("heading", { name: "Finanční alarmy", exact: true })).toBeVisible();
+  await expect(financeAlerts).toContainText("DSCR kleslo pod 1,00×");
+  await expect(financeAlerts).toContainText(`Chybí schválený rozpočet ${new Date().getUTCFullYear()}`);
+  await expect(financeAlerts.getByRole("link").first()).toHaveAttribute("href", /\/nemovitosti\/.+\/finance#/);
+  await expect(financeAlerts).toContainText("LTV varování nad 60 %");
   const assetCockpit = page.locator(".contract-cockpit");
   for (const label of ["NOI · run-rate", "Cashflow po dluhové službě", "Yield", "ROE", "LTV", "DSCR"]) await expect(assetCockpit.getByText(label, { exact: true })).toBeVisible();
   await expect(page.getByText("Ocenění není úplné", { exact: false })).toHaveCount(0);

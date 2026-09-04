@@ -81,7 +81,9 @@ check("asset loader uses only confirmed assets and point-in-time valuation", () 
 
 check("asset UI defines every KPI and exposes missing-data states", () => {
   const report = read("app/reporty/page.tsx");
-  for (const marker of ["Indikativní LIVE run-rate", "NOI · run-rate", "Cashflow po dluhové službě", "Yield", "ROE", "LTV", "DSCR", "Ocenění není úplné", "Chybí dluhová služba"]) assert.match(report, new RegExp(marker));
+  for (const marker of ["Indikativní LIVE run-rate", "NOI · run-rate", "Cashflow po dluhové službě", "Yield", "ROE", "LTV", "DSCR", "finance.alerts"]) assert.match(report, new RegExp(marker.replace(".", "\\.")));
+  const service = read("lib/reporting/asset-finance-kpis.ts");
+  for (const marker of ["Ocenění není úplné", "Chybí dluhová služba"]) assert.match(service, new RegExp(marker));
   const property = read("app/nemovitosti/[id]/[section]/page.tsx");
   for (const marker of ["Ocenění nemovitosti", "Zapsat ocenění", "Uložit ocenění do historie"]) assert.match(property, new RegExp(marker));
 });
