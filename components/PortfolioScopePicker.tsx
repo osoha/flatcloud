@@ -55,7 +55,7 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
     <button className="scope-picker-trigger" type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><span><small>Rozsah správy</small><strong>{selection.mode === "ALL" ? `Vše ve správě · ${availableProperties.length} objektů` : `${selectedCount} z ${availableProperties.length} objektů`}</strong></span><ChevronDown size={16}/></button>
     {open && <div className="scope-picker-popover" role="dialog" aria-label="Vybrat zobrazené objekty">
       <div className="scope-presets" aria-label="Rychlý výběr rozsahu">
-        <button type="button" onClick={() => setDraft(availableProperties.map((property) => property.id))}>Vše ve správě</button>
+        <button type="button" aria-label="Vybrat vše ve správě" onClick={() => setDraft(availableProperties.map((property) => property.id))}>Vše ve správě</button>
         {groupPresets.map((preset) => <button className={`scope-group-preset ${preset.key.toLocaleLowerCase()}`} type="button" onClick={() => setDraft(preset.propertyIds)} key={preset.key}>{preset.label}<span>{preset.propertyIds.length}</span></button>)}
         {ownerPresets.length > 1 && ownerPresets.map((owner) => <button className="scope-owner-preset" type="button" onClick={() => setDraft(owner.propertyIds)} key={`${owner.name}:${owner.propertyIds.join(",")}`}>{owner.name}<span>{owner.propertyIds.length}</span></button>)}
       </div>
