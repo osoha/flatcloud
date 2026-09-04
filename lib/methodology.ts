@@ -120,6 +120,36 @@ export const methodologyChapters: MethodologyChapter[] = [
     check: "Každá jednotka má aktuální datované hodnocení, zdůvodněný CAPEX a oddělenou informaci o připravenosti; rating se nevydává za valuaci.",
     href: "/distribuce",
   },
+  {
+    slug: "valuace-jednotek",
+    category: "Asset management",
+    title: "Valuace jednotek pro distribuci",
+    summary: "Oddělená historie tržní hodnoty jednotlivé jednotky, zdroje ocenění a kontrolního přepočtu na m².",
+    audience: "Interní asset manager",
+    steps: ["Nejdřív doplňte plochu, technický rating a odhad potřebného CAPEX.", "Zvolte zdroj valuace: interní srovnání, externí posudek, nabídkovou cenu nebo realizovanou transakci.", "Uveďte datum a dohledatelnou referenci; interní srovnání popište v poznámce.", "Novou informaci uložte jako další snapshot, původní hodnotu nepřepisujte.", "Hodnotu Kč/m² používejte jako kontrolu konzistence, ne jako samostatný zdroj ocenění."],
+    check: "Poslední valuace má datum, zdroj a referenci a není zaměněna s technickým ratingem, CAPEX ani automatickou prodejní cenou.",
+    href: "/distribuce",
+  },
+  {
+    slug: "crm-distribuce",
+    category: "Asset management",
+    title: "CRM zájemců pro distribuci",
+    summary: "Interní vedení zájemce od prvního kontaktu přes prohlídku a nabídku až k rezervaci nebo uzavření.",
+    audience: "Interní distribuční tým",
+    steps: ["Založte zájemce až s alespoň jedním použitelným kontaktem a uveďte zdroj.", "Zájem o každou jednotku veďte jako samostatnou příležitost.", "Nastavte věcnou fázi, cenu a konkrétní datum dalšího kroku.", "Po každém kontaktu aktualizujte fázi a poznámku; systém změnu zaznamená do auditu.", "Rezervaci v CRM nepovažujte za právní rezervaci a bez samostatného souhlasu neposílejte automatickou komunikaci."],
+    check: "Každá otevřená příležitost má vlastníka kontaktu, jednotku, aktuální fázi a budoucí další krok; osobní údaje zůstávají interní.",
+    href: "/distribuce/zajemci",
+  },
+  {
+    slug: "reporting-distribuce",
+    category: "Asset management",
+    title: "Distribuční podklady pro akcionáře",
+    summary: "Kvartální a roční agregace ratingů, valuací, CAPEX a distribuční pipeline bez osobních údajů zájemců.",
+    audience: "Interní reporting FlatCloud",
+    steps: ["Vyberte kvartál nebo celý rok aktivity.", "Ověřte úplnost ratingů a valuací po nemovitostech.", "Čtěte fáze jako dnešní LIVE stav a nové příležitosti jako aktivitu podle data založení.", "Před předáním vysvětlete chybějící historizaci přechodů fází.", "Exportujte pouze agregované CSV bez osobních údajů a odborně ověřte komentář reportu."],
+    check: "Podklad obsahuje jen potvrzená aktiva FlatCloud, neobsahuje PII a jasně označuje rozdíl mezi LIVE stavem a periodickou aktivitou.",
+    href: "/distribuce/reporting",
+  },
 ];
 
 export function methodologyChapter(slug: string) {

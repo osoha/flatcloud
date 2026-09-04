@@ -153,6 +153,54 @@ test("interní kategorizace ukládá nový neměnný snapshot jednotky", async (
   await firstAssessment.getByRole("button", { name: "Uložit nový snapshot", exact: true }).click();
   await expect(page.getByText("Nové hodnocení jednotky bylo uloženo do historie.")).toBeVisible();
   await expect(page.getByText("125 000 Kč", { exact: true }).first()).toBeVisible();
+  const firstValuation = page.locator(".distribution-valuation").first();
+  await firstValuation.getByText("Nová valuace", { exact: true }).click();
+  await firstValuation.getByLabel("Tržní hodnota Kč *").fill("5000000");
+  await firstValuation.getByLabel("Zdroj *").selectOption("INTERNAL_COMPARABLES");
+  await firstValuation.getByLabel("Reference / číslo posudku").fill("E2E-COMP");
+  await firstValuation.getByRole("button", { name: "Uložit novou valuaci", exact: true }).click();
+  await expect(page.getByText("Nová valuace jednotky byla uložena do historie.")).toBeVisible();
+  await expect(page.getByText("5 000 000 Kč", { exact: true }).first()).toBeVisible();
+  assertNoBrowserFailures();
+});
+
+test("interní CRM vede zájemce přes příležitost a další krok", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/distribuce/zajemci");
+  await expect(page.getByRole("heading", { name: "CRM zájemců o jednotky", exact: true })).toBeVisible();
+  const prospectName = `E2E zájemce ${Date.now()}`;
+  await page.getByText("Nový zájemce", { exact: true }).click();
+  await page.getByLabel("Jméno / název *").fill(prospectName);
+  await page.getByLabel("E-mail").fill("buyer@example.test");
+  await page.getByRole("button", { name: "Přidat zájemce", exact: true }).click();
+  await expect(page.getByText("Zájemce byl přidán do interního CRM.")).toBeVisible();
+  await page.getByText("Nový zájem o jednotku", { exact: true }).click();
+  await page.getByLabel("Zájemce *").selectOption({ label: prospectName });
+  await page.getByLabel("Jednotka *").selectOption({ index: 1 });
+  await page.getByLabel("Další krok k datu").first().fill(new Date(Date.now()+7*86_400_000).toISOString().slice(0,10));
+  await page.getByRole("button", { name: "Založit příležitost", exact: true }).click();
+  await expect(page.getByText("Příležitost byla založena.")).toBeVisible();
+  const row = page.getByRole("row").filter({ hasText: prospectName });
+  await row.getByText("Upravit", { exact: true }).click();
+  await row.getByLabel("Fáze *").selectOption("CONTACTED");
+  await row.getByRole("button", { name: "Uložit fázi a další krok", exact: true }).click();
+  await expect(page.getByText("Fáze a další krok byly aktualizovány.")).toBeVisible();
+  await expect(page.getByRole("row").filter({ hasText: prospectName })).toContainText("Kontaktován");
+  assertNoBrowserFailures();
+});
+
+test("distribuční podklad odděluje LIVE stav od aktivity a exportuje bez PII", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/distribuce/reporting");
+  await expect(page.getByRole("heading", { name: "Distribuční podklady pro akcionáře", exact: true })).toBeVisible();
+  await expect(page.getByText("Bez PII a bez historizace fáze", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "LIVE fáze pipeline", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Stáhnout CSV bez osobních údajů", exact: true })).toHaveAttribute("href", /\/api\/distribution\/report\.csv\?period=\d{4}-Q[1-4]/);
+  await page.getByLabel("Období aktivity").selectOption({ index: 4 });
+  await page.getByRole("button", { name: "Načíst období", exact: true }).click();
+  await expect(page).toHaveURL(/period=\d{4}-Q[1-4]/);
   assertNoBrowserFailures();
 });
 
