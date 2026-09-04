@@ -136,7 +136,14 @@ test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ 
   await workspace.getByRole("link", { name: "Konzervativní", exact: true }).click();
   await expect(page).toHaveURL(/view=forecast&scenario=conservative&horizon=24/);
   await expect(page.locator(".rent-forecast-workspace")).toContainText("1,0 % ročně");
+  await page.getByLabel("Roční růst nájmu", { exact: true }).fill("4.25");
+  await page.getByLabel("Vacancy", { exact: true }).fill("6.5");
+  await page.getByRole("button", { name: "Přepočítat vlastní scénář", exact: true }).click();
+  await expect(page).toHaveURL(/annualGrowthPercent=4.25/);
+  await expect(page).toHaveURL(/vacancyPercent=6.5/);
+  await expect(page.getByText("Vlastní model · ne schválený plán", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "12 měsíců", exact: true }).click();
+  await expect(page).toHaveURL(/annualGrowthPercent=4.25/);
   await expect(page.locator(".forecast-point")).toHaveCount(12);
   assertNoBrowserFailures();
 });
@@ -158,6 +165,9 @@ test("uloží, schválí a verzují scénář valorizace bez zápisu do smluv", 
   await page.getByRole("button", { name: "Potvrdit schválení plánu", exact: true }).click();
   await expect(page.getByText("Scénář byl schválen. Smlouvy ani předpisy se nezměnily.")).toBeVisible();
   await expect(page.getByText("Schváleno", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Náhled převodu do dodatků", exact: true })).toBeVisible();
+  await expect(page.getByText("Dry run · bez zápisu", { exact: true })).toBeVisible();
+  await expect(page.getByText("Nic se zatím nepřenáší do evidence", { exact: true })).toBeVisible();
   const approvedUrl = page.url();
   await page.getByRole("button", { name: "Nová revize z LIVE dat", exact: true }).click();
   await expect(page).not.toHaveURL(approvedUrl);
