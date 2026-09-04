@@ -1,4 +1,4 @@
-export const money=(cents:number)=>new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"CZK",maximumFractionDigits:0}).format(cents/100);
+export const money=(cents:number|bigint)=>new Intl.NumberFormat("cs-CZ",{style:"currency",currency:"CZK",maximumFractionDigits:0}).format(typeof cents==="bigint"?cents/BigInt(100):cents/100);
 export const date=(d:Date|string)=>new Intl.DateTimeFormat("cs-CZ").format(new Date(d));
 export const dateTime=(d:Date|string)=>new Intl.DateTimeFormat("cs-CZ",{dateStyle:"short",timeStyle:"short"}).format(new Date(d));
 export function phone(value: string | null | undefined) {

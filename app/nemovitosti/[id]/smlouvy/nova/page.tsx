@@ -9,6 +9,7 @@ import { dateInput } from "@/lib/forms";
 import { proposedLeaseIdentity } from "@/lib/variable-symbol";
 import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 import { currentPeriod } from "@/lib/period";
+import { MethodologyCallout } from "@/components/MethodologyCallout";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function NewLease({ params, searchParams }: { params: Promi
 
   return <Shell user={user} taskPropertyId={id}><FormPage title="Přidat nájemní smlouvu" description="Zvolte jednotku a dobu trvání. FlatCloud při uložení automaticky určí stav smlouvy a zablokuje jakýkoli překryv s existujícím nájemním obdobím." backHref={`/nemovitosti/${id}/smlouvy`}>
     <Flash ok={query.ok} error={query.error}/>
+    <MethodologyCallout slug="najemni-smlouva"/>
     {availableUnits.length && tenants.length ? <FormCard action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu">
       <LeaseCoreFields unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>

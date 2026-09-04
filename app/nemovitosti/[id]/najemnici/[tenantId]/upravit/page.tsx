@@ -13,11 +13,12 @@ export default async function EditTenant({ params, searchParams }: { params: Pro
   const { id, tenantId } = await params;
   const [property, tenant, query] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.tenant.findFirst({ where: { id: tenantId, leases: { some: { unit: unitAccessWhere(user, id) } } } }),
+    prisma.tenant.findFirst({ where: { id: tenantId, OR: [{ leases: { some: { unit: unitAccessWhere(user, id) } } }, { leaseParties: { some: { lease: { unit: unitAccessWhere(user, id) } } } }] } }),
     searchParams,
   ]);
   if (!property || !tenant) notFound();
-  const unitId = property.units.find((unit) => unit.leases.some((lease) => lease.tenantId === tenant.id))?.id;
+  const relationship = await prisma.lease.findFirst({ where: { unit: unitAccessWhere(user, id), OR: [{ tenantId: tenant.id }, { parties: { some: { tenantId: tenant.id, role: "CONTRACTING_PARTY" } } }] }, orderBy: { startDate: "desc" }, select: { unitId: true } });
+  const unitId = relationship?.unitId;
   const backHref = unitId ? `/nemovitosti/${id}/jednotky/${unitId}` : `/nemovitosti/${id}/najemnici`;
   return <Shell user={user}><FormPage title={`Upravit nájemníka: ${tenant.name}`} backHref={backHref}>
     <Flash ok={query.ok} error={query.error}/>

@@ -5,6 +5,7 @@ import { money } from "@/lib/format";
 
 type Point = { label: string; expected: number; paid: number };
 type OccupancyPoint = { label: string; occupancyBps: number | null; rentable: number; occupied: number; vacant: number; unknown: number };
+type ForecastPoint = { period: string; contractualCents: number; plannedCents: number; expectedCollectedCents: number };
 type ChartMode = "bar" | "line";
 
 const chartWidth = (length: number) => Math.max(840, length * 64);
@@ -96,5 +97,32 @@ export function OccupancyChart({ data }: { data: OccupancyPoint[] }) {
       {active && <ChartTooltip x={xAt(activeIndex!)} width={width} title={periodName(active.label)} lines={active.occupancyBps === null ? ["Bez průkazných dat", `Neznámé jednotky: ${active.unknown}`] : [`Obsazenost: ${(active.occupancyBps / 100).toFixed(1)} %`, `Obsazeno: ${active.occupied} / ${active.rentable}`, `Volné: ${active.vacant}`]}/>}
     </svg></div>
     <div className="chart-legend"><span><i className="legend-occupancy"/>Obsazenost</span><span><i className="legend-missing"/>Chybějící historie</span></div>
+  </div>;
+}
+
+export function RentForecastChart({ data }: { data: ForecastPoint[] }) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const width = chartWidth(data.length);
+  const height = 300;
+  const paddingX = 110;
+  const paddingTop = 82;
+  const paddingBottom = 48;
+  const chartHeight = height - paddingTop - paddingBottom;
+  const max = Math.max(1, ...data.flatMap((point) => [point.contractualCents, point.plannedCents, point.expectedCollectedCents]));
+  const step = (width - paddingX * 2) / Math.max(data.length - 1, 1);
+  const groupWidth = (width - paddingX * 2) / Math.max(data.length, 1);
+  const xAt = (index: number) => data.length === 1 ? width / 2 : paddingX + index * step;
+  const yAt = (value: number) => paddingTop + chartHeight - value / max * chartHeight;
+  const active = activeIndex === null ? null : data[activeIndex];
+  return <div className="report-chart-shell rent-forecast-chart">
+    <div className="report-chart-wrap"><svg className="report-chart" style={{ minWidth: width }} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Scénář valorizace a očekávaného inkasa">
+      {[0, .5, 1].map((share) => { const value = Math.round(max * share), y = yAt(value); return <g key={share}><line x1={paddingX} x2={width-paddingX} y1={y} y2={y} className="chart-grid"/><text x={paddingX-8} y={y+4} textAnchor="end" className="chart-scale">{money(value)}</text></g>; })}
+      <path d={linePath(data.map((point) => point.contractualCents), xAt, yAt)} className="chart-line expected"/>
+      <path d={linePath(data.map((point) => point.plannedCents), xAt, yAt)} className="chart-line" style={{ stroke: "#1769e0" }}/>
+      <path d={linePath(data.map((point) => point.expectedCollectedCents), xAt, yAt)} className="chart-line paid"/>
+      {data.map((point,index)=><g key={`forecast-${point.period}`} className="forecast-point chart-checkpoint" tabIndex={0} role="button" aria-label={`${periodName(point.period)}: smluvně ${money(point.contractualCents)}, plán ${money(point.plannedCents)}, očekávané inkaso ${money(point.expectedCollectedCents)}`} onPointerEnter={()=>setActiveIndex(index)} onPointerLeave={()=>setActiveIndex(null)} onFocus={()=>setActiveIndex(index)} onBlur={()=>setActiveIndex(null)}><rect x={data.length===1?paddingX:xAt(index)-groupWidth/2} y={paddingTop} width={groupWidth} height={chartHeight} fill="transparent"/><text className="chart-label" x={xAt(index)} y={height-25} textAnchor="middle">{shortPeriod(point.period)}</text></g>)}
+      {active&&<ChartTooltip x={xAt(activeIndex!)} width={width} title={periodName(active.period)} lines={[`Smluvně: ${money(active.contractualCents)}`,`Plán: ${money(active.plannedCents)}`,`Očekávané inkaso: ${money(active.expectedCollectedCents)}`]}/>}
+    </svg></div>
+    <div className="chart-legend"><span><i style={{background:"#8ba9e2"}}/>Smluvní vývoj</span><span><i style={{background:"#1769e0"}}/>Plán scénáře</span><span><i style={{background:"#2f9f72"}}/>Očekávané inkaso</span></div>
   </div>;
 }

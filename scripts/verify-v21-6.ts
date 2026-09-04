@@ -33,7 +33,7 @@ const checks: Array<[string, boolean]> = [
   ["deposit warnings", read("app/smlouvy/[leaseId]/page.tsx").includes("skutečné složení není potvrzeno") && read("app/smlouvy/[leaseId]/page.tsx").includes("trojnásobek")],
   ["zero interest allowed", read("app/smlouvy/[leaseId]/page.tsx").includes("Nulová sazba zůstává povolena") && read("lib/security-deposit-core.ts").includes("parsed < 0")],
   ["deposit histories", read("app/smlouvy/[leaseId]/page.tsx").includes("Historie pohybů") && read("app/smlouvy/[leaseId]/page.tsx").includes("Historie podmínek")],
-  ["settlement UI", ["Vyúčtování / přeplatky", "Přidat výsledek vyúčtování", "Původní přeplatek", "Započteno"].every((text) => read("app/smlouvy/[leaseId]/page.tsx").includes(text))],
+  ["settlement UI", ["Vyúčtování / přeplatky", "Připravit vyúčtování", "Korekční zápis výsledku bez protokolu", "Původní přeplatek", "Započteno"].every((text) => read("app/smlouvy/[leaseId]/page.tsx").includes(text))],
   ["overpayment application UI", ["Započíst přeplatek", "Historie zápočtů", "<span>Přeplatek</span>"].every((text) => read("app/smlouvy/[leaseId]/page.tsx").includes(text))],
   ["global deposit tabs", ["Aktivní", "K vypořádání", "Vypořádané", "Vše"].every((text) => read("app/kauce/page.tsx").includes(text))],
   ["deposit sidebar", read("components/Shell.tsx").includes('href="/kauce"')],

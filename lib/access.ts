@@ -102,10 +102,15 @@ export function bankTransactionAccessWhere(user: { id: string; role: string; all
 }
 
 export function tenantAccessWhere(user:{id:string;role:string;allProperties?:boolean}): Prisma.TenantWhereInput {
-  return hasAllPropertyAccess(user) ? {} : { leases: { some: { unit: { OR: [
+  if (hasAllPropertyAccess(user)) return {};
+  const visibleUnit: Prisma.UnitWhereInput = { OR: [
     { property: { memberships: { some: { userId: user.id } } } },
     { userAccesses: { some: { userId: user.id } } },
-  ] } } } };
+  ] };
+  return { OR: [
+    { leases: { some: { unit: visibleUnit } } },
+    { leaseParties: { some: { lease: { unit: visibleUnit } } } },
+  ] };
 }
 
 export function editableUnitWhere(user:{id:string;role:string;allProperties?:boolean},propertyId?:string){

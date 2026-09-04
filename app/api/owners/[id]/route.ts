@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
 import { requirePortfolioManager, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { safeOwnerAffiliation } from "@/lib/ownership-scope";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requirePortfolioManager();
@@ -15,6 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       data: {
         name: text(form, "name", true)!,
         type: (text(form, "type") || "COMPANY") as OwnerType,
+        affiliation: safeOwnerAffiliation(text(form, "affiliation")),
         ico: text(form, "ico"),
         email: text(form, "email"),
         phone: text(form, "phone"),
@@ -23,7 +25,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         active: boolValue(form, "active"),
       },
     });
-    await audit(user.id, "OWNER_UPDATED", "Owner", owner.id, { name: owner.name });
+    await audit(user.id, "OWNER_UPDATED", "Owner", owner.id, { name: owner.name, affiliation: owner.affiliation });
     return goWithMessage(request, `/vlastnici/${id}`, "ok", "Změny byly uloženy.");
   } catch (error) {
     return goWithMessage(request, `/vlastnici/${id}`, "error", error instanceof Error ? error.message : "Změny se nepodařilo uložit.");
