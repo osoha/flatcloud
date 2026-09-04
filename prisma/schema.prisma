@@ -123,6 +123,12 @@ enum LoanRateType {
   FLOATING
 }
 
+enum PropertyValuationSource {
+  PURCHASE_PRICE
+  INTERNAL
+  EXTERNAL
+}
+
 enum UnitType {
   APARTMENT
   COMMERCIAL
@@ -383,6 +389,7 @@ model User {
   quarterlyPropertyReportMediaCreated QuarterlyPropertyReportMedia[] @relation("QuarterlyPropertyReportMediaCreator")
   mfRentDatasetReleasesImported       MfRentDatasetRelease[]         @relation("MfRentDatasetImporter")
   mfRentLocationsConfirmed            PropertyMfRentLocation[]       @relation("MfRentLocationConfirmer")
+  propertyValuationsCreated           PropertyValuationSnapshot[]    @relation("PropertyValuationCreator")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @updatedAt
 }
@@ -465,6 +472,7 @@ model Property {
   costs                             PropertyCost[]
   budgets                           PropertyBudgetLine[]
   loans                             PropertyLoan[]
+  valuations                        PropertyValuationSnapshot[]
   auditLogs                         AuditLog[]
   reportingGroups                   ReportingGroupProperty[]
   quarterSnapshots                  QuarterSnapshot[]
@@ -574,6 +582,21 @@ model PropertyLoanSnapshot {
   createdAt                 DateTime     @default(now())
 
   @@index([loanId, asOfDate])
+}
+
+model PropertyValuationSnapshot {
+  id               String                  @id @default(cuid())
+  propertyId       String
+  property         Property                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  asOfDate         DateTime
+  marketValueCents Int
+  source           PropertyValuationSource
+  note             String?
+  createdById      String
+  createdBy        User                    @relation("PropertyValuationCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt        DateTime                @default(now())
+
+  @@index([propertyId, asOfDate])
 }
 
 model PropertyPaymentAccount {

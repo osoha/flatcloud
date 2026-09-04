@@ -1,4 +1,4 @@
-import type { LoanRateType, PropertyCostCategory, PropertyCostKind, PropertyCostStatus } from "@prisma/client";
+import type { LoanRateType, PropertyCostCategory, PropertyCostKind, PropertyCostStatus, PropertyValuationSource } from "@prisma/client";
 
 export const propertyCostKinds: Record<PropertyCostKind, string> = {
   OPEX: "Provozní náklad (OPEX)",
@@ -28,6 +28,12 @@ export const propertyCostCategories: Record<PropertyCostCategory, string> = {
 export const loanRateTypes: Record<LoanRateType, string> = {
   FIXED: "Fixní sazba",
   FLOATING: "Pohyblivá sazba",
+};
+
+export const propertyValuationSources: Record<PropertyValuationSource, string> = {
+  PURCHASE_PRICE: "Kupní cena",
+  INTERNAL: "Interní ocenění",
+  EXTERNAL: "Externí posudek",
 };
 
 export function basisPointsFromPercent(raw: string) {

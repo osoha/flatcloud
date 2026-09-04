@@ -66,7 +66,7 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Náklady, investice a úvěry",
     summary: "Jednotná evidence ročního rozpočtu, skutečných a plánovaných OPEX/CAPEX nákladů a datovaných stavů úvěrů.",
     audience: "Asset manager",
-    steps: ["Založte schválený roční rozpočet odděleně od pracovních plánů.", "Oddělte provozní náklady OPEX od investic CAPEX a u nákladu určete celý objekt nebo konkrétní jednotku.", "Společný náklad rozdělte rovnoměrně, podle plochy nebo vlastními podíly; před uložením ověřte součet 100 %.", "Ke skutečné částce připojte číslo a soubor účetního podkladu.", "Nový zůstatek, sazbu a splátku úvěru vždy zapište s datem do historie.", "Před reportem zkontrolujte odchylku rozpočtu, úplnost dokladů a datum posledního stavu každého úvěru."],
+    steps: ["Založte schválený roční rozpočet odděleně od pracovních plánů.", "Oddělte provozní náklady OPEX od investic CAPEX a u nákladu určete celý objekt nebo konkrétní jednotku.", "Společný náklad rozdělte rovnoměrně, podle plochy nebo vlastními podíly; před uložením ověřte součet 100 %.", "Ke skutečné částce připojte číslo a soubor účetního podkladu.", "Nový zůstatek, sazbu a splátku úvěru vždy zapište s datem do historie.", "Tržní ocenění ukládejte jako nový datovaný stav se zdrojem; starší ocenění nepřepisujte.", "NOI, cashflow, yield, ROE, LTV a DSCR čtěte jako indikativní LIVE run-rate podle definice na kartě, nikoli jako účetní závěrku.", "Před reportem zkontrolujte odchylku rozpočtu, úplnost dokladů, ocenění a datum posledního stavu každého úvěru."],
     check: "Každá částka má objekt, období, stav a dohledatelný zdroj; plán se nevydává za skutečnost.",
     href: "/portfolio",
   },

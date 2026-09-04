@@ -88,6 +88,10 @@ test("globální správce vidí provozní rozsah napříč vlastníky", async ({
   await expect(assetTable).toContainText("Moskevská");
   await expect(assetTable).toContainText("Karla Aksamita");
   await expect(assetTable).not.toContainText("Dům ve správě");
+  await expect(page.getByText(/Indikativní LIVE run-rate:/)).toBeVisible();
+  for (const label of ["NOI · run-rate", "Cashflow po dluhové službě", "Yield", "ROE", "LTV", "DSCR"]) await expect(page.getByText(label, { exact: true })).toBeVisible();
+  await expect(page.getByText("Ocenění není úplné", { exact: false })).toHaveCount(0);
+  await expect(page.getByRole("table").filter({ hasText: "OPEX TTM" })).not.toContainText("Dům ve správě");
   assertNoBrowserFailures();
 });
 
@@ -308,6 +312,25 @@ test("správce rozdělí společný náklad mezi více jednotek", async ({ page 
   await allocation.getByRole("button", { name: "Rozdělit rovnoměrně", exact: true }).click();
   await expect(page.getByText("Náklad byl rozdělen mezi 5 jednotek.", { exact: true })).toBeVisible();
   await expect(allocation.getByText("20 %", { exact: true })).toHaveCount(5);
+  assertNoBrowserFailures();
+});
+
+test("správce zapíše nové ocenění pro asset KPI", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+  await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+  const valuations = page.locator("#oceneni");
+  await expect(valuations).toContainText("25 000 000 Kč");
+  await valuations.getByText("Zapsat ocenění", { exact: true }).click();
+  await valuations.getByLabel("Tržní hodnota v Kč *").fill("26000000");
+  await valuations.getByLabel("Zdroj *").selectOption("EXTERNAL");
+  await valuations.getByLabel("Poznámka / podklad").fill("Aktualizovaný externí posudek");
+  await valuations.getByRole("button", { name: "Uložit ocenění do historie", exact: true }).click();
+  await expect(page.getByText("Nové ocenění bylo uloženo do historie.", { exact: true })).toBeVisible();
+  await expect(valuations).toContainText("26 000 000 Kč");
+  await expect(valuations).toContainText("Externí posudek");
+  await expect(valuations).toContainText("Aktualizovaný externí posudek");
   assertNoBrowserFailures();
 });
 
