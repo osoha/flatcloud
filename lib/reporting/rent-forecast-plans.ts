@@ -5,7 +5,7 @@ import { hasAllPropertyAccess } from "../auth";
 import { prisma } from "../db";
 import { serializableTransaction } from "../serializable";
 import { loadLiveReport } from "./live-service";
-import { calculateRentForecastWithAssumptions, rentForecastScenarios, type RentForecastInput, type RentForecastScenario } from "./rent-forecast";
+import { calculateRentForecastWithAssumptions, type RentForecastAssumptions, type RentForecastInput } from "./rent-forecast";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
 
@@ -78,15 +78,20 @@ export async function canManageRentForecastPlan(actor: Actor, propertyIds: strin
   try { await requirePropertyScope(actor, propertyIds, PropertyPermission.EDIT); return true; } catch { return false; }
 }
 
-export async function createRentForecastPlan(input: { name: string; note?: string | null; propertyIds: string[]; horizonMonths: number; scenarioKey: RentForecastScenario }, actor: Actor) {
+function validateAssumptions(assumptions: RentForecastAssumptions) {
+  const values: Array<[string, number, number]> = [["Roční růst", assumptions.annualGrowthBps, 2_000], ["Vacancy", assumptions.vacancyBps, 10_000], ["Úspěšnost inkasa", assumptions.collectionBps, 10_000], ["Využití MF rozdílu", assumptions.marketGapCaptureBps, 10_000]];
+  for (const [label, value, maximum] of values) if (!Number.isInteger(value) || value < 0 || value > maximum) throw new Error(`${label} je mimo povolený rozsah.`);
+}
+
+export async function createRentForecastPlan(input: { name: string; note?: string | null; propertyIds: string[]; horizonMonths: number; assumptions: RentForecastAssumptions }, actor: Actor) {
   const name = input.name.trim();
   if (!name || name.length > 120) throw new Error("Název scénáře musí mít 1 až 120 znaků.");
   if (![12, 24, 36].includes(input.horizonMonths)) throw new Error("Horizont musí být 12, 24 nebo 36 měsíců.");
   const propertyIds = await requirePropertyScope(actor, input.propertyIds, PropertyPermission.EDIT);
+  validateAssumptions(input.assumptions);
   const asOfDate = new Date();
   const snapshot = await captureLiveSnapshot(actor, propertyIds, asOfDate);
-  const scenario = rentForecastScenarios[input.scenarioKey];
-  const plan = await prisma.rentForecastPlan.create({ data: { seriesId: randomUUID(), revision: 1, name, asOfDate, horizonMonths: input.horizonMonths, annualGrowthBps: scenario.annualGrowthBps, vacancyBps: scenario.vacancyBps, collectionBps: scenario.collectionBps, marketGapCaptureBps: scenario.marketGapCaptureBps, inputSnapshot: snapshot as Prisma.InputJsonValue, note: input.note?.trim() || null, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
+  const plan = await prisma.rentForecastPlan.create({ data: { seriesId: randomUUID(), revision: 1, name, asOfDate, horizonMonths: input.horizonMonths, annualGrowthBps: input.assumptions.annualGrowthBps, vacancyBps: input.assumptions.vacancyBps, collectionBps: input.assumptions.collectionBps, marketGapCaptureBps: input.assumptions.marketGapCaptureBps, inputSnapshot: snapshot as Prisma.InputJsonValue, note: input.note?.trim() || null, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
   await prisma.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision: plan.revision } })) });
   return plan;
 }

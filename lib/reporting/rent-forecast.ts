@@ -63,6 +63,34 @@ export function parseRentForecastHorizon(value?: string) {
   return parsed === 12 || parsed === 36 ? parsed : 24;
 }
 
+export function rentForecastBasisPointsFromPercent(value: string, label: string, maximum = 10_000) {
+  const normalized = value.trim().replace(",", ".");
+  if (!/^\d+(?:\.\d{1,2})?$/.test(normalized)) throw new Error(`${label} zadejte jako procento s nejvýše dvěma desetinnými místy.`);
+  const basisPoints = Math.round(Number(normalized) * 100);
+  if (basisPoints < 0 || basisPoints > maximum) throw new Error(`${label} musí být mezi 0 a ${maximum / 100} %.`);
+  return basisPoints;
+}
+
+function percentQueryToBasisPoints(value: string | undefined, fallback: number, maximum: number, label: string) {
+  if (value === undefined) return fallback;
+  try { return rentForecastBasisPointsFromPercent(value, label, maximum); } catch { return fallback; }
+}
+
+export function parseRentForecastAssumptions(input: { annualGrowthPercent?: string; vacancyPercent?: string; collectionPercent?: string; marketGapCapturePercent?: string }, scenarioKey: RentForecastScenario) {
+  const preset = rentForecastScenarios[scenarioKey];
+  const customized = Object.values(input).some((value) => value !== undefined);
+  return {
+    customized,
+    assumptions: {
+      label: customized ? "Vlastní" : preset.label,
+      annualGrowthBps: percentQueryToBasisPoints(input.annualGrowthPercent, preset.annualGrowthBps, 2_000, "Roční růst"),
+      vacancyBps: percentQueryToBasisPoints(input.vacancyPercent, preset.vacancyBps, 10_000, "Vacancy"),
+      collectionBps: percentQueryToBasisPoints(input.collectionPercent, preset.collectionBps, 10_000, "Úspěšnost inkasa"),
+      marketGapCaptureBps: percentQueryToBasisPoints(input.marketGapCapturePercent, preset.marketGapCaptureBps, 10_000, "Využití MF rozdílu"),
+    } satisfies RentForecastAssumptions,
+  };
+}
+
 export function calculateRentForecast(rows: RentForecastInput[], asOf: Date, scenarioKey: RentForecastScenario, horizonMonths: number) {
   return calculateRentForecastWithAssumptions(rows, asOf, scenarioKey, rentForecastScenarios[scenarioKey], horizonMonths);
 }
