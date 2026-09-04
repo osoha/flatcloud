@@ -93,6 +93,9 @@ jobs:
       - run: npm run verify:report-trends-1
       - run: npm run verify:mf-rent-1
       - run: npm run verify:portfolio-deposit-polish
+      - run: npm run verify:ux-remodel-r1
+      - run: npm run verify:ux-remodel-r2
+      - run: npm run verify:ux-remodel-r3
       - run: npm run build
       - run: npm run verify:live-report-periods
 

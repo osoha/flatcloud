@@ -25,6 +25,10 @@ import { ownerSelfServiceScope } from "@/lib/owner-self-service";
 import { PropertyIcon } from "@/components/PropertyIcon";
 import { isPropertyLocalInvitation } from "@/lib/user-access-management";
 import { formatPropertyBusinessId } from "@/lib/business-identity";
+import { PropertyOnboardingChecklist } from "@/components/PropertyOnboardingChecklist";
+import { consolidationLabel } from "@/lib/ownership-scope";
+import { MethodologyCallout } from "@/components/MethodologyCallout";
+import { calculateAssetFinanceSummary, loanRateTypes, percentFromBasisPoints, propertyCostCategories, propertyCostKinds, propertyCostStatuses } from "@/lib/asset-finance";
 
 export const dynamic = "force-dynamic";
 
@@ -123,6 +127,12 @@ export default async function PropertyPage({ params, searchParams }: { params: P
     include: { bankAccount: true, targetLease: { include: { unit: true, tenant: true } } },
   });
   const propertyManagers = section === "provoz" ? await prisma.user.findMany({ where: { active: true, OR: [{ allProperties: true }, { role: { in: ["SUPER_ADMIN", "MANAGER"] } }, { memberships: { some: { propertyId: id, permission: { in: ["EDIT", "ADMIN"] } } } }] }, orderBy: { name: "asc" } }) : [];
+  const [propertyCosts, propertyLoans] = section === "finance" && propertyWide ? await Promise.all([
+    prisma.propertyCost.findMany({ where: { propertyId: id }, orderBy: [{ effectiveAt: "desc" }, { createdAt: "desc" }] }),
+    prisma.propertyLoan.findMany({ where: { propertyId: id }, orderBy: [{ active: "desc" }, { createdAt: "desc" }] }),
+  ]) : [[], []];
+  const assetFinanceYear = new Date().getUTCFullYear();
+  const assetFinance = calculateAssetFinanceSummary(propertyCosts, propertyLoans, assetFinanceYear);
 
   return <Shell user={user} taskPropertyId={id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>{p.name}</span></div>
@@ -134,6 +144,16 @@ export default async function PropertyPage({ params, searchParams }: { params: P
     <PropertySubnav propertyId={id} active={section} unitLimited={!propertyWide}/><Flash ok={query.ok} error={query.error}/>
 
     {section === "prehled" && <>
+      {canManage&&<PropertyOnboardingChecklist propertyId={id} steps={[
+        {label:"Základní údaje a vlastník",detail:`${p.owner.name} · ${p.address}`,href:`/nemovitosti/${id}/vlastnici`,done:true},
+        {label:"Jednotky",detail:p.units.length?`${p.units.length} jednotek založeno`:"Přidejte první jednotku",href:`/nemovitosti/${id}/jednotky`,done:p.units.length>0},
+        {label:"Nájemní smlouvy",detail:leases.length?`${leases.length} smluv evidováno`:"Přidejte nájemní vztah",href:`/nemovitosti/${id}/smlouvy`,done:leases.length>0},
+        {label:"Předpisy",detail:allCharges.length?`${allCharges.length} předpisů vytvořeno`:"Zkontrolujte finanční nastavení smluv",href:`/nemovitosti/${id}/predpisy`,done:allCharges.length>0},
+        {label:"Účty pro inkaso",detail:bankCoverage.totalUnits?`${bankCoverage.configuredUnits}/${bankCoverage.totalUnits} jednotek má účet`:"Nejprve založte jednotky",href:`/nemovitosti/${id}/banka`,done:bankCoverage.totalUnits>0&&bankCoverage.configuredUnits===bankCoverage.totalUnits},
+        {label:"Zařazení pro KPI",detail:consolidationLabel(p.flatcloudConsolidationBasisPoints),href:`/nemovitosti/${id}/upravit`,done:p.flatcloudConsolidationBasisPoints!=null},
+        {label:"Správce objektu",detail:p.manager?.name||"Přiřaďte odpovědnou osobu",href:`/nemovitosti/${id}/provoz`,done:Boolean(p.manager),required:false},
+        {label:"Revize a kontroly",detail:complianceItems.length?`${complianceItems.length} kontrol nastaveno`:"Doplňte povinné termíny",href:`/nemovitosti/${id}/provoz#revize`,done:complianceItems.length>0,required:false},
+      ]}/>}
       <div className="stat-grid v21-stat-grid">
         <Stat href={`/reporty?view=collections&properties=${id}`} label="Inkaso" value={expected ? `${Math.round(paid / expected * 100)} %` : "—"} note={`${money(paid)} z ${money(expected)}`} good={expected ? paid >= expected : true}/><Stat href={`/reporty/saldo?propertyId=${id}`} label="Dluh" value={money(overdueDebt)} note={`${debts.length} předpisů po splatnosti`} bad={overdueDebt > 0}/><Stat href={`/nemovitosti/${id}/platby#ke-sparovani`} label="Nespárované" value={String(unmatchedPropertyPayments.length)} note="platby k potvrzení" bad={unmatchedPropertyPayments.length>0}/><Stat href={`/smlouvy/upozorneni?propertyId=${id}`} label="Smlouvy" value={String(propertyContractAlerts.length)} note={`${expiryAlerts.length} expirace · ${anniversaryAlerts.length} výročí`}/><Stat href={`/nemovitosti/${id}/provoz#revize`} label="Revize" value={String(dueCompliance.length)} note="termín do 60 dní" bad={dueCompliance.some((item)=>complianceState(item).key==="overdue")}/><Stat href={`/ukoly?status=open&propertyId=${id}`} label="Úkoly" value={String(openTasks.length)} note="otevřených případů" bad={openTasks.some((task)=>task.priority==="URGENT")}/>
       </div>
@@ -164,6 +184,22 @@ export default async function PropertyPage({ params, searchParams }: { params: P
       <div className="card col-12 portfolio-table-card"><div className="table-toolbar"><div><h2>Vyřešené platby</h2><p>Platby zaúčtované automaticky nebo ručně.</p></div></div><TablePayments propertyId={id} txs={txs.filter((row) => row.status === "MATCHED" || row.status === "PARTIAL" || row.status === "OVERPAYMENT")} empty="Zatím bez vyřešených plateb"/></div>
       {txs.some((row) => row.status === "IGNORED") && <div className="card col-12"><details><summary>Ignorované pohyby ({txs.filter((row) => row.status === "IGNORED").length})</summary><div className="portfolio-table-card" style={{marginTop:12}}><p className="muted-copy">Nerelevantní příjmy vyřazené pravidlem nebo ručně.</p><TablePayments propertyId={id} txs={txs.filter((row) => row.status === "IGNORED")} empty="Bez ignorovaných plateb"/></div></details></div>}
     </div>}
+
+    {section === "finance" && <>
+      <MethodologyCallout slug="naklady-a-uvery"/>
+      <div className="notice asset-finance-scope"><strong>Finance objektu, ne nájemní smlouvy.</strong><span>Zde evidujete OPEX, CAPEX a úvěry celé nemovitosti. Nájemné, služby, předpisy, úhrady a kauce zůstávají v detailu smlouvy a jednotky.</span></div>
+      <div className="stat-grid asset-finance-kpis">
+        <Stat href="#naklady" label={`OPEX skutečnost ${assetFinanceYear}`} value={money(assetFinance.actualOpexCents)} note="provozní náklady"/>
+        <Stat href="#naklady" label={`CAPEX skutečnost ${assetFinanceYear}`} value={money(assetFinance.actualCapexCents)} note="investice"/>
+        <Stat href="#naklady" label={`Plán a závazky ${assetFinanceYear}`} value={money(assetFinance.plannedCents)} note="plánované nebo objednané"/>
+        <Stat href="#uvery" label="Aktuální jistina" value={money(assetFinance.outstandingPrincipalCents)} note={`${propertyLoans.filter((loan)=>loan.active).length} aktivních úvěrů`}/>
+        <Stat href="#uvery" label="Měsíční dluhová služba" value={money(assetFinance.monthlyDebtServiceCents)} note="evidované splátky"/>
+      </div>
+      <div className="detail-grid asset-finance-page">
+        <div className="card col-12 portfolio-table-card" id="naklady"><div className="table-toolbar"><div><h2>Náklady a investice</h2><p>Plán, objednávka a skutečnost zůstávají rozlišené. Součet nahoře používá aktuální kalendářní rok.</p></div>{canManage&&<details className="create-panel asset-finance-create"><summary><Plus size={14}/> Přidat náklad</summary><form className="form-grid" action={`/api/properties/${id}/costs`} method="post"><label className="field"><span>Název *</span><input name="title" required placeholder="Oprava střechy"/></label><label className="field"><span>Částka v Kč *</span><input name="amount" type="number" min="0.01" step="0.01" required/></label><label className="field"><span>Typ *</span><select name="kind" defaultValue="OPEX">{Object.entries(propertyCostKinds).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>Stav *</span><select name="status" defaultValue="PLANNED">{Object.entries(propertyCostStatuses).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>Kategorie *</span><select name="category" defaultValue="MAINTENANCE">{Object.entries(propertyCostCategories).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>Datum plánu / vzniku *</span><input name="effectiveAt" type="date" defaultValue={new Date().toISOString().slice(0,10)} required/></label><label className="field"><span>Dodavatel</span><input name="vendor"/></label><label className="field field-full"><span>Poznámka</span><textarea name="note" rows={2}/></label><div className="form-actions field-full"><button className="primary" type="submit">Uložit náklad</button></div></form></details>}</div><GenericTable headers={["Datum","Náklad","Typ","Stav","Kategorie","Dodavatel","Částka"]} rows={propertyCosts.map((cost)=>[date(cost.effectiveAt),<strong key="t">{cost.title}</strong>,propertyCostKinds[cost.kind],<span className={`status ${cost.status==="ACTUAL"?"ok":cost.status==="COMMITTED"?"warn":""}`} key="s">{propertyCostStatuses[cost.status]}</span>,propertyCostCategories[cost.category],cost.vendor||"—",<strong key="a">{money(cost.amountCents)}</strong>])}/></div>
+        <div className="card col-12 portfolio-table-card" id="uvery"><div className="table-toolbar"><div><h2>Úvěry a financování</h2><p>Aktuální jistina, sazba, fixace, splatnost a měsíční dluhová služba na jednom místě.</p></div>{canManage&&<details className="create-panel asset-finance-create"><summary><Plus size={14}/> Přidat úvěr</summary><form className="form-grid" action={`/api/properties/${id}/loans`} method="post"><label className="field"><span>Označení úvěru *</span><input name="label" required placeholder="Hypoteční úvěr 2024"/></label><label className="field"><span>Věřitel *</span><input name="lender" required placeholder="Banka"/></label><label className="field"><span>Původní jistina v Kč *</span><input name="principal" type="number" min="0.01" step="0.01" required/></label><label className="field"><span>Aktuální jistina v Kč *</span><input name="outstandingPrincipal" type="number" min="0" step="0.01" required/></label><label className="field"><span>Roční úrok v % *</span><input name="annualInterestRatePercent" type="number" min="0" max="100" step="0.01" required/></label><label className="field"><span>Typ sazby *</span><select name="rateType" defaultValue="FIXED">{Object.entries(loanRateTypes).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>Fixace do</span><input name="fixedUntil" type="date"/></label><label className="field"><span>Splatnost úvěru</span><input name="maturityDate" type="date"/></label><label className="field"><span>Měsíční splátka v Kč</span><input name="monthlyDebtService" type="number" min="0" step="0.01"/></label><label className="field field-full"><span>Poznámka</span><textarea name="note" rows={2}/></label><div className="form-actions field-full"><button className="primary" type="submit">Uložit úvěr</button></div></form></details>}</div><GenericTable headers={["Úvěr","Věřitel","Původní jistina","Aktuální jistina","Sazba","Fixace","Splatnost","Měsíční splátka","Stav"]} rows={propertyLoans.map((loan)=>[<strong key="l">{loan.label}</strong>,loan.lender,money(loan.principalCents),money(loan.outstandingPrincipalCents),`${percentFromBasisPoints(loan.annualInterestRateBps)} · ${loanRateTypes[loan.rateType]}`,loan.fixedUntil?date(loan.fixedUntil):"—",loan.maturityDate?date(loan.maturityDate):"—",loan.monthlyDebtServiceCents!=null?money(loan.monthlyDebtServiceCents):"—",<span className={`status ${loan.active?"ok":""}`} key="s">{loan.active?"Aktivní":"Ukončený"}</span>])}/></div>
+      </div>
+    </>}
 
     {section === "dluznici" && <SectionCard title="Otevřené pohledávky" action={null}><GenericTable headers={["Nájemník", "Jednotka", "Období", "Splatnost", "Předpis", "Uhrazeno", "Dluh"]} rows={debts.map((row) => [row.lease.tenant.name, row.lease.unit.label, <Link className="table-link" key="p" href={`/nemovitosti/${id}/predpisy/mesicni/${row.charge.id}`}>{row.charge.period}</Link>, date(row.charge.dueDate), money(row.charge.amountCents), money(row.paid), <strong className="negative" key="d">{money(overdueDebtCents(row.charge))}</strong>])}/></SectionCard>}
 
@@ -216,7 +252,8 @@ function activityLabel(action:string) {
     LEASE_CREATED:"Smlouva vytvořena", TENANT_UPDATED:"Nájemník upraven", UNIT_UPDATED:"Jednotka upravena", PROPERTY_UPDATED:"Nemovitost upravena",
     INBOUND_PAYMENT_ASSIGNED:"E-mailová platba přiřazena", INBOUND_PAYMENT_IGNORED:"E-mailová platba ignorována",
     COLLECTION_TASK_CREATED:"Vytvořen úkol pro vymáhání", UNIT_OWNER_REPLACED:"Změněn vlastník jednotky",
-    PROPERTY_PAYMENT_ACCOUNT_ADDED:"Přidán bankovní účet nemovitosti", PROPERTY_PAYMENT_ACCOUNT_REMOVED:"Odebrán bankovní účet nemovitosti"
+    PROPERTY_PAYMENT_ACCOUNT_ADDED:"Přidán bankovní účet nemovitosti", PROPERTY_PAYMENT_ACCOUNT_REMOVED:"Odebrán bankovní účet nemovitosti",
+    PROPERTY_COST_CREATED:"Přidán náklad nemovitosti", PROPERTY_LOAN_CREATED:"Přidán úvěr nemovitosti"
   };
   return labels[action] || action.replaceAll("_"," ").toLocaleLowerCase("cs-CZ");
 }

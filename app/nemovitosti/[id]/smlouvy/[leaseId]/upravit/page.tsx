@@ -51,7 +51,7 @@ export default async function EditLease({ params, searchParams }: { params: Prom
       <Textarea label="Důvod pozastavení" name="reminderPauseReason" defaultValue={lease.reminderPauseReason}/>
       <Textarea label="Interní poznámka k inkasu" name="collectionNote" defaultValue={lease.collectionNote}/>
     </FormCard>
-    <div className="card ownership-simple-card">
+    <div className="card ownership-simple-card" id="lifecycle">
       <div className="card-head"><div><h2>Lifecycle nájemního vztahu</h2><p className="muted-copy">Nájemník ani smlouva se nemažou. Ukončení vytvoří historickou lifecycle událost a uvolní jednotku podle skutečného data.</p></div></div>
       {lifecycleStatus === "ENDED" ? <div className="summary-list">
         <div><span>Stav</span><strong>Ukončená</strong></div>

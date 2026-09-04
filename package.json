@@ -71,7 +71,10 @@
     "verify:mail-retention-1": "tsx scripts/verify-mail-retention-1.ts",
     "verify:identity-1": "tsx scripts/verify-identity-1.ts",
     "verify:vs-structure-1": "tsx scripts/verify-vs-structure-1.ts",
-    "verify:lease-report-heavy-1": "tsx scripts/verify-lease-report-heavy-1.ts"
+    "verify:lease-report-heavy-1": "tsx scripts/verify-lease-report-heavy-1.ts",
+    "verify:ux-remodel-r1": "node --import tsx scripts/verify-ux-remodel-r1.ts",
+    "verify:ux-remodel-r2": "node --import tsx scripts/verify-ux-remodel-r2.ts",
+    "verify:ux-remodel-r3": "node --import tsx scripts/verify-ux-remodel-r3.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

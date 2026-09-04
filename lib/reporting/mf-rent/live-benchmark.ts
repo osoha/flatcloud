@@ -47,15 +47,31 @@ export function calculateLiveMfRentBenchmark(
 ) {
   const byProperty = new Map(benchmarks.map((row) => [row.propertyId, row]));
   const comparableUnits = units.filter((unit) => unit.benchmarkEligible && unit.unitType === "APARTMENT" && unit.areaM2 != null && unit.areaM2 > 0);
-  const rows = comparableUnits.flatMap((unit) => {
+  const rows = comparableUnits.map((unit) => {
     const benchmark = byProperty.get(unit.propertyId);
     const category = dispositionToMfRentCategory(unit.disposition);
     const marketRentPerM2Cents = category && benchmark ? benchmark.data[category].referenceRentCentsPerM2 : null;
-    if (!benchmark || !category || marketRentPerM2Cents == null || unit.actualRentPerM2Cents == null) return [];
     const areaM2 = unit.areaM2!;
+    const incomplete = (coverageStatus: "MISSING_DISPOSITION" | "MISSING_TERRITORY" | "MISSING_REFERENCE" | "MISSING_ACTUAL") => ({
+      ...unit,
+      areaM2,
+      territoryName: benchmark?.territoryName ?? null,
+      category,
+      marketRentPerM2Cents,
+      marketGapPerM2Cents: null,
+      rentToMarketBps: null,
+      reversionaryPotentialCents: null,
+      actualComparableRentCents: null,
+      marketComparableRentCents: null,
+      coverageStatus,
+    });
+    if (!category) return incomplete("MISSING_DISPOSITION");
+    if (!benchmark) return incomplete("MISSING_TERRITORY");
+    if (marketRentPerM2Cents == null) return incomplete("MISSING_REFERENCE");
+    if (unit.actualRentPerM2Cents == null) return incomplete("MISSING_ACTUAL");
     const actualRentPerM2Cents = unit.actualRentPerM2Cents;
     const marketGapPerM2Cents = marketRentPerM2Cents - actualRentPerM2Cents;
-    return [{
+    return {
       ...unit,
       areaM2,
       actualRentPerM2Cents,
@@ -67,8 +83,10 @@ export function calculateLiveMfRentBenchmark(
       reversionaryPotentialCents: Math.round(marketGapPerM2Cents * areaM2),
       actualComparableRentCents: Math.round(actualRentPerM2Cents * areaM2),
       marketComparableRentCents: Math.round(marketRentPerM2Cents * areaM2),
-    }];
+      coverageStatus: "COVERED" as const,
+    };
   });
+  const coveredRows = rows.filter((row) => row.coverageStatus === "COVERED");
   const dataQualityIssues: ReportingQualityIssue[] = [
     ...comparableUnits.flatMap((unit) =>
       dispositionToMfRentCategory(unit.disposition)
@@ -96,7 +114,7 @@ export function calculateLiveMfRentBenchmark(
   const propertyIds = new Set([...units.map((unit) => unit.propertyId), ...benchmarks.map((row) => row.propertyId)]);
   const propertyRows = [...propertyIds].map((propertyId) => {
     const propertyUnits = comparableUnits.filter((unit) => unit.propertyId === propertyId);
-    const covered = rows.filter((row) => row.propertyId === propertyId);
+    const covered = coveredRows.filter((row) => row.propertyId === propertyId);
     const totalComparableAreaM2 = propertyUnits.reduce((sum, unit) => sum + unit.areaM2!, 0);
     const coveredAreaM2 = covered.reduce((sum, unit) => sum + unit.areaM2!, 0);
     const actualComparableRentCents = covered.reduce((sum, row) => sum + row.actualComparableRentCents, 0);
@@ -118,15 +136,15 @@ export function calculateLiveMfRentBenchmark(
   });
   const totalComparableAreaM2 = propertyRows.reduce((sum, row) => sum + row.totalComparableAreaM2, 0);
   const coveredAreaM2 = propertyRows.reduce((sum, row) => sum + row.coveredAreaM2, 0);
-  const actualComparableRentCents = rows.reduce((sum, row) => sum + row.actualComparableRentCents, 0);
-  const marketComparableRentCents = rows.reduce((sum, row) => sum + row.marketComparableRentCents, 0);
+  const actualComparableRentCents = coveredRows.reduce((sum, row) => sum + row.actualComparableRentCents, 0);
+  const marketComparableRentCents = coveredRows.reduce((sum, row) => sum + row.marketComparableRentCents, 0);
   return {
     rows,
     propertyRows,
     dataQualityIssues,
     aggregate: {
       comparableUnits: comparableUnits.length,
-      coveredUnits: rows.length,
+      coveredUnits: coveredRows.length,
       totalComparableAreaM2,
       coveredAreaM2,
       coverageBps: totalComparableAreaM2 ? Math.round(coveredAreaM2 * 10_000 / totalComparableAreaM2) : null,

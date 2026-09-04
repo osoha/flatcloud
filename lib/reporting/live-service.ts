@@ -12,6 +12,7 @@ import { resolveLiveMfRentBenchmarks } from "./mf-rent/service";
 import { calculateLiveMfRentBenchmark } from "./mf-rent/live-benchmark";
 import { calculateLiveOccupancyTrend } from "./live-occupancy-trend";
 import { operationalStatusAt } from "../unit-operational-history";
+import { calculateFlatcloudAssetScope } from "./flatcloud-asset-scope";
 
 type User = { id: string; role: string; allProperties?: boolean };
 const known = (value: number | null) => value ?? 0;
@@ -24,11 +25,11 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
   ]);
   const baseScope = reportingScopeForUser({ ...user, memberships, unitMemberships });
   const unitPropertyIds = Object.fromEntries(unitMemberships.map((membership) => [membership.unitId, membership.unit.propertyId]));
-  const availableProperties=await prisma.property.findMany({ where: reportingPropertyAccessWhere(baseScope), select: { id: true, name: true, address: true, city: true, active: true }, orderBy: { name: "asc" } });
+  const availableProperties=await prisma.property.findMany({ where: reportingPropertyAccessWhere(baseScope), select: { id: true, name: true, address: true, city: true, active: true, flatcloudConsolidationBasisPoints: true, owner: { select: { id: true, name: true } }, communicationOwner: { select: { id: true, name: true } } }, orderBy: { name: "asc" } });
   const livePropertyIds=liveSelectedPropertyIds(selection,availableProperties);
   const scope = applyPortfolioSelection(baseScope, {mode:"SELECTED",propertyIds:livePropertyIds}, unitPropertyIds);
   const [properties, units] = await Promise.all([
-    prisma.property.findMany({ where: reportingPropertyAccessWhere(scope), select: { id: true, name: true, address: true, city: true, active: true }, orderBy: { name: "asc" } }),
+    prisma.property.findMany({ where: reportingPropertyAccessWhere(scope), select: { id: true, name: true, address: true, city: true, active: true, flatcloudConsolidationBasisPoints: true }, orderBy: { name: "asc" } }),
     prisma.unit.findMany({ where: reportingUnitAccessWhere(scope), include: { property: { select: { id: true, name: true } }, operationalStatusEvents: { orderBy: [{ effectiveAt: "asc" }, { createdAt: "asc" }] }, leases: { include: { tenant: true, paymentItems: true, charges: { include: { items: true, allocations: { include: { transaction: true } }, securityDepositOffsets: true, creditApplications: true } }, securityDepositTerms: true, securityDepositMovements: true } } }, orderBy: [{ property: { name: "asc" } }, { label: "asc" }] }),
   ]);
   const q = businessQuarter(asOf);
@@ -72,6 +73,6 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
   const validAreaTenancies = tenancyRows.filter((row) => row.areaM2 && row.areaM2 > 0), totalArea = validAreaTenancies.reduce((sum,row)=>sum+(row.areaM2||0),0);
   const qualityIssues = [...boundaryIssues, ...propertyRows.flatMap((row) => row.quality), ...(mfSource.release ? mfBenchmark.dataQualityIssues : [])],newLeasesYtd=countNewLeasesYtd(allLeases,asOf);
   const qualityEntities = { properties: Object.fromEntries(properties.map((property) => [property.id, property.name])), units: Object.fromEntries(units.map((unit) => [unit.id, unit.label])), leases: Object.fromEntries(allLeases.map((lease) => [lease.id, lease.contractNumber || lease.tenant.name])) };
-  return { asOfDate: asOfKey, scope, availableProperties, properties, memberships, unitMemberships, aggregate: { ...aggregate, occupancyBps: aggregate.rentable ? Math.round(aggregate.occupied * 10000 / aggregate.rentable) : null, collectionRateBps: aggregate.quarterExpectedCents ? Math.round(aggregate.quarterPaidCents * 10000 / aggregate.quarterExpectedCents) : null, weightedRentPerM2Cents: totalArea ? Math.round(validAreaTenancies.reduce((sum,row)=>sum+row.netRentCents,0)/totalArea) : null, averageActiveDays: tenancyRows.length ? Math.round(tenancyRows.reduce((sum,row)=>sum+Math.max(0,(new Date(`${asOfKey}T12:00Z`).getTime()-row.startDate.getTime())/86_400_000),0)/tenancyRows.length) : null, newLeasesYtd }, propertyRows, tenancyRows, depositRows, contractRows, trend, occupancyTrend, quality: qualityIssues, qualityEntities, quarterStart, mfBenchmark: { ...mfBenchmark, release: mfSource.release } };
+  return { asOfDate: asOfKey, scope, availableProperties, properties, memberships, unitMemberships, aggregate: { ...aggregate, occupancyBps: aggregate.rentable ? Math.round(aggregate.occupied * 10000 / aggregate.rentable) : null, collectionRateBps: aggregate.quarterExpectedCents ? Math.round(aggregate.quarterPaidCents * 10000 / aggregate.quarterExpectedCents) : null, weightedRentPerM2Cents: totalArea ? Math.round(validAreaTenancies.reduce((sum,row)=>sum+row.netRentCents,0)/totalArea) : null, averageActiveDays: tenancyRows.length ? Math.round(tenancyRows.reduce((sum,row)=>sum+Math.max(0,(new Date(`${asOfKey}T12:00Z`).getTime()-row.startDate.getTime())/86_400_000),0)/tenancyRows.length) : null, newLeasesYtd }, flatcloudAssetScope: calculateFlatcloudAssetScope(propertyRows), propertyRows, tenancyRows, depositRows, contractRows, trend, occupancyTrend, quality: qualityIssues, qualityEntities, quarterStart, mfBenchmark: { ...mfBenchmark, release: mfSource.release } };
 }
 export function countNewLeasesYtd(leases:Array<{startDate:Date;cancelledAt?:Date|null}>,asOf:Date){const asOfKey=businessDateKey(asOf),yearStart=`${asOfKey.slice(0,4)}-01-01`;return leases.filter(lease=>{const start=businessDateKey(lease.startDate);return start>=yearStart&&start<=asOfKey&&!(lease.cancelledAt&&lease.cancelledAt.getTime()<lease.startDate.getTime())}).length}

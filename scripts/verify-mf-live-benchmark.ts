@@ -123,10 +123,14 @@ check("coverage fails closed for missing area, disposition, territory or non-apa
     ],
     [{ propertyId: "property-1", territoryName: "Veská", data: benchmarkData }],
   );
-  assert.equal(result.rows.length, 1);
+  assert.equal(result.rows.length, 3);
   assert.equal(result.aggregate.comparableUnits, 3);
   assert.equal(result.aggregate.coveredUnits, 1);
   assert.equal(result.aggregate.coverageBps, 3_333);
+  const missingDisposition = result.rows.find((row) => row.unitId === "unit-2");
+  assert.equal(missingDisposition?.coverageStatus, "MISSING_DISPOSITION");
+  assert.equal(missingDisposition?.actualRentPerM2Cents, 18_000);
+  assert.equal(missingDisposition?.marketRentPerM2Cents, null);
   assert.deepEqual(
     result.dataQualityIssues.map((issue) => issue.code).sort(),
     ["MISSING_MF_PROPERTY_LOCATION", "MISSING_MF_UNIT_DISPOSITION"],
@@ -191,7 +195,7 @@ check("live report is read-only and shows period, coverage and source provenance
   assert.doesNotMatch(page, /<details className="card quality-panel" open=/);
   assert.ok(page.includes("<MfBenchmarkTable"));
   const drilldown = read("components/MfBenchmarkTable.tsx");
-  for (const token of ["aria-expanded", "mf-unit-drilldown", "Kategorie MF", "Potenciál / měsíc", "Volná", "Obsazená"])
+  for (const token of ["aria-expanded", "mf-unit-drilldown", "Kategorie MF", "Potenciál / měsíc", "Volná", "Obsazená", "Doplnit dispozici"])
     assert.ok(drilldown.includes(token), token);
   assert.ok(liveService.includes("const mfUnits = reportingUnits.map"));
   assert.ok(liveService.includes('operational.status === "STANDARD"'));
