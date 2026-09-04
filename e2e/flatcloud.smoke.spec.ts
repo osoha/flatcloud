@@ -476,6 +476,22 @@ test("detail smlouvy má čitelný finanční cockpit a životní akce", async (
   assertNoBrowserFailures();
 });
 
+test("vyúčtování ukáže read-only zdroje a blokátory před zaúčtováním", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/smlouvy");
+  await page.getByRole("link", { name: /Jan Novák/ }).first().click();
+  await page.getByRole("link", { name: "Připravit vyúčtování", exact: true }).click();
+  await expect(page).toHaveURL(/\/smlouvy\/.+\/vyuctovani/);
+  await expect(page.getByRole("heading", { name: "Vyúčtování služeb", exact: true })).toBeVisible();
+  await expect(page.getByText("Pracovní náhled · bez zaúčtování", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Skutečné náklady a způsob rozdělení", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Předepsané zálohy", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Odečty měřidel", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Vystavit protokol · naváže R5B", exact: true })).toBeDisabled();
+  assertNoBrowserFailures();
+});
+
 test("správce přidá dalšího smluvního partnera a vztah zůstane čitelný", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

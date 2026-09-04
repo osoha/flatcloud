@@ -76,6 +76,8 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 
 ### R5 — vyúčtování a podklady pro vlastníky
 
+- **R5A implementováno bez migrace:** ze smlouvy vede primární cesta do read-only pracovního náhledu, který za uzavřené období odděluje předepsané zálohy od nájemného, zahrne pouze skutečné OPEX náklady kategorie Energie a služby přímo přiřazené nebo uloženě rozdělené na jednotku, ukáže zdroj a pravidlo rozdělení, odečty a konkrétní blokátory; historický ruční výsledek zůstává označený jako korekční zkratka bez protokolu,
+- další řez R5B zmrazí zkontrolované podklady do vystaveného protokolu a teprve explicitním potvrzením vytvoří nedoplatek nebo přeplatek,
 - zálohy, skutečné náklady, odečty a pravidla rozúčtování,
 - protokol vyúčtování, přeplatek/nedoplatek a návazný finanční pohyb,
 - roční balíček příjmů, výdajů, úroků a dokladů pro daňové zpracování.
