@@ -176,6 +176,20 @@ enum UnitOperationalStatus {
   INACTIVE
 }
 
+enum UnitQualityRating {
+  A_EXCELLENT
+  B_GOOD
+  C_RENOVATE
+  D_MAJOR_WORK
+}
+
+enum UnitInvestmentUrgency {
+  NONE
+  MONITOR
+  PLAN_12_MONTHS
+  IMMEDIATE
+}
+
 enum TenantType {
   PERSON
   COMPANY
@@ -407,6 +421,7 @@ model User {
   rentChangeProposalsCreated           RentChangeProposal[]           @relation("RentChangeProposalCreator")
   rentChangeProposalsConfirmed         RentChangeProposal[]           @relation("RentChangeProposalConfirmer")
   serviceSettlementProtocolsIssued     ServiceSettlementProtocol[]    @relation("ServiceSettlementProtocolIssuer")
+  unitAssetAssessmentsCreated           UnitAssetAssessment[]          @relation("UnitAssetAssessmentCreator")
   createdAt                           DateTime                       @default(now())
   updatedAt                           DateTime                       @updatedAt
 }
@@ -883,12 +898,31 @@ model Unit {
   documents               Document[]
   assetCosts              PropertyCost[]
   assetCostAllocations    PropertyCostAllocation[]
+  assetAssessments        UnitAssetAssessment[]
   createdAt               DateTime                     @default(now())
   updatedAt               DateTime                     @updatedAt
 
   @@unique([propertyId, label])
   @@unique([propertyId, unitCode])
   @@index([propertyId])
+}
+
+model UnitAssetAssessment {
+  id                     String                  @id @default(cuid())
+  unitId                 String
+  unit                   Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  rating                 UnitQualityRating
+  investmentUrgency      UnitInvestmentUrgency
+  estimatedCapexCents    Int                     @default(0)
+  distributionReady      Boolean                 @default(false)
+  assessedAt             DateTime
+  note                   String?
+  createdById            String
+  createdBy              User                    @relation("UnitAssetAssessmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt              DateTime                @default(now())
+
+  @@index([unitId, assessedAt])
+  @@index([rating, investmentUrgency])
 }
 
 model UnitOperationalStatusEvent {

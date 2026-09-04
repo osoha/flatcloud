@@ -110,6 +110,16 @@ export const methodologyChapters: MethodologyChapter[] = [
     check: "Externí aktivum je v provozních alarmech, ale bez výslovné konsolidace nevstupuje do KPI FlatCloud.",
     href: "/vlastnici",
   },
+  {
+    slug: "kategorizace-jednotek",
+    category: "Asset management",
+    title: "Kategorizace jednotek FlatCloud",
+    summary: "Jednotný rating fyzického stavu, investiční naléhavosti a interní připravenosti jednotek před valuací a distribucí.",
+    audience: "Interní asset manager",
+    steps: ["Pracujte jen s potvrzenými aktivy skupiny FlatCloud; externí správa do interní distribuce nevstupuje.", "Ohodnoťte současný fyzický stav písmenem A–D a samostatně určete naléhavost investice.", "Doplňte realistický odhad CAPEX a stručný důvod, aby další hodnotitel rozuměl zdroji rozhodnutí.", "Příznak distribuční připravenosti zapněte až po interní kontrole podkladů; sám nic nezveřejňuje.", "Při změně stavu vytvořte nový snapshot. Starší hodnocení se nepřepisuje."],
+    check: "Každá jednotka má aktuální datované hodnocení, zdůvodněný CAPEX a oddělenou informaci o připravenosti; rating se nevydává za valuaci.",
+    href: "/distribuce",
+  },
 ];
 
 export function methodologyChapter(slug: string) {
