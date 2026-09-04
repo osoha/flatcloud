@@ -122,6 +122,22 @@ test("report kaucí používá české a významově přesné stavy", async ({ p
   assertNoBrowserFailures();
 });
 
+test("roční podklady vedou od vlastníka ke zdrojům a bezpečnému exportu", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty/rocni-podklady");
+  await expect(page.getByRole("heading", { name: "Roční podklady vlastníka", exact: true })).toBeVisible();
+  await expect(page.getByText("Nejprve vyberte vlastníka", { exact: true })).toBeVisible();
+  await page.getByLabel("Vlastník *").selectOption({ index: 1 });
+  await page.getByRole("button", { name: "Načíst podklady", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Přijaté úhrady", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Skutečné výdaje", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Úvěry a úroky", exact: true })).toBeVisible();
+  await expect(page.getByText(/Nejde o automatické stanovení základu daně/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Stáhnout CSV", exact: true })).toHaveAttribute("href", /annual-owner-package\.csv\?ownerId=.+&year=\d{4}/);
+  assertNoBrowserFailures();
+});
+
 test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
