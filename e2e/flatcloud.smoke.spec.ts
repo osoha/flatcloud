@@ -311,7 +311,7 @@ test("kritické registry a administrace se otevřou bez browser chyb", async ({ 
     ["/smlouvy", "Smlouvy"],
     ["/ukoly", "Úkoly a případy"],
     ["/reporty", "Reporty"],
-    ["/nastaveni", "Administrace aplikace"],
+    ["/nastaveni", "Administrace"],
   ] as const;
   for (const [url, heading] of routes) {
     await page.goto(url);
