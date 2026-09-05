@@ -23,6 +23,7 @@ export default async function TerminateLeasePage({ params, searchParams }: { par
     searchParams,
   ]);
   if (!lease) notFound();
+  if (lease.terminatedOn || lease.cancelledAt) notFound();
   const canEdit = Boolean(await prisma.unit.findFirst({ where: { id: lease.unitId, ...editableUnitWhere(user, lease.unit.propertyId) }, select: { id: true } }));
   if (!canEdit) notFound();
   const lifecycle = leaseStatusAt(lease);

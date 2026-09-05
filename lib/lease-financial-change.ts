@@ -1,4 +1,5 @@
 import { PropertyPermission } from "@prisma/client";
+import { createHash } from "node:crypto";
 import { businessDateKey } from "./calendar";
 import { periodKeyForDate, replaceRecurringAmount, syncLeaseCharges } from "./charge-automation";
 import { prisma } from "./db";
@@ -7,6 +8,23 @@ import { serializableTransaction } from "./serializable";
 import { rentRollAmountsAt } from "./reporting/rent-roll";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
+
+type FinancialVersionState = {
+  rentCents: number;
+  servicesCents: number;
+  nextIndexationAt?: Date | null;
+  endDate?: Date | null;
+  terminatedOn?: Date | null;
+  cancelledAt?: Date | null;
+  paymentItems: Array<{ id: string; active: boolean; category: string; amountCents: number; validFrom: Date; validTo?: Date | null }>;
+  charges: Array<{ id: string; active: boolean; period: string; manualOverride: boolean; allocations: Array<{ id: string; amountCents: number }>; securityDepositOffsets: Array<{ id: string; amountCents: number }>; creditApplications: Array<{ id: string; amountCents: number }> }>;
+};
+
+export function leaseFinancialVersionFingerprint(lease: FinancialVersionState) {
+  const paymentItems = [...lease.paymentItems].sort((a, b) => a.id.localeCompare(b.id)).map((item) => ({ id: item.id, active: item.active, category: item.category, amountCents: item.amountCents, validFrom: item.validFrom.toISOString(), validTo: item.validTo?.toISOString() ?? null }));
+  const charges = [...lease.charges].sort((a, b) => a.id.localeCompare(b.id)).map((charge) => ({ id: charge.id, active: charge.active, period: charge.period, manualOverride: charge.manualOverride, allocations: [...charge.allocations].sort((a, b) => a.id.localeCompare(b.id)).map((row) => [row.id, row.amountCents]), securityDepositOffsets: [...charge.securityDepositOffsets].sort((a, b) => a.id.localeCompare(b.id)).map((row) => [row.id, row.amountCents]), creditApplications: [...charge.creditApplications].sort((a, b) => a.id.localeCompare(b.id)).map((row) => [row.id, row.amountCents]) }));
+  return createHash("sha256").update(JSON.stringify({ rentCents: lease.rentCents, servicesCents: lease.servicesCents, nextIndexationAt: lease.nextIndexationAt?.toISOString() ?? null, endDate: lease.endDate?.toISOString() ?? null, terminatedOn: lease.terminatedOn?.toISOString() ?? null, cancelledAt: lease.cancelledAt?.toISOString() ?? null, paymentItems, charges })).digest("hex");
+}
 
 function nextMonthStart(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 12));
@@ -47,10 +65,10 @@ export async function previewLeaseFinancialChange(actor: Actor, propertyId: stri
   const affectedCharges = lease.charges.filter((charge) => charge.period >= fromPeriod && charge.active);
   const protectedCharge = affectedCharges.find((charge) => charge.manualOverride || charge.allocations.length > 0 || charge.securityDepositOffsets.length > 0 || charge.creditApplications.length > 0);
   if (protectedCharge) throw new Error(`Předpis ${protectedCharge.period} je ručně upravený nebo už obsahuje úhradu. Nejdříve jej zkontrolujte.`);
-  return { lease, input, current, fromPeriod, affectedCharges };
+  return { lease, input, current, fromPeriod, affectedCharges, expectedFingerprint: leaseFinancialVersionFingerprint(lease) };
 }
 
-export async function applyLeaseFinancialChange(actor: Actor, propertyId: string, leaseId: string, raw: { rentCents: number; servicesCents: number; effectiveFrom: Date; reason: string }) {
+export async function applyLeaseFinancialChange(actor: Actor, propertyId: string, leaseId: string, raw: { rentCents: number; servicesCents: number; effectiveFrom: Date; reason: string; expectedFingerprint: string }) {
   const preview = await previewLeaseFinancialChange(actor, propertyId, leaseId, raw);
   return serializableTransaction(async (tx) => {
     const fresh = await tx.lease.findFirst({
@@ -58,6 +76,7 @@ export async function applyLeaseFinancialChange(actor: Actor, propertyId: string
       include: { paymentItems: true, charges: { include: { items: true, allocations: true, securityDepositOffsets: true, creditApplications: true } } },
     });
     if (!fresh) throw new Error("Smlouva mezitím nebyla nalezena.");
+    if (!raw.expectedFingerprint || leaseFinancialVersionFingerprint(fresh) !== raw.expectedFingerprint) throw new Error("Finanční nastavení se od zobrazeného náhledu změnilo. Zkontrolujte nový dopad a potvrzení zopakujte.");
     const current = rentRollAmountsAt(fresh, new Date());
     if (current.rent.amountCents !== preview.current.rent.amountCents || current.services.amountCents !== preview.current.services.amountCents) throw new Error("Finanční nastavení se mezitím změnilo. Obnovte náhled.");
     const protectedCharge = fresh.charges.find((charge) => charge.period >= preview.fromPeriod && charge.active && (charge.manualOverride || charge.allocations.length > 0 || charge.securityDepositOffsets.length > 0 || charge.creditApplications.length > 0));

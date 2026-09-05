@@ -16,6 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const lease = await prisma.lease.findFirst({ where: { id: leaseId, unit: { propertyId: id } }, include: { unit: true } });
     if (!lease) throw new Error("Smlouva nebyla nalezena.");
+    if (lease.terminatedOn || lease.cancelledAt) throw new Error("Ukončení tohoto nájemního vztahu již bylo zaznamenáno a nelze je tímto formulářem přepsat.");
     const now = new Date();
     const currentStatus = leaseStatusAt(lease, now);
     if (currentStatus === "ENDED") throw new Error("Tento nájemní vztah je již ukončený.");
@@ -25,6 +26,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (currentStatus === "FUTURE") {
       const cancellationReason = text(form, "reason");
       const financialCleanup = await serializableTransaction(async (tx) => {
+        const fresh = await tx.lease.findUnique({ where: { id: leaseId }, select: { terminatedOn: true, cancelledAt: true } });
+        if (!fresh || fresh.terminatedOn || fresh.cancelledAt) throw new Error("Ukončení tohoto nájemního vztahu již bylo zaznamenáno.");
         await tx.lease.update({ where: { id: leaseId }, data: { cancelledAt: now, cancellationReason, status: LeaseStatus.ENDED } });
         const cleanup = await closeLeaseFinancialVersionsAt(tx, leaseId, now);
         await tx.rentChangeProposal.updateMany({ where: { leaseId, status: "CONFIRMED" }, data: { status: "CANCELLED" } });
@@ -43,6 +46,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const derivedStatus = leaseStatusAt({ ...lease, terminatedOn }, now) as LeaseStatus;
 
     const financialCleanup = await serializableTransaction(async (tx) => {
+      const fresh = await tx.lease.findUnique({ where: { id: leaseId }, select: { terminatedOn: true, cancelledAt: true } });
+      if (!fresh || fresh.terminatedOn || fresh.cancelledAt) throw new Error("Ukončení tohoto nájemního vztahu již bylo zaznamenáno.");
       await tx.lease.update({ where: { id: leaseId }, data: { terminatedOn, terminationReason, status: derivedStatus } });
       const cleanup = await closeLeaseFinancialVersionsAt(tx, leaseId, terminatedOn);
       await tx.rentChangeProposal.updateMany({ where: { leaseId, status: "CONFIRMED", effectiveFrom: { gt: terminatedOn } }, data: { status: "CANCELLED" } });
