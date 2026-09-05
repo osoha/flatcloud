@@ -11,7 +11,7 @@ export async function POST(request: Request) {
     const form = await request.formData();
     returnTo = safeInternalReturnPath(form.get("returnTo"), returnTo);
     const plan = await createRentForecastPlan({
-      name: text(form, "name", true)!, note: text(form, "note"), propertyIds: form.getAll("propertyId").map(String),
+      name: text(form, "name", true)!, note: text(form, "note"), propertyIds: form.getAll("propertyId").map(String), expectedSnapshotFingerprint: text(form, "snapshotFingerprint", true),
       horizonMonths: intValue(form, "horizon", 24), assumptions: {
         label: "Uložený plán",
         annualGrowthBps: rentForecastBasisPointsFromPercent(String(form.get("annualGrowthPercent") || ""), "Roční růst", 2_000),
