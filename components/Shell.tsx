@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, BookOpen, Building2, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, Handshake, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
@@ -72,8 +72,8 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
-        {canSeeQuarterlyReports && <Nav href="/reporty/kvartalni" icon={<CalendarRange size={17}/>} label="Kvartální reporty"/>}
-        {canAddProperty && <Nav href="/distribuce" icon={<Building2 size={17}/>} label="Kategorizace"/>}
+        {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
+        {canAddProperty && <Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/>}
 
         <div className="nav-label">Provoz</div>
         <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>

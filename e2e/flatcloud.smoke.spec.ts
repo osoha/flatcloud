@@ -766,6 +766,21 @@ test("ruční platbu nelze z historie prohlížeče odeslat podruhé", async ({ 
   assertNoBrowserFailures();
 });
 
+test("R7: interní moduly a administrace mají jasné rozcestníky", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.getByRole("link", { name: "Akcionářské reporty", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Akcionářské reporty", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Kvartální reporty/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Výroční reporty", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Výroční reporty/ })).toHaveCount(0);
+  await page.getByRole("link", { name: "Administrace", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Administrace", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Integrace a automatizace/ }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Uživatelé a přístupy/ })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("odhlášení ukončí relaci a znovu ochrání portfolio", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

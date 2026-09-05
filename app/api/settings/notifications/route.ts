@@ -25,6 +25,6 @@ export async function POST(request: Request) {
     if (data.escalationDaysAfter <= data.managerAlertDaysAfter) throw new Error("Eskalace musí následovat po interním upozornění správci.");
     await prisma.appSetting.upsert({ where: { id: "global" }, update: data, create: { id: "global", ...data } });
     await audit(user.id, "RENT_NOTIFICATION_SETTINGS_UPDATED", "AppSetting", "global", { remindersEnabled: data.remindersEnabled, deadlines: [data.paymentNoticeDaysBefore, data.firstReminderDaysAfter, data.secondReminderDaysAfter, data.managerAlertDaysAfter, data.escalationDaysAfter], smtpPasswordChanged: Boolean(smtpPassword) });
-    return goWithMessage(request, "/nastaveni", "ok", "SMTP a automatické upomínky byly uloženy.");
-  } catch (error) { return goWithMessage(request, "/nastaveni", "error", error instanceof Error ? error.message : "Nastavení se nepodařilo uložit."); }
+    return goWithMessage(request, "/nastaveni/system", "ok", "SMTP a automatické upomínky byly uloženy.");
+  } catch (error) { return goWithMessage(request, "/nastaveni/system", "error", error instanceof Error ? error.message : "Nastavení se nepodařilo uložit."); }
 }

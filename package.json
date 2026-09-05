@@ -100,7 +100,8 @@
     "verify:ux-audit-p2": "node --import tsx scripts/verify-ux-audit-p2.ts",
     "verify:ux-deep-repair": "node --import tsx scripts/verify-ux-deep-repair.ts",
     "verify:ux-deep-wave-2": "node --import tsx scripts/verify-ux-deep-wave-2.ts",
-    "verify:ux-wave-3": "node --import tsx scripts/verify-ux-wave-3.ts"
+    "verify:ux-wave-3": "node --import tsx scripts/verify-ux-wave-3.ts",
+    "verify:r7-navigation-admin": "node --import tsx scripts/verify-r7-navigation-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",
