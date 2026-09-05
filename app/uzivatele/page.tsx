@@ -6,6 +6,7 @@ import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { propertyPermissions, userRoles } from "@/lib/labels";
 import { UserAvatar } from "@/components/UserAvatar";
+import { AdminSubnav } from "@/components/admin/AdminSubnav";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
 
   return <Shell user={user}><div className="page">
     <div className="page-title"><div><h1>Uživatelé a oprávnění</h1><p>Jeden člen může mít přístup k více objektům nebo ke všem současným i budoucím nemovitostem.</p></div></div>
+    <AdminSubnav active="users"/>
     <Flash ok={query.ok} error={query.error}/>
     {query.invite && <div className="invite-link-box"><strong>Odkaz k ručnímu předání</strong><input readOnly value={query.invite}/></div>}
 

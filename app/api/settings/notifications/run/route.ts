@@ -7,8 +7,8 @@ export async function POST(request: Request) {
   if (!user || user.role !== "SUPER_ADMIN") return go(request, "/login");
   try {
     const result = await runRentNotifications(new Date(), "manual");
-    return goWithMessage(request, "/nastaveni", "ok", result.summary);
+    return goWithMessage(request, "/nastaveni/system", "ok", result.summary);
   } catch (error) {
-    return goWithMessage(request, "/nastaveni", "error", error instanceof Error ? error.message : "Kontrolu se nepodařilo spustit.");
+    return goWithMessage(request, "/nastaveni/system", "error", error instanceof Error ? error.message : "Kontrolu se nepodařilo spustit.");
   }
 }

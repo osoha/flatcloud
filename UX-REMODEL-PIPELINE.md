@@ -119,6 +119,14 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - správce může atomicky založit až 50 bytů z jednoduchých řádků označení, podlaží a plochy; společné vlastnictví i volitelný účet nastaví jednou,
 - checklist respektuje skutečnou závislost: jednotky → účty pro inkaso → smlouvy → předpisy.
 
+### R7 — informační architektura a administrátorský cockpit
+
+- **R7A implementováno bez migrace:** hlavní navigace odděluje interní Distribuci od Akcionářských reportů; nový interní rozcestník vede do aktivního kvartálního workflow a budoucí výroční část ukazuje bez nefunkčního odkazu,
+- nejasné označení „Kategorizace“ bylo odstraněno; neutrální technické hodnocení a plánování CAPEX se oddělí od distribučního scope v R8A,
+- **R7B implementováno bez migrace:** Administrace má samostatný přehled stavu a modulový rozcestník; detailní integrace a automatizace zůstávají zachované v pracovním prostoru a formuláře se po uložení vracejí do stejného kontextu,
+- administrátorská navigace je sjednocena také na stránkách uživatelů a reportovacích šablon,
+- další řez pokračuje R7C — inventurou a vizuálním srovnáním kvartální šablony — a R8A — Kvalitou a technickým stavem portfolia.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,

@@ -142,8 +142,8 @@ test("interní kategorizace ukládá nový neměnný snapshot jednotky", async (
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
   await page.goto("/distribuce");
-  await expect(page.getByRole("heading", { name: "Kategorizace a distribuce", exact: true })).toBeVisible();
-  await expect(page.getByText("Interní modul · pouze FlatCloud Group", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Interní distribuce", exact: true })).toBeVisible();
+  await expect(page.getByText("Interní obchodní modul · pouze FlatCloud Group", { exact: true })).toBeVisible();
   const firstAssessment = page.locator(".distribution-assessment").first();
   await firstAssessment.getByText("Nové hodnocení", { exact: true }).click();
   await firstAssessment.getByLabel("Rating kvality *").selectOption("B_GOOD");
@@ -311,7 +311,7 @@ test("kritické registry a administrace se otevřou bez browser chyb", async ({ 
     ["/smlouvy", "Smlouvy"],
     ["/ukoly", "Úkoly a případy"],
     ["/reporty", "Reporty"],
-    ["/nastaveni", "Administrace aplikace"],
+    ["/nastaveni", "Administrace"],
   ] as const;
   for (const [url, heading] of routes) {
     await page.goto(url);
@@ -763,6 +763,21 @@ test("ruční platbu nelze z historie prohlížeče odeslat podruhé", async ({ 
   await page.goBack();
   await expect(page.getByRole("heading", { name: "Formulář už byl odeslán", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Uložit a přiřadit platbu", exact: true })).toHaveCount(0);
+  assertNoBrowserFailures();
+});
+
+test("R7: interní moduly a administrace mají jasné rozcestníky", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.getByRole("link", { name: "Akcionářské reporty", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Akcionářské reporty", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Kvartální reporty/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Výroční reporty", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Výroční reporty/ })).toHaveCount(0);
+  await page.getByRole("link", { name: "Administrace", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Administrace", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Integrace a automatizace/ }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Uživatelé a přístupy/ })).toBeVisible();
   assertNoBrowserFailures();
 });
 
