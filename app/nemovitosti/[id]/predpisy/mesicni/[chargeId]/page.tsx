@@ -25,6 +25,7 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
   ]);
   if (!property || !charge) notFound();
   const paid = paidCents(charge);
+  const financiallyLocked = paid > 0;
   const itemTotal = charge.items.reduce((sum, item) => sum + item.amountCents, 0);
 
   return <Shell user={user}><FormPage
@@ -45,7 +46,8 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
     <div className="detail-grid">
       <div className="card col-8">
         <div className="card-head"><div><h2>Rozpad měsíčního předpisu</h2><p className="muted-copy">Celková částka se vždy dopočítává z položek. Pro jednorázovou slevu přidejte zápornou korekci, např. −5 000 Kč.</p></div></div>
-        {charge.items.length ? <div className="stack-list">{charge.items.map((item) => <form key={item.id} action={`/api/properties/${id}/charges/${charge.id}/items/${item.id}`} method="post" className="inline-edit-card">
+        {financiallyLocked&&<div className="notice"><strong>Uhrazený předpis je uzamčen</strong><span>Částky ani splatnost už nelze běžně přepsat. Chybnou úhradu nejprve opravte v detailu platby; účetní rozdíl evidujte novou korekční položkou v neuhrazeném období.</span></div>}
+        {charge.items.length ? <div className="stack-list">{charge.items.map((item) => financiallyLocked ? <div key={item.id} className="inline-edit-card locked-charge-item"><div><span>{item.name}</span><small>{chargeCategories[item.category]}</small></div><strong>{money(item.amountCents)}</strong></div> : <form key={item.id} action={`/api/properties/${id}/charges/${charge.id}/items/${item.id}`} method="post" className="inline-edit-card">
           <div className="inline-edit-grid">
             <Field label="Položka" name="name" defaultValue={item.name} required/>
             <Select label="Kategorie" name="category" defaultValue={item.category} options={Object.entries(chargeCategories)}/>
@@ -54,7 +56,7 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
           <div className="mini-actions"><button className="secondary" type="submit">Uložit položku</button><button className="text-button danger-text" type="submit" name="mode" value="delete">Odstranit</button></div>
         </form>)}</div> : <div className="table-empty">Předpis nemá žádné položky.</div>}
 
-        <form action={`/api/properties/${id}/charges/${charge.id}/items`} method="post" className="inline-edit-card" style={{marginTop:14}}>
+        {!financiallyLocked&&<form action={`/api/properties/${id}/charges/${charge.id}/items`} method="post" className="inline-edit-card" style={{marginTop:14}}>
           <div className="card-head"><div><h2>Přidat jednorázovou položku</h2><p className="muted-copy">Sleva nebo korekce může být záporná. Celkový předpis nesmí klesnout pod již uhrazenou částku.</p></div></div>
           <div className="inline-edit-grid">
             <Field label="Název" name="name" placeholder="Např. Sleva za omezení užívání" required/>
@@ -62,7 +64,7 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
             <Field label="Částka Kč" name="amount" type="number" step="0.01" placeholder="-5000" required/>
           </div>
           <div className="mini-actions"><button className="primary" type="submit">Přidat položku</button></div>
-        </form>
+        </form>}
       </div>
 
       <div className="col-4 side-stack">
@@ -72,7 +74,7 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
           {itemTotal !== charge.amountCents && <div className="notice" style={{marginTop:12}}>Součet položek se liší od uložené celkové částky. Upravte některou položku; nový součet se automaticky sjednotí.</div>}
         </div>
 
-        <form className="card edit-form" action={`/api/properties/${id}/charges/${charge.id}`} method="post">
+        {!financiallyLocked&&<form className="card edit-form" action={`/api/properties/${id}/charges/${charge.id}`} method="post">
           <div className="card-head"><div><h2>Nastavení měsíce</h2><p className="muted-copy">Změna se označí jako ruční a automatický generátor ji nebude přepisovat.</p></div></div>
           <div className="form-grid">
             <Field label="Datum splatnosti" name="dueDate" type="date" defaultValue={dateInput(charge.dueDate)} required/>
@@ -80,7 +82,7 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
             <Textarea label="Poznámka / důvod úpravy" name="note" defaultValue={charge.note} full/>
           </div>
           <div className="form-actions"><button className="primary" type="submit">Uložit nastavení</button></div>
-        </form>
+        </form>}
 
         {charge.active && paid === 0 && <form className="card edit-form" action={`/api/properties/${id}/charges/${charge.id}`} method="post">
           <input type="hidden" name="mode" value="waive"/>

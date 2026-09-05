@@ -52,8 +52,8 @@ check("contracting parties are explicit and occupants remain separate", () => {
   const fields = read("components/LeaseCoreFields.tsx");
   const pipeline = read("UX-REMODEL-PIPELINE.md");
   assert.match(fields, /HlavnÃ­ smluvnÃ­ strana/);
-  assert.match(fields, /DalÅ¡Ã­ smluvnÃ­ partneÅ™i/);
-  assert.match(fields, /Obyvatele bez smluvnÃ­ odpovÄ›dnosti evidujte zvlÃ¡Å¡Å¥/);
+  assert.match(fields, /Osoby a role ve smlouvÄ›/);
+  assert.match(fields, /pouze bydlÃ­ a nemÃ¡ smluvnÃ­ odpovÄ›dnost/);
   assert.match(pipeline, /R2D implementovÃ¡no aditivnÄ›/);
 });
 
@@ -75,3 +75,4 @@ check("management scope is explicit and filterable by owner", () => {
 });
 
 console.log(`UX remodel R1 ovÄ›Å™en: ${count} kontrol.`);
+×M:ã‡|yÏ7ãOë^µyı[k~ão9m¯]ß¶½÷·×½,r¸©¶Ïïz¸ŸÊìkzjzZõ¶

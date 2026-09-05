@@ -19,6 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const mode = text(form, "mode") || "save";
     const paid = paidCents(item.charge);
+    if (paid > 0) throw new Error("UhrazenÃ½ nebo ÄÃ¡steÄnÄ› uhrazenÃ½ pÅ™edpis nelze bÄ›Å¾nÄ› pÅ™episovat. PouÅ¾ijte auditovanou opravu platby nebo novÃ½ korekÄnÃ­ pÅ™edpis.");
 
     let total: number;
     let amountCents = item.amountCents;
@@ -46,3 +47,4 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return goWithMessage(request, redirectTo, "error", error instanceof Error ? error.message : "PoloÅ¾ku se nepodaÅ™ilo upravit.");
   }
 }
+×M:ãí¯s‡ıkW÷ñÍ|åşùM|éö÷óMûy§úw­¦ŸÚ¦/é®Š^®Ø³øıÈZ®¬ıÈZ®ˆwø­zk?Š×¦!ßë¢ë^¶

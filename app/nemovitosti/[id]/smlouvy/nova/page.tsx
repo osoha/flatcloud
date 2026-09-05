@@ -35,10 +35,11 @@ export default async function NewLease({ params, searchParams }: { params: Promi
     <Flash ok={query.ok} error={query.error}/>
     <MethodologyCallout slug="najemni-smlouva"/>
     {availableUnits.length && tenants.length ? <FormCard action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="VytvoÅ™it smlouvu">
-      <LeaseCoreFields unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, tenant.name])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
+      <LeaseCoreFields unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, `${tenant.name} Â· ${tenant.communicationEmail || tenant.email || tenant.phone || (tenant.type === "COMPANY" ? "firma" : "osoba")}`])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="NÃ¡jemnÃ© KÄ / mÄ›sÃ­c" name="rent" type="number" step="0.01" min={0} required/>
       <Field label="ZÃ¡lohy na sluÅ¾by KÄ / mÄ›sÃ­c" name="services" type="number" step="0.01" min={0}/>
       <Textarea label="PoznÃ¡mka" name="note"/>
     </FormCard> : <div className="card empty-state"><h2>ChybÃ­ jednotka nebo nÃ¡jemnÃ­k</h2><p>BudoucÃ­ smlouvu lze naplÃ¡novat i na dnes obsazenou jednotku, pokud jejÃ­ obdobÃ­ nezaÄne dÅ™Ã­ve neÅ¾ po skonÄenÃ­ souÄasnÃ©ho nÃ¡jmu.</p></div>}
   </FormPage></Shell>;
 }
+×M:ãuí»Ñ­i­¶ÛwÜ}ö›ïÇŞm÷ÜÓoZçW÷½¦Ÿçzj/ŠÚ,¶/âwû&–‹¯Ëùè½¯éj­³

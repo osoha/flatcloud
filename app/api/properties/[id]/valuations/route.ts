@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { dateValue, moneyToCents, text } from "@/lib/forms";
 import { audit, requireManagedProperty } from "@/lib/management";
 import { goWithMessage } from "@/lib/route-response";
+import { assertAssetDateNotFuture } from "@/lib/asset-finance";
 
 const sources = new Set(Object.values(PropertyValuationSource));
 
@@ -18,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (marketValueCents <= 0) throw new Error("Tržní hodnota musí být vyšší než nula.");
     const valuation = await prisma.propertyValuationSnapshot.create({ data: {
       propertyId: id,
-      asOfDate: dateValue(form, "asOfDate", true)!,
+      asOfDate: assertAssetDateNotFuture(dateValue(form, "asOfDate", true)!),
       marketValueCents: BigInt(marketValueCents),
       source: source as PropertyValuationSource,
       note: text(form, "note"),

@@ -108,6 +108,7 @@ export function tenantAccessWhere(user:{id:string;role:string;allProperties?:boo
     { userAccesses: { some: { userId: user.id } } },
   ] };
   return { OR: [
+    { propertyLinks: { some: { property: visibleUnit.property } } },
     { leases: { some: { unit: visibleUnit } } },
     { leaseParties: { some: { lease: { unit: visibleUnit } } } },
   ] };

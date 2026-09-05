@@ -1,5 +1,6 @@
 import { prisma } from "../db";
 import { consolidatedAmount } from "./flatcloud-asset-scope";
+import { businessDateEndInstant, businessDateKey } from "../calendar";
 
 export type AssetFinanceInputRow = {
   propertyId: string;
@@ -141,20 +142,21 @@ export function calculateAssetFinanceKpis(rows: AssetFinanceInputRow[], asOf = n
 export async function loadAssetFinanceKpis(rows: Array<{ property: { id: string; name: string; flatcloudConsolidationBasisPoints: number | null }; rentRoll: { monthlyNetRentCents: number | null } }>, asOf: Date) {
   const included = rows.filter((row) => (row.property.flatcloudConsolidationBasisPoints ?? 0) > 0);
   const propertyIds = included.map((row) => row.property.id);
-  const from = new Date(asOf);
+  const asOfEnd = businessDateEndInstant(businessDateKey(asOf));
+  const from = new Date(asOfEnd);
   from.setUTCFullYear(from.getUTCFullYear() - 1);
   from.setUTCDate(from.getUTCDate() + 1);
   const budgetYear = asOf.getUTCFullYear();
   const yearStart = new Date(Date.UTC(budgetYear, 0, 1));
   const [costs, loans, valuations, budgets, yearCosts] = propertyIds.length ? await Promise.all([
-    prisma.propertyCost.findMany({ where: { propertyId: { in: propertyIds }, kind: "OPEX", status: "ACTUAL", effectiveAt: { gte: from, lte: asOf } }, select: { propertyId: true, amountCents: true } }),
-    prisma.propertyLoan.findMany({ where: { propertyId: { in: propertyIds }, active: true }, select: { id: true, propertyId: true, label: true, rateType: true, fixedUntil: true, outstandingPrincipalCents: true, monthlyDebtServiceCents: true } }),
-    prisma.propertyValuationSnapshot.findMany({ where: { propertyId: { in: propertyIds }, asOfDate: { lte: asOf } }, select: { propertyId: true, marketValueCents: true, asOfDate: true }, orderBy: [{ propertyId: "asc" }, { asOfDate: "desc" }, { createdAt: "desc" }] }),
+    prisma.propertyCost.findMany({ where: { propertyId: { in: propertyIds }, kind: "OPEX", status: "ACTUAL", effectiveAt: { gte: from, lte: asOfEnd } }, select: { propertyId: true, amountCents: true } }),
+    prisma.propertyLoan.findMany({ where: { propertyId: { in: propertyIds }, active: true }, select: { id: true, propertyId: true, label: true, rateType: true, fixedUntil: true, snapshots: { where: { asOfDate: { lte: asOfEnd } }, orderBy: [{ asOfDate: "desc" }, { createdAt: "desc" }], take: 1, select: { outstandingPrincipalCents: true, monthlyDebtServiceCents: true } } } }),
+    prisma.propertyValuationSnapshot.findMany({ where: { propertyId: { in: propertyIds }, asOfDate: { lte: asOfEnd } }, select: { propertyId: true, marketValueCents: true, asOfDate: true }, orderBy: [{ propertyId: "asc" }, { asOfDate: "desc" }, { createdAt: "desc" }] }),
     prisma.propertyBudgetLine.findMany({ where: { propertyId: { in: propertyIds }, year: budgetYear }, select: { propertyId: true, amountCents: true } }),
-    prisma.propertyCost.findMany({ where: { propertyId: { in: propertyIds }, status: { in: ["ACTUAL", "COMMITTED"] }, effectiveAt: { gte: yearStart, lte: asOf } }, select: { propertyId: true, amountCents: true } }),
+    prisma.propertyCost.findMany({ where: { propertyId: { in: propertyIds }, status: { in: ["ACTUAL", "COMMITTED"] }, effectiveAt: { gte: yearStart, lte: asOfEnd } }, select: { propertyId: true, amountCents: true } }),
   ]) : [[], [], [], [], []];
   return calculateAssetFinanceKpis(included.map((row) => {
-    const propertyLoans = loans.filter((loan) => loan.propertyId === row.property.id);
+    const propertyLoans = loans.filter((loan) => loan.propertyId === row.property.id && loan.snapshots.length).map((loan)=>({ ...loan, outstandingPrincipalCents:safeBigIntToNumber(loan.snapshots[0].outstandingPrincipalCents), monthlyDebtServiceCents:loan.snapshots[0].monthlyDebtServiceCents==null?null:safeBigIntToNumber(loan.snapshots[0].monthlyDebtServiceCents) }));
     const propertyBudgets = budgets.filter((line) => line.propertyId === row.property.id);
     const latestValuation = valuations.find((valuation) => valuation.propertyId === row.property.id);
     return {
@@ -173,3 +175,4 @@ export async function loadAssetFinanceKpis(rows: Array<{ property: { id: string;
     };
   }), asOf);
 }
+×M:ãôßGœÛÖÛuæµí¾ük†žß}´ßMöç·ÜÓ¦õõ½%‰¿ëzš+¶)àý«,z×â©ÜzJb²Û

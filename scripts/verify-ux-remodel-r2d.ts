@@ -37,7 +37,7 @@ check("create and edit flows validate access and synchronize parties", () => {
   const edit = read("app/api/properties/[id]/leases/[leaseId]/route.ts");
   for (const source of [create, edit]) {
     assert.match(source, /tenantAccessWhere/);
-    assert.match(source, /syncContractingParties/);
+    assert.match(source, /syncLeaseParties/);
     assert.match(source, /contractingPartyIds/);
   }
 });
@@ -47,8 +47,8 @@ check("form and detail distinguish primary, additional partners and occupants", 
   const detail = read("app/smlouvy/[leaseId]/page.tsx");
   const registry = read("app/smlouvy/page.tsx");
   assert.match(fields, /Hlavní smluvní strana/);
-  assert.match(fields, /Další smluvní partneři/);
-  assert.match(fields, /Obyvatele bez smluvní odpovědnosti/);
+  assert.match(fields, /Osoby a role ve smlouvě/);
+  assert.match(fields, /pouze bydlí a nemá smluvní odpovědnost/);
   assert.match(detail, /Smluvní strany/);
   assert.match(detail, /lease-party-summary/);
   assert.match(registry, /contractingPartyNames/);

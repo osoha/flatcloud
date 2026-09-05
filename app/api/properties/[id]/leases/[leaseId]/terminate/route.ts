@@ -18,11 +18,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const currentStatus = leaseStatusAt(lease, now);
     if (currentStatus === "ENDED") throw new Error("Tento nájemní vztah je již ukončený.");
     const form = await request.formData();
+    if (text(form, "confirmed") !== "yes") throw new Error("Před ukončením potvrďte kontrolu dopadů.");
 
     if (currentStatus === "FUTURE") {
       const cancellationReason = text(form, "reason");
       await prisma.$transaction(async (tx) => {
         await tx.lease.update({ where: { id: leaseId }, data: { cancelledAt: now, cancellationReason, status: LeaseStatus.ENDED } });
+        await tx.rentChangeProposal.updateMany({ where: { leaseId, status: "CONFIRMED" }, data: { status: "CANCELLED" } });
         await syncLeaseCharges(tx, leaseId, { now, fromPeriod: periodKeyForDate(lease.startDate), force: true });
         await syncUnitOccupancyCache(tx, lease.unitId, now);
       });
@@ -38,6 +40,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     await prisma.$transaction(async (tx) => {
       await tx.lease.update({ where: { id: leaseId }, data: { terminatedOn, terminationReason, status: derivedStatus } });
+      await tx.rentChangeProposal.updateMany({ where: { leaseId, status: "CONFIRMED", effectiveFrom: { gt: terminatedOn } }, data: { status: "CANCELLED" } });
       await syncLeaseCharges(tx, leaseId, { now, fromPeriod: periodKeyForDate(terminatedOn), force: true });
       await syncUnitOccupancyCache(tx, lease.unitId, now);
     });
@@ -45,6 +48,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const message = derivedStatus === LeaseStatus.ACTIVE ? "Ukončení nájmu bylo naplánováno. Do zadaného data zůstává smlouva aktivní." : "Nájemní vztah byl ukončen. Nájemník i historie smlouvy zůstávají zachovány.";
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${lease.unitId}`, "ok", message);
   } catch (error) {
-    return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Nájemní vztah se nepodařilo ukončit.");
+    return goWithMessage(request, `/smlouvy/${leaseId}/ukoncit`, "error", error instanceof Error ? error.message : "Nájemní vztah se nepodařilo ukončit.");
   }
 }

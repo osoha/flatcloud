@@ -74,7 +74,8 @@ check("valuation writes require managed property access and audit", () => {
 check("asset loader uses only confirmed assets and point-in-time valuation", () => {
   const service = read("lib/reporting/asset-finance-kpis.ts");
   assert.match(service, /flatcloudConsolidationBasisPoints \?\? 0\) > 0/);
-  assert.match(service, /asOfDate: \{ lte: asOf \}/);
+  assert.match(service, /asOfDate: \{ lte: asOfEnd \}/);
+  assert.match(service, /businessDateEndInstant\(businessDateKey\(asOf\)\)/);
   assert.match(service, /kind: "OPEX", status: "ACTUAL"/);
   assert.match(service, /monthlyDebtServiceCents == null/);
 });

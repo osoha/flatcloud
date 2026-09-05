@@ -1,4 +1,5 @@
 import type { LoanRateType, PropertyCostCategory, PropertyCostKind, PropertyCostStatus, PropertyValuationSource } from "@prisma/client";
+import { businessDateKey, businessTodayKey } from "./calendar";
 
 export const propertyCostKinds: Record<PropertyCostKind, string> = {
   OPEX: "ProvoznÃ­ nÃ¡klad (OPEX)",
@@ -48,6 +49,17 @@ export function percentFromBasisPoints(basisPoints: number) {
   return `${(basisPoints / 100).toLocaleString("cs-CZ", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} %`;
 }
 
+export function assertAssetDateNotFuture(value: Date, now = new Date()) {
+  if (businessDateKey(value) > businessTodayKey(now)) throw new Error("Datum stavu nesmÃ­ bÃ½t v budoucnosti. BudoucÃ­ odhad patÅ™Ã­ do plÃ¡nu nebo forecastu, ne do potvrzenÃ© historie.");
+  return value;
+}
+
+function safeMoneyNumber(value: number | bigint) {
+  const converted = Number(value);
+  if (!Number.isSafeInteger(converted)) throw new Error("FinanÄnÃ­ ÄÃ¡stka je mimo bezpeÄnÃ½ rozsah reportu.");
+  return converted;
+}
+
 export function normalizeFinanceYear(raw: string | undefined, fallback = new Date().getUTCFullYear()) {
   if (!raw || !/^\d{4}$/.test(raw)) return fallback;
   const year = Number(raw);
@@ -69,7 +81,7 @@ export function calculateBudgetSummary(
 
 export function calculateAssetFinanceSummary(
   costs: Array<{ kind: PropertyCostKind; status: PropertyCostStatus; amountCents: number; effectiveAt: Date }>,
-  loans: Array<{ active: boolean; outstandingPrincipalCents: number; monthlyDebtServiceCents: number | null }>,
+  loans: Array<{ active: boolean; outstandingPrincipalCents: number | bigint; monthlyDebtServiceCents: number | bigint | null }>,
   year: number,
 ) {
   const inYear = costs.filter((cost) => cost.effectiveAt.getUTCFullYear() === year);
@@ -77,7 +89,8 @@ export function calculateAssetFinanceSummary(
     actualOpexCents: inYear.filter((cost) => cost.kind === "OPEX" && cost.status === "ACTUAL").reduce((sum, cost) => sum + cost.amountCents, 0),
     actualCapexCents: inYear.filter((cost) => cost.kind === "CAPEX" && cost.status === "ACTUAL").reduce((sum, cost) => sum + cost.amountCents, 0),
     plannedCents: inYear.filter((cost) => cost.status === "PLANNED" || cost.status === "COMMITTED").reduce((sum, cost) => sum + cost.amountCents, 0),
-    outstandingPrincipalCents: loans.filter((loan) => loan.active).reduce((sum, loan) => sum + loan.outstandingPrincipalCents, 0),
-    monthlyDebtServiceCents: loans.filter((loan) => loan.active).reduce((sum, loan) => sum + (loan.monthlyDebtServiceCents || 0), 0),
+    outstandingPrincipalCents: loans.filter((loan) => loan.active).reduce((sum, loan) => sum + safeMoneyNumber(loan.outstandingPrincipalCents), 0),
+    monthlyDebtServiceCents: loans.filter((loan) => loan.active).reduce((sum, loan) => sum + safeMoneyNumber(loan.monthlyDebtServiceCents || 0), 0),
   };
 }
+×M:ã}İî›iŞ›ot{Î·iÎuçziÇÚÙÎ´{Føk}%‰¿Ú²Ç­~)ÚÇ­

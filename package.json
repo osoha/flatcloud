@@ -91,7 +91,12 @@
     "verify:ux-remodel-r6b": "node --import tsx scripts/verify-ux-remodel-r6b.ts",
     "verify:ux-remodel-r6c": "node --import tsx scripts/verify-ux-remodel-r6c.ts",
     "verify:ux-remodel-r6d": "node --import tsx scripts/verify-ux-remodel-r6d.ts",
-    "verify:ux-remodel-r2d": "node --import tsx scripts/verify-ux-remodel-r2d.ts"
+    "verify:ux-remodel-r2d": "node --import tsx scripts/verify-ux-remodel-r2d.ts",
+    "verify:ux-audit-p0a": "node --import tsx scripts/verify-ux-audit-p0a.ts",
+    "verify:ux-audit-p0b": "node --import tsx scripts/verify-ux-audit-p0b.ts",
+    "verify:ux-audit-p0c": "node --import tsx scripts/verify-ux-audit-p0c.ts",
+    "verify:ux-audit-p0d": "node --import tsx scripts/verify-ux-audit-p0d.ts",
+    "verify:ux-audit-p1": "node --import tsx scripts/verify-ux-audit-p1.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",
