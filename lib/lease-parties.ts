@@ -28,13 +28,15 @@ export function normalizeContractingPartyIds(primaryTenantId: string, tenantIds:
 
 async function syncRole(tx: Tx, leaseId: string, role: LeasePartyRole, primaryTenantId: string | null, tenantIds: string[]) {
   const retainedIds = [...(primaryTenantId ? [primaryTenantId] : []), ...tenantIds];
+  const canBePrimary = role === LeasePartyRole.CONTRACTING_PARTY;
   await tx.leaseParty.deleteMany({ where: { leaseId, role, tenantId: { notIn: retainedIds } } });
   await tx.leaseParty.updateMany({ where: { leaseId, role, isPrimary: true }, data: { isPrimary: false } });
   for (const tenantId of retainedIds) {
+    const isPrimary = canBePrimary && tenantId === primaryTenantId;
     await tx.leaseParty.upsert({
       where: { leaseId_tenantId_role: { leaseId, tenantId, role } },
-      update: { isPrimary: tenantId === primaryTenantId },
-      create: { leaseId, tenantId, role, isPrimary: tenantId === primaryTenantId },
+      update: { isPrimary },
+      create: { leaseId, tenantId, role, isPrimary },
     });
   }
 }

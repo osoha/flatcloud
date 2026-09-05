@@ -35,5 +35,10 @@ check("lease routes validate and persist every selected role", () => {
   for (const source of [create, update]) for (const marker of ["payerPartyIds", "contactPartyIds", "guarantorPartyIds", "allSelectedPartyIds"]) assert.match(source, new RegExp(marker));
   assert.match(update, /syncLeaseParties/);
 });
+check("only a contracting party may carry the primary flag", () => {
+  const parties = read("lib/lease-parties.ts");
+  assert.match(parties, /role === LeasePartyRole\.CONTRACTING_PARTY/);
+  assert.match(parties, /const isPrimary = canBePrimary && tenantId === primaryTenantId/);
+});
 
 console.log(`Audit remediation P0D ověřena: ${checks} kontrol.`);
