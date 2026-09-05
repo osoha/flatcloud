@@ -38,4 +38,3 @@ check("same-day valuation is included and annual history has no current-card fal
 });
 
 console.log(`Audit remediation P0B ovÄ›Å™ena: ${checks} kontrol.`);
-×M:ã†»kÍ5õ¾ô÷¾tå­Úñ×›ç—½éıûÓ‡ß­5ë­,r¸©¶Ïïz¸ŸÊìZ¹Ø­§Fí

@@ -134,4 +134,3 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Smlouvu se nepodaÅ™ilo upravit.");
   }
 }
-×M:ã‡×ÎöÕÿ{Ó‡xéÎµ÷žžß]ã~{ñÍ=××÷í½¦ŸÚ¦/é®Š^®Øž³øþWš±ë?•æ¬x‡®‹­zÛ

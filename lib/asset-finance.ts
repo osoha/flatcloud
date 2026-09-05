@@ -93,4 +93,3 @@ export function calculateAssetFinanceSummary(
     monthlyDebtServiceCents: loans.filter((loan) => loan.active).reduce((sum, loan) => sum + safeMoneyNumber(loan.monthlyDebtServiceCents || 0), 0),
   };
 }
-×M:ã}İî›iŞ›ot{Î·iÎuçziÇÚÙÎ´{Føk}%‰¿Ú²Ç­~)ÚÇ­

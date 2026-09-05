@@ -75,4 +75,3 @@ check("management scope is explicit and filterable by owner", () => {
 });
 
 console.log(`UX remodel R1 ovÄ›Å™en: ${count} kontrol.`);
-×M:ã‡|yÏ7ãOë^µyı[k~ão9m¯]ß¶½÷·×½,r¸©¶Ïïz¸ŸÊìkzjzZõ¶

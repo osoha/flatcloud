@@ -53,4 +53,3 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
     </FormCard> : <div className="card empty-state"><h2>Nejprve pÅ™idejte jednotku</h2><p>SamostatnÃ½ profil lze zaloÅ¾it v reÅ¾imu â€Pouze profilâ€œ. Pro spoleÄnÃ© zaloÅ¾enÃ­ smlouvy je nutnÃ¡ jednotka.</p></div>}
   </FormPage></Shell>;
 }
-×M:ã»mÎßÓß;íİZÕî|×M½óßç†µsG}ãw{Ó]¦Ÿçzj/ŠÚ,¶/âwùÚé§‰È¿‹òş– zÛ1

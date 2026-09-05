@@ -125,4 +125,3 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
 function ReportTable({ headers, rows }: { headers: string[]; rows: React.ReactNode[][] }) {
   return <div className="card portfolio-table-card report-table-card"><div className="table-toolbar"><div><h2>Detail reportu</h2><p>KlikacÃ­ zÃ¡znamy vedou pÅ™Ã­mo na souvisejÃ­cÃ­ objekt nebo jednotku.</p></div></div><div className="table-wrap"><table><thead><tr>{headers.map((header)=><th key={header}>{header}</th>)}</tr></thead><tbody>{rows.length?rows.map((row,index)=><tr key={index}>{row.map((cell,column)=><td key={column}>{cell}</td>)}</tr>):<tr><td className="table-empty" colSpan={headers.length}>Bez zÃ¡znamÅ¯</td></tr>}</tbody></table></div></div>;
 }
-×M:ã¹Û¾wÇú]óNwtsfüi®›q­xo®oÍ¦Ÿëzš+·/ëzš+·úZël

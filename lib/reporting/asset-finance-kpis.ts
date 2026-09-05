@@ -175,4 +175,3 @@ export async function loadAssetFinanceKpis(rows: Array<{ property: { id: string;
     };
   }), asOf);
 }
-×M:ãôßGœÛÖÛuæµí¾ük†žß}´ßMöç·ÜÓ¦õõ½%‰¿ëzš+¶)àý«,z×â©ÜzJb²Û

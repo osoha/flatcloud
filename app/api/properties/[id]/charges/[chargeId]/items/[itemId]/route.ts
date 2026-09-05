@@ -47,4 +47,3 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return goWithMessage(request, redirectTo, "error", error instanceof Error ? error.message : "PoloÅ¾ku se nepodaÅ™ilo upravit.");
   }
 }
-×M:ãŽí¯s‡ýkW÷ñÍ|åþùM|éö÷óMûy§úw­¦ŸÚ¦/é®Š^®Øž³øýÈZ®¬ýÈZ®ˆwø­zk?Š×¦!ßë¢ë^¶

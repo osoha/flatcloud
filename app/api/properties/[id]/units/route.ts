@@ -56,4 +56,3 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/nova`, "error", error instanceof Error ? error.message : "Jednotku se nepodaÅ™ilo vytvoÅ™it.");
   }
 }
-×M:ãŽy÷v¸Õï=ïÎ=o½úï¿tßwá¦žßVü÷o\é­¦ŸÚ¦/é®Š^®Øž³øþéâ¶Ïë¢ë^¶

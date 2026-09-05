@@ -42,4 +42,3 @@ export default async function NewLease({ params, searchParams }: { params: Promi
     </FormCard> : <div className="card empty-state"><h2>ChybÃ­ jednotka nebo nÃ¡jemnÃ­k</h2><p>BudoucÃ­ smlouvu lze naplÃ¡novat i na dnes obsazenou jednotku, pokud jejÃ­ obdobÃ­ nezaÄne dÅ™Ã­ve neÅ¾ po skonÄenÃ­ souÄasnÃ©ho nÃ¡jmu.</p></div>}
   </FormPage></Shell>;
 }
-×M:ãuí»Ñ­i­¶ÛwÜ}ö›ïÇŞm÷ÜÓoZçW÷½¦Ÿçzj/ŠÚ,¶/âwû&–‹¯Ëùè½¯éj­³

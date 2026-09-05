@@ -30,4 +30,3 @@ export default async function EditTenant({ params, searchParams }: { params: Pro
     </FormCard>
   </FormPage></Shell>;
 }
-×M:ã†ıwGµwV¹Ñ®7{ÖºÙî\ïNZwN½ç^õ÷Í¦Ÿçzj/ŠÚ,¶/âwùÚé§‰È¿µéÚÒşêkjø­ş– zÛ1
