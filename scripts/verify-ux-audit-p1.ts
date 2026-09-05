@@ -9,12 +9,13 @@ check("lease detail links directly to a dedicated termination preflight", () => 
   const detail = read("app/smlouvy/[leaseId]/page.tsx");
   const page = read("app/smlouvy/[leaseId]/ukoncit/page.tsx");
   assert.match(detail, /\/smlouvy\/\$\{lease\.id\}\/ukoncit/);
-  for (const marker of ["Otevřené předpisy", "Držená kauce", "Budoucí změny nájmu", "Co se po potvrzení stane", "Následné kroky"]) assert.match(page, new RegExp(marker));
+  for (const marker of ["Otevřené předpisy", "Držená kauce", "Naplánované finanční změny", "Co se po potvrzení stane", "Následné kroky"]) assert.match(page, new RegExp(marker));
 });
 check("termination is explicitly confirmed and cleans future proposals", () => {
   const route = read("app/api/properties/[id]/leases/[leaseId]/terminate/route.ts");
   assert.match(route, /confirmed/);
   assert.match(route, /rentChangeProposal\.updateMany/);
+  assert.match(route, /closeLeaseFinancialVersionsAt/);
   assert.match(route, /status: "CANCELLED"/);
   assert.match(route, /\/smlouvy\/\$\{leaseId\}\/ukoncit/);
 });

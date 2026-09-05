@@ -3,7 +3,8 @@ import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 import { requirePropertyAccess, tenantAccessWhere } from "@/lib/access";
 import { Shell } from "@/components/Shell";
-import { Field, Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
+import { Field, Flash, FormPage, Textarea } from "@/components/FormUi";
+import { RecoverableMutationForm } from "@/components/RecoverableMutationForm";
 import { LeaseCoreFields } from "@/components/LeaseCoreFields";
 import { dateInput } from "@/lib/forms";
 import { proposedLeaseIdentity } from "@/lib/variable-symbol";
@@ -34,11 +35,11 @@ export default async function NewLease({ params, searchParams }: { params: Promi
   return <Shell user={user} taskPropertyId={id}><FormPage title="Přidat nájemní smlouvu" description="Zvolte jednotku a dobu trvání. FlatCloud při uložení automaticky určí stav smlouvy a zablokuje jakýkoli překryv s existujícím nájemním obdobím." backHref={`/nemovitosti/${id}/smlouvy`}>
     <Flash ok={query.ok} error={query.error}/>
     <MethodologyCallout slug="najemni-smlouva"/>
-    {availableUnits.length && tenants.length ? <FormCard action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu">
+    {availableUnits.length && tenants.length ? <RecoverableMutationForm action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu" draftKey={`new-lease:${id}`}>
       <LeaseCoreFields propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, `${tenant.name} · ${tenant.communicationEmail || tenant.email || tenant.phone || (tenant.type === "COMPANY" ? "firma" : "osoba")}`])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
       <Field label="Zálohy na služby Kč / měsíc" name="services" type="number" step="0.01" min={0}/>
       <Textarea label="Poznámka" name="note"/>
-    </FormCard> : <div className="card empty-state"><h2>Chybí jednotka nebo nájemník</h2><p>Budoucí smlouvu lze naplánovat i na dnes obsazenou jednotku, pokud její období nezačne dříve než po skončení současného nájmu.</p></div>}
+    </RecoverableMutationForm> : <div className="card empty-state"><h2>Chybí jednotka nebo nájemník</h2><p>Budoucí smlouvu lze naplánovat i na dnes obsazenou jednotku, pokud její období nezačne dříve než po skončení současného nájmu.</p></div>}
   </FormPage></Shell>;
 }

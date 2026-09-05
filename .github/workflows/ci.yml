@@ -122,6 +122,7 @@ jobs:
       - run: npm run verify:ux-audit-p1
       - run: npm run verify:ux-audit-p2
       - run: npm run verify:ux-deep-repair
+      - run: npm run verify:ux-deep-wave-2
       - run: npm run verify:live-report-periods
 
   browser-smoke:

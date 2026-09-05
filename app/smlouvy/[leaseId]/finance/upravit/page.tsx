@@ -18,6 +18,7 @@ export default async function LeaseFinancialChangePage({ params, searchParams }:
   const [{ leaseId }, query] = await Promise.all([params, searchParams]);
   const lease = await prisma.lease.findFirst({ where: { id: leaseId, AND: leaseAccessWhere(user) }, include: { tenant: true, unit: { include: { property: true } }, paymentItems: true, charges: { include: { items: true, allocations: true, securityDepositOffsets: true, creditApplications: true } } } });
   if (!lease) notFound();
+  if (lease.terminatedOn || lease.cancelledAt) notFound();
   let preview: Awaited<ReturnType<typeof previewLeaseFinancialChange>> | null = null;
   let previewError: string | null = null;
   if (query.preview === "1") {

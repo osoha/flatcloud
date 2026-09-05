@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Prisma, PropertyPermission } from "@prisma/client";
 import { z } from "zod";
 import { hasAllPropertyAccess } from "../auth";
@@ -42,14 +42,20 @@ async function requirePropertyScope(actor: Actor, rawPropertyIds: string[], mini
 function serializedRows(rows: RentForecastInput[]) {
   return rows.map((row) => ({ ...row, effectiveEnd: row.effectiveEnd?.toISOString() ?? null, nextIndexationAt: row.nextIndexationAt?.toISOString() ?? null }));
 }
+export function rentForecastSnapshotFromLiveReport(report: Awaited<ReturnType<typeof loadLiveReport>>) {
+  const mfByUnit = new Map(report.mfBenchmark.rows.map((row) => [row.unitId, row.marketComparableRentCents]));
+  const rows: RentForecastInput[] = report.tenancyRows.map((row) => ({ leaseId: row.leaseId, propertyId: row.propertyId, propertyName: row.propertyName, unitId: row.unitId, unitLabel: row.unitLabel, currentRentCents: row.netRentCents, effectiveEnd: row.endDate, indexationEnabled: row.indexationEnabled, indexationPercentBps: row.indexationPercentBps, nextIndexationAt: row.nextIndexationAt, mfMarketRentCents: mfByUnit.get(row.unitId) ?? null }));
+  return { schemaVersion: 1, scope: report.properties.map((property) => ({ propertyId: property.id, propertyName: property.name })), mfReferencePeriod: report.mfBenchmark.release ? `Q${report.mfBenchmark.release.marketQuarter} ${report.mfBenchmark.release.marketYear}` : "Nedostupná", rows: serializedRows(rows) } satisfies RentForecastPlanSnapshot;
+}
+export function rentForecastSnapshotFingerprint(snapshot: RentForecastPlanSnapshot, asOfDate: Date) {
+  const canonical = { ...snapshot, scope: [...snapshot.scope].sort((a, b) => a.propertyId.localeCompare(b.propertyId)), rows: [...snapshot.rows].sort((a, b) => a.leaseId.localeCompare(b.leaseId)) };
+  return createHash("sha256").update(JSON.stringify({ asOfDate: asOfDate.toISOString().slice(0, 10), snapshot: canonical })).digest("hex");
+}
 async function captureLiveSnapshot(actor: Actor, propertyIds: string[], asOfDate: Date) {
   const report = await loadLiveReport(actor, { mode: "SELECTED", propertyIds }, asOfDate);
   const loadedIds = report.properties.map((property) => property.id).sort();
   if (loadedIds.join("|") !== [...propertyIds].sort().join("|")) throw new Error("Rozsah scénáře se nepodařilo bezpečně ověřit.");
-  const mfByUnit = new Map(report.mfBenchmark.rows.map((row) => [row.unitId, row.marketComparableRentCents]));
-  const rows: RentForecastInput[] = report.tenancyRows.map((row) => ({ leaseId: row.leaseId, propertyId: row.propertyId, propertyName: row.propertyName, unitId: row.unitId, unitLabel: row.unitLabel, currentRentCents: row.netRentCents, effectiveEnd: row.endDate, indexationEnabled: row.indexationEnabled, indexationPercentBps: row.indexationPercentBps, nextIndexationAt: row.nextIndexationAt, mfMarketRentCents: mfByUnit.get(row.unitId) ?? null }));
-  const snapshot: RentForecastPlanSnapshot = { schemaVersion: 1, scope: report.properties.map((property) => ({ propertyId: property.id, propertyName: property.name })), mfReferencePeriod: report.mfBenchmark.release ? `Q${report.mfBenchmark.release.marketQuarter} ${report.mfBenchmark.release.marketYear}` : "Nedostupná", rows: serializedRows(rows) };
-  return snapshot;
+  return rentForecastSnapshotFromLiveReport(report);
 }
 export function parseRentForecastPlanSnapshot(value: Prisma.JsonValue): RentForecastPlanSnapshot { return inputSnapshotSchema.parse(value); }
 export function snapshotForecastRows(snapshot: RentForecastPlanSnapshot): RentForecastInput[] {
@@ -83,7 +89,7 @@ function validateAssumptions(assumptions: RentForecastAssumptions) {
   for (const [label, value, maximum] of values) if (!Number.isInteger(value) || value < 0 || value > maximum) throw new Error(`${label} je mimo povolený rozsah.`);
 }
 
-export async function createRentForecastPlan(input: { name: string; note?: string | null; propertyIds: string[]; horizonMonths: number; assumptions: RentForecastAssumptions }, actor: Actor) {
+export async function createRentForecastPlan(input: { name: string; note?: string | null; propertyIds: string[]; horizonMonths: number; assumptions: RentForecastAssumptions; expectedSnapshotFingerprint?: string | null }, actor: Actor) {
   const name = input.name.trim();
   if (!name || name.length > 120) throw new Error("Název scénáře musí mít 1 až 120 znaků.");
   if (![12, 24, 36].includes(input.horizonMonths)) throw new Error("Horizont musí být 12, 24 nebo 36 měsíců.");
@@ -91,6 +97,7 @@ export async function createRentForecastPlan(input: { name: string; note?: strin
   validateAssumptions(input.assumptions);
   const asOfDate = new Date();
   const snapshot = await captureLiveSnapshot(actor, propertyIds, asOfDate);
+  if (!input.expectedSnapshotFingerprint || rentForecastSnapshotFingerprint(snapshot, asOfDate) !== input.expectedSnapshotFingerprint) throw new Error("LIVE vstupy se od zobrazeného náhledu změnily. Zkontrolujte přepočítaný scénář a uložení zopakujte.");
   const plan = await prisma.rentForecastPlan.create({ data: { seriesId: randomUUID(), revision: 1, name, asOfDate, horizonMonths: input.horizonMonths, annualGrowthBps: input.assumptions.annualGrowthBps, vacancyBps: input.assumptions.vacancyBps, collectionBps: input.assumptions.collectionBps, marketGapCaptureBps: input.assumptions.marketGapCaptureBps, inputSnapshot: snapshot as Prisma.InputJsonValue, note: input.note?.trim() || null, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
   await prisma.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision: plan.revision } })) });
   return plan;

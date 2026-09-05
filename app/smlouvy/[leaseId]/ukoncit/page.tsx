@@ -11,6 +11,7 @@ import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { outstandingCents } from "@/lib/charges";
 import { securityDepositSnapshot } from "@/lib/security-deposit";
 import { MethodologyCallout } from "@/components/MethodologyCallout";
+import { futureLeaseFinancialChangeDates } from "@/lib/lease-financial-versions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function TerminateLeasePage({ params, searchParams }: { par
   const user = await requireUser();
   const { leaseId } = await params;
   const [lease, query] = await Promise.all([
-    prisma.lease.findFirst({ where: { id: leaseId, ...leaseAccessWhere(user) }, include: { tenant: true, unit: { include: { property: true } }, charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true } }, securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] }, securityDepositMovements: { orderBy: [{ effectiveAt: "asc" }, { createdAt: "asc" }] }, rentChangeProposals: { where: { status: "CONFIRMED" } } } }),
+    prisma.lease.findFirst({ where: { id: leaseId, ...leaseAccessWhere(user) }, include: { tenant: true, unit: { include: { property: true } }, charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true } }, paymentItems: true, securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] }, securityDepositMovements: { orderBy: [{ effectiveAt: "asc" }, { createdAt: "asc" }] }, rentChangeProposals: { where: { status: "CONFIRMED" } } } }),
     searchParams,
   ]);
   if (!lease) notFound();
@@ -30,11 +31,12 @@ export default async function TerminateLeasePage({ params, searchParams }: { par
   const openCharges = lease.charges.filter((charge) => outstandingCents(charge) > 0);
   const outstanding = openCharges.reduce((sum, charge) => sum + outstandingCents(charge), 0);
   const deposit = securityDepositSnapshot(lease);
+  const futureFinancialDates = futureLeaseFinancialChangeDates(lease, new Date());
 
   return <Shell user={user} taskPropertyId={lease.unit.propertyId} taskLeaseId={lease.id}><FormPage title={future ? "Zrušit budoucí smlouvu" : "Ukončit nájemní vztah"} description={`${lease.tenant.name} · ${lease.unit.property.name} · ${lease.unit.label}`} backHref={`/smlouvy/${lease.id}`}>
     <Flash error={query.error}/>
     <MethodologyCallout slug="ukonceni-najmu" compact/>
-    <div className="card lifecycle-preflight"><div><span>Otevřené předpisy</span><strong>{openCharges.length}</strong><small>{money(outstanding)} zbývá uhradit</small></div><div><span>Držená kauce</span><strong>{money(deposit.heldPrincipalCents)}</strong><small>{deposit.heldPrincipalCents > 0 ? "Po ukončení bude k vypořádání" : "Bez evidované jistiny"}</small></div><div><span>Budoucí změny nájmu (potvrzené)</span><strong>{lease.rentChangeProposals.length}</strong><small>Změny za zadaným koncem vztahu budou zrušeny</small></div></div>
+    <div className="card lifecycle-preflight"><div><span>Otevřené předpisy</span><strong>{openCharges.length}</strong><small>{money(outstanding)} zbývá uhradit</small></div><div><span>Držená kauce</span><strong>{money(deposit.heldPrincipalCents)}</strong><small>{deposit.heldPrincipalCents > 0 ? "Po ukončení bude k vypořádání" : "Bez evidované jistiny"}</small></div><div><span>Naplánované finanční změny</span><strong>{futureFinancialDates.length}</strong><small>Počítáno od dneška; zruší se pouze změny po zadaném posledním dni vztahu</small></div></div>
     <div className="legal-warning"><strong>Co se po potvrzení stane</strong><span>Smlouva ani nájemník se nemažou. FlatCloud ukončí budoucí automatické předpisy, zachová účetní historii a podle data uvolní jednotku. Otevřené dluhy a pohyby kauce zůstanou k dořešení.</span></div>
     <FormCard action={`/api/properties/${lease.unit.propertyId}/leases/${lease.id}/terminate`} cancelHref={`/smlouvy/${lease.id}`} submitLabel={future ? "Potvrdit zrušení smlouvy" : "Potvrdit ukončení vztahu"}>
       {!future && <><Field label="Poslední den nájemního vztahu" name="terminatedOn" type="date" defaultValue={dateInput(new Date())} min={dateInput(lease.startDate)} max={dateInput(lease.endDate)} required/><p className="field muted-copy">Při dnešním datu zůstane vztah aktivní do konce dne a následující den se jednotka uvolní.</p></>}
