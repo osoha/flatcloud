@@ -52,6 +52,8 @@ check("technical, valuation and trend pages do not add unreferenced section titl
 });
 check("footer is unruled and preserves source casing", () => {
   assert.match(css, /\.qpr-footer\{[^}]*border:0[^}]*text-transform:none/);
+  assert.match(css, /\.qpr-footer\{[^}]*top:var\(--qpr-footer-top\)!important[^}]*bottom:auto!important/);
+  assert.match(html, /footerRect\(config\.footer\)/);
   assert.match(pdf, /footer: \{[^}]*fontSize: 7\.5/);
   assert.doesNotMatch(pdf, /footer: \{[^}]*borderTopWidth/);
 });
