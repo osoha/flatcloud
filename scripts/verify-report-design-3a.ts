@@ -55,7 +55,7 @@ async function main() {
   await check("secure template preview exposes no storage key", () => { assert.match(adminPage, /\/image\?variant=thumbnail/); assert.doesNotMatch(adminPage, /storageKey/); });
   await check("same background asset is reusable across content pages", () => assert.match(templates, /role: \{ in: \["OVERVIEW", "TECHNICAL", "VALUATION", "TRENDS"\] \}[\s\S]*backgroundAssetId: source\.backgroundAssetId/));
   await check("apply-to-content does not copy binary bytes", () => assert.doesNotMatch(templates, /applyTemplateBackgroundToContentPages[\s\S]{0,1000}putObject/));
-  await check("default config has FlatCloud brand colors", () => assert.deepEqual(flatCloudQuarterly2026Config.brand, { primary: "#26639F", primaryDark: "#1E4F80", primaryLight: "#DDEAF5", text: "#1F2937", muted: "#7A7A7A", border: "#D7E1EA", white: "#FFFFFF" }));
+  await check("default config has source-deck FlatCloud colors", () => assert.deepEqual(flatCloudQuarterly2026Config.brand, { primary: "#26639F", primaryDark: "#26639F", primaryLight: "#CADDF2", text: "#1F2937", muted: "#7A7A7A", border: "#CADDF2", white: "#FFFFFF" }));
   await check("default config has split cover preset", () => assert.equal(flatCloudQuarterly2026Config.cover.preset, "FLATCLOUD_SPLIT_HERO"));
   await check("default config has diagonal header preset", () => assert.equal(flatCloudQuarterly2026Config.contentHeader.preset, "FLATCLOUD_DIAGONAL_HEADER"));
   await check("no PPTX runtime parser", () => assert.doesNotMatch(`${configSource}${templates}`, /pptx|powerpoint/i));
