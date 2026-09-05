@@ -175,7 +175,7 @@ async function main() {
     service = read("lib/reporting/mf-rent/service.ts"),
     location = read("lib/reporting/mf-rent/location-service.ts"),
     scheduler = read("scripts/scheduler-cron.ts"),
-    settings = read("app/nastaveni/page.tsx"),
+    settings = read("app/nastaveni/system/page.tsx"),
     doc = read("REPORTING-V22.md"),
     ci = read(".github/workflows/ci.yml"),
     pkg = JSON.parse(read("package.json"));
