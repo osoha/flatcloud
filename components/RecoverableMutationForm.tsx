@@ -53,6 +53,7 @@ function readDraft(form: HTMLFormElement) {
         control instanceof HTMLTextAreaElement
       ) ||
       !control.name ||
+      control.type === "hidden" ||
       control.type === "file" ||
       control.type === "password"
     )
@@ -100,18 +101,21 @@ export function RecoverableMutationForm({
   cancelHref,
   submitLabel,
   draftKey,
+  idempotencyFieldName,
   children,
 }: {
   action: string;
   cancelHref: string;
   submitLabel: string;
   draftKey: string;
+  idempotencyFieldName?: string;
   children: React.ReactNode;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [idempotencyToken, setIdempotencyToken] = useState("");
 
   useEffect(() => {
     const form = formRef.current;
@@ -130,6 +134,10 @@ export function RecoverableMutationForm({
     window.addEventListener("beforeunload", warn);
     return () => { window.removeEventListener("beforeunload", warn); window.removeEventListener("pageshow", restore); };
   }, [draftKey]);
+
+  useEffect(() => {
+    if (idempotencyFieldName) setIdempotencyToken(window.crypto.randomUUID());
+  }, [idempotencyFieldName]);
 
   if (completed) return <div className="card empty-state" role="status"><h2>Formulář už byl odeslán</h2><p>Stejný zápis nelze z historie prohlížeče odeslat podruhé.</p><Link className="primary" href={cancelHref}>Pokračovat</Link></div>;
 
@@ -172,6 +180,9 @@ export function RecoverableMutationForm({
         }
       }}
     >
+      {idempotencyFieldName && (
+        <input type="hidden" name={idempotencyFieldName} value={idempotencyToken} readOnly />
+      )}
       {error && (
         <div
           className="flash error-flash field-full"
@@ -190,7 +201,7 @@ export function RecoverableMutationForm({
         >
           Zrušit
         </Link>
-        <button className="primary" type="submit" disabled={submitting}>
+        <button className="primary" type="submit" disabled={submitting || Boolean(idempotencyFieldName && !idempotencyToken)}>
           {submitting ? "Ukládám…" : submitLabel}
         </button>
       </div>

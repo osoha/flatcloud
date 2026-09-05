@@ -753,6 +753,8 @@ test("ruční platbu nelze z historie prohlížeče odeslat podruhé", async ({ 
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
   await page.goto("/platby/nova");
+  const idempotencyToken = page.locator('input[name="idempotencyKey"]');
+  await expect(idempotencyToken).toHaveValue(/^[0-9a-f-]{36}$/i);
   await page.getByLabel("Nájemní vztah / byt *").selectOption({ index: 1 });
   await page.getByLabel("Částka Kč *").fill("0.01");
   await page.getByLabel("Poznámka").fill("E2E idempotency Back guard");
