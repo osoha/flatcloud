@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export function Flash({ ok, error }: { ok?: string; error?: string }) {
   if (!ok && !error) return null;
-  return <div className={error ? "flash error-flash" : "flash success-flash"}>{error || ok}</div>;
+  return <div className={error ? "flash error-flash" : "flash success-flash"} role={error ? "alert" : "status"} aria-live={error ? "assertive" : "polite"}>{error || ok}</div>;
 }
 
 export function FormPage({ title, description, backHref, children }: { title: string; description?: string; backHref: string; children: React.ReactNode }) {

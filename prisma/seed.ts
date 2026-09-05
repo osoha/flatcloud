@@ -1,17 +1,18 @@
 import { PrismaClient } from "@prisma/client";
+import { ensureAuditScenarios } from "./seed-audit-scenarios";
 
 const prisma = new PrismaClient();
 const cents = (value: number) => value * 100;
 
 async function main() {
-  const existingProperties = await prisma.property.count();
-  if (existingProperties > 0) {
-    console.log("Demo data nebyla vložena: databáze již obsahuje nemovitosti.");
-    return;
-  }
-
   const admin = await prisma.user.findFirst({ where: { role: "SUPER_ADMIN", active: true } });
   if (!admin) throw new Error("Nejprve vytvořte administrátora příkazem npm run db:bootstrap.");
+  const existingProperties = await prisma.property.count();
+  if (existingProperties > 0) {
+    await ensureAuditScenarios(prisma, admin.id);
+    console.log("Základní demo data nebyla vložena: databáze již obsahuje nemovitosti.");
+    return;
+  }
 
   const flatcloud = await prisma.owner.create({ data: { name: "FlatCloud a.s.", ico: "09123456", affiliation: "FLATCLOUD_PARENT" } });
   const externalOwner = await prisma.owner.create({ data: { name: "Externí vlastník", affiliation: "EXTERNAL" } });
@@ -125,6 +126,8 @@ async function main() {
       }
     }
   }
+
+  await ensureAuditScenarios(prisma, admin.id);
 
   await prisma.auditLog.create({
     data: {

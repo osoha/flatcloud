@@ -677,6 +677,70 @@ test("administrátor vytvoří úkol přes skutečný formulář", async ({ page
   assertNoBrowserFailures();
 });
 
+test("Q1: bezzměnová editace zachová úrok kauce i jedinou verzi podmínek", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/smlouvy");
+  const leaseLink = page.getByRole("link", { name: /QA Q1 · Jana Bezzměnová/ });
+  const leaseUrl = await leaseLink.getAttribute("href");
+  expect(leaseUrl).toMatch(/^\/smlouvy\//);
+  await leaseLink.click();
+  await page.getByRole("link", { name: "Upravit smlouvu", exact: true }).click();
+  await expect(page.getByLabel("Úrok kauce % p.a.")).toHaveValue("2.75");
+  await page.getByRole("button", { name: "Uložit", exact: true }).click();
+  await page.goto(leaseUrl!);
+  const depositCard = page.locator(".deposit-card");
+  await expect(depositCard).toContainText(/2,75\s*%/);
+  await expect(depositCard.getByText(/2,75\s*%\s*p\.a\./)).toHaveCount(1);
+  assertNoBrowserFailures();
+});
+
+test("Q2: změna 19 000→20 000 Kč od 1. 10. zachová zářijový předpis", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/smlouvy");
+  await page.getByRole("link", { name: /QA Q2 · Petr Historie/ }).click();
+  await page.locator(".lease-action-bar").getByRole("link", { name: "Předpisy", exact: true }).click();
+  const recurringItems = page.locator(".locked-charge-item");
+  await expect(recurringItems.filter({ hasText: /1\.\s*1\.\s*2025.*30\.\s*9\.\s*2026/ })).toContainText(/19\s*000\s*Kč/);
+  await expect(recurringItems.filter({ hasText: /1\.\s*10\.\s*2026.*nadále/ })).toContainText(/20\s*000\s*Kč/);
+  await expect(page.getByRole("row").filter({ hasText: "2026-09" })).toContainText(/21\s*500\s*Kč/);
+  await expect(page.getByRole("row").filter({ hasText: "2026-10" })).toContainText(/22\s*500\s*Kč/);
+  assertNoBrowserFailures();
+});
+
+test("Q3: částečná úhrada blokuje přepis a zachová alokaci", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/smlouvy");
+  await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
+  await page.getByRole("link", { name: "Změnit nájem / služby", exact: true }).click();
+  await page.getByLabel("Nové nájemné Kč / měsíc").fill("20000");
+  await page.getByLabel("Důvod změny *").fill("QA kontrola ochrany částečné úhrady");
+  await page.getByRole("button", { name: "Zkontrolovat dopad", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Předpis 2026-10 je ručně upravený nebo už obsahuje úhradu");
+  await page.goto("/smlouvy");
+  await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
+  await page.locator(".lease-action-bar").getByRole("link", { name: "Předpisy", exact: true }).click();
+  const october = page.getByRole("row").filter({ hasText: "2026-10" });
+  await expect(october).toContainText(/10\s*000\s*Kč/);
+  await expect(october).toContainText(/11\s*500\s*Kč/);
+  assertNoBrowserFailures();
+});
+
+test("Q4: nový objekt bez účtu vede uživatele k bezpečnému doplnění", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.locator("a.property-cell").filter({ hasText: "QA Q4 · Objekt bez účtu" }).click();
+  const checklist = page.locator(".onboarding-checklist");
+  await expect(checklist.getByText("Účty pro inkaso", { exact: true })).toBeVisible();
+  await expect(checklist).toContainText("0/1 jednotek má účet");
+  await checklist.getByText("Účty pro inkaso", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Účty vlastníků jednotek", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chybí účet pro nájemné", exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("odhlášení ukončí relaci a znovu ochrání portfolio", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
