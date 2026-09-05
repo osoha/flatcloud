@@ -19,7 +19,7 @@ async function main() {
   await check("built-in template code is seeded", () => assert.match(migration, /FLATCLOUD_QUARTERLY_2026/));
   await check("built-in version one is ACTIVE", () => assert.match(migration, /system-flatcloud-quarterly-2026-v1[\s\S]*?'ACTIVE'/));
   await check("built-in version has five page roles", () => REPORT_DESIGN_PAGE_ROLES.forEach((role) => assert.match(migration, new RegExp(`'${role}', 'GENERATED'`))));
-  await check("built-in format is A4 landscape", () => assert.deepEqual(flatCloudQuarterly2026Config.page, { format: "A4", orientation: "LANDSCAPE" }));
+  await check("built-in format is source-faithful 13:9 landscape", () => assert.deepEqual(flatCloudQuarterly2026Config.page, { format: "FLATCLOUD_13X9", orientation: "LANDSCAPE" }));
   await check("generated backgrounds allow no FileAsset", () => assert.match(schema, /backgroundAssetId\s+String\?/));
   await check("ASSET activation requires an image FileAsset", () => { assert.match(templates, /backgroundMode === "ASSET"/); assert.match(templates, /mimeType: \{ startsWith: "image\/" \}/); });
   await check("template backgrounds use FileAsset and not Document", () => { assert.match(schema, /backgroundAsset\s+FileAsset\?/); assert.doesNotMatch(schema, /ReportDesignTemplatePage[\s\S]{0,900}Document\?/); });
