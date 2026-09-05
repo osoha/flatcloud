@@ -6,6 +6,9 @@ import type { ReportDesignTemplateConfig } from "@/lib/reporting/design-template
 import type { QuarterlyPropertyPresentation, PresentationTrendPoint } from "../quarterly-property-presentation-model";
 import type { QuarterlyPropertyPdfAssets } from "./quarterly-property-pdf-assets";
 import { buildQuarterlyPropertyPdfPagePlan, type QuarterlyPropertyPdfPage } from "./quarterly-property-pdf-plan";
+import reportDesignParity from "../report-design-parity";
+
+const { contentLogoRect, coverNarrativeRect, reportMasterLabel, reportPeriodLabel } = reportDesignParity;
 
 export const A4_LANDSCAPE_WIDTH = 841.89;
 export const A4_LANDSCAPE_HEIGHT = 595.28;
@@ -52,15 +55,15 @@ function GeneratedHeader({ model }: { model: QuarterlyPropertyPresentation }) {
 function ContentHeaderLabels({ model, logo }: { model: QuarterlyPropertyPresentation; logo: string }) {
   const config = model.template.config;
   return <>
-    <Text style={[styles.absolute, rect(config.contentHeader.reportLabelRect), { color: config.brand.white, fontSize: 8 }]}>Kvartální report · Q{model.report.quarter} {model.report.year}</Text>
+    <Text style={[styles.absolute, rect(config.contentHeader.reportLabelRect), { color: config.brand.white, fontSize: 8 }]}>{reportMasterLabel(model.report.quarter, model.report.year)}</Text>
     <Text style={[styles.absolute, rect(config.contentHeader.propertyTitleRect), { color: config.brand.white, fontSize: 18, fontWeight: 700 }]}>{model.property.name}</Text>
-    <Image src={logo} style={[styles.absolute, rect(config.contentHeader.logoRect), { objectFit: "contain" }]}/>
+    <Image src={logo} style={[styles.absolute, rect(contentLogoRect(config.contentHeader.logoRect)), { objectFit: "contain" }]}/>
   </>;
 }
 
 function Footer({ model }: { model: QuarterlyPropertyPresentation }) {
   const config = model.template.config;
-  return <View fixed style={[styles.footer, rect(config.footer), { borderColor: config.brand.border, color: config.brand.muted }]}><Text>{model.property.name}</Text><Text>Q{model.report.quarter} {model.report.year}</Text></View>;
+  return <View fixed style={[styles.footer, rect(config.footer), { borderColor: config.brand.border, color: config.brand.muted }]}><Text>FlatCloud | {reportPeriodLabel(model.report.quarter, model.report.year)}</Text><Text render={({ pageNumber }) => `${pageNumber}`}/></View>;
 }
 
 function ContentFrame({ model, assets, role, forceGenerated, children }: { model: QuarterlyPropertyPresentation; assets: QuarterlyPropertyPdfAssets; role: Exclude<ReportDesignPageRole, "COVER">; forceGenerated?: boolean; children: React.ReactNode }) {
@@ -81,8 +84,7 @@ function Cover({ model, assets }: { model: QuarterlyPropertyPresentation; assets
     <View fixed style={[styles.absolute, rect(config.cover.brandRect), { backgroundColor: config.brand.primary }]}/>
     {assets.primary ? <Image fixed src={assets.primary} style={[styles.absolute, rect(config.cover.imageRect), { objectFit: "cover" }]}/> : <View fixed style={[styles.absolute, rect(config.cover.imageRect), { backgroundColor: "#E5E7EB", alignItems: "center", justifyContent: "center" }]}><Text style={{ color: config.brand.muted }}>Fotografie není k dispozici</Text></View>}
     <Image fixed src={assets.logo} style={[styles.absolute, rect(config.cover.logoRect), { objectFit: "contain" }]}/>
-    <View fixed style={[styles.absolute, rect(config.cover.titleRect)]}><Text style={{ color: config.brand.white, fontSize: 25, fontWeight: 700 }}>{model.property.name}</Text><Text style={{ color: config.brand.white, fontSize: 10, marginTop: 7 }}>{model.property.address}</Text></View>
-    <Text fixed style={[styles.absolute, rect(config.cover.periodRect), { color: config.brand.white, fontSize: 13 }]}>Kvartální report · Q{model.report.quarter} {model.report.year}</Text>
+    <View fixed style={[styles.absolute, rect(coverNarrativeRect(config.cover.titleRect))]}><Text style={{ color: config.brand.white, fontSize: 25, fontWeight: 700 }}>{model.property.name}</Text><Text style={{ color: config.brand.white, fontSize: 13, marginTop: 12 }}>Kvartální report · {reportPeriodLabel(model.report.quarter, model.report.year)}</Text><Text style={{ color: config.brand.white, fontSize: 10, marginTop: 9, opacity: 0.86 }}>{model.property.address}</Text></View>
   </Page>;
 }
 

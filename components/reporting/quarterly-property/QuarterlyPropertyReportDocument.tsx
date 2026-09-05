@@ -3,6 +3,7 @@ import type { ReportDesignPageRole } from "@prisma/client";
 import type { ReportDesignTemplateConfig } from "@/lib/reporting/design-template-schema";
 import type { QuarterlyPropertyPresentation, PresentationTrendPoint } from "@/lib/reporting/presentation/quarterly-property-presentation-model";
 import { ReportDesignGeneratedBackground } from "@/components/reporting/ReportDesignGeneratedBackground";
+import { contentLogoRect, coverNarrativeRect, reportMasterLabel, reportPeriodLabel } from "@/lib/reporting/presentation/report-design-parity";
 
 const pct = (value: number) => `${value * 100}%`;
 const rect = (value: { x: number; y: number; width: number; height: number }): CSSProperties => ({ left: pct(value.x), top: pct(value.y), width: pct(value.width), height: pct(value.height) });
@@ -53,15 +54,15 @@ function Page({ model, role, title, continuation, forceGenerated = false, childr
   const backgroundMode = forceGenerated ? "GENERATED" : background.mode;
   return <section className={`qpr-page qpr-page-${role.toLowerCase()}`} style={{ "--qpr-primary": config.brand.primary, "--qpr-dark": config.brand.primaryDark, "--qpr-light": config.brand.primaryLight, "--qpr-text": config.brand.text, "--qpr-muted": config.brand.muted, "--qpr-border": config.brand.border, "--qpr-white": config.brand.white, fontFamily: `${config.typography.body}, Arial, sans-serif` } as CSSProperties} data-page-role={role} data-background-mode={backgroundMode}>
     {backgroundMode === "ASSET" && background.imageUrl ? <img className="qpr-background-asset" src={background.imageUrl} alt=""/> : role !== "COVER" && <ReportDesignGeneratedBackground config={config}/>}
-    {role !== "COVER" && <><span className="qpr-report-label" style={rect(config.contentHeader.reportLabelRect)}>Kvartální report · Q{model.report.quarter} {model.report.year}</span><strong className="qpr-property-title" style={rect(config.contentHeader.propertyTitleRect)}>{model.property.name}</strong><span className="qpr-logo qpr-content-logo" style={rect(config.contentHeader.logoRect)}><img src="/flatcloud-logo-white.png" alt="FlatCloud"/></span></>}
+    {role !== "COVER" && <><span className="qpr-report-label" style={rect(config.contentHeader.reportLabelRect)}>{reportMasterLabel(model.report.quarter, model.report.year)}</span><strong className="qpr-property-title" style={rect(config.contentHeader.propertyTitleRect)}>{model.property.name}</strong><span className="qpr-logo qpr-content-logo" style={rect(contentLogoRect(config.contentHeader.logoRect))}><img src="/flatcloud-logo-white.png" alt="FlatCloud"/></span></>}
     {title && <h2 className="qpr-section-title">{title}{continuation && continuation > 1 ? ` · pokračování ${continuation}` : ""}</h2>}
-    {children}<footer className="qpr-footer" style={rect(config.footer)}><span>{model.property.name}</span><span>Q{model.report.quarter} {model.report.year}</span></footer>
+    {children}{role !== "COVER" && <footer className="qpr-footer" style={rect(config.footer)}><span>FlatCloud | {reportPeriodLabel(model.report.quarter, model.report.year)}</span><span className="qpr-page-number" aria-hidden="true"/></footer>}
   </section>;
 }
 
 function Cover({ model }: { model: QuarterlyPropertyPresentation }) {
   const config = model.template.config;
-  return <Page model={model} role="COVER"><div className="qpr-cover-brand" style={{ ...rect(config.cover.brandRect), background: config.brand.primary }}/>{model.media.primary ? <img className="qpr-cover-photo" style={rect(config.cover.imageRect)} src={model.media.primary.imageUrl} alt={model.media.primary.caption || model.property.name}/> : <div className="qpr-photo-placeholder qpr-cover-photo" style={rect(config.cover.imageRect)}>Fotografie nebyla vybrána</div>}<span className="qpr-logo qpr-cover-logo" style={rect(config.cover.logoRect)}><img src="/flatcloud-logo-white.png" alt="FlatCloud"/></span><div className="qpr-cover-title" style={rect(config.cover.titleRect)}><h1>{model.property.name}</h1><p>{model.property.address}</p></div><span className="qpr-cover-period" style={rect(config.cover.periodRect)}>Kvartální report · Q{model.report.quarter} {model.report.year}</span></Page>;
+  return <Page model={model} role="COVER"><div className="qpr-cover-brand" style={{ ...rect(config.cover.brandRect), background: config.brand.primary }}/>{model.media.primary ? <img className="qpr-cover-photo" style={rect(config.cover.imageRect)} src={model.media.primary.imageUrl} alt={model.media.primary.caption || model.property.name}/> : <div className="qpr-photo-placeholder qpr-cover-photo" style={rect(config.cover.imageRect)}>Fotografie nebyla vybrána</div>}<span className="qpr-logo qpr-cover-logo" style={rect(config.cover.logoRect)}><img src="/flatcloud-logo-white.png" alt="FlatCloud"/></span><div className="qpr-cover-title qpr-cover-stack" style={rect(coverNarrativeRect(config.cover.titleRect))}><h1>{model.property.name}</h1><strong className="qpr-cover-cycle">Kvartální report · {reportPeriodLabel(model.report.quarter, model.report.year)}</strong><p>{model.property.address}</p></div></Page>;
 }
 
 function Overview({ model }: { model: QuarterlyPropertyPresentation }) {

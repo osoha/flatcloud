@@ -61,6 +61,7 @@
     "verify:report-design-3b3": "tsx scripts/verify-report-design-3b3.ts",
     "verify:report-design-3b4": "tsx scripts/verify-report-design-3b4.ts",
     "verify:report-design-4a": "tsx scripts/verify-report-design-4a.ts",
+    "verify:r7c-report-parity": "node --import tsx scripts/verify-r7c-report-parity.ts",
     "verify:report-trends-1": "tsx scripts/verify-report-trends-1.ts",
     "verify:mf-rent-1": "node --import tsx scripts/verify-mf-rent-1.ts && node --import tsx scripts/verify-mf-live-benchmark.ts",
     "verify:portfolio-deposit-polish": "node --import tsx scripts/verify-portfolio-deposit-polish.ts",

@@ -107,7 +107,7 @@ function main() {
       footer,
       /\{role\}|COVER|OVERVIEW|TECHNICAL|VALUATION|TRENDS/,
     );
-    assert.match(footer, /Q\{model\.report\.quarter\} \{model\.report\.year\}/);
+    assert.match(footer, /reportPeriodLabel\(model\.report\.quarter, model\.report\.year\)/);
   });
   check("footer uses readable presentation typography", () => {
     assert.match(
@@ -117,12 +117,12 @@ function main() {
     assert.match(css, /font:550 clamp\(7px,\.76vw,10px\)/);
     assert.match(css, /color:#50677f/);
   });
-  check("cover implementation is unchanged", () =>
-    assert.equal(
-      digest(segment(renderer, "function Cover", "function Overview")),
-      "b88a7c413ebd532c481f57d4969a28774140451d95cf5a323a07c5337acbe42b",
-    ),
-  );
+  check("cover uses the later collision-free deck stack", () => {
+    const cover = segment(renderer, "function Cover", "function Overview");
+    assert.match(cover, /coverNarrativeRect/);
+    assert.match(cover, /qpr-cover-stack/);
+    assert.doesNotMatch(cover, /qpr-cover-period/);
+  });
   check("overview implementation is unchanged", () =>
     assert.equal(
       digest(segment(renderer, "function Overview", "function Technical")),

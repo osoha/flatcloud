@@ -119,11 +119,10 @@ function main() {
       assert.match(pagination, /pokračování \$\{index \+ 1\}/);
     },
   );
-  check("cover and overview are unchanged", () => {
-    assert.equal(
-      digest(segment(renderer, "function Cover", "function Overview")),
-      "b88a7c413ebd532c481f57d4969a28774140451d95cf5a323a07c5337acbe42b",
-    );
+  check("cover adopts the later deck stack while overview is unchanged", () => {
+    const cover = segment(renderer, "function Cover", "function Overview");
+    assert.match(cover, /coverNarrativeRect/);
+    assert.match(cover, /qpr-cover-stack/);
     assert.equal(
       digest(segment(renderer, "function Overview", "function Technical")),
       "feeefc44496e26092c954daf1a7fd88a60069ec46a330740f120e8afa0d6d49d",
@@ -144,12 +143,12 @@ function main() {
       "80d070f2f44d0844a9eb5d69971d99eb3ae14dfba5afa932e8421b4f22e6fdd3",
     ),
   );
-  check("footer is unchanged", () =>
-    assert.match(
-      segment(renderer, "function Page", "function Cover"),
-      /<footer className="qpr-footer" style=\{rect\(config\.footer\)\}><span>\{model\.property\.name\}<\/span><span>Q\{model\.report\.quarter\} \{model\.report\.year\}<\/span><\/footer>/,
-    ),
-  );
+  check("footer adopts the reference period and page-number chrome", () => {
+    const page = segment(renderer, "function Page", "function Cover");
+    assert.match(page, /FlatCloud \| \{reportPeriodLabel/);
+    assert.match(page, /qpr-page-number/);
+    assert.match(page, /role !== "COVER"/);
+  });
   check("trends renderer and selection are unchanged", () => {
     assert.equal(
       digest(segment(renderer, "function MiniChart", "function Trends")),
