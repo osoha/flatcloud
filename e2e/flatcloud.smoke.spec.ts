@@ -681,12 +681,14 @@ test("Q1: bezzměnová editace zachová úrok kauce i jedinou verzi podmínek", 
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
   await page.goto("/smlouvy");
-  await page.getByRole("link", { name: /QA Q1 · Jana Bezzměnová/ }).click();
-  const leaseUrl = page.url();
+  const leaseLink = page.getByRole("link", { name: /QA Q1 · Jana Bezzměnová/ });
+  const leaseUrl = await leaseLink.getAttribute("href");
+  expect(leaseUrl).toMatch(/^\/smlouvy\//);
+  await leaseLink.click();
   await page.getByRole("link", { name: "Upravit smlouvu", exact: true }).click();
   await expect(page.getByLabel("Úrok kauce % p.a.")).toHaveValue("2.75");
   await page.getByRole("button", { name: "Uložit", exact: true }).click();
-  await page.goto(leaseUrl);
+  await page.goto(leaseUrl!);
   const depositCard = page.locator(".deposit-card");
   await expect(depositCard).toContainText(/2,75\s*%/);
   await expect(depositCard.getByText(/2,75\s*%\s*p\.a\./)).toHaveCount(1);
