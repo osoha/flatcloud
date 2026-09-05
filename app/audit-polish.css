@@ -6,7 +6,6 @@
 .skip-link:focus{transform:translateY(0)}
 .sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
 th{color:#59677f}
-.distribution-actions{content-visibility:auto;contain-intrinsic-size:40px 360px}
 .missing-owner-account{display:grid;gap:8px;padding:12px;border:1px solid #d92d20;border-radius:9px;background:#fff5f4;color:#7a271a}
 .missing-owner-account a{font-weight:800;color:#175fc2}
 .empty-state p,.table-empty,.field small,.muted-copy{line-height:1.55}
