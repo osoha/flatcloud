@@ -749,6 +749,21 @@ test("Q4: nový objekt bez účtu vede uživatele k bezpečnému doplnění", as
   assertNoBrowserFailures();
 });
 
+test("ruční platbu nelze z historie prohlížeče odeslat podruhé", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/platby/nova");
+  await page.getByLabel("Nájemní vztah / byt *").selectOption({ index: 1 });
+  await page.getByLabel("Částka Kč *").fill("0.01");
+  await page.getByLabel("Poznámka").fill("E2E idempotency Back guard");
+  await page.getByRole("button", { name: "Uložit a přiřadit platbu", exact: true }).click();
+  await expect(page.getByText(/Ruční platba byla přiřazena/)).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Formulář už byl odeslán", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Uložit a přiřadit platbu", exact: true })).toHaveCount(0);
+  assertNoBrowserFailures();
+});
+
 test("odhlášení ukončí relaci a znovu ochrání portfolio", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

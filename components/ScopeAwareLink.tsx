@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "flatcloud:property-scope";
-const scopedRoots = ["/portfolio", "/reporty", "/ukoly", "/revize", "/smlouvy", "/platby/nesparovane"];
+const scopedRoots = ["/portfolio", "/reporty", "/ukoly", "/revize", "/smlouvy", "/platby/nesparovane", "/platby/nova", "/distribuce"];
 
 function withPropertyScope(href: string, propertyScope: string) {
   if (!propertyScope || !scopedRoots.some((root) => href === root || href.startsWith(`${root}?`) || href.startsWith(`${root}/`))) return href;

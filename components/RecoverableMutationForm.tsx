@@ -5,6 +5,34 @@ import { useEffect, useRef, useState } from "react";
 
 type Draft = Record<string, string | boolean>;
 const volatileDrafts = new Map<string, Draft>();
+const HISTORY_DRAFTS = "__flatcloudRecoverableDrafts";
+const HISTORY_SUBMITTED = "__flatcloudSubmittedForms";
+
+function historyRecord(key: string): Record<string, Draft | boolean> {
+  const state = window.history.state as Record<string, unknown> | null;
+  const value = state?.[key];
+  return value && typeof value === "object" ? value as Record<string, Draft | boolean> : {};
+}
+
+function historyDraft(draftKey: string) {
+  const value = historyRecord(HISTORY_DRAFTS)[draftKey];
+  return value && typeof value === "object" ? value as Draft : undefined;
+}
+
+function persistDraft(draftKey: string, draft: Draft) {
+  volatileDrafts.set(draftKey, draft);
+  const state = window.history.state as Record<string, unknown> | null;
+  window.history.replaceState({ ...(state || {}), [HISTORY_DRAFTS]: { ...historyRecord(HISTORY_DRAFTS), [draftKey]: draft } }, "");
+}
+
+function clearDraft(draftKey: string, submitted = false) {
+  volatileDrafts.delete(draftKey);
+  const state = window.history.state as Record<string, unknown> | null;
+  const drafts = { ...historyRecord(HISTORY_DRAFTS) };
+  delete drafts[draftKey];
+  const submittedForms = { ...historyRecord(HISTORY_SUBMITTED), ...(submitted ? { [draftKey]: true } : {}) };
+  window.history.replaceState({ ...(state || {}), [HISTORY_DRAFTS]: drafts, [HISTORY_SUBMITTED]: submittedForms }, "");
+}
 
 function controlKey(
   control: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
@@ -54,9 +82,15 @@ function restoreDraft(form: HTMLFormElement, draft: Draft) {
     if (
       control instanceof HTMLInputElement &&
       (control.type === "checkbox" || control.type === "radio")
-    )
-      control.checked = Boolean(value);
-    else control.value = String(value);
+    ) {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "checked")?.set;
+      setter?.call(control, Boolean(value));
+    } else {
+      const prototype = control instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : control instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+      const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+      setter?.call(control, String(value));
+    }
+    control.dispatchEvent(new Event("input", { bubbles: true }));
     control.dispatchEvent(new Event("change", { bubbles: true }));
   }
 }
@@ -77,19 +111,27 @@ export function RecoverableMutationForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [completed, setCompleted] = useState(false);
 
   useEffect(() => {
     const form = formRef.current;
-    const draft = volatileDrafts.get(draftKey);
-    if (form && draft) restoreDraft(form, draft);
+    const restore = () => {
+      if (historyRecord(HISTORY_SUBMITTED)[draftKey]) { setCompleted(true); form?.reset(); return; }
+      const draft = volatileDrafts.get(draftKey) || historyDraft(draftKey);
+      if (form && draft) { restoreDraft(form, draft); window.setTimeout(() => restoreDraft(form, draft), 0); }
+    };
+    restore();
+    window.addEventListener("pageshow", restore);
     const warn = (event: BeforeUnloadEvent) => {
-      if (!volatileDrafts.has(draftKey)) return;
+      if (!volatileDrafts.has(draftKey) && !historyDraft(draftKey)) return;
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
+    return () => { window.removeEventListener("beforeunload", warn); window.removeEventListener("pageshow", restore); };
   }, [draftKey]);
+
+  if (completed) return <div className="card empty-state" role="status"><h2>Formulář už byl odeslán</h2><p>Stejný zápis nelze z historie prohlížeče odeslat podruhé.</p><Link className="primary" href={cancelHref}>Pokračovat</Link></div>;
 
   return (
     <form
@@ -97,9 +139,7 @@ export function RecoverableMutationForm({
       className="card edit-form"
       action={action}
       method="post"
-      onInput={(event) =>
-        volatileDrafts.set(draftKey, readDraft(event.currentTarget))
-      }
+      onInput={(event) => persistDraft(draftKey, readDraft(event.currentTarget))}
       onSubmit={async (event) => {
         event.preventDefault();
         if (submitting) return;
@@ -120,7 +160,8 @@ export function RecoverableMutationForm({
             );
             return;
           }
-          volatileDrafts.delete(draftKey);
+          clearDraft(draftKey, true);
+          setCompleted(true);
           window.location.assign(target.href);
         } catch {
           setError(
@@ -145,7 +186,7 @@ export function RecoverableMutationForm({
         <Link
           className="secondary"
           href={cancelHref}
-          onClick={() => volatileDrafts.delete(draftKey)}
+          onClick={() => clearDraft(draftKey)}
         >
           Zrušit
         </Link>
