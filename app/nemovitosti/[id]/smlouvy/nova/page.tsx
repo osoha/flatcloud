@@ -16,13 +16,13 @@ export const dynamic = "force-dynamic";
 export default async function NewLease({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string; unitId?: string; tenantId?: string }> }) {
   const user = await requireUser();
   const { id } = await params;
-  const [property, tenants, query, usedRows] = await Promise.all([
+  const [property, query, usedRows] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.tenant.findMany({ where: tenantAccessWhere(user), orderBy: { name: "asc" } }),
     searchParams,
     prisma.lease.findMany({ select: { variableSymbol: true } }),
   ]);
   if (!property) notFound();
+  const tenants = await prisma.tenant.findMany({ where: { AND: [tenantAccessWhere(user), { OR: [{ propertyLinks: { some: { propertyId: id } } }, { leases: { some: { unit: { propertyId: id } } } }, { leaseParties: { some: { lease: { unit: { propertyId: id } } } } }] }] }, orderBy: { name: "asc" } });
   const availableUnits = property.units;
   const used = new Set(usedRows.map((row) => row.variableSymbol));
   const identities = Object.fromEntries(availableUnits.map((unit) => [unit.id, proposedLeaseIdentity(property, unit, used)]));
@@ -35,7 +35,7 @@ export default async function NewLease({ params, searchParams }: { params: Promi
     <Flash ok={query.ok} error={query.error}/>
     <MethodologyCallout slug="najemni-smlouva"/>
     {availableUnits.length && tenants.length ? <FormCard action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu">
-      <LeaseCoreFields unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, `${tenant.name} · ${tenant.communicationEmail || tenant.email || tenant.phone || (tenant.type === "COMPANY" ? "firma" : "osoba")}`])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
+      <LeaseCoreFields propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, `${tenant.name} · ${tenant.communicationEmail || tenant.email || tenant.phone || (tenant.type === "COMPANY" ? "firma" : "osoba")}`])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
       <Field label="Zálohy na služby Kč / měsíc" name="services" type="number" step="0.01" min={0}/>
       <Textarea label="Poznámka" name="note"/>

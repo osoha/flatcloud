@@ -45,7 +45,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await syncUnitOccupancyCache(tx, lease.unitId, now);
     });
     await audit(access.user.id, "LEASE_TERMINATED", "Lease", leaseId, { propertyId: id, unitId: lease.unitId, terminatedOn: terminatedOn.toISOString(), terminationReason }, id);
-    const message = derivedStatus === LeaseStatus.ACTIVE ? "Ukončení nájmu bylo naplánováno. Do zadaného data zůstává smlouva aktivní." : "Nájemní vztah byl ukončen. Nájemník i historie smlouvy zůstávají zachovány.";
+    const message = derivedStatus === LeaseStatus.ACTIVE ? "Ukončení bylo zaznamenáno k závěru zadaného dne. Do té doby je smlouva aktivní; budoucí účetní historie zůstává dohledatelná." : "Nájemní vztah byl ukončen. Nájemník i historie smlouvy zůstávají zachovány.";
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${lease.unitId}`, "ok", message);
   } catch (error) {
     return goWithMessage(request, `/smlouvy/${leaseId}/ukoncit`, "error", error instanceof Error ? error.message : "Nájemní vztah se nepodařilo ukončit.");

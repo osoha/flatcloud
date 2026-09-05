@@ -685,6 +685,10 @@ test("Q1: bezzměnová editace zachová úrok kauce i jedinou verzi podmínek", 
   const leaseUrl = await leaseLink.getAttribute("href");
   expect(leaseUrl).toMatch(/^\/smlouvy\//);
   await leaseLink.click();
+  const rolesBefore = page.locator(".summary-list > div").filter({ hasText: "Role osob" });
+  await expect(rolesBefore).toContainText("smluvní strana");
+  await expect(rolesBefore).not.toContainText("plátce");
+  await expect(rolesBefore).not.toContainText("kontakt");
   await page.getByRole("link", { name: "Upravit smlouvu", exact: true }).click();
   await expect(page.getByLabel("Úrok kauce % p.a.")).toHaveValue("2.75");
   await page.getByRole("button", { name: "Uložit", exact: true }).click();
@@ -692,6 +696,10 @@ test("Q1: bezzměnová editace zachová úrok kauce i jedinou verzi podmínek", 
   const depositCard = page.locator(".deposit-card");
   await expect(depositCard).toContainText(/2,75\s*%/);
   await expect(depositCard.getByText(/2,75\s*%\s*p\.a\./)).toHaveCount(1);
+  const rolesAfter = page.locator(".summary-list > div").filter({ hasText: "Role osob" });
+  await expect(rolesAfter).toContainText("smluvní strana");
+  await expect(rolesAfter).not.toContainText("plátce");
+  await expect(rolesAfter).not.toContainText("kontakt");
   assertNoBrowserFailures();
 });
 
