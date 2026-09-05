@@ -184,12 +184,11 @@ function main() {
     assert.doesNotMatch(schema, /ADDITIONAL_COMMENTARY/);
   });
   check(
-    "cover overview technical valuation and trends remain unchanged",
+    "cover parity is explicit while overview technical valuation and trends remain unchanged",
     () => {
-      assert.equal(
-        digest(segment(renderer, "function Cover", "function Overview")),
-        "b88a7c413ebd532c481f57d4969a28774140451d95cf5a323a07c5337acbe42b",
-      );
+      const cover = segment(renderer, "function Cover", "function Overview");
+      assert.match(cover, /coverNarrativeRect/);
+      assert.match(cover, /qpr-cover-stack/);
       assert.equal(
         digest(segment(renderer, "function Overview", "function Technical")),
         "feeefc44496e26092c954daf1a7fd88a60069ec46a330740f120e8afa0d6d49d",

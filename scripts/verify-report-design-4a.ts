@@ -177,6 +177,9 @@ async function main() {
     renderer = read(
       "lib/reporting/presentation/pdf/QuarterlyPropertyLandscapePdfDocument.tsx",
     ),
+    htmlRenderer = read(
+      "components/reporting/quarterly-property/QuarterlyPropertyReportDocument.tsx",
+    ),
     assets = read(
       "lib/reporting/presentation/pdf/quarterly-property-pdf-assets.ts",
     ),
@@ -223,14 +226,12 @@ async function main() {
     assert.equal(renderer.match(/size=\{A4_LANDSCAPE_PAGE_SIZE\}/g)?.length, 2);
     assert.doesNotMatch(renderer, /size="A4"|orientation="landscape"/);
   });
-  await check("HTML renderer remains protected", () =>
-    assert.equal(
-      hash(
-        "components/reporting/quarterly-property/QuarterlyPropertyReportDocument.tsx",
-      ),
-      "15b7b476b210c393733274da38739fafa351c24b94e7c275bf01f2df11c5b367",
-    ),
-  );
+  await check("HTML renderer retains the R7C parity contract", () => {
+    assert.match(htmlRenderer, /reportMasterLabel/);
+    assert.match(htmlRenderer, /contentLogoRect/);
+    assert.match(htmlRenderer, /qpr-cover-stack/);
+    assert.match(htmlRenderer, /qpr-page-number/);
+  });
   await check(
     "semantic loader consumes the later reusable trend resolver",
     () => assert.match(loader, /resolveQuarterlyPropertyTrendSeries/),
@@ -519,7 +520,7 @@ async function main() {
       assert.match(cover, /<Image fixed src=\{assets\.primary\}/);
       assert.match(cover, /<Image fixed src=\{assets\.logo\}/);
       assert.match(cover, /<View fixed style=/);
-      assert.match(cover, /<Text fixed style=/);
+      assert.match(cover, /coverNarrativeRect/);
       assert.doesNotMatch(cover, /pageCanvas|wrap=\{false\}/);
       assert.doesNotMatch(cover, /<Page[^>]*wrap=\{false\}/);
     },
