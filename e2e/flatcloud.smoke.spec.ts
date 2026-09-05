@@ -726,7 +726,7 @@ test("Q3: částečná úhrada blokuje přepis a zachová alokaci", async ({ pag
   await page.getByLabel("Nové nájemné Kč / měsíc").fill("20000");
   await page.getByLabel("Důvod změny *").fill("QA kontrola ochrany částečné úhrady");
   await page.getByRole("button", { name: "Zkontrolovat dopad", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Předpis 2026-10 je ručně upravený nebo už obsahuje úhradu");
+  await expect(page.locator(".error-flash")).toContainText("Předpis 2026-10 je ručně upravený nebo už obsahuje úhradu");
   await page.goto("/smlouvy");
   await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
   await page.locator(".lease-action-bar").getByRole("link", { name: "Předpisy", exact: true }).click();
