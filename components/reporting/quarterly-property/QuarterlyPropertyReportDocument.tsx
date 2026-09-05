@@ -7,6 +7,7 @@ import { contentLogoRect, coverNarrativeRect, reportCoverPeriodLabel, reportMast
 
 const pct = (value: number) => `${value * 100}%`;
 const rect = (value: { x: number; y: number; width: number; height: number }): CSSProperties => ({ left: pct(value.x), top: pct(value.y), width: pct(value.width), height: pct(value.height) });
+const footerRect = (value: { x: number; y: number; width: number; height: number }): CSSProperties => ({ ...rect(value), "--qpr-footer-top": pct(value.y) } as CSSProperties);
 const money = (cents: number | null) => cents == null ? "—" : `${(cents / 100).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} Kč`;
 function splitText(value: string, limit: number) {
   const words = value.trim().split(/\s+/).filter(Boolean), chunks: string[] = []; let current = "";
@@ -56,7 +57,7 @@ function Page({ model, role, title, continuation, forceGenerated = false, childr
     {backgroundMode === "ASSET" && background.imageUrl ? <img className="qpr-background-asset" src={background.imageUrl} alt=""/> : role !== "COVER" && <ReportDesignGeneratedBackground config={config}/>}
     {role !== "COVER" && <><span className="qpr-report-label" style={rect(config.contentHeader.reportLabelRect)}>{reportMasterLabel(model.report.quarter, model.report.year)}</span><strong className="qpr-property-title" style={rect(config.contentHeader.propertyTitleRect)}>{model.property.name}</strong><span className="qpr-logo qpr-content-logo" style={rect(contentLogoRect(config.contentHeader.logoRect))}><img src="/flatcloud-logo-report.png" alt="FlatCloud"/></span></>}
     {title && <h2 className="qpr-section-title">{title}{continuation && continuation > 1 ? ` · pokračování ${continuation}` : ""}</h2>}
-    {children}{role !== "COVER" && <footer className="qpr-footer" style={rect(config.footer)}><span>FlatCloud | {reportPeriodLabel(model.report.quarter, model.report.year)}</span><span className="qpr-page-number" aria-hidden="true"/></footer>}
+    {children}{role !== "COVER" && <footer className="qpr-footer" style={footerRect(config.footer)}><span>FlatCloud | {reportPeriodLabel(model.report.quarter, model.report.year)}</span><span className="qpr-page-number" aria-hidden="true"/></footer>}
   </section>;
 }
 
