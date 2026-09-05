@@ -410,3 +410,10 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 
 /* UX audit polish: visible completion action */
 .compliance-complete>summary{display:inline-flex;align-items:center;width:max-content;padding:7px 10px;border:1px solid #c9daf3;border-radius:8px;background:#f3f7ff}.compliance-complete>summary::after{content:" – zapsat výsledek";font-weight:650}.compliance-complete[open]>summary{background:#e8f0ff;border-color:#9fbae6}
+
+/* UX audit P2: keyboard focus, readable empty states and motion preferences */
+:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{outline:3px solid #1769e0;outline-offset:3px}
+.primary:focus-visible,.secondary:focus-visible{box-shadow:0 0 0 4px rgba(23,105,224,.2)}
+.empty-state p,.table-empty,.field small,.muted-copy{line-height:1.55}
+.empty-state p{font-size:11px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}

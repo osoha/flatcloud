@@ -11,6 +11,7 @@ import { firstFutureAnniversary, periodKeyForDate, syncLeaseCharges } from "@/li
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "@/lib/lease-lifecycle";
 import { businessMonthKey } from "@/lib/calendar";
+import { ratePercentToBps } from "@/lib/security-deposit-core";
 
 function percentToBps(value: string | null) {
   if (!value) return null;
@@ -65,6 +66,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
     const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
     const depositCents = moneyToCents(form, "deposit");
+    const depositInterestBps = ratePercentToBps(text(form, "depositInterest") || "0");
     const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
     const autoChargesEnabled = boolValue(form, "autoChargesEnabled");
     const indexationEnabled = boolValue(form, "indexationEnabled");
@@ -88,7 +90,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await tx.tenant.update({ where: { id: tenant.id }, data: { payerAccounts: [...tenant.payerAccounts, tenantBankAccount] } });
       }
 
-      if (depositCents !== existing.depositCents) await tx.securityDepositTerm.create({ data: { leaseId, agreedAmountCents: depositCents, annualRateBps: existing.securityDepositTerms.at(-1)?.annualRateBps || 0, effectiveFrom: currentMonthStart(), createdById: access.user.id, note: "Aktualizováno z editace smlouvy." } });
+      const currentDepositInterestBps = existing.securityDepositTerms.at(-1)?.annualRateBps || 0;
+      if (depositCents !== existing.depositCents || depositInterestBps !== currentDepositInterestBps) await tx.securityDepositTerm.create({ data: { leaseId, agreedAmountCents: depositCents, annualRateBps: depositInterestBps, effectiveFrom: currentMonthStart(), createdById: access.user.id, note: "Aktualizováno z editace smlouvy." } });
 
       const updated = await tx.lease.update({
         where: { id: leaseId },

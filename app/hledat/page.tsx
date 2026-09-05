@@ -57,7 +57,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Hledání</span></div>
     <div className="page-title"><div><h1>Hledání</h1><p>Nemovitosti, jednotky, nájemníci, smlouvy, platby a úkoly v rozsahu vašich oprávnění.</p></div></div>
     <form className="card search-page-form" action="/hledat" method="get">
-      <Search size={18}/><input name="q" defaultValue={q} autoFocus placeholder="Hledat nemovitost, nájemníka, smlouvu, VS, platbu nebo úkol…"/><button className="primary" type="submit">Hledat</button>
+      <Search size={18} aria-hidden="true"/><input name="q" aria-label="Hledaný výraz" defaultValue={q} autoFocus placeholder="Hledat nemovitost, nájemníka, smlouvu, VS, platbu nebo úkol…"/><button className="primary" type="submit">Hledat</button>
     </form>
     {!q ? <div className="card empty-state"><h2>Začněte zadáním hledaného výrazu</h2><p>Můžete hledat například název domu, číslo jednotky, jméno nájemníka, variabilní symbol nebo název úkolu.</p></div> : <>
       <div className="search-summary">Nalezeno <strong>{count}</strong> výsledků pro „{q}“</div>
