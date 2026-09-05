@@ -8,7 +8,7 @@ const editPage = read("app/nemovitosti/[id]/smlouvy/[leaseId]/upravit/page.tsx")
 const editRoute = read("app/api/properties/[id]/leases/[leaseId]/route.ts");
 const e2e = read("e2e/flatcloud.smoke.spec.ts");
 const formUi = read("components/FormUi.tsx");
-const css = read("app/globals.css");
+const css = read("app/audit-polish.css");
 
 assert.match(seed, /QA_SCENARIOS_Q1_Q4_V1/);
 for (const scenario of ["Q1 · Bezzměnový round-trip", "Q2 · Změna 19→20 tis.", "Q3 · Částečná úhrada", "QA Q4 · Objekt bez účtu"]) assert.match(seed, new RegExp(scenario.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

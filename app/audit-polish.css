@@ -1,0 +1,6 @@
+/* UX audit P2: keyboard focus, readable empty states and motion preferences */
+:where(a,button,input,select,textarea,summary,[tabindex]):focus-visible{outline:3px solid #1769e0;outline-offset:3px}
+.primary:focus-visible,.secondary:focus-visible{box-shadow:0 0 0 4px rgba(23,105,224,.2)}
+.empty-state p,.table-empty,.field small,.muted-copy{line-height:1.55}
+.empty-state p{font-size:11px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
