@@ -142,8 +142,8 @@ test("interní kategorizace ukládá nový neměnný snapshot jednotky", async (
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
   await page.goto("/distribuce");
-  await expect(page.getByRole("heading", { name: "Kategorizace a distribuce", exact: true })).toBeVisible();
-  await expect(page.getByText("Interní modul · pouze FlatCloud Group", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Interní distribuce", exact: true })).toBeVisible();
+  await expect(page.getByText("Interní obchodní modul · pouze FlatCloud Group", { exact: true })).toBeVisible();
   const firstAssessment = page.locator(".distribution-assessment").first();
   await firstAssessment.getByText("Nové hodnocení", { exact: true }).click();
   await firstAssessment.getByLabel("Rating kvality *").selectOption("B_GOOD");
