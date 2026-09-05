@@ -21,10 +21,10 @@ export function Textarea({ label, name, defaultValue, full = true, placeholder, 
   return <label className={`field ${full ? "field-full" : ""}`}><span>{label}{required&&" *"}</span><textarea name={name} defaultValue={defaultValue ?? ""} placeholder={placeholder} required={required}/></label>;
 }
 
-export function Select({ label, name, defaultValue, options, required, full = false }: { label: string; name: string; defaultValue?: string; options: [string,string][]; required?: boolean; full?: boolean }) {
-  return <label className={`field ${full ? "field-full" : ""}`}><span>{label}{required&&" *"}</span><select name={name} defaultValue={defaultValue} required={required}>{options.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label>;
+export function Select({ label, name, defaultValue, options, required, full = false, disabled = false }: { label: string; name: string; defaultValue?: string; options: [string,string][]; required?: boolean; full?: boolean; disabled?: boolean }) {
+  return <label className={`field ${full ? "field-full" : ""}`}><span>{label}{required&&" *"}</span><select name={name} defaultValue={defaultValue} required={required} disabled={disabled}>{options.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select>{disabled&&defaultValue&&<input type="hidden" name={name} value={defaultValue}/>}</label>;
 }
 
-export function Checkbox({ label, name, defaultChecked = true, full = false }: { label: string; name: string; defaultChecked?: boolean; full?: boolean }) {
-  return <label className={`checkbox-field ${full ? "field-full" : ""}`}><input type="checkbox" name={name} defaultChecked={defaultChecked}/><span>{label}</span></label>;
+export function Checkbox({ label, name, defaultChecked = true, full = false, disabled = false }: { label: string; name: string; defaultChecked?: boolean; full?: boolean; disabled?: boolean }) {
+  return <label className={`checkbox-field ${full ? "field-full" : ""}`}><input type="checkbox" name={name} defaultChecked={defaultChecked} disabled={disabled}/>{disabled&&defaultChecked&&<input type="hidden" name={name} value="on"/>}<span>{label}</span></label>;
 }

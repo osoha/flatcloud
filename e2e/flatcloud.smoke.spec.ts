@@ -685,6 +685,10 @@ test("Q1: bezzměnová editace zachová úrok kauce i jedinou verzi podmínek", 
   const leaseUrl = await leaseLink.getAttribute("href");
   expect(leaseUrl).toMatch(/^\/smlouvy\//);
   await leaseLink.click();
+  const rolesBefore = page.locator(".summary-list > div").filter({ hasText: "Role osob" });
+  await expect(rolesBefore).toContainText("smluvní strana");
+  await expect(rolesBefore).not.toContainText("plátce");
+  await expect(rolesBefore).not.toContainText("kontakt");
   await page.getByRole("link", { name: "Upravit smlouvu", exact: true }).click();
   await expect(page.getByLabel("Úrok kauce % p.a.")).toHaveValue("2.75");
   await page.getByRole("button", { name: "Uložit", exact: true }).click();
@@ -692,6 +696,10 @@ test("Q1: bezzměnová editace zachová úrok kauce i jedinou verzi podmínek", 
   const depositCard = page.locator(".deposit-card");
   await expect(depositCard).toContainText(/2,75\s*%/);
   await expect(depositCard.getByText(/2,75\s*%\s*p\.a\./)).toHaveCount(1);
+  const rolesAfter = page.locator(".summary-list > div").filter({ hasText: "Role osob" });
+  await expect(rolesAfter).toContainText("smluvní strana");
+  await expect(rolesAfter).not.toContainText("plátce");
+  await expect(rolesAfter).not.toContainText("kontakt");
   assertNoBrowserFailures();
 });
 
@@ -718,7 +726,7 @@ test("Q3: částečná úhrada blokuje přepis a zachová alokaci", async ({ pag
   await page.getByLabel("Nové nájemné Kč / měsíc").fill("20000");
   await page.getByLabel("Důvod změny *").fill("QA kontrola ochrany částečné úhrady");
   await page.getByRole("button", { name: "Zkontrolovat dopad", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Předpis 2026-10 je ručně upravený nebo už obsahuje úhradu");
+  await expect(page.locator(".error-flash")).toContainText("Předpis 2026-10 je ručně upravený nebo už obsahuje úhradu");
   await page.goto("/smlouvy");
   await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
   await page.locator(".lease-action-bar").getByRole("link", { name: "Předpisy", exact: true }).click();

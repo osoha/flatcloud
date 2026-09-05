@@ -97,7 +97,8 @@
     "verify:ux-audit-p0c": "node --import tsx scripts/verify-ux-audit-p0c.ts",
     "verify:ux-audit-p0d": "node --import tsx scripts/verify-ux-audit-p0d.ts",
     "verify:ux-audit-p1": "node --import tsx scripts/verify-ux-audit-p1.ts",
-    "verify:ux-audit-p2": "node --import tsx scripts/verify-ux-audit-p2.ts"
+    "verify:ux-audit-p2": "node --import tsx scripts/verify-ux-audit-p2.ts",
+    "verify:ux-deep-repair": "node --import tsx scripts/verify-ux-deep-repair.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

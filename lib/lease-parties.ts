@@ -41,11 +41,13 @@ async function syncRole(tx: Tx, leaseId: string, role: LeasePartyRole, primaryTe
   }
 }
 
-export async function syncLeaseParties(tx: Tx, leaseId: string, primaryTenantId: string, selections: LeasePartySelections = {}) {
+type PrimaryRoleOptions = { primaryAsPayer?: boolean; primaryAsContact?: boolean };
+
+export async function syncLeaseParties(tx: Tx, leaseId: string, primaryTenantId: string, selections: LeasePartySelections = {}, options: PrimaryRoleOptions = {}) {
   const normalized = normalizeLeasePartySelections(primaryTenantId, selections);
   await syncRole(tx, leaseId, LeasePartyRole.CONTRACTING_PARTY, primaryTenantId, normalized.contractingPartyIds);
-  await syncRole(tx, leaseId, LeasePartyRole.PAYER, primaryTenantId, normalized.payerPartyIds);
-  await syncRole(tx, leaseId, LeasePartyRole.CONTACT, primaryTenantId, normalized.contactPartyIds);
+  await syncRole(tx, leaseId, LeasePartyRole.PAYER, options.primaryAsPayer === false ? null : primaryTenantId, normalized.payerPartyIds);
+  await syncRole(tx, leaseId, LeasePartyRole.CONTACT, options.primaryAsContact === false ? null : primaryTenantId, normalized.contactPartyIds);
   await syncRole(tx, leaseId, LeasePartyRole.GUARANTOR, null, normalized.guarantorPartyIds);
   return normalized;
 }

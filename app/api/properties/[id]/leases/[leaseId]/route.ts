@@ -29,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const access = await requireManagedProperty(id);
   if (!access) return go(request, "/login");
   try {
-    const existing = await prisma.lease.findFirst({ where: { id: leaseId, unit: { propertyId: id } }, include: { securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] }, paymentItems: true, charges: { include: { items: true } }, rentChangeProposals: { where: { status: "CONFIRMED", effectiveFrom: { gt: currentMonthStart() } }, orderBy: { effectiveFrom: "asc" }, take: 1 } } });
+    const existing = await prisma.lease.findFirst({ where: { id: leaseId, unit: { propertyId: id } }, include: { parties: true, securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] }, paymentItems: true, charges: { include: { items: true } }, rentChangeProposals: { where: { status: "CONFIRMED", effectiveFrom: { gt: currentMonthStart() } }, orderBy: { effectiveFrom: "asc" }, take: 1 } } });
     if (!existing) throw new Error("Smlouva nebyla nalezena.");
 
     const form = await request.formData();
@@ -120,7 +120,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           nextIndexationAt,
         },
       });
-      const partyRoles = await syncLeaseParties(tx, leaseId, tenantId, partySelections);
+      const primaryChanged = tenantId !== existing.tenantId;
+      const partyRoles = await syncLeaseParties(tx, leaseId, tenantId, partySelections, {
+        primaryAsPayer: primaryChanged || existing.parties.some((party) => party.tenantId === tenantId && party.role === "PAYER"),
+        primaryAsContact: primaryChanged || existing.parties.some((party) => party.tenantId === tenantId && party.role === "CONTACT"),
+      });
       for (const linkedTenantId of Array.from(new Set([tenantId, ...Object.values(partyRoles).flat()]))) {
         await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: linkedTenantId, propertyId: id } }, update: {}, create: { tenantId: linkedTenantId, propertyId: id } });
       }

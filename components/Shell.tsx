@@ -12,6 +12,7 @@ import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
 import { authorizationScopeLabel } from "@/lib/access-scope-label";
 import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
+import { ScopeAwareLink } from "@/components/ScopeAwareLink";
 
 type ShellUser = {
   id: string;
@@ -62,6 +63,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
   return <div className="app-shell v21-shell">
+    <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
       <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka">
         <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
@@ -103,7 +105,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         </div>
       </div>
     </aside>
-    <main className="main">
+    <main className="main" id="main-content" tabIndex={-1}>
       <header className="topbar v21-topbar">
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
@@ -120,5 +122,5 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
 }
 
 function Nav({href,icon,label,count=0}:{href:string;icon:React.ReactNode;label:string;count?:number}){
-  return <Link href={href}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</Link>;
+  return <ScopeAwareLink href={href}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
 }
