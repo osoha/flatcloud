@@ -126,6 +126,7 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R7B implementováno bez migrace:** Administrace má samostatný přehled stavu a modulový rozcestník; detailní integrace a automatizace zůstávají zachované v pracovním prostoru a formuláře se po uložení vracejí do stejného kontextu,
 - administrátorská navigace je sjednocena také na stránkách uživatelů a reportovacích šablon,
 - **R7C implementováno bez migrace:** kvartální HTML náhled, PDF renderer i administrátorský náhled používají shodný deckový master; titulní blok má bezpečný rytmus bez kolizí, obsahové logo je méně dominantní, hlavička nese referenční identitu FlatCloud, footer období a číslo strany a prázdný technický grid se vykreslí jako jeden čistý rám,
+- **R7D opravuje nedostatečnou vizuální paritu R7C:** zdrojový PPTX byl načten a změřen po jednotlivých prvcích; systémová šablona přechází z A4 na původní formát 13:9, používá přesnou diagonálu a barvy, barevné obsahové logo, typografickou hierarchii a bezlinkovou patičku zdroje. Neopodstatněné mezititulky a status badge jsou odstraněny; nová distribuční tabulka zůstává zachována,
 - referenční základ tvoří kvartální `FlatCloud_Aksamit_2Q_2026_final`; výroční `FlatCloud_H1_2025_v1` slouží pouze ke kontrole společné značky, nikoli struktury,
 - další řez pokračuje R8A — Kvalitou a technickým stavem portfolia.
 

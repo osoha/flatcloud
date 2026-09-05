@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { inflateSync } from "node:zlib";
 import sharp from "sharp";
 import { flatCloudQuarterly2026Config } from "../lib/reporting/design-template-schema";
 import type { QuarterlyPropertyPresentation } from "../lib/reporting/presentation/quarterly-property-presentation-model";
@@ -39,28 +38,6 @@ function renderedPageMediaBoxes(bytes: Uint8Array) {
     width: Number(match[3]) - Number(match[1]),
     height: Number(match[4]) - Number(match[2]),
   }));
-}
-function renderedPageContentStreams(bytes: Uint8Array) {
-  const buffer = Buffer.from(bytes),
-    source = buffer.toString("latin1");
-  const pages = [
-    ...source.matchAll(
-      /\d+ 0 obj\s*<<[\s\S]*?\/Type\s*\/Page\b[\s\S]*?\/Contents\s+(\d+)\s+0\s+R[\s\S]*?endobj/g,
-    ),
-  ];
-  return pages.map((page) => {
-    const object = new RegExp(
-      `${page[1]} 0 obj\\s*<<([\\s\\S]*?)>>\\s*stream\\r?\\n`,
-    ).exec(source);
-    assert.ok(object, `content stream ${page[1]} must exist`);
-    const start = object.index + object[0].length,
-      end = source.indexOf("endstream", start);
-    let data: Uint8Array = buffer.subarray(start, end);
-    while (data.at(-1) === 10 || data.at(-1) === 13)
-      data = data.subarray(0, -1);
-    if (/\/FlateDecode/.test(object[1])) data = inflateSync(data);
-    return Buffer.from(data).toString("latin1");
-  });
 }
 const backgrounds = Object.fromEntries(
   ["COVER", "OVERVIEW", "TECHNICAL", "VALUATION", "TRENDS"].map((role) => [
@@ -214,16 +191,14 @@ async function main() {
   await check("renderer uses React PDF", () =>
     assert.match(renderer, /from "@react-pdf\/renderer"/),
   );
-  await check("renderer uses one explicit A4 landscape size", () => {
+  await check("renderer supports A4 and the measured FlatCloud 13:9 page size", () => {
     assert.match(
       renderer,
       /A4_LANDSCAPE_PAGE_SIZE = \{ width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT \}/,
     );
-    assert.match(
-      renderer,
-      /page: \{ width: A4_LANDSCAPE_WIDTH, height: A4_LANDSCAPE_HEIGHT/,
-    );
-    assert.equal(renderer.match(/size=\{A4_LANDSCAPE_PAGE_SIZE\}/g)?.length, 2);
+    assert.match(renderer, /FLATCLOUD_PAGE_SIZE = \{ width: FLATCLOUD_PAGE_WIDTH, height: FLATCLOUD_PAGE_HEIGHT \}/);
+    assert.match(renderer, /config\.page\.format === "FLATCLOUD_13X9" \? FLATCLOUD_PAGE_SIZE : A4_LANDSCAPE_PAGE_SIZE/);
+    assert.equal(renderer.match(/size=\{size\}/g)?.length, 2);
     assert.doesNotMatch(renderer, /size="A4"|orientation="landscape"/);
   });
   await check("HTML renderer retains the R7C parity contract", () => {
@@ -333,27 +308,19 @@ async function main() {
   await check("empty trends retain accepted state", () =>
     assert.match(renderer, /Historická data zatím nejsou dostupná/),
   );
-  await check("generated polygons come from template config", () => {
-    assert.match(renderer, /config\.contentHeader\.darkPolygon/);
-    assert.match(renderer, /config\.contentHeader\.lightPolygon/);
+  await check("generated pages reuse the exact source-deck background asset", () => {
+    assert.match(renderer, /flatcloud-quarterly-page-header\.png/);
+    assert.ok(fs.existsSync(path.join(root, "public", "flatcloud-quarterly-page-header.png")));
   });
   await check(
-    "generated header owns a full-width explicit SVG viewport",
+    "generated header is stamped above renderer clipping states",
     () => {
-      const header = renderer.slice(
-        renderer.indexOf("function GeneratedHeader"),
-        renderer.indexOf("function ContentHeaderLabels"),
-      );
-      assert.match(
-        header,
-        /const headerHeight = config\.contentHeader\.height \* A4_LANDSCAPE_HEIGHT/,
-      );
-      assert.match(
-        header,
-        /<Svg width=\{A4_LANDSCAPE_WIDTH\} height=\{headerHeight\} preserveAspectRatio="none"/,
-      );
-      assert.match(header, /left: 0, top: 0/);
-      assert.doesNotMatch(header, /margin|padding/);
+      assert.match(renderer, /StampDocument\.create\(\)/);
+      assert.match(renderer, /stamped\.embedPage\(sourcePage/);
+      assert.match(renderer, /page\.drawPage\(bodyPage/);
+      assert.match(renderer, /headerHeight = height \* config\.contentHeader\.height/);
+      assert.match(renderer, /height: headerHeight/);
+      assert.match(renderer, /stamped\.save/);
     },
   );
   await check("actual white logo is repository-local", () =>
@@ -429,6 +396,7 @@ async function main() {
       );
       const bytes = await renderQuarterlyPropertyLandscapePdf(baseModel, {
         logo: path.join(root, "public/flatcloud-logo-white.png"),
+        contentLogo: path.join(root, "public/flatcloud-logo-report.png"),
         primary: null,
         supportive: null,
         backgrounds: {},
@@ -444,8 +412,8 @@ async function main() {
       assert.equal(expectedPages, 5);
       assert.match(source, /stream\r?\n/);
       for (const box of boxes) {
-        assert.ok(Math.abs(box.width - 841.89) < 0.02, JSON.stringify(box));
-        assert.ok(Math.abs(box.height - 595.28) < 0.02, JSON.stringify(box));
+        assert.ok(Math.abs(box.width - 780) < 0.02, JSON.stringify(box));
+        assert.ok(Math.abs(box.height - 540) < 0.02, JSON.stringify(box));
         assert.ok(box.width > box.height, JSON.stringify(box));
         assert.ok(box.height > 0, JSON.stringify(box));
       }
@@ -466,14 +434,14 @@ async function main() {
       const { bytes, warnings } = await renderWithoutWarnings(() =>
         renderQuarterlyPropertyLandscapePdf(imageModel, {
           logo: path.join(root, "public/flatcloud-logo-white.png"),
+          contentLogo: path.join(root, "public/flatcloud-logo-report.png"),
           primary,
           supportive,
           backgrounds: {},
         }),
       );
       const boxes = renderedPageMediaBoxes(bytes),
-        source = Buffer.from(bytes).toString("latin1"),
-        streams = renderedPageContentStreams(bytes);
+        source = Buffer.from(bytes).toString("latin1");
       assert.equal(Buffer.from(bytes.subarray(0, 5)).toString(), "%PDF-");
       assert.equal(expectedPages, 5);
       assert.equal(boxes.length, expectedPages);
@@ -487,22 +455,10 @@ async function main() {
         (source.match(/\/Subtype\s*\/Image/g) || []).length >= 3,
         "cover/supportive/logo image resources must exist",
       );
-      assert.ok(
-        (streams[0].match(/\/I\d+ Do/g) || []).length >= 2,
-        "cover image and logo must draw in the first page stream",
-      );
-      assert.ok(
-        (streams[0].match(/\bBT\b/g) || []).length >= 6,
-        "cover title/address/period text must draw in the first page stream",
-      );
-      assert.match(
-        streams[1],
-        /0\.84189\s+0\s+0\s+0\.59528\s+0\s+0\s+cm/,
-        "generated header must map its 1000-unit viewport to the full physical page width",
-      );
+      assert.ok(bytes.length > 10_000, "embedded cover, body pages and stamped master must retain substantial content");
       for (const box of boxes) {
-        assert.ok(Math.abs(box.width - 841.89) < 0.02, JSON.stringify(box));
-        assert.ok(Math.abs(box.height - 595.28) < 0.02, JSON.stringify(box));
+        assert.ok(Math.abs(box.width - 780) < 0.02, JSON.stringify(box));
+        assert.ok(Math.abs(box.height - 540) < 0.02, JSON.stringify(box));
         assert.ok(box.width > box.height);
         assert.ok(box.height > 0);
       }

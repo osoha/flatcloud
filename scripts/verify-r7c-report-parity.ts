@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { contentLogoRect, coverNarrativeRect, reportMasterLabel, reportPeriodLabel } from "../lib/reporting/presentation/report-design-parity";
+import { contentLogoRect, coverNarrativeRect, reportCoverPeriodLabel, reportMasterLabel, reportPeriodLabel } from "../lib/reporting/presentation/report-design-parity";
 
 const root = process.cwd();
 const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
@@ -9,19 +9,18 @@ let checks = 0;
 const check = (name: string, test: () => void) => { test(); checks += 1; console.log(`✓ ${checks}. ${name}`); };
 
 check("reference-style period and master labels stay canonical", () => {
-  assert.equal(reportPeriodLabel(3, 2026), "Q3 2026");
-  assert.equal(reportMasterLabel(3, 2026), "FlatCloud | Kvartální report | Q3 2026");
+  assert.equal(reportPeriodLabel(3, 2026), "3Q 2026");
+  assert.equal(reportCoverPeriodLabel(3, 2026), "3Q / 2026");
+  assert.equal(reportMasterLabel(3, 2026), "FlatCloud | Kvartální report | 3Q 2026");
 });
-check("content logo is reduced without changing its center", () => {
-  const source = { x: .735, y: .025, width: .19, height: .075 }, scaled = contentLogoRect(source);
-  assert.ok(scaled.width < source.width && scaled.height < source.height);
-  assert.ok(Math.abs((scaled.x + scaled.width / 2) - (source.x + source.width / 2)) < 1e-12);
-  assert.ok(Math.abs((scaled.y + scaled.height / 2) - (source.y + source.height / 2)) < 1e-12);
+check("content logo preserves the measured template frame", () => {
+  const source = { x: .714, y: .028, width: .225, height: .058 };
+  assert.deepEqual(contentLogoRect(source), source);
 });
 check("cover narrative gains a collision-free vertical field", () => {
   const rect = coverNarrativeRect({ x: .53, y: .38, width: .4, height: .12 });
-  assert.equal(rect.height, .42);
-  assert.ok(rect.y + rect.height <= .88);
+  assert.equal(rect.height, .16);
+  assert.ok(rect.y + rect.height <= .7);
 });
 
 const html = read("components/reporting/quarterly-property/QuarterlyPropertyReportDocument.tsx");
@@ -42,7 +41,7 @@ check("PDF mirrors the HTML hierarchy and adds real page numbers", () => {
 check("template preview mirrors production geometry", () => {
   assert.match(preview, /design-cover-stack/);
   assert.match(preview, /contentLogoRect/);
-  assert.match(preview, /FlatCloud \| Kvartální report \| Q3 2026/);
+  assert.match(preview, /FlatCloud \| Kvartální report \| 3Q 2026/);
 });
 check("empty technical report occupies one deliberate frame", () => {
   assert.match(css, /\.qpr-technical-table>\.qpr-empty\{grid-column:1\/-1;grid-row:1\/-1/);

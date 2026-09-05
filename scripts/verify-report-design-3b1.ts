@@ -37,7 +37,7 @@ function main() {
     );
     assert.equal(
       (renderer.match(/flatcloud-logo-white\.png/g) || []).length,
-      2,
+      1,
     );
   });
   check("text-only report logo placeholder is absent", () =>
@@ -46,7 +46,7 @@ function main() {
   check("admin preview uses the same actual logo", () => {
     assert.equal(
       (adminPreview.match(/flatcloud-logo-white\.png/g) || []).length,
-      2,
+      1,
     );
     assert.doesNotMatch(adminPreview, />FLATCLOUD<\/div>/);
   });
