@@ -1,5 +1,5 @@
-import { LeaseStatus, Prisma, RentTiming, TenantType } from "@prisma/client";
-import { boolValue, dateValue, intValue, moneyToCents, stringArray, text } from "./forms";
+import { LeaseStatus, Prisma, RentTiming } from "@prisma/client";
+import { boolValue, dateValue, intValue, moneyToCents, text } from "./forms";
 import { normalizePayerAccount } from "./owner-bank-account";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "./variable-symbol";
 import { firstFutureAnniversary, syncLeaseCharges } from "./charge-automation";
@@ -7,7 +7,8 @@ import { leaseStatusAt } from "./lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "./lease-lifecycle";
 import { ratePercentToBps } from "./security-deposit-core";
 import { createOpeningBalance, createOpeningDepositBalance, resolveLeaseFinancialOnboarding } from "./lease-financial-onboarding";
-import { syncContractingParties } from "./lease-parties";
+import { LeasePartySelections, syncLeaseParties } from "./lease-parties";
+import { tenantDataFromForm } from "./tenant-form";
 
 type Tx = Prisma.TransactionClient;
 
@@ -18,7 +19,7 @@ function percentToBps(value: string | null) {
   return Math.round(parsed * 100);
 }
 
-export async function createLeaseFromForm(tx: Tx, propertyId: string, form: FormData, tenantId?: string, createdById?: string, additionalContractingPartyIds: string[] = []) {
+export async function createLeaseFromForm(tx: Tx, propertyId: string, form: FormData, tenantId?: string, createdById?: string, partySelections: LeasePartySelections = {}) {
   const unitId = text(form, "unitId", true)!;
   const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
   if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
@@ -55,22 +56,24 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
       tenant = await tx.tenant.update({ where: { id: tenant.id }, data: { payerAccounts: [...tenant.payerAccounts, tenantBankAccount] } });
     }
   } else {
-    const tenantTypeRaw = text(form, "tenantType") || "PERSON";
-    const tenantType = Object.values(TenantType).includes(tenantTypeRaw as TenantType) ? tenantTypeRaw as TenantType : TenantType.PERSON;
-    const permanentAddress = tenantType === TenantType.PERSON ? text(form, "permanentAddress") : null;
-    const billingAddress = tenantType === TenantType.COMPANY ? text(form, "billingAddress") : null;
-    const billingEmail = tenantType === TenantType.COMPANY ? text(form, "billingEmail") : null;
-    const communicationEmail = tenantType === TenantType.COMPANY ? text(form, "communicationEmail") : text(form, "email");
-    tenant = await tx.tenant.create({ data: { type: tenantType, name: text(form, "name", true)!, email: communicationEmail || billingEmail, phone: text(form, "phone"), address: permanentAddress || billingAddress, ico: tenantType === TenantType.COMPANY ? text(form, "ico") : null, permanentAddress, correspondenceAddress: text(form, "correspondenceAddress"), billingAddress, billingEmail, communicationEmail, note: text(form, "tenantNote") || text(form, "note"), payerAccounts: Array.from(new Set([...stringArray(form, "payerAccounts").map(normalizePayerAccount), ...(tenantBankAccount ? [tenantBankAccount] : [])].filter(Boolean))), active: true } });
+    const tenantData = tenantDataFromForm(form);
+    tenantData.payerAccounts = Array.from(new Set([...(tenantData.payerAccounts as string[]), ...(tenantBankAccount ? [tenantBankAccount] : [])]));
+    tenant = await tx.tenant.create({ data: tenantData });
   }
+
+  await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: tenant.id, propertyId } }, update: {}, create: { tenantId: tenant.id, propertyId } });
 
   const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
   const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : [])] } } });
-  const contractingPartyIds = await syncContractingParties(tx, lease.id, tenant.id, additionalContractingPartyIds);
+  const parties = await syncLeaseParties(tx, lease.id, tenant.id, partySelections);
+  for (const linkedTenantId of Array.from(new Set(Object.values(parties).flat()))) {
+    await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: linkedTenantId, propertyId } }, update: {}, create: { tenantId: linkedTenantId, propertyId } });
+  }
+  const contractingPartyIds = [tenant.id, ...parties.contractingPartyIds];
   const opening = await createOpeningBalance(tx, { leaseId: lease.id, dueDay, rentTiming, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, type: onboarding.openingBalanceType, amountCents: onboarding.openingBalanceCents, note: onboarding.openingBalanceNote, createdById });
   if (depositCents > 0 || depositInterestBps > 0) await tx.securityDepositTerm.create({ data: { leaseId: lease.id, agreedAmountCents: depositCents, annualRateBps: depositInterestBps, effectiveFrom: startDate } });
   const openingDeposit = await createOpeningDepositBalance(tx, { leaseId: lease.id, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, heldCents: onboarding.openingDepositHeldCents, createdById });
   await syncUnitOccupancyCache(tx, unitId);
   if (autoChargesEnabled) await syncLeaseCharges(tx, lease.id, { force: true, fromPeriod: onboarding.financialTrackingFromPeriod });
-  return { tenant, lease, contractingPartyIds, unitId, ownerBankAccountId, derivedStatus, autoChargesEnabled, indexationEnabled, termType, tenantBankAccount, ...onboarding, ...opening, ...openingDeposit };
+  return { tenant, lease, contractingPartyIds, parties, unitId, ownerBankAccountId, derivedStatus, autoChargesEnabled, indexationEnabled, termType, tenantBankAccount, ...onboarding, ...opening, ...openingDeposit };
 }

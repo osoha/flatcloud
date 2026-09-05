@@ -13,12 +13,12 @@ export function FormCard({ action, children, submitLabel = "Uložit", cancelHref
   return <form className="card edit-form" action={action} method={method}><div className="form-grid">{children}</div><div className="form-actions"><Link className="secondary" href={cancelHref}>Zrušit</Link><button className="primary" type="submit">{submitLabel}</button></div></form>;
 }
 
-export function Field({ label, name, defaultValue, required, type = "text", placeholder, min, max, step, full = false }: { label: string; name: string; defaultValue?: string | number | null; required?: boolean; type?: string; placeholder?: string; min?: number; max?: number; step?: string; full?: boolean }) {
+export function Field({ label, name, defaultValue, required, type = "text", placeholder, min, max, step, full = false }: { label: string; name: string; defaultValue?: string | number | null; required?: boolean; type?: string; placeholder?: string; min?: string | number; max?: string | number; step?: string; full?: boolean }) {
   return <label className={`field ${full ? "field-full" : ""}`}><span>{label}{required&&" *"}</span><input name={name} type={type} defaultValue={defaultValue ?? ""} required={required} placeholder={placeholder} min={min} max={max} step={step}/></label>;
 }
 
-export function Textarea({ label, name, defaultValue, full = true, placeholder }: { label: string; name: string; defaultValue?: string | null; full?: boolean; placeholder?: string }) {
-  return <label className={`field ${full ? "field-full" : ""}`}><span>{label}</span><textarea name={name} defaultValue={defaultValue ?? ""} placeholder={placeholder}/></label>;
+export function Textarea({ label, name, defaultValue, full = true, placeholder, required = false }: { label: string; name: string; defaultValue?: string | null; full?: boolean; placeholder?: string; required?: boolean }) {
+  return <label className={`field ${full ? "field-full" : ""}`}><span>{label}{required&&" *"}</span><textarea name={name} defaultValue={defaultValue ?? ""} placeholder={placeholder} required={required}/></label>;
 }
 
 export function Select({ label, name, defaultValue, options, required, full = false }: { label: string; name: string; defaultValue?: string; options: [string,string][]; required?: boolean; full?: boolean }) {

@@ -584,13 +584,13 @@ test("správce přidá dalšího smluvního partnera a vztah zůstane čitelný"
   await leaseLink.click();
   await expect(page).toHaveURL(new RegExp(`${leaseUrl}$`));
   await page.getByRole("link", { name: "Upravit smlouvu", exact: true }).click();
-  const partyPicker = page.getByRole("group", { name: "Další smluvní partneři" });
+  const partyPicker = page.getByRole("group", { name: "Osoby a role ve smlouvě" });
   await expect(partyPicker).toBeVisible();
-  const secondParty = partyPicker.locator("label").filter({ hasText: "Petra Malá" }).first();
-  await secondParty.getByRole("checkbox").check();
+  const secondParty = partyPicker.locator(".lease-party-role-row").filter({ hasText: "Petra Malá" }).first();
+  await secondParty.getByRole("checkbox", { name: "Smluvní strana", exact: true }).check();
   await page.getByRole("button", { name: "Uložit", exact: true }).click();
   await page.goto(leaseUrl!);
-  const parties = page.locator(".lease-party-summary");
+  const parties = page.locator(".lease-party-summary").first();
   await expect(parties.getByRole("link", { name: /Jan Novák/ })).toBeVisible();
   await expect(parties.getByRole("link", { name: "Petra Malá", exact: true })).toBeVisible();
   assertNoBrowserFailures();

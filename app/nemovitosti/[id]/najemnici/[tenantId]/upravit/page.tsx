@@ -17,7 +17,8 @@ export default async function EditTenant({ params, searchParams }: { params: Pro
     searchParams,
   ]);
   if (!property || !tenant) notFound();
-  const relationship = await prisma.lease.findFirst({ where: { unit: unitAccessWhere(user, id), OR: [{ tenantId: tenant.id }, { parties: { some: { tenantId: tenant.id, role: "CONTRACTING_PARTY" } } }] }, orderBy: { startDate: "desc" }, select: { unitId: true } });
+  const [relationship, propertyLink] = await Promise.all([prisma.lease.findFirst({ where: { unit: unitAccessWhere(user, id), OR: [{ tenantId: tenant.id }, { parties: { some: { tenantId: tenant.id } } }] }, orderBy: { startDate: "desc" }, select: { unitId: true } }), prisma.tenantProperty.findUnique({ where: { tenantId_propertyId: { tenantId: tenant.id, propertyId: id } } })]);
+  if (!relationship && !propertyLink) notFound();
   const unitId = relationship?.unitId;
   const backHref = unitId ? `/nemovitosti/${id}/jednotky/${unitId}` : `/nemovitosti/${id}/najemnici`;
   return <Shell user={user}><FormPage title={`Upravit nájemníka: ${tenant.name}`} backHref={backHref}>

@@ -97,6 +97,28 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - kvartální a výroční podklady pro akcionáře,
 - modul dostupný pouze interním rolím a aktivům skupiny FlatCloud.
 
+### Audit remediation P0A — finanční bezpečnost a rozsah práce
+
+- obecná editace smlouvy už nemůže přepsat nájemné ani služby; z finančního headline vede primární dvoukroková cesta s budoucí účinností, důvodem a náhledem dotčených předpisů,
+- změna vytváří nové časové verze nájemného a služeb a synchronizuje pouze budoucí automatické předpisy; uhrazené či ručně upravené období změnu blokuje,
+- uhrazený měsíční předpis je uzamčený v rozhraní i serverových routách a odkazuje na auditovanou opravu platby,
+- portfolio rozsah se jednotně přenáší do úkolů, revizí, salda a nespárovaných plateb; cílové fronty filtr skutečně aplikují.
+
+### Audit remediation P0B — asset finance
+
+- jistiny a splátky úvěrů používají 64bitové haléřové hodnoty, takže běžné úvěry v desítkách milionů Kč nepadnou na databázovém limitu,
+- potvrzený stav úvěru ani ocenění nelze datovat do budoucnosti; forecast zůstává oddělený od LIVE historie,
+- asset report vybírá poslední úvěrový snapshot nejvýše k rozhodnému dni a ocenění zadané v tentýž den zahrne do celého obchodního dne,
+- historický roční podklad už nepoužije dnešní kartu úvěru jako náhradu za chybějící dobový snapshot.
+
+### Audit remediation P0C — onboarding jednotek
+
+- jednotku lze založit i před bankovním onboardingem; chybějící účet je viditelný nedokončený krok a smlouvu nadále nelze aktivovat bez cílového účtu,
+- při více účtech vlastníka aplikace žádný nehádá ani nepředvybírá, zatímco jediný jednoznačný účet nabídne automaticky,
+- z volby účtu vede přímý odkaz do profilu vlastníka a server vždy ověří, že účet patří právě zvolenému vlastníkovi,
+- správce může atomicky založit až 50 bytů z jednoduchých řádků označení, podlaží a plochy; společné vlastnictví i volitelný účet nastaví jednou,
+- checklist respektuje skutečnou závislost: jednotky → účty pro inkaso → smlouvy → předpisy.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,

@@ -7,32 +7,36 @@ import { taskCategories, taskPriorities, taskStatuses } from "@/lib/labels";
 import { openTaskStatuses } from "@/lib/operations";
 import { Shell } from "@/components/Shell";
 import { NavigableTableRow } from "@/components/NavigableTableRow";
+import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
+import { parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds } from "@/lib/portfolio-selection";
 
 export const dynamic = "force-dynamic";
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<{ propertyId?: string; status?: string }> }) {
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ properties?: string; propertyId?: string; status?: string }> }) {
   const user = await requireUser();
   const query = await searchParams;
-  const properties = await accessibleProperties(user);
+  const availableProperties = await accessibleProperties(user);
+  const selection = parsePortfolioSelection(query);
+  const allowedIds = selectedPropertyIds(selection, availableProperties.map((property) => property.id));
+  const properties = availableProperties.filter((property) => allowedIds.includes(property.id));
   const fullAccess = hasAllPropertyAccess(user);
   const propertyIds = properties.map((property) => property.id);
   const propertyWideIds = fullAccess ? propertyIds : properties.filter((property)=>property.memberships.some((m)=>m.userId===user.id)).map((property)=>property.id);
   const visibleUnitIds = properties.flatMap((property)=>property.units.map((unit)=>unit.id));
   const taskScope = fullAccess ? { propertyId: { in: propertyIds } } : { OR: [{ propertyId: { in: propertyWideIds } }, { unitId: { in: visibleUnitIds } }] };
   const statusWhere = query.status === "open" ? { status: { in: openTaskStatuses } } : query.status === "done" ? { status: "DONE" as const } : {};
-  const propertyWhere = query.propertyId && propertyIds.includes(query.propertyId) ? { propertyId: query.propertyId } : {};
   const tasks = propertyIds.length ? await prisma.task.findMany({
-    where: { AND: [taskScope, statusWhere, propertyWhere] },
+    where: { AND: [taskScope, statusWhere] },
     include: { property: true, unit: true, tenant: true, assignee: true, _count: { select: { entries: true } } },
     orderBy: [{ status: "asc" }, { dueAt: "asc" }, { updatedAt: "desc" }],
   }) : [];
   const open = tasks.filter((task) => openTaskStatuses.includes(task.status)).length;
   const collection = tasks.filter((task) => task.category === "COLLECTION" && openTaskStatuses.includes(task.status)).length;
   const overdue = tasks.filter((task) => task.dueAt && task.dueAt < new Date() && openTaskStatuses.includes(task.status)).length;
-  const selectedProperty = query.propertyId ? properties.find((property)=>property.id===query.propertyId) : null;
-  return <Shell user={user} taskPropertyId={selectedProperty?.id}><div className="page">
-    <div className="page-title"><div><h1>Úkoly a případy</h1><p>{selectedProperty ? `${selectedProperty.name} · ` : ""}Jedno místo pro provozní úkoly, vymáhání nájemného a komunikaci mezi správcem a vlastníkem.</p></div></div>
-    <div className="task-status-tabs"><Link className={!query.status?"active":""} href={query.propertyId?`/ukoly?propertyId=${query.propertyId}`:"/ukoly"}>Vše</Link><Link className={query.status==="open"?"active":""} href={`/ukoly?status=open${query.propertyId?`&propertyId=${query.propertyId}`:""}`}>Otevřené</Link><Link className={query.status==="done"?"active":""} href={`/ukoly?status=done${query.propertyId?`&propertyId=${query.propertyId}`:""}`}>Hotové</Link>{selectedProperty&&<Link href="/ukoly">Zrušit filtr: {selectedProperty.name}</Link>}</div>
+  const selectionValue = selection.mode === "ALL" ? "" : `&properties=${encodeURIComponent(allowedIds.join(","))}`;
+  return <Shell user={user} taskPropertyId={properties.length===1?properties[0].id:undefined}><div className="page">
+    <div className="page-title"><div><h1>Úkoly a případy</h1><p>Jedno místo pro provozní úkoly, vymáhání nájemného a komunikaci mezi správcem a vlastníkem.</p><span className="scope-context-badge">{portfolioSelectionLabel(selection,properties.length,availableProperties.length)}</span></div><PortfolioScopePicker availableProperties={availableProperties.map((property)=>({id:property.id,name:property.name,address:property.address,city:property.city,active:property.active,ownerId:property.communicationOwner?.id||property.owner.id,ownerName:property.communicationOwner?.name||property.owner.name,scopeKind:property.flatcloudConsolidationBasisPoints==null?"UNCLASSIFIED" as const:property.flatcloudConsolidationBasisPoints>0?"FLATCLOUD" as const:"EXTERNAL" as const}))} selection={selection.mode==="ALL"?selection:{mode:"SELECTED",propertyIds:allowedIds}}/></div>
+    <div className="task-status-tabs"><Link className={!query.status?"active":""} href={`/ukoly?${selectionValue.slice(1)}`}>Vše</Link><Link className={query.status==="open"?"active":""} href={`/ukoly?status=open${selectionValue}`}>Otevřené</Link><Link className={query.status==="done"?"active":""} href={`/ukoly?status=done${selectionValue}`}>Hotové</Link></div>
     <div className="stat-grid compact-stats"><MiniStat label="Otevřené" value={String(open)} note="vyžadují řešení"/><MiniStat label="Upomínky" value={String(collection)} note="aktivní případy" bad={collection>0}/><MiniStat label="Po termínu" value={String(overdue)} note="úkoly po deadline" bad={overdue>0}/></div>
     <div className="card portfolio-table-card"><div className="table-toolbar"><div><h2>Pracovní fronta</h2><p>Vlastník vidí stav případu a průběžné zápisy bez nutnosti obvolávat správce.</p></div></div>
       <div className="table-wrap"><table><thead><tr><th>Úkol</th><th>Nemovitost</th><th>Typ</th><th>Odpovědný</th><th>Termín</th><th>Priorita</th><th>Stav</th><th></th></tr></thead><tbody>

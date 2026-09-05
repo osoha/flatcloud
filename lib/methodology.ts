@@ -41,6 +41,16 @@ export const methodologyChapters: MethodologyChapter[] = [
     href: "/reporty/predpisy",
   },
   {
+    slug: "ukonceni-najmu",
+    category: "Nájemní vztah",
+    title: "Ukončení nájemního vztahu",
+    summary: "Kontrolovaný postup od data ukončení přes poslední předpisy a odečty až po vypořádání kauce.",
+    audience: "Správce nájmů",
+    steps: ["Ověřte skutečné datum a právní důvod ukončení.", "Zkontrolujte otevřené předpisy, poslední platbu a budoucí změny nájemného.", "Zapište konečné odečty a připravte vyúčtování služeb.", "Vypořádejte kauci, škody, úroky a případný zůstatek.", "Teprve poté uzavřete návazné provozní úkoly a připravte jednotku k dalšímu nájmu."],
+    check: "Historie smlouvy zůstává zachována, budoucí automatika za koncem je zastavena a každý finanční zůstatek má další krok.",
+    href: "/smlouvy",
+  },
+  {
     slug: "kauce",
     category: "Finance",
     title: "Kauce v celém lifecycle",

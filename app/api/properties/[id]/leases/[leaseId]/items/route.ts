@@ -12,6 +12,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const lease = await prisma.lease.findFirst({ where: { id: leaseId, unit: { propertyId: id } } });
     if (!lease) throw new Error("Smlouva nebyla nalezena.");
     const form = await request.formData();
+    const category = (text(form, "category") || "OTHER") as ChargeCategory;
+    if (["RENT", "SERVICES"].includes(category)) throw new Error("Nájemné a služby založte přes změnu financí smlouvy, aby zůstala zachována časová historie.");
     const validFrom = dateValue(form, "validFrom", true)!;
     const validTo = dateValue(form, "validTo");
     if (validTo && validTo < validFrom) throw new Error("Konec platnosti nesmí být před začátkem.");
@@ -19,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       data: {
         leaseId,
         name: text(form, "name", true)!,
-        category: (text(form, "category") || "OTHER") as ChargeCategory,
+        category,
         amountCents: moneyToCents(form, "amount"),
         validFrom,
         validTo,

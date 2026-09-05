@@ -4,14 +4,13 @@ import { boolValue, dateValue, intValue, moneyToCents, stringArray, text } from 
 import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { tenantAccessWhere } from "@/lib/access";
-import { normalizeContractingPartyIds, syncContractingParties } from "@/lib/lease-parties";
+import { allSelectedPartyIds, normalizeLeasePartySelections, syncLeaseParties } from "@/lib/lease-parties";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
-import { firstFutureAnniversary, periodKeyForDate, replaceRecurringAmount, syncLeaseCharges } from "@/lib/charge-automation";
+import { firstFutureAnniversary, periodKeyForDate, syncLeaseCharges } from "@/lib/charge-automation";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { assertNoLeaseOverlap, syncUnitOccupancyCache } from "@/lib/lease-lifecycle";
 import { businessMonthKey } from "@/lib/calendar";
-import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
 
 function percentToBps(value: string | null) {
   if (!value) return null;
@@ -35,8 +34,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const unitId = text(form, "unitId", true)!;
     const tenantId = text(form, "tenantId", true)!;
-    const additionalTenantIds = normalizeContractingPartyIds(tenantId, stringArray(form, "contractingPartyIds"));
-    const requestedTenantIds = [tenantId, ...additionalTenantIds];
+    const partySelections = normalizeLeasePartySelections(tenantId, {
+      contractingPartyIds: stringArray(form, "contractingPartyIds"),
+      payerPartyIds: stringArray(form, "payerPartyIds"),
+      contactPartyIds: stringArray(form, "contactPartyIds"),
+      guarantorPartyIds: stringArray(form, "guarantorPartyIds"),
+    });
+    const requestedTenantIds = allSelectedPartyIds(tenantId, partySelections);
     const timingRaw = text(form, "rentTiming") || "ADVANCE";
     const rentTiming = Object.values(RentTiming).includes(timingRaw as RentTiming) ? timingRaw as RentTiming : RentTiming.ADVANCE;
 
@@ -60,8 +64,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
     const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
-    const rentCents = moneyToCents(form, "rent");
-    const servicesCents = moneyToCents(form, "services");
     const depositCents = moneyToCents(form, "deposit");
     const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
     const autoChargesEnabled = boolValue(form, "autoChargesEnabled");
@@ -69,9 +71,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const indexationPercentBps = indexationEnabled ? percentToBps(text(form, "indexationPercent")) : null;
     const indexationChanged = indexationEnabled !== existing.indexationEnabled || indexationPercentBps !== existing.indexationPercentBps || startDate.getTime() !== existing.startDate.getTime();
     const nextIndexationAt = indexationEnabled ? (indexationChanged || !existing.nextIndexationAt ? firstFutureAnniversary(startDate) : existing.nextIndexationAt) : null;
-    const effectiveFrom = startDate > currentMonthStart() ? startDate : currentMonthStart();
     const futureRentChange = existing.rentChangeProposals[0] || null;
-    const liveAmounts = rentRollAmountsAt(existing, new Date());
     if (futureRentChange && indexationChanged) throw new Error("Smlouva má potvrzenou budoucí změnu nájemného. Indexaci upravte až po nové revizi valorizačního plánu.");
     if (futureRentChange && endDate && endDate < futureRentChange.effectiveFrom) throw new Error("Konec smlouvy je před potvrzenou budoucí změnou nájemného. Nejprve opravte valorizační plán.");
     const derivedStatus = leaseStatusAt({ startDate, endDate, terminatedOn: existing.terminatedOn, cancelledAt: existing.cancelledAt }) as LeaseStatus;
@@ -88,12 +88,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         await tx.tenant.update({ where: { id: tenant.id }, data: { payerAccounts: [...tenant.payerAccounts, tenantBankAccount] } });
       }
 
-      // Reconcile both canonical components on every save. Historical/imported data may
-      // contain overlapping RENT/SERVICES rows even when the raw lease totals are already
-      // correct; leaving those rows in place makes generated monthly charges look random.
-      await replaceRecurringAmount(tx, leaseId, "RENT", rentCents, effectiveFrom, futureRentChange ? { preserveFutureFrom: futureRentChange.effectiveFrom } : {});
-      await replaceRecurringAmount(tx, leaseId, "SERVICES", servicesCents, effectiveFrom);
-      if (depositCents !== existing.depositCents) await tx.securityDepositTerm.create({ data: { leaseId, agreedAmountCents: depositCents, annualRateBps: existing.securityDepositTerms.at(-1)?.annualRateBps || 0, effectiveFrom, createdById: access.user.id, note: "Aktualizováno z editace smlouvy." } });
+      if (depositCents !== existing.depositCents) await tx.securityDepositTerm.create({ data: { leaseId, agreedAmountCents: depositCents, annualRateBps: existing.securityDepositTerms.at(-1)?.annualRateBps || 0, effectiveFrom: currentMonthStart(), createdById: access.user.id, note: "Aktualizováno z editace smlouvy." } });
 
       const updated = await tx.lease.update({
         where: { id: leaseId },
@@ -108,8 +103,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           dueDay,
           variableSymbol,
           rentTiming,
-          rentCents: futureRentChange ? existing.rentCents : rentCents,
-          servicesCents,
           depositCents,
           note: text(form, "note"),
           remindersPausedUntil: dateValue(form, "remindersPausedUntil"),
@@ -124,15 +117,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
           nextIndexationAt,
         },
       });
-      await syncContractingParties(tx, leaseId, tenantId, additionalTenantIds);
+      const partyRoles = await syncLeaseParties(tx, leaseId, tenantId, partySelections);
+      for (const linkedTenantId of Array.from(new Set([tenantId, ...Object.values(partyRoles).flat()]))) {
+        await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: linkedTenantId, propertyId: id } }, update: {}, create: { tenantId: linkedTenantId, propertyId: id } });
+      }
 
       await syncUnitOccupancyCache(tx, unitId);
       if (existing.unitId !== unitId) await syncUnitOccupancyCache(tx, existing.unitId);
-      if (autoChargesEnabled) await syncLeaseCharges(tx, leaseId, { fromPeriod: periodKeyForDate(effectiveFrom), force: true });
+      if (autoChargesEnabled) await syncLeaseCharges(tx, leaseId, { fromPeriod: periodKeyForDate(currentMonthStart()), force: true });
       return updated;
     });
 
-    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, lifecycleStatus: derivedStatus, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), contractingPartyIds: requestedTenantIds, autoChargesEnabled, indexationEnabled, confirmedFutureRentChangePreserved: Boolean(futureRentChange), amountsChanged: rentCents !== liveAmounts.rent.amountCents || servicesCents !== liveAmounts.services.amountCents }, id);
+    await audit(access.user.id, "LEASE_UPDATED", "Lease", lease.id, { propertyId: id, lifecycleStatus: derivedStatus, termType, ownerBankAccountId, tenantBankAccount: Boolean(tenantBankAccount), partyTenantIds: requestedTenantIds, partyRoles: partySelections, autoChargesEnabled, indexationEnabled, confirmedFutureRentChangePreserved: Boolean(futureRentChange), financialAmountsEditableHere: false }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}`, "ok", futureRentChange ? "Smlouva byla upravena; potvrzená budoucí změna nájemného zůstala zachována." : autoChargesEnabled ? "Smlouva byla upravena a budoucí předpisy synchronizovány." : "Smlouva byla upravena.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/${leaseId}/upravit`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo upravit.");

@@ -52,8 +52,8 @@ check("contracting parties are explicit and occupants remain separate", () => {
   const fields = read("components/LeaseCoreFields.tsx");
   const pipeline = read("UX-REMODEL-PIPELINE.md");
   assert.match(fields, /Hlavní smluvní strana/);
-  assert.match(fields, /Další smluvní partneři/);
-  assert.match(fields, /Obyvatele bez smluvní odpovědnosti evidujte zvlášť/);
+  assert.match(fields, /Osoby a role ve smlouvě/);
+  assert.match(fields, /pouze bydlí a nemá smluvní odpovědnost/);
   assert.match(pipeline, /R2D implementováno aditivně/);
 });
 

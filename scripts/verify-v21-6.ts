@@ -28,7 +28,7 @@ const checks: Array<[string, boolean]> = [
   ["property quick actions", read("app/nemovitosti/[id]/[section]/page.tsx").includes(`/najemnici/novy`) && read("app/nemovitosti/[id]/[section]/page.tsx").includes(`/smlouvy/nova`)],
   ["new property building type select", read("app/nemovitosti/nova/page.tsx").includes('label="Typ objektu"') && read("app/nemovitosti/nova/page.tsx").includes("buildingTypeOptions")],
   ["safe building type persistence", read("app/api/properties/route.ts").includes("safeBuildingType") && read("app/api/properties/route.ts").includes("technicalDataJson")],
-  ["deposit card fields", ["Sjednáno", "Drženo", "Chybí doplatit / přebytek", "Naběhlý úrok", "K vrácení dnes", "Stav"].every((text) => read("app/smlouvy/[leaseId]/page.tsx").includes(text))],
+  ["deposit card fields", ["Sjednaná kauce", "Skutečně drženo", "Evidovaný přebytek", "Zbývá složit", "Naběhlý úrok", "K vrácení dnes", "Stav"].every((text) => read("app/smlouvy/[leaseId]/page.tsx").includes(text))],
   ["deposit actions", ["Přijmout kauci", "Vrátit kauci", "Započíst", "Upravit podmínky", "Korekce jistiny / úroku"].every((text) => read("app/smlouvy/[leaseId]/page.tsx").includes(text))],
   ["deposit warnings", read("app/smlouvy/[leaseId]/page.tsx").includes("skutečné složení není potvrzeno") && read("app/smlouvy/[leaseId]/page.tsx").includes("trojnásobek")],
   ["zero interest allowed", read("app/smlouvy/[leaseId]/page.tsx").includes("Nulová sazba zůstává povolena") && read("lib/security-deposit-core.ts").includes("parsed < 0")],

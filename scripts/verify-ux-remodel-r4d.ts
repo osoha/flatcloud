@@ -31,7 +31,7 @@ check("confirmation is compare-and-set, serializable, versioned and audited",()=
   const service=read("lib/reporting/rent-change-proposals.ts"),automation=read("lib/charge-automation.ts"),editRoute=read("app/api/properties/[id]/leases/[leaseId]/route.ts");
   assert.match(service,/serializableTransaction/);assert.match(service,/updateMany\(\{ where: \{ id: fresh.id, status: \"DRAFT\" \}/);
   assert.match(service,/replaceRecurringAmount\(tx, fresh.leaseId, \"RENT\"/);assert.match(service,/syncLeaseCharges/);assert.match(service,/RENT_CHANGE_PROPOSAL_CONFIRMED/);
-  assert.match(automation,/preserveFutureFrom/);assert.match(editRoute,/confirmedFutureRentChangePreserved/);assert.match(editRoute,/preserveFutureFrom: futureRentChange.effectiveFrom/);
+  assert.match(automation,/preserveFutureFrom/);assert.match(editRoute,/confirmedFutureRentChangePreserved/);assert.doesNotMatch(editRoute,/rentCents:|servicesCents:/);
 });
 
 check("UI makes the second confirmation and real impact explicit",()=>{

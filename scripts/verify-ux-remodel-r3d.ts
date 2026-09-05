@@ -34,7 +34,7 @@ check("area split refuses incomplete unit metadata", () => {
 
 check("schema and migration keep explicit auditable shares and exact amounts", () => {
   const schema = read("prisma/schema.prisma");
-  for (const marker of ["model PropertyCostAllocation", "shareBasisPoints Int", "amountCents      Int", "allocations    PropertyCostAllocation[]", "assetCostAllocations    PropertyCostAllocation[]"]) assert.match(schema, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
+  for (const marker of ["model PropertyCostAllocation", "shareBasisPoints", "amountCents", "allocations", "assetCostAllocations"]) assert.match(schema, new RegExp(`${marker}\\s+${marker === "shareBasisPoints" || marker === "amountCents" ? "Int" : marker === "model PropertyCostAllocation" ? "" : "PropertyCostAllocation\\[\\]"}`));
   const migration = read("prisma/migrations/20260904230000_asset_cost_allocations/migration.sql");
   assert.doesNotMatch(migration, /(?:^|\n)\s*(?:DROP|DELETE|TRUNCATE|UPDATE)\b/im);
   assert.match(migration, /shareBasisPoints_check/);

@@ -1,5 +1,5 @@
 import { LoanRateType } from "@prisma/client";
-import { basisPointsFromPercent } from "@/lib/asset-finance";
+import { assertAssetDateNotFuture, basisPointsFromPercent } from "@/lib/asset-finance";
 import { prisma } from "@/lib/db";
 import { dateValue, moneyToCents, text } from "@/lib/forms";
 import { audit, requireManagedProperty } from "@/lib/management";
@@ -19,26 +19,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const outstandingPrincipalCents = moneyToCents(form, "outstandingPrincipal");
     const monthlyDebtServiceCents = moneyToCents(form, "monthlyDebtService");
     const annualInterestRateBps = basisPointsFromPercent(String(form.get("annualInterestRatePercent") || ""));
-    const asOfDate = dateValue(form, "asOfDate", true)!;
+    const asOfDate = assertAssetDateNotFuture(dateValue(form, "asOfDate", true)!);
     if (principalCents <= 0) throw new Error("Původní jistina musí být vyšší než nula.");
     if (outstandingPrincipalCents < 0) throw new Error("Aktuální jistina nesmí být záporná.");
     const loan = await prisma.propertyLoan.create({ data: {
       propertyId: id,
       lender: text(form, "lender", true)!,
       label: text(form, "label", true)!,
-      principalCents,
-      outstandingPrincipalCents,
+      principalCents: BigInt(principalCents),
+      outstandingPrincipalCents: BigInt(outstandingPrincipalCents),
       annualInterestRateBps,
       rateType: rateType as LoanRateType,
       fixedUntil: dateValue(form, "fixedUntil"),
       maturityDate: dateValue(form, "maturityDate"),
-      monthlyDebtServiceCents: monthlyDebtServiceCents > 0 ? monthlyDebtServiceCents : null,
+      monthlyDebtServiceCents: monthlyDebtServiceCents > 0 ? BigInt(monthlyDebtServiceCents) : null,
       note: text(form, "note"),
       snapshots: { create: {
         asOfDate,
-        outstandingPrincipalCents,
+        outstandingPrincipalCents: BigInt(outstandingPrincipalCents),
         annualInterestRateBps,
-        monthlyDebtServiceCents: monthlyDebtServiceCents > 0 ? monthlyDebtServiceCents : null,
+        monthlyDebtServiceCents: monthlyDebtServiceCents > 0 ? BigInt(monthlyDebtServiceCents) : null,
         note: "Počáteční stav úvěru",
       } },
     } });
