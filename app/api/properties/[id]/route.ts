@@ -6,6 +6,7 @@ import { canSeeAll } from "@/lib/auth";
 import { go, goWithMessage } from "@/lib/route-response";
 import { parsePropertyTechnicalForm, technicalDataJson } from "@/lib/property-technical";
 import { reconcilePropertyDriveStructure } from "@/lib/storage/property-drive-reconciliation";
+import { consolidationBasisPoints, safePropertyManagementScope } from "@/lib/ownership-scope";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -19,6 +20,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const ownershipMode = Object.values(PropertyOwnershipMode).includes(modeRaw) ? modeRaw : PropertyOwnershipMode.WHOLE_OBJECT;
     const communicationOwnerId = text(form, "communicationOwnerId");
     const managerId = text(form, "managerId");
+    const managementScope = safePropertyManagementScope(text(form, "managementScope"));
+    const flatcloudConsolidationBasisPoints = consolidationBasisPoints(text(form, "flatcloudConsolidationPercent"));
     if (managerId && !await prisma.user.findFirst({ where: { id: managerId, active: true }, select: { id: true } })) throw new Error("Vybraný správce neexistuje.");
     const technicalData = technicalDataJson(parsePropertyTechnicalForm(form));
     const previous = await prisma.property.findUnique({ where: { id }, select: { managerId: true, name: true, active: true } });
@@ -31,14 +34,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         note: text(form, "note"),
         technicalData,
         active: boolValue(form, "active"),
-        ...(ownerId ? { ownerId, ownershipMode, communicationOwnerId: communicationOwnerId || ownerId, managerId: managerId || null } : {}),
+        ...(ownerId ? { ownerId, ownershipMode, communicationOwnerId: communicationOwnerId || ownerId, managerId: managerId || null, managementScope, flatcloudConsolidationBasisPoints } : {}),
       } });
       if (ownerId) await tx.propertyOwnership.upsert({ where: { propertyId_ownerId: { propertyId: id, ownerId } }, update: {}, create: { propertyId: id, ownerId, shareBasisPoints: ownershipMode === "WHOLE_OBJECT" ? 10000 : 0 } });
       if (ownerId && previous?.managerId && previous.managerId !== managerId) await tx.userProperty.deleteMany({ where: { userId: previous.managerId, propertyId: id } });
       if (ownerId && managerId) await tx.userProperty.upsert({ where: { userId_propertyId: { userId: managerId, propertyId: id } }, update: { permission: "ADMIN" }, create: { userId: managerId, propertyId: id, permission: "ADMIN" } });
       return updated;
     });
-    await audit(access.user.id, "PROPERTY_UPDATED", "Property", property.id, { name: property.name, active: property.active, ownerId, ownershipMode, communicationOwnerId, managerId, technicalDataUpdated: true }, id);
+    await audit(access.user.id, "PROPERTY_UPDATED", "Property", property.id, { name: property.name, active: property.active, ownerId, ownershipMode, communicationOwnerId, managerId, ...(ownerId ? { managementScope, flatcloudConsolidationBasisPoints } : {}), technicalDataUpdated: true }, id);
     let driveWarning = "";
     if (process.env.FILE_STORAGE_DRIVER === "gdrive") {
       try {

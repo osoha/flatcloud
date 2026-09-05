@@ -184,29 +184,28 @@ function main() {
     assert.doesNotMatch(schema, /ADDITIONAL_COMMENTARY/);
   });
   check(
-    "cover overview technical valuation and trends remain unchanged",
+    "cover parity is explicit while overview technical valuation and trends remain unchanged",
     () => {
-      assert.equal(
-        digest(segment(renderer, "function Cover", "function Overview")),
-        "b88a7c413ebd532c481f57d4969a28774140451d95cf5a323a07c5337acbe42b",
-      );
+      const cover = segment(renderer, "function Cover", "function Overview");
+      assert.match(cover, /coverNarrativeRect/);
+      assert.match(cover, /qpr-cover-stack/);
       assert.equal(
         digest(segment(renderer, "function Overview", "function Technical")),
-        "feeefc44496e26092c954daf1a7fd88a60069ec46a330740f120e8afa0d6d49d",
+        "e885a4ecd9ef9ab4c47977214732f530cd9423f10cc8e62d547b68f3a9bc1e6d",
       );
       assert.equal(
         digest(segment(renderer, "function Technical", "function Valuation")),
-        "e1c6fe66c4e24f9bca4442180376833f8f7101e008071001401e2f2ca9094ac6",
+        "c7db68e263c926516fc1fddc4c014028e340b32a4b7d71fd05662d8ec1bbf13e",
       );
       assert.equal(
         digest(segment(renderer, "function Valuation", "function MiniChart")),
-        "80d070f2f44d0844a9eb5d69971d99eb3ae14dfba5afa932e8421b4f22e6fdd3",
+        "cacd994b9085d2d7fc37d313a3eb615e9bc44385e448c6e7ce978c85b59dc2bf",
       );
       assert.equal(
         digest(
           segment(renderer, "function Trends", "function AdditionalCommentary"),
         ),
-        "c2c5ba45e04b337b5119419ee54533521d233a3b883a8e79de06f08f7e379df2",
+        "0befe7282ff397ac5d0d73debd2d75b0fa4f5372043f68bdb6ebba62e1267c15",
       );
     },
   );

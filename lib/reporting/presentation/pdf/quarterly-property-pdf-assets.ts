@@ -6,6 +6,7 @@ import type { FileStorage } from "@/lib/storage/types";
 
 export type QuarterlyPropertyPdfAssets = {
   logo: string;
+  contentLogo?: string;
   primary: string | null;
   supportive: string | null;
   backgrounds: Partial<Record<"COVER" | "OVERVIEW" | "TECHNICAL" | "VALUATION" | "TRENDS", string>>;
@@ -16,6 +17,7 @@ export class QuarterlyPropertyPdfAssetUnavailable extends Error {
 }
 
 const logoPath = path.join(process.cwd(), "public", "flatcloud-logo-white.png");
+const contentLogoPath = path.join(process.cwd(), "public", "flatcloud-logo-report.png");
 
 async function pdfSafeImage(storage: FileStorage, storageKey: string) {
   try {
@@ -36,7 +38,7 @@ export async function resolveQuarterlyPropertyPdfAssets(input: { groupId: string
       quarterlyReport: { select: { designTemplateVersion: { select: { pages: { where: { backgroundMode: "ASSET" }, select: { role: true, backgroundAsset: { select: { storageKey: true, deletedAt: true } } } } } } } },
     },
   });
-  if (!row) return { logo: logoPath, primary: null, supportive: null, backgrounds: {} };
+  if (!row) return { logo: logoPath, contentLogo: contentLogoPath, primary: null, supportive: null, backgrounds: {} };
   const storage = createFileStorage();
   const primary = row.media.find((item) => item.role === "PRIMARY" && item.sortOrder === 0);
   const supportive = row.media.find((item) => item.role === "SECONDARY" && item.sortOrder === 0);
@@ -50,5 +52,5 @@ export async function resolveQuarterlyPropertyPdfAssets(input: { groupId: string
     mediaSource(supportive),
     Promise.all(backgroundPages.map(async (page) => [page.role, await pdfSafeImage(storage, page.backgroundAsset!.storageKey)] as const)),
   ]);
-  return { logo: logoPath, primary: primarySource, supportive: supportiveSource, backgrounds: Object.fromEntries(backgroundSources) };
+  return { logo: logoPath, contentLogo: contentLogoPath, primary: primarySource, supportive: supportiveSource, backgrounds: Object.fromEntries(backgroundSources) };
 }

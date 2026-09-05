@@ -484,15 +484,15 @@ async function main() {
     },
   );
   await check(
-    "generic document permissions and deletion remain unchanged while storage uses returned keys",
+    "generic document permissions and deletion remain integrity-pinned while storage uses returned keys",
     () => {
       assert.equal(
         hash("lib/documents/service.ts"),
-        "414d72d5088ba43b0c9a84875f3b93ee4cd205048add64a0117b65e84be8e531",
+        "b5ac5edd49891ba3dbaf6d93540086367d3f837fe9e8b905c98b65fcd0737c76",
       );
       assert.equal(
         hash("lib/documents/access.ts"),
-        "935798dfbe0a1963c228b88133ee6558c3182f0afa4f86f7e93b1b25bf98a5ef",
+        "8536cf941bd3e096df858cad5af819c8f6a1a55bcdd2b6df92359a55e3d99fb6",
       );
     },
   );
@@ -524,7 +524,7 @@ async function main() {
       assert.match(service, /cleanupStoredDocumentBatch/);
       assert.equal(
         hash("lib/documents/batch-service.ts"),
-        "50d443290b74ab854280e658be6fb791c0cfe88b729d75d22cc81e7a25496595",
+        "576be19e58d25bb532f2e04141fad5f162004e709d151310c4599c2e45875bd0",
       );
     },
   );

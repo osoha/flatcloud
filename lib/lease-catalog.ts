@@ -7,6 +7,7 @@ export type LeaseLifecycleRow = {
 export type LeaseCatalogRow = LeaseLifecycleRow & {
   contractNumber?: string | null; variableSymbol?: string | null;
   tenant: { name: string; email?: string | null };
+  parties?: Array<{ tenant: { name: string; email?: string | null } }>;
   unit: { label: string; property: { name: string; address?: string; city?: string } };
 };
 
@@ -29,7 +30,7 @@ export function isLeaseExpiring(lease: LeaseLifecycleRow, now = new Date()) {
 export function leaseMatchesQuery(lease: LeaseCatalogRow, query: string) {
   const needle = query.trim().toLocaleLowerCase("cs-CZ");
   if (!needle) return true;
-  return [lease.contractNumber, lease.variableSymbol, lease.tenant.name, lease.tenant.email, lease.unit.property.name, lease.unit.property.address, lease.unit.property.city, lease.unit.label]
+  return [lease.contractNumber, lease.variableSymbol, lease.tenant.name, lease.tenant.email, ...(lease.parties || []).flatMap((party) => [party.tenant.name, party.tenant.email]), lease.unit.property.name, lease.unit.property.address, lease.unit.property.city, lease.unit.label]
     .some((value) => (value || "").toLocaleLowerCase("cs-CZ").includes(needle));
 }
 

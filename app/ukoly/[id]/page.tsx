@@ -36,7 +36,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   const promiseDate=latestPromise?.promisedPaymentDate||task.lease?.promisedPaymentDate||null;
   const promiseAmount=latestPromise?.promisedAmountCents||task.lease?.promisedAmountCents||null;
   const lastActivity=task.entries[0]?.createdAt||task.updatedAt;
-  const statusLabel=task.category==="COLLECTION"&&task.status==="WAITING"?"Čeká na úhradu":taskStatuses[task.status];
+  const statusLabel=taskStatuses[task.status];
 
   return <Shell user={user} taskPropertyId={task.propertyId} taskLeaseId={task.leaseId||undefined}><div className="page task-case-page">
     <div className="breadcrumb"><Link href="/ukoly">Úkoly</Link><span>›</span><Link href={`/nemovitosti/${task.propertyId}/prehled`}>{task.property.name}</Link><span>›</span><span>{task.title}</span></div>

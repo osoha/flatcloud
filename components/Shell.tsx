@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, Handshake, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
@@ -12,6 +12,7 @@ import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
 import { authorizationScopeLabel } from "@/lib/access-scope-label";
 import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
+import { ScopeAwareLink } from "@/components/ScopeAwareLink";
 
 type ShellUser = {
   id: string;
@@ -62,6 +63,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
   return <div className="app-shell v21-shell">
+    <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
       <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka">
         <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
@@ -70,7 +72,8 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
-        {canSeeQuarterlyReports && <Nav href="/reporty/kvartalni" icon={<CalendarRange size={17}/>} label="Kvartální reporty"/>}
+        {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
+        {canAddProperty && <Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/>}
 
         <div className="nav-label">Provoz</div>
         <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
@@ -88,6 +91,9 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <Nav href="/dokumenty" icon={<FileText size={17}/>} label="Dokumenty"/>
         {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
 
+        <div className="nav-label">Podpora práce</div>
+        <Nav href="/metodika" icon={<BookOpen size={17}/>} label="Metodika"/>
+
         <div className="nav-label">Správa</div>
         {superAdmin && <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>}
         {superAdmin && <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>}
@@ -99,12 +105,12 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         </div>
       </div>
     </aside>
-    <main className="main">
+    <main className="main" id="main-content" tabIndex={-1}>
       <header className="topbar v21-topbar">
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
-          {canAddManualPayment && <Link className="secondary top-action" href="/platby/nova"><Plus size={15}/><span>Ruční platba</span></Link>}
+          {canAddManualPayment && <ScopeAwareLink className="secondary top-action" href="/platby/nova"><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
           {canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
           <Link className="account-chip" href="/ucet"><UserRound size={15}/><span>{user.name}</span></Link>
@@ -116,5 +122,5 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
 }
 
 function Nav({href,icon,label,count=0}:{href:string;icon:React.ReactNode;label:string;count?:number}){
-  return <Link href={href}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</Link>;
+  return <ScopeAwareLink href={href}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
 }

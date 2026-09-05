@@ -7,26 +7,30 @@ import { bankNameForCode } from "@/lib/inbound-bank/bank-email";
 import { paymentStatuses } from "@/lib/labels";
 import { Shell } from "@/components/Shell";
 import { NavigableTableRow } from "@/components/NavigableTableRow";
+import { accessibleProperties } from "@/lib/access";
+import { parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds } from "@/lib/portfolio-selection";
 
 export const dynamic = "force-dynamic";
 
-export default async function UnmatchedPaymentsPage() {
+export default async function UnmatchedPaymentsPage({searchParams}:{searchParams:Promise<{properties?:string;propertyId?:string}>}) {
   // V21.3.5 compatibility: the retained bank-income audit query remains conceptually `where: { status: "IGNORED" }`, refined below only to separate irrelevant mail.
-  const user = await requireUser();
+  const [user,query] = await Promise.all([requireUser(),searchParams]);
   if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
+  const availableProperties=await accessibleProperties(user); const selection=parsePortfolioSelection(query); const propertyIds=selectedPropertyIds(selection,availableProperties.map((property)=>property.id));
+  const inboxScope=selection.mode==="ALL"?{OR:[{propertyId:null},{propertyId:{in:propertyIds}}]}:{propertyId:{in:propertyIds}};
   const [transactions, inbox, ignored, irrelevantEmails] = await Promise.all([
     prisma.bankTransaction.findMany({
-      where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } },
+      where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] }, bankAccount:{propertyId:{in:propertyIds}} },
       include: { bankAccount: { include: { property: true } }, suggestedLease: { include: { unit: true, tenant: true } } },
       orderBy: { bookedAt: "desc" },
     }),
-    prisma.inboxPayment.findMany({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } }, orderBy: { receivedAt: "desc" } }),
-    prisma.inboxPayment.findMany({ where: { status: "IGNORED", NOT: { parseNote: { startsWith: "Nerelevantní e-mail:" } } }, include: { property: true }, orderBy: { receivedAt: "desc" }, take: 100 }),
-    prisma.inboxPayment.findMany({ where: { status: "IGNORED", parseNote: { startsWith: "Nerelevantní e-mail:" } }, orderBy: { receivedAt: "desc" }, take: 100 }),
+    prisma.inboxPayment.findMany({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] },...inboxScope }, orderBy: { receivedAt: "desc" } }),
+    prisma.inboxPayment.findMany({ where: { status: "IGNORED", NOT: { parseNote: { startsWith: "Nerelevantní e-mail:" } },...inboxScope }, include: { property: true }, orderBy: { receivedAt: "desc" }, take: 100 }),
+    prisma.inboxPayment.findMany({ where: { status: "IGNORED", parseNote: { startsWith: "Nerelevantní e-mail:" },...inboxScope }, orderBy: { receivedAt: "desc" }, take: 100 }),
   ]);
   return <Shell user={user}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Nespárované platby</span></div>
-    <div className="page-title"><div><h1>Platby k řešení</h1><p>Centrální pracovní fronta pouze pro hlavního administrátora. Aktivní práce je oddělená od historie a vyřazených notifikací.</p></div></div>
+    <div className="page-title"><div><h1>Platby k řešení</h1><p>Centrální pracovní fronta pouze pro hlavního administrátora. Aktivní práce je oddělená od historie a vyřazených notifikací.</p><span className="scope-context-badge">{portfolioSelectionLabel(selection,propertyIds.length,availableProperties.length)}</span></div></div>
     <div className="card"><div className="card-head"><div><span className="eyebrow">K řešení</span><h2>{transactions.length + inbox.length} položek k řešení</h2></div></div><div className="stat-grid"><QueueStat label="Bankovní platby" value={String(transactions.length)} bad={transactions.length > 0}/><QueueStat label="Bankovní notifikace" value={String(inbox.length)} bad={inbox.length > 0}/></div></div>
     <div className="card portfolio-table-card" style={{marginTop:16}}><div className="table-toolbar"><div><h2>Bankovní platby k přiřazení</h2><p>Transakce už mají určenou nemovitost, ale ještě vyžadují kontrolu nebo přiřazení.</p></div></div><div className="table-wrap"><table><thead><tr><th>Datum</th><th>Nemovitost</th><th>Plátce / protistrana</th><th>VS</th><th>Částka</th><th>Stav</th><th>Návrh systému</th><th></th></tr></thead><tbody>{transactions.length ? transactions.map((tx) => <NavigableTableRow href={`/nemovitosti/${tx.bankAccount.propertyId}/platby/${tx.id}`} ariaLabel={`Otevřít platbu ${tx.variableSymbol || tx.id}`} key={tx.id}><td>{date(tx.bookedAt)}</td><td>{tx.bankAccount.property.name}</td><td>{tx.counterpartyName || "Plátce neuveden"}<span className="owner-sub">{tx.counterpartyIban ? `Účet plátce: ${tx.counterpartyIban}` : tx.message ? `Zpráva z banky: ${tx.message}` : "—"}</span></td><td>{tx.variableSymbol || "—"}</td><td className="money">{money(tx.amountCents)}</td><td><span className={`status ${tx.status === "UNMATCHED" ? "bad" : "warn"}`}>{paymentStatuses[tx.status]}</span></td><td>{tx.suggestedLease ? `${tx.suggestedLease.unit.label} · ${tx.suggestedLease.tenant.name}` : tx.matchNote || "—"}</td><td><Link className="table-link" href={`/nemovitosti/${tx.bankAccount.propertyId}/platby/${tx.id}`}>Otevřít</Link></td></NavigableTableRow>) : <tr><td colSpan={8} className="table-empty">Žádné bankovní platby nečekají na řešení.</td></tr>}</tbody></table></div></div>
     <div className="card portfolio-table-card" style={{marginTop:16}}><div className="table-toolbar"><div><h2>Bankovní notifikace k ručnímu řešení</h2><p>Notifikace bez jednoznačného propojení na objekt nebo s neúplným výsledkem parseru.</p></div></div><div className="table-wrap"><table><thead><tr><th>Přijato / platba</th><th>Banka</th><th>Částka</th><th>Plátce / protistrana</th><th>VS</th><th>Výsledek parseru</th><th></th></tr></thead><tbody>{inbox.length ? inbox.map((row) => <NavigableTableRow href={`/platby/nesparovane/email/${row.id}`} ariaLabel="Otevřít bankovní e-mail" key={row.id}><td>{date(row.bookedAt || row.receivedAt)}<span className="owner-sub">Přijato {date(row.receivedAt)}</span></td><td>{bankNameForCode(row.bank)}{row.bank && row.bank !== "UNKNOWN" ? ` · ${row.bank}` : ""}<span className="owner-sub">{row.sourceTrusted ? "Ověřený zdroj" : "Ruční kontrola"}</span></td><td className="money">{row.amountCents ? money(row.amountCents) : "—"}</td><td>{row.counterpartyName || "Plátce neuveden"}<span className="owner-sub">{row.counterpartyAccount ? `Účet plátce: ${row.counterpartyAccount}` : "Účet plátce neuveden"}</span></td><td>{row.variableSymbol || "—"}</td><td>{row.parseNote || "—"}</td><td><Link className="table-link" href={`/platby/nesparovane/email/${row.id}`}>Vyřešit</Link></td></NavigableTableRow>) : <tr><td colSpan={7} className="table-empty">Žádné bankovní notifikace nečekají na ruční zásah.</td></tr>}</tbody></table></div></div>
