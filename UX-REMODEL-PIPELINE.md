@@ -182,7 +182,9 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R11C implementováno bez migrace:** plnostránkové prázdné stavy mají opět čitelnou hierarchii, klidnou vertikální plochu a jednotnou typografii, zatímco prázdné stavy uvnitř menších widgetů zůstávají záměrně kompaktní,
 - formulářové stránky používají stabilní rytmus mezi návratem, titulkem a kartou; akce formuláře se bezpečně skládají na mobilu,
 - mobilní titulky už neskrývají sekundární akce ani nemění textové primární tlačítko bez ikony na prázdný čtverec; důležité cesty se na úzkém viewportu zobrazí jako plnohodnotná tlačítka,
-- další blok R11D pokračuje kontrolou výstupních a tiskových ploch a posledním průřezem vizuálních regresí.
+- **R11D implementováno bez migrace:** editor kvartálního reportu už netvrdí, že každý výstup má A4; náhled transparentně ukazuje skutečný formát aktivní šablony FlatCloud 13:9 nebo A4 na šířku,
+- exportní blok náhledu je zbavený jednorázových inline stylů, drží společnou responzivní hierarchii a výslovně vede tiskovou kontrolu přes PDF renderer, který respektuje rozměr konkrétní šablony,
+- R11 uzavírá první designerskou sanační vlnu; navazuje agentní scénářová a profesní kontrola nad nasazenou sandboxovou verzí.
 
 ## Release gate každé etapy
 
