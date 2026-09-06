@@ -146,6 +146,12 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - výhled respektuje provozní rozsah portfolia, je samostatnou podstránkou Kvality a CAPEX a výslovně není účetním podkladem ani součástí interní Distribuce,
 - R8 tím uzavírá funkční pipeline kvality portfolia; vizuální sjednocení napříč aplikací bude následovat v samostatné designerské kontrolní vlně až po funkčních opravách.
 
+### R9 — vstupní průvodci
+
+- **R9A implementováno bez migrace:** průvodce založením nemovitosti po vyplnění ulice a města zobrazí orientační mapový náhled s PINem, čitelně zopakuje interpretovanou adresu a nabídne otevření větší mapy,
+- mapa nezískává polohu uživatele, nepřepisuje zadanou adresu a při nevyplněné či nedostupné mapě zachovává plně použitelný formulář; obnovený koncept adresy se promítne i do náhledu,
+- R9A je samostatný funkční bod vyvolaný lidským srovnáním s onboardingem Homeroo; detailní vizuální sjednocení zůstává součástí pozdější designerské vlny.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,

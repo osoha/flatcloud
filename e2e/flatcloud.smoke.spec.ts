@@ -58,6 +58,23 @@ test("administrátor se přihlásí a vidí deterministické portfolio", async (
   assertNoBrowserFailures();
 });
 
+test("průvodce nemovitostí ověří zadanou adresu mapovým PINem", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await page.route("https://www.google.com/maps**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Map preview</title>" }));
+  await login(page);
+  await page.goto("/nemovitosti/nova");
+  const preview = page.locator(".property-address-preview");
+  await expect(preview.getByText("Doplňte ulici a město", { exact: true })).toBeVisible();
+  await page.getByLabel("Ulice a číslo *").fill("Vinohradská 12");
+  await page.getByLabel("Město *").fill("Praha");
+  await page.getByLabel("PSČ").fill("120 00");
+  await expect(preview.getByText("Vinohradská 12, 120 00 Praha", { exact: true })).toBeVisible();
+  await expect(preview.locator("iframe")).toHaveAttribute("title", "Mapa nemovitosti: Vinohradská 12, 120 00 Praha");
+  await expect(preview.locator("iframe")).toHaveAttribute("src", /google\.com\/maps\?q=Vinohradsk%C3%A1%2012%2C%20120%2000%20Praha&output=embed/);
+  await expect(preview.getByRole("link", { name: "Otevřít větší mapu", exact: false })).toHaveAttribute("target", "_blank");
+  assertNoBrowserFailures();
+});
+
 test("globální správce vidí provozní rozsah napříč vlastníky", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
