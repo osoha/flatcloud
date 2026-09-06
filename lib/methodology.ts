@@ -126,8 +126,8 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Kvalita jednotek a plán obnovy",
     summary: "Neutrální evidence fyzického stavu, investiční naléhavosti a plánovaného CAPEX napříč spravovaným portfoliem.",
     audience: "Správce a asset manager",
-    steps: ["Hodnoťte všechna oprávněně spravovaná aktiva bez ohledu na vlastníka, konsolidaci nebo zamýšlený prodej.", "Určete současný fyzický stav písmenem A–D a samostatně zvolte naléhavost investice.", "Doplňte realistický odhad CAPEX, stav plánu obnovy a u plánované či probíhající akce cílový termín.", "Poznámkou popište rozsah nebo zdroj odhadu tak, aby další hodnotitel dokázal rozhodnutí ověřit.", "Při změně stavu vytvořte nový snapshot. Starší hodnocení se nepřepisuje; distribuční připravenost a valuace mají vlastní proces."],
-    check: "Každá jednotka má aktuální datované hodnocení, zdůvodněný CAPEX a dohledatelný stav plánu; technický stav se nevydává za valuaci ani distribuční rozhodnutí.",
+    steps: ["Hodnoťte všechna oprávněně spravovaná aktiva bez ohledu na vlastníka, konsolidaci nebo zamýšlený prodej.", "Určete současný fyzický stav písmenem A–D a samostatně zvolte naléhavost investice.", "Doplňte realistický odhad CAPEX, stav plánu obnovy a u plánované či probíhající akce cílový termín.", "Poznámkou popište rozsah nebo zdroj odhadu tak, aby další hodnotitel dokázal rozhodnutí ověřit.", "Při změně stavu vytvořte nový snapshot. Starší hodnocení se nepřepisuje; distribuční připravenost a valuace mají vlastní proces.", "Teprve schválený aktuální plán s kladnou částkou a termínem převeďte do realizace. Jedním krokem vznikne propojený úkol údržby, plánovaný CAPEX náklad a rozpočtová položka; opakovaný převod systém zablokuje."],
+    check: "Každá jednotka má aktuální datované hodnocení, zdůvodněný CAPEX a dohledatelný stav plánu; schválená realizace má právě jeden úkol, náklad a rozpočtovou položku. Technický stav se nevydává za valuaci ani distribuční rozhodnutí.",
     href: "/portfolio/kvalita",
   },
   {

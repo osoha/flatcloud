@@ -449,6 +449,7 @@ model User {
   serviceSettlementProtocolsIssued    ServiceSettlementProtocol[]    @relation("ServiceSettlementProtocolIssuer")
   unitAssetAssessmentsCreated         UnitAssetAssessment[]          @relation("UnitAssetAssessmentCreator")
   unitConditionAssessmentsCreated     UnitConditionAssessment[]      @relation("UnitConditionAssessmentCreator")
+  unitConditionPlanExecutionsCreated  UnitConditionPlanExecution[]   @relation("UnitConditionPlanExecutionCreator")
   unitValuationsCreated               UnitValuationSnapshot[]        @relation("UnitValuationCreator")
   distributionProspectsCreated        DistributionProspect[]         @relation("DistributionProspectCreator")
   distributionOpportunitiesCreated    DistributionOpportunity[]      @relation("DistributionOpportunityCreator")
@@ -501,24 +502,24 @@ model OwnerBankAccount {
 }
 
 model Property {
-  id                                String                      @id @default(cuid())
-  propertyCode                      String                      @unique @default(dbgenerated())
+  id                                String                       @id @default(cuid())
+  propertyCode                      String                       @unique @default(dbgenerated())
   name                              String
-  googleDriveFolderId               String?                     @unique
+  googleDriveFolderId               String?                      @unique
   address                           String
   city                              String
   postalCode                        String?
   note                              String?
   technicalData                     Json?
-  active                            Boolean                     @default(true)
+  active                            Boolean                      @default(true)
   ownerId                           String
-  owner                             Owner                       @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  ownershipMode                     PropertyOwnershipMode       @default(WHOLE_OBJECT)
+  owner                             Owner                        @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownershipMode                     PropertyOwnershipMode        @default(WHOLE_OBJECT)
   communicationOwnerId              String?
-  communicationOwner                Owner?                      @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  communicationOwner                Owner?                       @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
   managerId                         String?
-  manager                           User?                       @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
-  managementScope                   PropertyManagementScope     @default(FULL_MANAGEMENT)
+  manager                           User?                        @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
+  managementScope                   PropertyManagementScope      @default(FULL_MANAGEMENT)
   flatcloudConsolidationBasisPoints Int?
   ownerships                        PropertyOwnership[]
   units                             Unit[]
@@ -533,6 +534,7 @@ model Property {
   complianceItems                   ComplianceItem[]
   costs                             PropertyCost[]
   budgets                           PropertyBudgetLine[]
+  conditionPlanExecutions           UnitConditionPlanExecution[]
   loans                             PropertyLoan[]
   valuations                        PropertyValuationSnapshot[]
   rentForecastPlans                 RentForecastPlanProperty[]
@@ -543,8 +545,8 @@ model Property {
   documents                         Document[]
   tenantLinks                       TenantProperty[]
   mfRentLocation                    PropertyMfRentLocation?
-  createdAt                         DateTime                    @default(now())
-  updatedAt                         DateTime                    @updatedAt
+  createdAt                         DateTime                     @default(now())
+  updatedAt                         DateTime                     @updatedAt
 
   @@index([ownerId])
   @@index([communicationOwnerId])
@@ -554,24 +556,25 @@ model Property {
 }
 
 model PropertyCost {
-  id             String                   @id @default(cuid())
-  propertyId     String
-  property       Property                 @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  unitId         String?
-  unit           Unit?                    @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  kind           PropertyCostKind
-  status         PropertyCostStatus       @default(PLANNED)
-  category       PropertyCostCategory     @default(OTHER)
-  title          String
-  amountCents    Int
-  effectiveAt    DateTime
-  vendor         String?
-  documentNumber String?
-  note           String?
-  documents      Document[]
-  allocations    PropertyCostAllocation[]
-  createdAt      DateTime                 @default(now())
-  updatedAt      DateTime                 @updatedAt
+  id                     String                      @id @default(cuid())
+  propertyId             String
+  property               Property                    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId                 String?
+  unit                   Unit?                       @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  kind                   PropertyCostKind
+  status                 PropertyCostStatus          @default(PLANNED)
+  category               PropertyCostCategory        @default(OTHER)
+  title                  String
+  amountCents            Int
+  effectiveAt            DateTime
+  vendor                 String?
+  documentNumber         String?
+  note                   String?
+  documents              Document[]
+  allocations            PropertyCostAllocation[]
+  conditionPlanExecution UnitConditionPlanExecution?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
 
   @@index([propertyId, effectiveAt])
   @@index([propertyId, kind, status])
@@ -594,17 +597,18 @@ model PropertyCostAllocation {
 }
 
 model PropertyBudgetLine {
-  id          String               @id @default(cuid())
-  propertyId  String
-  property    Property             @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  year        Int
-  kind        PropertyCostKind
-  category    PropertyCostCategory @default(OTHER)
-  title       String
-  amountCents Int
-  note        String?
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  id                     String                      @id @default(cuid())
+  propertyId             String
+  property               Property                    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  year                   Int
+  kind                   PropertyCostKind
+  category               PropertyCostCategory        @default(OTHER)
+  title                  String
+  amountCents            Int
+  note                   String?
+  conditionPlanExecution UnitConditionPlanExecution?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
 
   @@index([propertyId, year])
   @@index([propertyId, year, kind, category])
@@ -960,23 +964,44 @@ model UnitAssetAssessment {
 }
 
 model UnitConditionAssessment {
-  id                  String                  @id @default(cuid())
+  id                  String                      @id @default(cuid())
   unitId              String
-  unit                Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  unit                Unit                        @relation(fields: [unitId], references: [id], onDelete: Restrict)
   rating              UnitQualityRating
   investmentUrgency   UnitInvestmentUrgency
-  estimatedCapexCents Int                     @default(0)
-  planStatus          UnitConditionPlanStatus @default(MONITORING)
+  estimatedCapexCents Int                         @default(0)
+  planStatus          UnitConditionPlanStatus     @default(MONITORING)
   targetDate          DateTime?
   assessedAt          DateTime
   note                String?
   createdById         String
-  createdBy           User                    @relation("UnitConditionAssessmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt           DateTime                @default(now())
+  createdBy           User                        @relation("UnitConditionAssessmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt           DateTime                    @default(now())
+  execution           UnitConditionPlanExecution?
 
   @@index([unitId, assessedAt])
   @@index([rating, investmentUrgency])
   @@index([planStatus, targetDate])
+}
+
+model UnitConditionPlanExecution {
+  id             String                  @id @default(cuid())
+  assessmentId   String                  @unique
+  assessment     UnitConditionAssessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  propertyId     String
+  property       Property                @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  taskId         String                  @unique
+  task           Task                    @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  propertyCostId String                  @unique
+  propertyCost   PropertyCost            @relation(fields: [propertyCostId], references: [id], onDelete: Restrict)
+  budgetLineId   String                  @unique
+  budgetLine     PropertyBudgetLine      @relation(fields: [budgetLineId], references: [id], onDelete: Restrict)
+  createdById    String
+  createdBy      User                    @relation("UnitConditionPlanExecutionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime                @default(now())
+
+  @@index([propertyId, createdAt])
+  @@index([createdById, createdAt])
 }
 
 model UnitValuationSnapshot {
@@ -1528,31 +1553,32 @@ model RentNotification {
 }
 
 model Task {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  category    TaskCategory @default(GENERAL)
-  status      TaskStatus   @default(OPEN)
-  priority    TaskPriority @default(NORMAL)
-  propertyId  String
-  property    Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  unitId      String?
-  unit        Unit?        @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  leaseId     String?
-  lease       Lease?       @relation(fields: [leaseId], references: [id], onDelete: SetNull)
-  tenantId    String?
-  tenant      Tenant?      @relation(fields: [tenantId], references: [id], onDelete: SetNull)
-  createdById String?
-  createdBy   User?        @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  assigneeId  String?
-  assignee    User?        @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  dueAt       DateTime?
-  closedAt    DateTime?
-  dedupeKey   String?      @unique
-  entries     TaskEntry[]
-  documents   Document[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id                     String                      @id @default(cuid())
+  title                  String
+  description            String?
+  category               TaskCategory                @default(GENERAL)
+  status                 TaskStatus                  @default(OPEN)
+  priority               TaskPriority                @default(NORMAL)
+  propertyId             String
+  property               Property                    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId                 String?
+  unit                   Unit?                       @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  leaseId                String?
+  lease                  Lease?                      @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  tenantId               String?
+  tenant                 Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  createdById            String?
+  createdBy              User?                       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  assigneeId             String?
+  assignee               User?                       @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  dueAt                  DateTime?
+  closedAt               DateTime?
+  dedupeKey              String?                     @unique
+  entries                TaskEntry[]
+  documents              Document[]
+  conditionPlanExecution UnitConditionPlanExecution?
+  createdAt              DateTime                    @default(now())
+  updatedAt              DateTime                    @updatedAt
 
   @@index([propertyId, status, dueAt])
   @@index([assigneeId, status, dueAt])
