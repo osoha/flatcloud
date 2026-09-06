@@ -114,7 +114,7 @@ async function main() {
     const shell = read("components/Shell.tsx");
     const tasks = shell.indexOf('href="/ukoly"');
     const quality = shell.indexOf('href="/portfolio/kvalita"');
-    const finance = shell.indexOf('href="/finance"');
+    const finance = shell.indexOf('<div className="nav-label">Finance</div>');
     assert.ok(tasks >= 0 && quality > tasks && finance > quality, "Kvalita a CAPEX must sit after Tasks in Operations");
     const portfolio = read("app/portfolio/page.tsx");
     assert.doesNotMatch(portfolio, /href="\/portfolio\/kvalita"/);
