@@ -135,7 +135,10 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R8A implementováno aditivně:** technické hodnocení jednotky, naléhavost, odhad CAPEX, stav plánu a cílový termín mají vlastní neměnnou historii dostupnou ve správě všech oprávněných aktiv bez ohledu na konsolidaci či budoucí prodej,
 - starší technická data z distribučních snapshotů se jednorázově převedou do nové evidence bez změny původní historie; distribuční modul už kvalitu ani CAPEX neupravuje, pouze ověřuje dostupnost technického podkladu a samostatně ukládá obchodní připravenost,
 - globální přehled „Kvalita a CAPEX“ respektuje stejný rozsah portfolia jako provozní cockpit a detail jednotky ukazuje aktuální stav i auditní historii bez dalších informačních bublin,
-- další řez pokračuje R8B — prioritizací obnovy a převodem schváleného plánu do konkrétních CAPEX úkolů/rozpočtu.
+- **R8B implementováno aditivně:** fronta obnovy řadí aktuální snapshoty podle stavu, naléhavosti, fáze plánu a prošlého termínu; dokončené položky se nevracejí mezi aktivní priority,
+- pouze aktuální snapshot ve stavu Schváleno s kladným CAPEX a cílovým termínem lze atomicky a právě jednou převést do propojeného úkolu údržby, plánovaného nákladu a roční rozpočtové položky,
+- převod respektuje editaci svěřeného aktiva, hlídá souběžnou otevřenou realizaci stejné jednotky a vytváří neměnnou vazbu i auditní stopu; Distribuce tuto vazbu nevlastní,
+- další řez pokračuje R8C — řízením průběhu realizace, odchylkou plánu vůči skutečnosti a uzavřením obnovy.
 
 ## Release gate každé etapy
 

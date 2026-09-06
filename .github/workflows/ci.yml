@@ -128,6 +128,7 @@ jobs:
       - run: npm run verify:r7c-report-parity
       - run: npm run verify:r7d-template-fidelity
       - run: npm run verify:ux-remodel-r8a
+      - run: npm run verify:ux-remodel-r8b
       - run: npm run verify:live-report-periods
 
   browser-smoke:
