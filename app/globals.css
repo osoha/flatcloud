@@ -191,7 +191,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .status-kpi.status-vacant{background:linear-gradient(145deg,#f8fbff,var(--blue-soft));border-color:#d4e0fb}.status-kpi.status-vacant strong{color:#315fcb}
 .status-kpi.status-renovation{background:linear-gradient(145deg,#fffaf5,var(--orange-soft));border-color:#f3dcc5}.status-kpi.status-renovation strong{color:#b96724}
 .status-kpi.status-inactive{background:#f4f5f7;border-color:#e2e5ea}.status-kpi.status-inactive strong{color:#6c7890}
-#prehled,#predpisy,#platby,#smlouva,#osoby,#meridla{scroll-margin-top:145px}
+#prehled,#kvalita,#predpisy,#platby,#smlouva,#komunikace,#osoby,#dokumenty,#meridla{scroll-margin-top:145px}
 .clickable-table-row.row-debt:hover{background:#ffeded}.clickable-table-row.row-disabled:hover{background:#f2f3f6}
 .main-person-link{position:relative;color:inherit;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
 .main-person-link:hover{transform:translateY(-2px);border-color:#bfcff0;box-shadow:0 12px 26px rgba(20,37,68,.09)}
