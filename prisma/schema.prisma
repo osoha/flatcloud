@@ -190,6 +190,14 @@ enum UnitInvestmentUrgency {
   IMMEDIATE
 }
 
+enum UnitConditionPlanStatus {
+  MONITORING
+  PLANNED
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+}
+
 enum UnitValuationSource {
   INTERNAL_COMPARABLES
   EXTERNAL_APPRAISAL
@@ -440,6 +448,7 @@ model User {
   rentChangeProposalsConfirmed        RentChangeProposal[]           @relation("RentChangeProposalConfirmer")
   serviceSettlementProtocolsIssued    ServiceSettlementProtocol[]    @relation("ServiceSettlementProtocolIssuer")
   unitAssetAssessmentsCreated         UnitAssetAssessment[]          @relation("UnitAssetAssessmentCreator")
+  unitConditionAssessmentsCreated     UnitConditionAssessment[]      @relation("UnitConditionAssessmentCreator")
   unitValuationsCreated               UnitValuationSnapshot[]        @relation("UnitValuationCreator")
   distributionProspectsCreated        DistributionProspect[]         @relation("DistributionProspectCreator")
   distributionOpportunitiesCreated    DistributionOpportunity[]      @relation("DistributionOpportunityCreator")
@@ -921,6 +930,7 @@ model Unit {
   assetCosts                PropertyCost[]
   assetCostAllocations      PropertyCostAllocation[]
   assetAssessments          UnitAssetAssessment[]
+  conditionAssessments      UnitConditionAssessment[]
   valuationSnapshots        UnitValuationSnapshot[]
   distributionOpportunities DistributionOpportunity[]
   createdAt                 DateTime                     @default(now())
@@ -947,6 +957,26 @@ model UnitAssetAssessment {
 
   @@index([unitId, assessedAt])
   @@index([rating, investmentUrgency])
+}
+
+model UnitConditionAssessment {
+  id                  String                  @id @default(cuid())
+  unitId              String
+  unit                Unit                    @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  rating              UnitQualityRating
+  investmentUrgency   UnitInvestmentUrgency
+  estimatedCapexCents Int                     @default(0)
+  planStatus          UnitConditionPlanStatus @default(MONITORING)
+  targetDate          DateTime?
+  assessedAt          DateTime
+  note                String?
+  createdById         String
+  createdBy           User                    @relation("UnitConditionAssessmentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt           DateTime                @default(now())
+
+  @@index([unitId, assessedAt])
+  @@index([rating, investmentUrgency])
+  @@index([planStatus, targetDate])
 }
 
 model UnitValuationSnapshot {

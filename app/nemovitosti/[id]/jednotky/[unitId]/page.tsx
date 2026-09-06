@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BellRing, Gauge, Mail, Pencil, Phone, Plus, UserRound, UsersRound } from "lucide-react";
+import { BellRing, Gauge, Hammer, Mail, Pencil, Phone, Plus, UserRound, UsersRound } from "lucide-react";
 import { requireUser, canSeeAll } from "@/lib/auth";
 import { requirePropertyAccess, requireUnitAccess } from "@/lib/access";
 import { Shell } from "@/components/Shell";
@@ -21,6 +21,8 @@ import { PaymentLedgerTable } from "@/components/PaymentLedgerTable";
 import { loadPaymentLedgerRows } from "@/lib/payment-ledger";
 import { formatCompoundUnitBusinessId } from "@/lib/business-identity";
 import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
+import { UnitConditionAssessmentForm } from "@/components/portfolio/UnitConditionAssessmentForm";
+import { unitConditionPlanStatuses, unitConditionRatings, unitConditionUrgencies } from "@/lib/portfolio/unit-condition-assessments";
 
 export const dynamic = "force-dynamic";
 
@@ -51,13 +53,17 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const statusTone = activeLease ? "occupied" : "vacant";
   const deposit = activeLease ? securityDepositSnapshot(activeLease) : null;
   const depositLabel = deposit ? deposit.status === "PARTIAL" ? `${money(deposit.heldPrincipalCents)} / ${money(deposit.agreedAmountCents)} · Částečně` : deposit.status === "FUNDED" ? `${money(deposit.agreedAmountCents)} · Složeno` : deposit.status === "UNPAID" ? `${money(deposit.agreedAmountCents)} · Nesloženo` : deposit.status === "TO_SETTLE" ? `K vypořádání · drženo ${money(deposit.heldPrincipalCents)}` : deposit.status === "SETTLED" ? "Vypořádáno" : "Neevidováno" : "Neevidováno";
-  const documents=await prisma.document.findMany({where:{AND:[documentAccessWhere(user),{propertyId:id,OR:[{unitId},{lease:{unitId}},{task:{OR:[{unitId},{lease:{unitId}}]}},{taskEntry:{task:{OR:[{unitId},{lease:{unitId}}]}}}]}]},orderBy:{createdAt:"desc"},include:{fileAsset:true,property:{select:{name:true}},unit:{select:{label:true}},lease:{select:{contractNumber:true}},task:{select:{title:true}},complianceRecord:{select:{id:true}}}});
+  const [documents, conditionAssessments] = await Promise.all([
+    prisma.document.findMany({where:{AND:[documentAccessWhere(user),{propertyId:id,OR:[{unitId},{lease:{unitId}},{task:{OR:[{unitId},{lease:{unitId}}]}},{taskEntry:{task:{OR:[{unitId},{lease:{unitId}}]}}}]}]},orderBy:{createdAt:"desc"},include:{fileAsset:true,property:{select:{name:true}},unit:{select:{label:true}},lease:{select:{contractNumber:true}},task:{select:{title:true}},complianceRecord:{select:{id:true}}}}),
+    prisma.unitConditionAssessment.findMany({ where: { unitId }, orderBy: [{ assessedAt: "desc" }, { createdAt: "desc" }], take: 5, include: { createdBy: { select: { name: true } } } }),
+  ]);
+  const currentCondition = conditionAssessments[0];
 
   return <Shell user={user} taskPropertyId={id} taskLeaseId={activeLease?.id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><Link href={`/nemovitosti/${id}/jednotky`}>Jednotky</Link><span>›</span><span>{unit.label}</span></div>
     <div className="unit-hero card"><div><span className="eyebrow">{unitTypes[unit.type]}</span><h1>{unit.label}</h1><p>{property.name} · {unit.floor || "podlaží neuvedeno"} · {unit.areaM2 ? `${unit.areaM2} m²` : "plocha neuvedena"}</p><small>ID jednotky: {formatCompoundUnitBusinessId(property.propertyCode, unit.unitCode)}</small></div><div className="action-row">{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unit.id}/upravit`}><Pencil size={15}/> Upravit jednotku</Link>}{canManage && <Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova?unitId=${unit.id}`}><Plus size={15}/> Nová smlouva</Link>}</div></div>
     <Flash ok={query.ok} error={query.error}/>
-    <nav className="unit-tabs"><a href="#prehled">Přehled</a>{activeLease && <><a href="#predpisy">Předpisy</a><a href="#platby">Platby</a><a href="#smlouva">Smlouva</a><a href="#komunikace">Upomínky</a><a href="#osoby">Osoby</a></>}<a href="#dokumenty">Dokumenty</a><a href="#meridla">Měřidla</a></nav>
+    <nav className="unit-tabs"><a href="#prehled">Přehled</a><a href="#kvalita">Kvalita a CAPEX</a>{activeLease && <><a href="#predpisy">Předpisy</a><a href="#platby">Platby</a><a href="#smlouva">Smlouva</a><a href="#komunikace">Upomínky</a><a href="#osoby">Osoby</a></>}<a href="#dokumenty">Dokumenty</a><a href="#meridla">Měřidla</a></nav>
     <div id="prehled" className="unit-kpi-grid">
       {activeLease ? <Link className={`card mini-kpi mini-kpi-link status-kpi status-${statusTone}`} href="#smlouva"><span>Obsazenost</span><strong>Obsazená</strong><b className="mini-kpi-arrow">↓</b></Link> : <div className={`card mini-kpi status-kpi status-${statusTone}`}><span>Obsazenost</span><strong>Volná</strong>{unit.operationalStatus !== "STANDARD" && <small>{unitOperationalStatuses[unit.operationalStatus]}</small>}</div>}
       <Link className="card mini-kpi mini-kpi-link" href={`/vlastnici/${owner.id}`}><span>Vlastník</span><strong>{owner.name}</strong><b className="mini-kpi-arrow">→</b></Link>
@@ -111,6 +117,8 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
 
       <div id="platby" className="card portfolio-table-card"><div className="table-toolbar"><div><h2>Finance jednotky</h2><p>Zaúčtované části bankovních transakcí a přijaté kauce této jednotky.</p></div></div><PaymentLedgerTable rows={paymentLedgerRows} empty="K jednotce zatím není přiřazena žádná platba ani přijatá kauce."/></div>
     </> : unit.leases.length === 0 ? <div className="card empty-state"><UserRound size={28}/><h2>Jednotka zatím nemá nájemní smlouvu</h2><p>Měřidla lze evidovat i před uzavřením první nájemní smlouvy.</p></div> : <div id="historie-finance" className="card portfolio-table-card"><div className="table-toolbar"><div><h2>Historické finance jednotky</h2><p>Zaúčtované platby, kauce a případný dluh zůstávají dostupné i po skončení nájemního vztahu.</p></div><strong className={overdueDebt ? "negative" : "positive"}>{money(overdueDebt)}</strong></div><PaymentLedgerTable rows={paymentLedgerRows} empty="K historickým vztahům zatím není přiřazena žádná platba ani přijatá kauce."/></div>}
+
+      <div id="kvalita" className="card unit-module-card unit-condition-card"><div className="card-head"><div><h2>Kvalita a plán obnovy</h2><p className="muted-copy">Technický stav jednotky je nezávislý na distribuci a zůstává dohledatelný i při změně vlastníka.</p></div><Hammer size={20}/></div>{currentCondition ? <div className="condition-current"><div><span>Kvalita</span><strong className={`rating-badge rating-${currentCondition.rating.slice(0, 1).toLowerCase()}`}>{unitConditionRatings[currentCondition.rating]}</strong></div><div><span>Naléhavost</span><strong>{unitConditionUrgencies[currentCondition.investmentUrgency]}</strong></div><div><span>Plán obnovy</span><strong>{unitConditionPlanStatuses[currentCondition.planStatus]}</strong><small>{currentCondition.targetDate ? `Cíl ${date(currentCondition.targetDate)}` : "Bez termínu"}</small></div><div><span>Odhad CAPEX</span><strong>{money(currentCondition.estimatedCapexCents)}</strong></div></div> : <div className="table-empty">Jednotka zatím nemá technické hodnocení.</div>}{currentCondition?.note && <p className="condition-note">{currentCondition.note}</p>}{canManage && <details className="module-add condition-add"><summary><Plus size={15}/> Uložit nový snapshot</summary><UnitConditionAssessmentForm propertyId={id} unitId={unitId} returnTo={`/nemovitosti/${id}/jednotky/${unitId}#kvalita`} assessment={currentCondition}/></details>}{conditionAssessments.length > 0 && <details className="condition-history"><summary>Historie hodnocení · {conditionAssessments.length}</summary><div className="summary-list">{conditionAssessments.map((row) => <div key={row.id}><span>{date(row.assessedAt)} · {row.createdBy.name}</span><strong>{unitConditionRatings[row.rating]} · {money(row.estimatedCapexCents)}</strong></div>)}</div></details>}</div>
 
       <div id="dokumenty" className="card unit-module-card"><div className="card-head"><h2>Dokumenty jednotky</h2></div><DocumentAttachments documents={documents} canDelete={canManage} returnTo={`/nemovitosti/${id}/jednotky/${unitId}`}/>{canManage&&<details className="module-add"><summary><Plus size={15}/> Nahrát dokument</summary><DocumentUploadForm propertyId={id} unitId={unitId} returnTo={`/nemovitosti/${id}/jednotky/${unitId}`} categories={[["PHOTO","Fotografie"],["HANDOVER_PROTOCOL","Předávací protokol"],["TECHNICAL_DOCUMENT","Technický dokument"],["OTHER","Ostatní"]]}/></details>}</div>
 

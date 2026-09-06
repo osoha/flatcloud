@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { ensureAuditScenarios } from "./seed-audit-scenarios";
+import { ensurePortfolioQualityScenarios } from "./seed-portfolio-quality";
 
 const prisma = new PrismaClient();
 const cents = (value: number) => value * 100;
@@ -10,6 +11,7 @@ async function main() {
   const existingProperties = await prisma.property.count();
   if (existingProperties > 0) {
     await ensureAuditScenarios(prisma, admin.id);
+    await ensurePortfolioQualityScenarios(prisma, admin.id);
     console.log("Základní demo data nebyla vložena: databáze již obsahuje nemovitosti.");
     return;
   }
@@ -128,6 +130,7 @@ async function main() {
   }
 
   await ensureAuditScenarios(prisma, admin.id);
+  await ensurePortfolioQualityScenarios(prisma, admin.id);
 
   await prisma.auditLog.create({
     data: {

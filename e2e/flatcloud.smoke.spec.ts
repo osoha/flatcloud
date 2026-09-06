@@ -138,21 +138,31 @@ test("roční podklady vedou od vlastníka ke zdrojům a bezpečnému exportu", 
   assertNoBrowserFailures();
 });
 
-test("interní kategorizace ukládá nový neměnný snapshot jednotky", async ({ page }) => {
+test("kvalita jednotky a distribuční připravenost mají oddělený průchod", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
   await page.goto("/distribuce");
   await expect(page.getByRole("heading", { name: "Interní distribuce", exact: true })).toBeVisible();
   await expect(page.getByText("Interní obchodní modul · pouze FlatCloud Group", { exact: true })).toBeVisible();
-  const firstAssessment = page.locator(".distribution-assessment").first();
-  await firstAssessment.getByText("Nové hodnocení", { exact: true }).click();
-  await firstAssessment.getByLabel("Rating kvality *").selectOption("B_GOOD");
-  await firstAssessment.getByLabel("Nutnost investice *").selectOption("MONITOR");
-  await firstAssessment.getByLabel("Odhad CAPEX Kč").fill("125000");
-  await firstAssessment.getByLabel("Poznámka / důvod").fill("E2E kontrolní hodnocení");
-  await firstAssessment.getByRole("button", { name: "Uložit nový snapshot", exact: true }).click();
-  await expect(page.getByText("Nové hodnocení jednotky bylo uloženo do historie.")).toBeVisible();
-  await expect(page.getByText("125 000 Kč", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Technický stav je samostatný podklad", { exact: true })).toBeVisible();
+  const unitHref = await page.locator("tbody tr").first().getByRole("link").first().getAttribute("href");
+  expect(unitHref).toBeTruthy();
+  await page.goto(`${unitHref}#kvalita`);
+  const condition = page.locator("#kvalita");
+  await condition.getByText("Uložit nový snapshot", { exact: false }).first().click();
+  await condition.getByLabel("Kvalita jednotky *").selectOption("B_GOOD");
+  await condition.getByLabel("Naléhavost investice *").selectOption("MONITOR");
+  await condition.getByLabel("Odhad CAPEX Kč").fill("125000");
+  await condition.getByLabel("Poznámka / rozsah").fill("E2E kontrolní hodnocení");
+  await condition.getByRole("button", { name: "Uložit nový snapshot", exact: true }).click();
+  await expect(page.getByText("Nový snapshot kvality a plánu obnovy byl uložen.")).toBeVisible();
+  await page.goto("/distribuce");
+  const firstAssessment = page.locator("tbody tr").first().locator(".distribution-assessment").first();
+  await firstAssessment.getByText("Změnit připravenost", { exact: true }).click();
+  await firstAssessment.getByLabel("Interně připraveno pro distribuci").check();
+  await firstAssessment.getByLabel("Poznámka / další krok").fill("E2E obchodní připravenost");
+  await firstAssessment.getByRole("button", { name: "Uložit nový stav", exact: true }).click();
+  await expect(page.getByText("Nový stav distribuční připravenosti byl uložen do historie.")).toBeVisible();
   const firstValuation = page.locator(".distribution-valuation").first();
   await firstValuation.getByText("Nová valuace", { exact: true }).click();
   await firstValuation.getByLabel("Tržní hodnota Kč *").fill("5000000");
