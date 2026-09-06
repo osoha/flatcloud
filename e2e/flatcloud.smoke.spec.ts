@@ -184,7 +184,7 @@ test("schválený CAPEX plán se právě jednou převede do realizace", async ({
   await row.getByLabel("Název CAPEX akce *").fill("E2E schválená obnova");
   await row.getByRole("button", { name: "Převést do realizace", exact: true }).click();
   await expect(page.getByText(/CAPEX plán byl převeden do úkolu a rozpočtu pro rok/)).toBeVisible();
-  const converted = page.locator("tbody tr").filter({ hasText: "Převedeno do realizace" }).first();
+  const converted = page.locator("tbody tr").filter({ hasText: "Připraveno k zahájení" }).first();
   await expect(converted.getByRole("link", { name: "Úkol", exact: true })).toBeVisible();
   await expect(converted.getByRole("link", { name: "CAPEX", exact: true })).toBeVisible();
   await expect(converted.getByRole("link", { name: "Rozpočet", exact: true })).toBeVisible();

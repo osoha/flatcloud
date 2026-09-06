@@ -53,7 +53,7 @@ async function main() {
 
   await check("UI exposes a compact prioritized and traceable workflow", () => {
     const page = read("app/portfolio/kvalita/page.tsx"); const detail = read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx");
-    for (const marker of ["Prioritní fronta obnovy", "Převést plán", "Převedeno do realizace", "Úkol", "CAPEX", "Rozpočet"]) assert.match(page, new RegExp(marker));
+    for (const marker of ["Prioritní fronta obnovy", "Převést plán", "Připraveno k zahájení", "Řídit realizaci", "Úkol", "CAPEX", "Rozpočet"]) assert.match(page, new RegExp(marker));
     assert.match(detail, /Převést schválený plán do realizace/); assert.match(detail, /Plán je v realizaci/);
   });
 
