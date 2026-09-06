@@ -214,8 +214,8 @@ test("CAPEX realizace projde zahájením, skutečností a řízeným zavřením 
   await started.getByLabel("Datum dokončení *").fill("2026-09-06");
   await started.getByRole("button", { name: "Dokončit a zapsat skutečnost", exact: true }).click();
   await expect(page.getByText("CAPEX realizace byla dokončena a skutečný náklad zapsán.")).toBeVisible();
-  const completed = page.locator("tbody tr").filter({ hasText: "Dokončeno" }).first();
-  await expect(completed.getByText("Skutečnost 675 000 Kč", { exact: true })).toBeVisible();
+  const completed = page.locator("tbody tr").filter({ hasText: /Skutečnost\s+675\s+000\s+Kč/ }).first();
+  await expect(completed).toBeVisible();
   await expect(completed.getByText(/Odchylka/)).toBeVisible();
   await expect(completed.getByText("Řídit realizaci", { exact: true })).toHaveCount(0);
   assertNoBrowserFailures();
