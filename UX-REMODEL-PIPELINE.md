@@ -179,7 +179,10 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - R11A vychází z cloudové vizuální kontroly na reálných scénářových datech; další blok R11B pokračuje průřezem hustých tabulek, navigací a menších viewportů.
 - **R11B implementováno bez migrace:** husté pracovní tabulky Kvality, Distribuce a reportů s osmi a více sloupci drží čitelné minimální šířky a používají záměrný horizontální posun místo lámání názvů, částek, stavů a akcí do úzkých svislých pruhů,
 - breakpoint 701–900 px už nekombinuje skrytý sidebar s rezervovaným levým odsazením; hlavní obsah i horní lišta využijí celou šířku a zachovají funkční mobilní menu,
-- další blok R11C pokračuje vizuálním průřezem formulářů, prázdných stavů a reportových výstupů.
+- **R11C implementováno bez migrace:** plnostránkové prázdné stavy mají opět čitelnou hierarchii, klidnou vertikální plochu a jednotnou typografii, zatímco prázdné stavy uvnitř menších widgetů zůstávají záměrně kompaktní,
+- formulářové stránky používají stabilní rytmus mezi návratem, titulkem a kartou; akce formuláře se bezpečně skládají na mobilu,
+- mobilní titulky už neskrývají sekundární akce ani nemění textové primární tlačítko bez ikony na prázdný čtverec; důležité cesty se na úzkém viewportu zobrazí jako plnohodnotná tlačítka,
+- další blok R11D pokračuje kontrolou výstupních a tiskových ploch a posledním průřezem vizuálních regresí.
 
 ## Release gate každé etapy
 
