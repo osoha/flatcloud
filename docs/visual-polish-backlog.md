@@ -16,3 +16,15 @@ Tento backlog se otevře až po dokončení funkční opravné pipeline. Nálezy
 - Stránka: Detail jednotky.
 - Nález: při přímém otevření `#kvalita`, `#komunikace` nebo `#dokumenty` překryla sticky navigace začátek cílové sekce.
 - Stav: opraveno v R11A doplněním jednotného scroll offsetu pro všechny položky lokální navigace.
+
+## VP-03 — Husté provozní tabulky
+
+- Zdroj: designerská cloudová kontrola Kvality, Distribuce a reportu Smluv, 6. 9. 2026.
+- Nález: osm a více sloupců se na běžném notebookovém viewportu smrštilo tak, že se názvy objektů, stavy a akce lámaly po několika znacích.
+- Stav: opraveno v R11B; husté tabulky mají čitelnou minimální šířku a zůstávají uvnitř existujícího horizontálně posuvného kontejneru.
+
+## VP-04 — Mezera po skrytém sidebaru
+
+- Zdroj: CSS průřez responzivních breakpointů, 6. 9. 2026.
+- Nález: mezi 701 a 900 px se sidebar transformací skryl, ale pozdější pravidlo ponechalo hlavnímu obsahu odsazení 196 px.
+- Stav: opraveno v R11B; kompaktní shell v celém rozsahu do 900 px používá plnou šířku hlavního obsahu.

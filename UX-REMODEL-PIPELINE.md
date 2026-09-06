@@ -177,6 +177,9 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - datumové filtry zůstávají vedle sebe, akce mají stabilní výšku a zrušení filtru je vizuálně sekundární,
 - všechny kotvy detailu jednotky včetně Kvality, Upomínek a Dokumentů respektují sticky horní lištu a lokální navigaci, takže nadpis cílové sekce po skoku nezmizí pod navigací,
 - R11A vychází z cloudové vizuální kontroly na reálných scénářových datech; další blok R11B pokračuje průřezem hustých tabulek, navigací a menších viewportů.
+- **R11B implementováno bez migrace:** husté pracovní tabulky Kvality, Distribuce a reportů s osmi a více sloupci drží čitelné minimální šířky a používají záměrný horizontální posun místo lámání názvů, částek, stavů a akcí do úzkých svislých pruhů,
+- breakpoint 701–900 px už nekombinuje skrytý sidebar s rezervovaným levým odsazením; hlavní obsah i horní lišta využijí celou šířku a zachovají funkční mobilní menu,
+- další blok R11C pokračuje vizuálním průřezem formulářů, prázdných stavů a reportových výstupů.
 
 ## Release gate každé etapy
 
