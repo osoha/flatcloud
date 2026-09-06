@@ -9,7 +9,13 @@ function check(name: string, test: () => void) { test(); count += 1; console.log
 
 check("cost schema can identify a unit and linked source documents", () => {
   const schema = read("prisma/schema.prisma");
-  for (const marker of ["documentNumber String?", "unit        Unit?", "documents   Document[]", "propertyCostId", "propertyCost                 PropertyCost?"]) assert.match(schema, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
+  for (const marker of [
+    /documentNumber\s+String\?/,
+    /unit\s+Unit\?/,
+    /documents\s+Document\[\]/,
+    /propertyCostId/,
+    /propertyCost\s+PropertyCost\?/,
+  ]) assert.match(schema, marker);
 });
 
 check("R3C migration is additive and keeps removed parents non-destructive", () => {
