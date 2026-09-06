@@ -166,7 +166,10 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R10D implementováno bez migrace:** změna efektivního přístupu uživatele vyžaduje samostatné potvrzení, přičemž pouhá úprava kontaktních údajů zůstává bez dalšího kroku; kontrola probíhá znovu nad aktuálním stavem uvnitř transakce,
 - administrace vysvětluje prioritu globálních rolí a globálního rozsahu nad jednotlivými granty a audit změny zachycuje objektová i jednotková oprávnění,
 - ruční spuštění naplánované komunikace a retenční odstranění raw bankovních zpráv vyžadují potvrzení v rozhraní i na serveru; retention předem ukazuje počet dotčených zpráv, hranici stáří a zachování účetních záznamů,
-- navazuje R10E — přístupnost, únikové cesty a zachování kontextu.
+- **R10E implementováno bez migrace:** všechny otevřené nativní rozbalovací editační panely lze zavřít klávesou Escape s návratem fokusu na jejich spouštěč; samostatné popup panely nadále nabízejí i viditelné tlačítko Zavřít a zavření kliknutím mimo,
+- horní zkratka Ruční platba zachová kontext právě otevřené nemovitosti a nabídne jen její způsobilé nájemní vztahy; mimo objektový kontext dál respektuje aktivní portfolio filtr,
+- katalog dokumentů má programově popsanou sadu filtrů, viditelné názvy polí, české názvy kategorií a fotografických fází, pojmenovaný odkaz na náhled a jednoznačné zrušení aktivních filtrů,
+- R10 tím uzavírá hloubkovou funkční sanaci; navazuje samostatná R11 designerská a vizuální kontrolní vlna.
 
 ## Release gate každé etapy
 

@@ -13,6 +13,7 @@ import { userRoles } from "@/lib/labels";
 import { authorizationScopeLabel } from "@/lib/access-scope-label";
 import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
 import { ScopeAwareLink } from "@/components/ScopeAwareLink";
+import { NativeDetailsEscape } from "@/components/NativeDetailsEscape";
 
 type ShellUser = {
   id: string;
@@ -63,6 +64,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
   return <div className="app-shell v21-shell">
+    <NativeDetailsEscape/>
     <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
       <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka">
@@ -111,7 +113,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
-          {canAddManualPayment && <ScopeAwareLink className="secondary top-action" href="/platby/nova"><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
+          {canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
           {canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
           <Link className="account-chip" href="/ucet"><UserRound size={15}/><span>{user.name}</span></Link>
