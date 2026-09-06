@@ -69,7 +69,9 @@ export async function progressUnitConditionPlanExecution(actor: Actor, propertyI
   const note = input.note?.trim() || null;
   if (note && note.length > 2_000) throw new Error("Poznámka může mít nejvýše 2 000 znaků.");
   const effectiveAt = input.effectiveAt || new Date();
-  if (Number.isNaN(effectiveAt.getTime()) || effectiveAt.getTime() > Date.now() + 60_000) throw new Error("Datum průběhu nesmí být v budoucnosti.");
+  const now = new Date();
+  const tomorrowUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  if (Number.isNaN(effectiveAt.getTime()) || effectiveAt.getTime() >= tomorrowUtc) throw new Error("Datum průběhu nesmí být v budoucnosti.");
   return prisma.$transaction(async (tx) => {
     const execution = await tx.unitConditionPlanExecution.findFirst({
       where: { id: executionId, propertyId, assessment: { unit: { id: unitId, ...editableUnitWhere(actor, propertyId) } } },

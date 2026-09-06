@@ -95,6 +95,7 @@ async function main() {
     await assert.rejects(() => progressUnitConditionPlanExecution(admin, property.id, property.units[0].id, converted.execution.id, { action: "COMPLETE", actualAmountCents: 1 }), /již byla dokončena/i);
     const secondApproved = await createUnitConditionAssessment(admin, property.id, property.units[1].id, { rating: "B_GOOD", investmentUrgency: "MONITOR", estimatedCapexCents: 80_000_00, planStatus: "APPROVED", targetDate, assessedAt: new Date() });
     const second = await executeApprovedUnitConditionPlan(admin, property.id, property.units[1].id, secondApproved.id, { title: "Druhá akce R8C" });
+    await assert.rejects(() => progressUnitConditionPlanExecution(admin, property.id, property.units[1].id, second.execution.id, { action: "START", effectiveAt: new Date(now + 2 * 24 * 60 * 60 * 1_000) }), /budoucnosti/i);
     await assert.rejects(() => progressUnitConditionPlanExecution(admin, property.id, property.units[1].id, second.execution.id, { action: "COMPLETE", actualAmountCents: 80_000_00 }), /nejprve zahájit/i);
     await assert.rejects(() => progressUnitConditionPlanExecution({ id: admin.id, role: "OWNER" }, property.id, property.units[1].id, second.execution.id, { action: "START" }), /oprávnění/i);
     assert.match(read("app/api/tasks/[id]/close/route.ts"), /CAPEX realizaci dokončete v modulu Kvalita a CAPEX/);
