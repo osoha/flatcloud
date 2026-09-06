@@ -163,7 +163,10 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R10C implementováno bez migrace:** chybějící skutečný OPEX za posledních 12 měsíců se již neinterpretuje jako účetně potvrzená nula; dotčené NOI, yield, cashflow, ROE a DSCR se zobrazí jako nedoložené, zatímco nezávislé LTV zůstává dostupné,
 - agregace přiznává chybějící OPEX kterékoliv zahrnuté nemovitosti, vypíše konkrétní nemovitosti a vytvoří provozní upozornění s cestou k doplnění nákladů,
 - kvartální report s budoucím rozhodným datem lze připravovat jako koncept, ale server i ovládací prvky blokují review a publikaci; obrazovka zřetelně odděluje rozhodné datum od dnešního data dostupnosti,
-- navazuje R10D — oprávnění, administrace a bezpečnost citlivých operací.
+- **R10D implementováno bez migrace:** změna efektivního přístupu uživatele vyžaduje samostatné potvrzení, přičemž pouhá úprava kontaktních údajů zůstává bez dalšího kroku; kontrola probíhá znovu nad aktuálním stavem uvnitř transakce,
+- administrace vysvětluje prioritu globálních rolí a globálního rozsahu nad jednotlivými granty a audit změny zachycuje objektová i jednotková oprávnění,
+- ruční spuštění naplánované komunikace a retenční odstranění raw bankovních zpráv vyžadují potvrzení v rozhraní i na serveru; retention předem ukazuje počet dotčených zpráv, hranici stáří a zachování účetních záznamů,
+- navazuje R10E — přístupnost, únikové cesty a zachování kontextu.
 
 ## Release gate každé etapy
 
