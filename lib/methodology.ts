@@ -16,8 +16,8 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Založení a převzetí nemovitosti",
     summary: "Doporučené pořadí nastavení objektu, jednotek, vlastníků, bankovních účtů a provozních odpovědností.",
     audience: "Správce portfolia",
-    steps: ["Založte právního vlastníka a objekt.", "Doplňte jednotky a jejich vlastníky.", "Přiřaďte účty pro inkaso a ověřte bankovní notifikace.", "Založte smlouvy, předpisy, kontakty a povinné revize."],
-    check: "Objekt je připraven, když jeho checklist nemá povinný nedokončený krok.",
+    steps: ["Založte právního vlastníka a objekt. Při zadání ulice a města zkontrolujte orientační PIN v mapovém náhledu; mapa adresu sama neopravuje.", "Doplňte jednotky a jejich vlastníky.", "Přiřaďte účty pro inkaso a ověřte bankovní notifikace.", "Založte smlouvy, předpisy, kontakty a povinné revize."],
+    check: "Objekt je připraven, když jeho adresa odpovídá zobrazené poloze a checklist nemá povinný nedokončený krok.",
     href: "/nemovitosti/nova",
   },
   {
