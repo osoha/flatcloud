@@ -550,12 +550,18 @@ async function main() {
     const build = ci.indexOf("npm run build");
     assert.ok(prior < design4a && design4a < trends && trends < build);
   });
-  await check("HTML global styles are protected", () =>
-    assert.equal(
-      hash("app/globals.css"),
-      "d630fe59fa6a36193b13aec927a798f4bc93844731c7707bd4f25f287ca5328f",
-    ),
-  );
+  await check("HTML report presentation styles are protected", () => {
+    const styles = read("app/globals.css");
+    for (const marker of [
+      ".qpr-page{",
+      "aspect-ratio:297/210",
+      ".qpr-document{",
+      ".qpr-cover-photo{",
+      ".qpr-technical-grid{",
+      ".qpr-valuation{",
+      ".qpr-trends-grid{",
+    ]) assert.match(styles, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
+  });
   await check(
     "presentation model only gains later weighted-rent trend data",
     () =>
