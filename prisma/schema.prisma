@@ -198,6 +198,11 @@ enum UnitConditionPlanStatus {
   COMPLETED
 }
 
+enum UnitConditionExecutionEventKind {
+  STARTED
+  COMPLETED
+}
+
 enum UnitValuationSource {
   INTERNAL_COMPARABLES
   EXTERNAL_APPRAISAL
@@ -450,6 +455,7 @@ model User {
   unitAssetAssessmentsCreated         UnitAssetAssessment[]          @relation("UnitAssetAssessmentCreator")
   unitConditionAssessmentsCreated     UnitConditionAssessment[]      @relation("UnitConditionAssessmentCreator")
   unitConditionPlanExecutionsCreated  UnitConditionPlanExecution[]   @relation("UnitConditionPlanExecutionCreator")
+  unitConditionExecutionEventsCreated UnitConditionExecutionEvent[]  @relation("UnitConditionExecutionEventCreator")
   unitValuationsCreated               UnitValuationSnapshot[]        @relation("UnitValuationCreator")
   distributionProspectsCreated        DistributionProspect[]         @relation("DistributionProspectCreator")
   distributionOpportunitiesCreated    DistributionOpportunity[]      @relation("DistributionOpportunityCreator")
@@ -985,22 +991,39 @@ model UnitConditionAssessment {
 }
 
 model UnitConditionPlanExecution {
-  id             String                  @id @default(cuid())
-  assessmentId   String                  @unique
-  assessment     UnitConditionAssessment @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
+  id             String                        @id @default(cuid())
+  assessmentId   String                        @unique
+  assessment     UnitConditionAssessment       @relation(fields: [assessmentId], references: [id], onDelete: Restrict)
   propertyId     String
-  property       Property                @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  taskId         String                  @unique
-  task           Task                    @relation(fields: [taskId], references: [id], onDelete: Restrict)
-  propertyCostId String                  @unique
-  propertyCost   PropertyCost            @relation(fields: [propertyCostId], references: [id], onDelete: Restrict)
-  budgetLineId   String                  @unique
-  budgetLine     PropertyBudgetLine      @relation(fields: [budgetLineId], references: [id], onDelete: Restrict)
+  property       Property                      @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  taskId         String                        @unique
+  task           Task                          @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  propertyCostId String                        @unique
+  propertyCost   PropertyCost                  @relation(fields: [propertyCostId], references: [id], onDelete: Restrict)
+  budgetLineId   String                        @unique
+  budgetLine     PropertyBudgetLine            @relation(fields: [budgetLineId], references: [id], onDelete: Restrict)
   createdById    String
-  createdBy      User                    @relation("UnitConditionPlanExecutionCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt      DateTime                @default(now())
+  createdBy      User                          @relation("UnitConditionPlanExecutionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt      DateTime                      @default(now())
+  events         UnitConditionExecutionEvent[]
 
   @@index([propertyId, createdAt])
+  @@index([createdById, createdAt])
+}
+
+model UnitConditionExecutionEvent {
+  id                String                          @id @default(cuid())
+  executionId       String
+  execution         UnitConditionPlanExecution      @relation(fields: [executionId], references: [id], onDelete: Restrict)
+  kind              UnitConditionExecutionEventKind
+  actualAmountCents Int?
+  effectiveAt       DateTime
+  note              String?
+  createdById       String
+  createdBy         User                            @relation("UnitConditionExecutionEventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime                        @default(now())
+
+  @@unique([executionId, kind])
   @@index([createdById, createdAt])
 }
 

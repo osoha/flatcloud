@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, Handshake, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, Hammer, Handshake, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
@@ -77,6 +77,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
 
         <div className="nav-label">Provoz</div>
         <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
+        <Nav href="/portfolio/kvalita" icon={<Hammer size={17}/>} label="Kvalita a CAPEX"/>
         <Nav href="/revize" icon={<ClipboardCheck size={17}/>} label="Revize" count={dueRevisions}/>
 
         <div className="nav-label">Finance</div>

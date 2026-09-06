@@ -12,12 +12,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const user = await currentUser();
   if (!user) return go(request, "/login");
   const { id } = await params;
-  const task = await prisma.task.findUnique({ where: { id }, include: { lease: { select: { unitId: true } } } });
+  const task = await prisma.task.findUnique({ where: { id }, include: { lease: { select: { unitId: true } }, conditionPlanExecution: { select: { id: true } } } });
   if (!task) return goWithMessage(request, "/ukoly", "error", "Úkol nebyl nalezen.");
   if (!(await canEditTask(user, task))) return goWithMessage(request, `/ukoly/${id}`, "error", "Nemáte oprávnění upravit tento úkol.");
   try {
     const form = await request.formData();
     const requestedStatus = text(form, "status");
+    if (task.conditionPlanExecution && requestedStatus && requestedStatus !== task.status) throw new Error("Stav CAPEX realizace měňte v modulu Kvalita a CAPEX.");
     if (requestedStatus === "DONE" && task.status !== "DONE") throw new Error("Úkol lze dokončit pouze přes uzavření se závěrečným komentářem.");
     const status = task.status === "DONE" || task.status === "CANCELLED" ? task.status : (requestedStatus || task.status);
     const priority = text(form, "priority") || task.priority;

@@ -11,11 +11,12 @@ import { randomUUID } from "node:crypto";
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
   const user=await currentUser();if(!user)return new Response("Unauthorized",{status:401});
   const{id}=await params;
-  const task=await prisma.task.findUnique({where:{id},select:{id:true,propertyId:true,unitId:true,leaseId:true,lease:{select:{unitId:true}},category:true,status:true}});
+  const task=await prisma.task.findUnique({where:{id},select:{id:true,propertyId:true,unitId:true,leaseId:true,lease:{select:{unitId:true}},category:true,status:true,conditionPlanExecution:{select:{id:true}}}});
   if(!task)return goWithMessage(request,"/ukoly","error","Úkol nebyl nalezen.");
   try{
     const canEdit=await canEditTask(user,task);
     if(!canEdit)throw new Error("Nemáte oprávnění uzavřít případ.");
+    if(task.conditionPlanExecution)throw new Error("CAPEX realizaci dokončete v modulu Kvalita a CAPEX, kde se zapíše také skutečný náklad.");
     if(task.status==="DONE"||task.status==="CANCELLED")throw new Error("Případ už je uzavřen.");
     const form=await request.formData(),body=String(form.get("body")||"").trim();if(!body)throw new Error("Závěrečný komentář je povinný.");
     const hasFiles=form.getAll("files").some(value=>value instanceof File&&value.size>0),files=hasFiles?await prepareDocumentFiles(form):[];
