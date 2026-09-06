@@ -105,7 +105,8 @@
     "verify:ux-wave-3": "node --import tsx scripts/verify-ux-wave-3.ts",
     "verify:r7-navigation-admin": "node --import tsx scripts/verify-r7-navigation-admin.ts",
     "verify:ux-remodel-r8a": "node --import tsx scripts/verify-ux-remodel-r8a.ts",
-    "verify:ux-remodel-r8b": "node --import tsx scripts/verify-ux-remodel-r8b.ts"
+    "verify:ux-remodel-r8b": "node --import tsx scripts/verify-ux-remodel-r8b.ts",
+    "verify:ux-remodel-r8c": "node --import tsx scripts/verify-ux-remodel-r8c.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

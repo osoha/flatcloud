@@ -138,7 +138,10 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R8B implementováno aditivně:** fronta obnovy řadí aktuální snapshoty podle stavu, naléhavosti, fáze plánu a prošlého termínu; dokončené položky se nevracejí mezi aktivní priority,
 - pouze aktuální snapshot ve stavu Schváleno s kladným CAPEX a cílovým termínem lze atomicky a právě jednou převést do propojeného úkolu údržby, plánovaného nákladu a roční rozpočtové položky,
 - převod respektuje editaci svěřeného aktiva, hlídá souběžnou otevřenou realizaci stejné jednotky a vytváří neměnnou vazbu i auditní stopu; Distribuce tuto vazbu nevlastní,
-- další řez pokračuje R8C — řízením průběhu realizace, odchylkou plánu vůči skutečnosti a uzavřením obnovy.
+- **R8C implementováno aditivně:** realizace má neměnné události Zahájeno a Dokončeno; zahájení přepne propojený úkol do práce a náklad do závazku, dokončení uzavře úkol a propíše skutečný CAPEX bez přepsání schváleného rozpočtu,
+- fronta i detail jednotky ukazují plán, skutečnost a odchylku; stav propojeného CAPEX úkolu se řídí pouze z modulu Kvalita a CAPEX, aby se nerozešly evidence,
+- „Kvalita a CAPEX“ je provozní modul v levé navigaci u Úkolů, nikoli řídký shortcut na hlavní obrazovce; plovoucí formuláře Kvality, Distribuce, CRM, pozvánek a změny nájemného mají viditelné Zavřít, únik klávesou Escape i kliknutím mimo,
+- další řez R8D naváže souhrnným plánem obnovy portfolia a časovým výhledem CAPEX bez směšování s interní Distribucí.
 
 ## Release gate každé etapy
 

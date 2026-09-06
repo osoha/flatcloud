@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
 import { portfolioSelectionLabel, withPortfolioSelection, type PortfolioSelection } from "@/lib/portfolio-selection";
@@ -12,11 +12,31 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const [search, setSearch] = useState("");
   const selectionKey = selection.mode === "ALL" ? `ALL:${availableProperties.map((property) => property.id).join(",")}` : `SELECTED:${selection.propertyIds.join(",")}`;
   const initial = useMemo(() => selection.mode === "ALL" ? availableProperties.map((property) => property.id) : selection.propertyIds, [selectionKey]);
   const [draft, setDraft] = useState<string[]>(initial);
   useEffect(() => { setDraft(initial); setOpen(false); setSearch(""); }, [selectionKey, initial]);
+  useEffect(() => {
+    function onPointerDown(event: PointerEvent) {
+      if (open && event.target instanceof Node && !pickerRef.current?.contains(event.target)) close();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (open && event.key === "Escape") {
+        event.preventDefault();
+        close();
+        triggerRef.current?.focus();
+      }
+    }
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open, initial]);
   const visible = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase("cs");
     return availableProperties.filter((property) => !needle || `${property.name} ${property.address} ${property.city} ${property.ownerName || ""}`.toLocaleLowerCase("cs").includes(needle));
@@ -51,8 +71,8 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
   }
 
   if (availableProperties.length <= 1) return <span className="scope-picker-single">{portfolioSelectionLabel(selection, selectedCount, availableProperties.length, availableProperties.filter((property) => property.active).length)}</span>;
-  return <div className="scope-picker">
-    <button className="scope-picker-trigger" type="button" title="Zobrazené objekty" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><span><small>Rozsah správy</small><strong>{selection.mode === "ALL" ? `Vše ve správě · ${availableProperties.length} objektů` : `${selectedCount} z ${availableProperties.length} objektů`}</strong></span><ChevronDown size={16}/></button>
+  return <div className="scope-picker" ref={pickerRef}>
+    <button ref={triggerRef} className="scope-picker-trigger" type="button" title="Zobrazené objekty" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><span><small>Rozsah správy</small><strong>{selection.mode === "ALL" ? `Vše ve správě · ${availableProperties.length} objektů` : `${selectedCount} z ${availableProperties.length} objektů`}</strong></span><ChevronDown size={16}/></button>
     {open && <div className="scope-picker-popover" role="dialog" aria-label="Vybrat zobrazené objekty">
       <div className="scope-presets" aria-label="Rychlý výběr rozsahu">
         <button type="button" aria-label="Vybrat vše ve správě" onClick={() => setDraft(availableProperties.map((property) => property.id))}>Vše ve správě</button>

@@ -184,11 +184,40 @@ test("schválený CAPEX plán se právě jednou převede do realizace", async ({
   await row.getByLabel("Název CAPEX akce *").fill("E2E schválená obnova");
   await row.getByRole("button", { name: "Převést do realizace", exact: true }).click();
   await expect(page.getByText(/CAPEX plán byl převeden do úkolu a rozpočtu pro rok/)).toBeVisible();
-  const converted = page.locator("tbody tr").filter({ hasText: "Převedeno do realizace" }).first();
+  const converted = page.locator("tbody tr").filter({ hasText: "Připraveno k zahájení" }).first();
   await expect(converted.getByRole("link", { name: "Úkol", exact: true })).toBeVisible();
   await expect(converted.getByRole("link", { name: "CAPEX", exact: true })).toBeVisible();
   await expect(converted.getByRole("link", { name: "Rozpočet", exact: true })).toBeVisible();
   await expect(converted.getByText("Převést plán", { exact: true })).toHaveCount(0);
+  assertNoBrowserFailures();
+});
+
+test("CAPEX realizace projde zahájením, skutečností a řízeným zavřením dialogu", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/portfolio/kvalita");
+  const row = page.locator("tbody tr").filter({ hasText: "Připraveno k zahájení" }).first();
+  await row.getByText("Řídit realizaci", { exact: true }).click();
+  await expect(row.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toBeVisible();
+  await row.getByRole("button", { name: "Zavřít", exact: true }).click();
+  await expect(row.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toHaveCount(0);
+  await row.getByText("Řídit realizaci", { exact: true }).click();
+  await page.keyboard.press("Escape");
+  await expect(row.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toHaveCount(0);
+  await row.getByText("Řídit realizaci", { exact: true }).click();
+  await row.getByLabel("Datum zahájení *").fill("2026-09-06");
+  await row.getByRole("button", { name: "Zahájit realizaci", exact: true }).click();
+  await expect(page.getByText("CAPEX realizace byla zahájena.")).toBeVisible();
+  const started = page.locator("tbody tr").filter({ hasText: "Probíhá" }).first();
+  await started.getByText("Řídit realizaci", { exact: true }).click();
+  await started.getByLabel("Skutečný CAPEX Kč *").fill("675000");
+  await started.getByLabel("Datum dokončení *").fill("2026-09-06");
+  await started.getByRole("button", { name: "Dokončit a zapsat skutečnost", exact: true }).click();
+  await expect(page.getByText("CAPEX realizace byla dokončena a skutečný náklad zapsán.")).toBeVisible();
+  const completed = page.locator("tbody tr").filter({ hasText: /Skutečnost\s+675\s+000\s+Kč/ }).first();
+  await expect(completed).toBeVisible();
+  await expect(completed.getByText(/Odchylka/)).toBeVisible();
+  await expect(completed.getByText("Řídit realizaci", { exact: true })).toHaveCount(0);
   assertNoBrowserFailures();
 });
 
