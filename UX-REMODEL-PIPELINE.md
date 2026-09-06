@@ -160,7 +160,10 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R10B implementováno bez migrace:** přepárování celé platby zůstává uvnitř zdrojové nemovitosti, vyžaduje potvrzení dopadu a nabízí pouze aktivní vztahy nebo ukončené vztahy s otevřeným dluhem; kontrola platí shodně v pickeru i serverové transakci,
 - oba vstupy ruční platby používají formulářovou idempotenci a databázovou unikátnost, takže opakované odeslání stejného požadavku nevytvoří druhý finanční pohyb,
 - pokročilé pravidlo už nemá předvolenou akci Ignorovat; uživatel musí vědomě zvolit výsledek a server nadále vyžaduje alespoň jednu rozlišovací podmínku. Pravidla tak mohou bezpečně vyřadit opakované interní či nesledované pohyby,
-- navazuje R10C — brány důvěryhodnosti dat a reportů.
+- **R10C implementováno bez migrace:** chybějící skutečný OPEX za posledních 12 měsíců se již neinterpretuje jako účetně potvrzená nula; dotčené NOI, yield, cashflow, ROE a DSCR se zobrazí jako nedoložené, zatímco nezávislé LTV zůstává dostupné,
+- agregace přiznává chybějící OPEX kterékoliv zahrnuté nemovitosti, vypíše konkrétní nemovitosti a vytvoří provozní upozornění s cestou k doplnění nákladů,
+- kvartální report s budoucím rozhodným datem lze připravovat jako koncept, ale server i ovládací prvky blokují review a publikaci; obrazovka zřetelně odděluje rozhodné datum od dnešního data dostupnosti,
+- navazuje R10D — oprávnění, administrace a bezpečnost citlivých operací.
 
 ## Release gate každé etapy
 
