@@ -130,6 +130,13 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - referenční základ tvoří kvartální `FlatCloud_Aksamit_2Q_2026_final`; výroční `FlatCloud_H1_2025_v1` slouží pouze ke kontrole společné značky, nikoli struktury,
 - další řez pokračuje R8A — Kvalitou a technickým stavem portfolia.
 
+### R8 — kvalita portfolia a plán obnovy
+
+- **R8A implementováno aditivně:** technické hodnocení jednotky, naléhavost, odhad CAPEX, stav plánu a cílový termín mají vlastní neměnnou historii dostupnou ve správě všech oprávněných aktiv bez ohledu na konsolidaci či budoucí prodej,
+- starší technická data z distribučních snapshotů se jednorázově převedou do nové evidence bez změny původní historie; distribuční modul už kvalitu ani CAPEX neupravuje, pouze ověřuje dostupnost technického podkladu a samostatně ukládá obchodní připravenost,
+- globální přehled „Kvalita a CAPEX“ respektuje stejný rozsah portfolia jako provozní cockpit a detail jednotky ukazuje aktuální stav i auditní historii bez dalších informačních bublin,
+- další řez pokračuje R8B — prioritizací obnovy a převodem schváleného plánu do konkrétních CAPEX úkolů/rozpočtu.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,

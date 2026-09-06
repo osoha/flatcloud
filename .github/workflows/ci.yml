@@ -127,6 +127,7 @@ jobs:
       - run: npm run verify:r7-navigation-admin
       - run: npm run verify:r7c-report-parity
       - run: npm run verify:r7d-template-fidelity
+      - run: npm run verify:ux-remodel-r8a
       - run: npm run verify:live-report-periods
 
   browser-smoke:

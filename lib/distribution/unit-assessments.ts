@@ -19,3 +19,18 @@ export async function createUnitAssetAssessment(actor:AssessmentActor,propertyId
     return assessment;
   });
 }
+
+export async function createUnitDistributionReadiness(actor:AssessmentActor,propertyId:string,unitId:string,input:{distributionReady:boolean;assessedAt:Date;note?:string|null}){
+  if(!canSeeAll(actor.role))throw new Error("Distribuční připravenost je dostupná pouze interním správcům FlatCloud.");
+  if(Number.isNaN(input.assessedAt.getTime())||input.assessedAt.getTime()>Date.now()+86_400_000)throw new Error("Datum posouzení nesmí být v budoucnosti.");
+  if((input.note||"").length>2_000)throw new Error("Poznámka může mít nejvýše 2 000 znaků.");
+  return prisma.$transaction(async(tx)=>{
+    const unit=await tx.unit.findFirst({where:{id:unitId,propertyId,property:{active:true,flatcloudConsolidationBasisPoints:{gt:0}}},select:{id:true,conditionAssessments:{orderBy:[{assessedAt:"desc"},{createdAt:"desc"}],take:1}}});
+    if(!unit)throw new Error("Jednotka není součástí potvrzeného aktiva FlatCloud.");
+    const condition=unit.conditionAssessments[0];
+    if(!condition)throw new Error("Nejprve doplňte technické hodnocení v modulu Kvalita a CAPEX.");
+    const assessment=await tx.unitAssetAssessment.create({data:{unitId,rating:condition.rating,investmentUrgency:condition.investmentUrgency,estimatedCapexCents:condition.estimatedCapexCents,distributionReady:input.distributionReady,assessedAt:input.assessedAt,note:input.note?.trim()||null,createdById:actor.id}});
+    await tx.auditLog.create({data:{userId:actor.id,propertyId,action:"UNIT_DISTRIBUTION_READINESS_CREATED",entityType:"UnitAssetAssessment",entityId:assessment.id,details:{unitId,conditionAssessmentId:condition.id,distributionReady:input.distributionReady,assessedAt:input.assessedAt.toISOString()}}});
+    return assessment;
+  });
+}
