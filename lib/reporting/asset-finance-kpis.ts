@@ -8,6 +8,7 @@ export type AssetFinanceInputRow = {
   consolidationBasisPoints: number;
   monthlyNetRentCents: number;
   actualOpexTtmCents: number;
+  opexComplete?: boolean;
   outstandingPrincipalCents: number;
   annualDebtServiceCents: number | null;
   marketValueCents: number | null;
@@ -42,6 +43,7 @@ function calculateAssetFinanceAlerts(rows: ReturnType<typeof calculatePropertyFi
   const add = (row: typeof rows[number], alert: Omit<AssetFinanceAlert, "id" | "propertyId" | "propertyName"> & { suffix: string }) => alerts.push({ id: `${row.propertyId}:${alert.suffix}`, propertyId: row.propertyId, propertyName: row.propertyName, tone: alert.tone, title: alert.title, detail: alert.detail, href: alert.href });
 
   for (const row of rows) {
+    if (!row.opexComplete) add(row, { suffix: "opex-unverified", tone: "warn", title: "OPEX TTM není doložený", detail: "Za posledních 12 měsíců chybí skutečný OPEX záznam. NOI, yield, cashflow, ROE a DSCR proto nejsou publikovány jako spolehlivé KPI.", href: `/nemovitosti/${row.propertyId}/finance#naklady` });
     if (row.marketValueCents == null) add(row, { suffix: "valuation-missing", tone: "warn", title: "Ocenění není úplné", detail: "Doplňte datované tržní ocenění se zdrojem; bez něj nelze vyhodnotit yield, ROE ani LTV.", href: `/nemovitosti/${row.propertyId}/finance#oceneni` });
     else if (row.valuationAsOfDate && row.valuationAsOfDate < valuationFreshness) add(row, { suffix: "valuation-stale", tone: "warn", title: "Ocenění je starší než 12 měsíců", detail: `Poslední stav je k ${day(row.valuationAsOfDate)}. Zapište aktuální ocenění jako nový historický stav.`, href: `/nemovitosti/${row.propertyId}/finance#oceneni` });
     if (row.annualDebtServiceCents == null) add(row, { suffix: "debt-service-missing", tone: "warn", title: "Chybí dluhová služba", detail: "Doplňte měsíční splátku aktivního úvěru; bez ní nelze vyhodnotit cashflow, ROE ani DSCR.", href: `/nemovitosti/${row.propertyId}/finance#uvery` });
@@ -85,8 +87,9 @@ function safeBigIntToNumber(value: bigint) {
 function calculatePropertyFinanceRows(rows: AssetFinanceInputRow[]) {
   return rows.map((row) => {
     const annualRentCents = row.monthlyNetRentCents * 12;
-    const noiCents = annualRentCents - row.actualOpexTtmCents;
-    const cashflowCents = row.annualDebtServiceCents == null ? null : noiCents - row.annualDebtServiceCents;
+    const opexComplete = row.opexComplete !== false;
+    const noiCents = opexComplete ? annualRentCents - row.actualOpexTtmCents : null;
+    const cashflowCents = row.annualDebtServiceCents == null || noiCents == null ? null : noiCents - row.annualDebtServiceCents;
     const equityCents = row.marketValueCents == null ? null : row.marketValueCents - row.outstandingPrincipalCents;
     return {
       ...row,
@@ -94,10 +97,11 @@ function calculatePropertyFinanceRows(rows: AssetFinanceInputRow[]) {
       noiCents,
       cashflowCents,
       equityCents,
-      yieldBps: row.marketValueCents == null ? null : ratioBasisPoints(noiCents, row.marketValueCents),
+      opexComplete,
+      yieldBps: row.marketValueCents == null || noiCents == null ? null : ratioBasisPoints(noiCents, row.marketValueCents),
       roeBps: cashflowCents == null || equityCents == null ? null : ratioBasisPoints(cashflowCents, equityCents),
       ltvBps: row.marketValueCents == null ? null : ratioBasisPoints(row.outstandingPrincipalCents, row.marketValueCents),
-      dscrBps: row.annualDebtServiceCents == null || row.annualDebtServiceCents === 0 ? null : ratioBasisPoints(noiCents, row.annualDebtServiceCents),
+      dscrBps: row.annualDebtServiceCents == null || row.annualDebtServiceCents === 0 || noiCents == null ? null : ratioBasisPoints(noiCents, row.annualDebtServiceCents),
     };
   });
 }
@@ -106,12 +110,13 @@ export function calculateAssetFinanceKpis(rows: AssetFinanceInputRow[], asOf = n
   const propertyRows = calculatePropertyFinanceRows(rows);
   const valuationComplete = propertyRows.every((row) => row.marketValueCents != null);
   const debtServiceComplete = propertyRows.every((row) => row.annualDebtServiceCents != null);
+  const opexComplete = propertyRows.every((row) => row.opexComplete);
   const sumConsolidated = (select: (row: typeof propertyRows[number]) => number | null) => propertyRows.reduce((sum, row) => sum + consolidatedAmount(select(row), row.consolidationBasisPoints), 0);
   const annualRentCents = sumConsolidated((row) => row.annualRentCents);
   const actualOpexTtmCents = sumConsolidated((row) => row.actualOpexTtmCents);
-  const noiCents = sumConsolidated((row) => row.noiCents);
+  const noiCents = opexComplete ? sumConsolidated((row) => row.noiCents) : null;
   const annualDebtServiceCents = debtServiceComplete ? sumConsolidated((row) => row.annualDebtServiceCents) : null;
-  const cashflowCents = debtServiceComplete ? sumConsolidated((row) => row.cashflowCents) : null;
+  const cashflowCents = debtServiceComplete && opexComplete ? sumConsolidated((row) => row.cashflowCents) : null;
   const marketValueCents = valuationComplete ? sumConsolidated((row) => row.marketValueCents) : null;
   const outstandingPrincipalCents = sumConsolidated((row) => row.outstandingPrincipalCents);
   const equityCents = marketValueCents == null ? null : marketValueCents - outstandingPrincipalCents;
@@ -122,6 +127,8 @@ export function calculateAssetFinanceKpis(rows: AssetFinanceInputRow[], asOf = n
     valuationCount: propertyRows.filter((row) => row.marketValueCents != null).length,
     missingValuationProperties: propertyRows.filter((row) => row.marketValueCents == null).map((row) => row.propertyName),
     missingDebtServiceProperties: propertyRows.filter((row) => row.annualDebtServiceCents == null).map((row) => row.propertyName),
+    missingOpexProperties: propertyRows.filter((row) => !row.opexComplete).map((row) => row.propertyName),
+    opexComplete,
     alerts,
     criticalAlertCount: alerts.filter((alert) => alert.tone === "bad").length,
     annualRentCents,
@@ -132,10 +139,10 @@ export function calculateAssetFinanceKpis(rows: AssetFinanceInputRow[], asOf = n
     marketValueCents,
     outstandingPrincipalCents,
     equityCents,
-    yieldBps: marketValueCents == null ? null : ratioBasisPoints(noiCents, marketValueCents),
+    yieldBps: marketValueCents == null || noiCents == null ? null : ratioBasisPoints(noiCents, marketValueCents),
     roeBps: cashflowCents == null || equityCents == null ? null : ratioBasisPoints(cashflowCents, equityCents),
     ltvBps: marketValueCents == null ? null : ratioBasisPoints(outstandingPrincipalCents, marketValueCents),
-    dscrBps: annualDebtServiceCents == null || annualDebtServiceCents === 0 ? null : ratioBasisPoints(noiCents, annualDebtServiceCents),
+    dscrBps: annualDebtServiceCents == null || annualDebtServiceCents === 0 || noiCents == null ? null : ratioBasisPoints(noiCents, annualDebtServiceCents),
   };
 }
 
@@ -165,6 +172,7 @@ export async function loadAssetFinanceKpis(rows: Array<{ property: { id: string;
       consolidationBasisPoints: row.property.flatcloudConsolidationBasisPoints!,
       monthlyNetRentCents: row.rentRoll.monthlyNetRentCents || 0,
       actualOpexTtmCents: costs.filter((cost) => cost.propertyId === row.property.id).reduce((sum, cost) => sum + cost.amountCents, 0),
+      opexComplete: costs.some((cost) => cost.propertyId === row.property.id),
       outstandingPrincipalCents: propertyLoans.reduce((sum, loan) => sum + loan.outstandingPrincipalCents, 0),
       annualDebtServiceCents: propertyLoans.some((loan) => loan.monthlyDebtServiceCents == null) ? null : propertyLoans.reduce((sum, loan) => sum + (loan.monthlyDebtServiceCents || 0) * 12, 0),
       marketValueCents: latestValuation ? safeBigIntToNumber(latestValuation.marketValueCents) : null,
