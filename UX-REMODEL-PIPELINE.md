@@ -157,7 +157,10 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R10A implementováno bez migrace:** filtr období v reportu inkasa nyní řídí graf, souhrnné KPI i tabulku nemovitostí; dluh po splatnosti zůstává zřetelně označenou stavovou veličinou k jednotnému LIVE datu,
 - detail financování používá pro dnešní jistinu, sazbu, splátku a ocenění pouze poslední potvrzený záznam nejvýše k dnešnímu obchodnímu dni; případný starší budoucí snapshot zůstane transparentně v historii jako plán a neovlivní KPI,
 - roční podklady ve výchozím stavu otevírají předchozí uzavřený rok; výslovně vybraný aktuální rok je průběžný YTD balíček s cutoffem k dnešnímu dni, blokátorem finální připravenosti a jednoznačným označením v obrazovce, obsahu i názvu CSV,
-- navazuje R10B — bezpečné párování, přeřazení a ochrana proti duplicitám.
+- **R10B implementováno bez migrace:** přepárování celé platby zůstává uvnitř zdrojové nemovitosti, vyžaduje potvrzení dopadu a nabízí pouze aktivní vztahy nebo ukončené vztahy s otevřeným dluhem; kontrola platí shodně v pickeru i serverové transakci,
+- oba vstupy ruční platby používají formulářovou idempotenci a databázovou unikátnost, takže opakované odeslání stejného požadavku nevytvoří druhý finanční pohyb,
+- pokročilé pravidlo už nemá předvolenou akci Ignorovat; uživatel musí vědomě zvolit výsledek a server nadále vyžaduje alespoň jednu rozlišovací podmínku. Pravidla tak mohou bezpečně vyřadit opakované interní či nesledované pohyby,
+- navazuje R10C — brány důvěryhodnosti dat a reportů.
 
 ## Release gate každé etapy
 

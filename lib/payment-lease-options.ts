@@ -3,6 +3,7 @@ import { editableUnitWhere } from "./access";
 import { prisma } from "./db";
 import { leaseStatuses } from "./labels";
 import { leaseStatusAt } from "./lease-lifecycle-core";
+import { outstandingCents } from "./charges";
 
 type Actor={id:string;role:string;allProperties?:boolean};
 
@@ -15,4 +16,8 @@ export async function loadEditablePaymentLeases(actor:Actor,propertyScope?:strin
 export function paymentLeaseOptionLabel(lease:{contractNumber:string|null;variableSymbol:string;startDate:Date;endDate:Date|null;cancelledAt:Date|null;terminatedOn:Date|null;unit:{label:string;property:{name:string}};tenant:{name:string}}){
   const contract=lease.contractNumber?`Smlouva ${lease.contractNumber} · `:"";
   return `${lease.unit.property.name} · ${lease.unit.label} · ${lease.tenant.name} · ${contract}VS ${lease.variableSymbol} · ${leaseStatuses[leaseStatusAt(lease)]}`;
+}
+
+export function paymentReassignmentEligible(lease:{startDate:Date;endDate:Date|null;cancelledAt:Date|null;terminatedOn:Date|null;charges:Array<{active:boolean;amountCents:number;allocations:Array<{amountCents:number}>;securityDepositOffsets?:Array<{amountCents:number}>;creditApplications?:Array<{amountCents:number}>}>},now=new Date()){
+  return leaseStatusAt(lease,now)==="ACTIVE"||lease.charges.some(charge=>charge.active&&outstandingCents(charge)>0);
 }
