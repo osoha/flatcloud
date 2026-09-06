@@ -34,3 +34,9 @@ Tento backlog se otevře až po dokončení funkční opravné pipeline. Nálezy
 - Zdroj: průřez globální kaskádou stylů a vstupními formuláři, 6. 9. 2026.
 - Nález: pozdější obecné pravidlo zmenšovalo všechny prázdné stavy na parametry kompaktního widgetu; mobilní pravidla současně skrývala sekundární titulkové akce a odebírala text primárním tlačítkům bez ikony.
 - Stav: opraveno v R11C; plnostránkové a kompaktní prázdné stavy mají explicitně oddělenou hierarchii a všechny důležité titulkové akce zůstávají na mobilu viditelné a čitelné.
+
+## VP-06 — Nepravdivý popis formátu reportu
+
+- Zdroj: cloudová kontrola skutečného kvartálního náhledu, 6. 9. 2026.
+- Nález: aktivní šablona i renderer správně používaly zdrojový poměr FlatCloud 13:9, ale karta editoru stále výstup popisovala jako A4 na šířku.
+- Stav: opraveno v R11D; editor používá neutrální popis a samotný náhled zobrazuje konkrétní formát aktivní šablony i správnou cestu pro tiskovou kontrolu.

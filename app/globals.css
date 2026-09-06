@@ -450,3 +450,15 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
   .v21-shell .form-actions .primary,.v21-shell .form-actions .secondary{width:100%}
   .v21-shell .empty-state{min-height:160px;padding:30px 18px}
 }
+
+/* UX remodel R11D — truthful report preview and export controls */
+.qpr-preview-toolbar>div:first-child{display:grid;justify-items:start}
+.qpr-format-badge{display:inline-flex;margin-top:9px;padding:5px 8px;border:1px solid #cbd8e8;border-radius:999px;background:#f7f9fc;color:#52647c;font:700 10px/1.2 Arial,sans-serif}
+.qpr-preview-actions{display:grid;justify-items:end;gap:7px;text-align:right}
+.qpr-preview-actions>a{display:inline-flex;min-height:38px;align-items:center;padding:0 12px;border:1px solid #c8d6e8;border-radius:9px;background:#fff;color:#245f9c}
+.qpr-preview-actions>span{padding:7px 11px;border-radius:999px;background:#fff7df;color:#8a5900;font:700 11px Arial,sans-serif}
+.qpr-preview-actions>small{max-width:250px;color:#667085;font-size:10px;line-height:1.4}
+@media(max-width:760px){
+  .qpr-preview-actions{justify-items:start;text-align:left}
+  .qpr-preview-actions>a{width:100%;justify-content:center}
+}
