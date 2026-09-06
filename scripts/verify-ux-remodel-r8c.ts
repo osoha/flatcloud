@@ -36,14 +36,15 @@ async function main() {
     },
     include: { units: true },
   });
-  const targetDate = new Date("2027-04-30T12:00:00Z");
+  const now = Date.now();
+  const targetDate = new Date(now + 365 * 24 * 60 * 60 * 1_000);
   const approved = await createUnitConditionAssessment(admin, property.id, property.units[0].id, {
     rating: "C_RENOVATE",
     investmentUrgency: "PLAN_12_MONTHS",
     estimatedCapexCents: 640_000_00,
     planStatus: "APPROVED",
     targetDate,
-    assessedAt: new Date("2026-09-01T12:00:00Z"),
+    assessedAt: new Date(now - 5 * 24 * 60 * 60 * 1_000),
     note: "R8C integrační scénář",
   });
   const converted = await executeApprovedUnitConditionPlan(admin, property.id, property.units[0].id, approved.id, { title: "Rekonstrukce R8C" });
@@ -55,7 +56,7 @@ async function main() {
     assert.deepEqual(unitConditionCapexVariance(640_000_00, 675_000_00), { amountCents: 35_000_00, basisPoints: 547 });
   });
 
-  const startedAt = new Date("2026-09-05T12:00:00Z");
+  const startedAt = new Date(now - 2 * 24 * 60 * 60 * 1_000);
   await check("starting appends an event and moves linked records into progress", async () => {
     await progressUnitConditionPlanExecution(admin, property.id, property.units[0].id, converted.execution.id, { action: "START", effectiveAt: startedAt, note: "Stavba předána" });
     const execution = await prisma.unitConditionPlanExecution.findUniqueOrThrow({
@@ -69,9 +70,9 @@ async function main() {
     assert.ok(await prisma.auditLog.findFirst({ where: { action: "UNIT_CONDITION_EXECUTION_STARTED", details: { path: ["executionId"], equals: execution.id } } }));
   });
 
-  const completedAt = new Date("2026-09-06T12:00:00Z");
+  const completedAt = new Date(now - 24 * 60 * 60 * 1_000);
   await check("completion records actual CAPEX, variance and closes the task", async () => {
-    await assert.rejects(() => progressUnitConditionPlanExecution(admin, property.id, property.units[0].id, converted.execution.id, { action: "COMPLETE", actualAmountCents: 675_000_00, effectiveAt: new Date("2026-09-04T12:00:00Z") }), /nesmí předcházet/);
+    await assert.rejects(() => progressUnitConditionPlanExecution(admin, property.id, property.units[0].id, converted.execution.id, { action: "COMPLETE", actualAmountCents: 675_000_00, effectiveAt: new Date(now - 3 * 24 * 60 * 60 * 1_000) }), /nesmí předcházet/);
     const result = await progressUnitConditionPlanExecution(admin, property.id, property.units[0].id, converted.execution.id, { action: "COMPLETE", actualAmountCents: 675_000_00, effectiveAt: completedAt, note: "Převzato bez vad" });
     assert.deepEqual(result.variance, { amountCents: 35_000_00, basisPoints: 547 });
     const execution = await prisma.unitConditionPlanExecution.findUniqueOrThrow({
