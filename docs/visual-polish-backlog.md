@@ -28,3 +28,9 @@ Tento backlog se otevře až po dokončení funkční opravné pipeline. Nálezy
 - Zdroj: CSS průřez responzivních breakpointů, 6. 9. 2026.
 - Nález: mezi 701 a 900 px se sidebar transformací skryl, ale pozdější pravidlo ponechalo hlavnímu obsahu odsazení 196 px.
 - Stav: opraveno v R11B; kompaktní shell v celém rozsahu do 900 px používá plnou šířku hlavního obsahu.
+
+## VP-05 — Prázdné stavy a mobilní akce
+
+- Zdroj: průřez globální kaskádou stylů a vstupními formuláři, 6. 9. 2026.
+- Nález: pozdější obecné pravidlo zmenšovalo všechny prázdné stavy na parametry kompaktního widgetu; mobilní pravidla současně skrývala sekundární titulkové akce a odebírala text primárním tlačítkům bez ikony.
+- Stav: opraveno v R11C; plnostránkové a kompaktní prázdné stavy mají explicitně oddělenou hierarchii a všechny důležité titulkové akce zůstávají na mobilu viditelné a čitelné.

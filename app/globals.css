@@ -424,3 +424,29 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 
 /* UX audit polish: visible completion action */
 .compliance-complete>summary{display:inline-flex;align-items:center;width:max-content;padding:7px 10px;border:1px solid #c9daf3;border-radius:8px;background:#f3f7ff}.compliance-complete>summary::after{content:" – zapsat výsledek";font-weight:650}.compliance-complete[open]>summary{background:#e8f0ff;border-color:#9fbae6}
+
+/* UX remodel R11C — empty states, forms and mobile page actions */
+.v21-shell .empty-state{display:grid;justify-items:center;align-content:center;gap:8px;min-height:190px;padding:40px 24px;text-align:center}
+.v21-shell .empty-state>svg,.v21-shell .empty-state>.big{color:#7890b7}
+.v21-shell .empty-state h2,.v21-shell .empty-state h3{margin:3px 0 0;color:var(--navy);font-size:17px;line-height:1.3}
+.v21-shell .empty-state p{max-width:520px;margin:0 auto;color:var(--muted);font-size:12px;line-height:1.6}
+.v21-shell .empty-state>.primary,.v21-shell .empty-state>.secondary{margin-top:7px}
+.v21-shell .compact-empty,.v21-shell .stack-list>.empty-state{min-height:112px;padding:20px 16px;gap:6px}
+.v21-shell .compact-empty h3,.v21-shell .stack-list>.empty-state h3{font-size:14px}
+.v21-shell .compact-empty p,.v21-shell .stack-list>.empty-state p{font-size:11px}
+.v21-shell .form-page>.breadcrumb{margin-bottom:10px}
+.v21-shell .form-page>.page-title{margin-bottom:16px}
+.v21-shell .edit-form{overflow:hidden}
+.v21-shell .form-actions{align-items:center;flex-wrap:wrap}
+@media(max-width:700px){
+  .v21-shell .page-title .action-row .secondary{display:inline-flex}
+  .v21-shell .page-title>.action-row,.v21-shell .page-title>.top-actions{width:100%;justify-content:flex-start}
+}
+@media(max-width:620px){
+  .v21-shell .page-title{align-items:stretch;flex-direction:column}
+  .v21-shell .page-title>.primary,.v21-shell .page-title>.secondary,.v21-shell .page-title>.action-row>a,.v21-shell .page-title>.top-actions>a{width:100%;min-height:41px;padding:0 12px;justify-content:center;font-size:12px}
+  .v21-shell .page-title>.action-row,.v21-shell .page-title>.top-actions{display:grid;grid-template-columns:1fr}
+  .v21-shell .form-actions{display:grid;grid-template-columns:1fr 1fr}
+  .v21-shell .form-actions .primary,.v21-shell .form-actions .secondary{width:100%}
+  .v21-shell .empty-state{min-height:160px;padding:30px 18px}
+}
