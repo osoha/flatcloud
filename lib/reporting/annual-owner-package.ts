@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { businessDateEndInstant, businessDateKeyToInstant } from "@/lib/calendar";
+import { businessDateEndInstant, businessDateKey, businessDateKeyToInstant } from "@/lib/calendar";
 import { reportingPropertyAccessWhere, reportingScopeForUser, reportingUnitAccessWhere, type ReportingUser } from "@/lib/reporting/access";
 
 export type AnnualPackageIssue = { code: string; severity: "BLOCKER" | "WARNING"; message: string; href?: string };
@@ -7,8 +7,8 @@ export type AnnualIncomeRow = { id: string; bookedAt: Date; propertyId: string; 
 export type AnnualExpenseRow = { id: string; effectiveAt: Date; propertyId: string; propertyName: string; title: string; kind: string; category: string; documentNumber: string | null; sourceAmountCents: number; ownerShareBasisPoints: number | null; ownerAmountCents: number; allocationNote: string; documentCount: number };
 export type AnnualLoanRow = { id: string; propertyId: string; propertyName: string; label: string; lender: string; outstandingPrincipalCents: number; annualInterestRateBps: number; asOfDate: Date | null; evidence: string };
 
-function yearRange(year: number) { return { from: businessDateKeyToInstant(`${year}-01-01`), to: businessDateEndInstant(`${year}-12-31`) }; }
-export function normalizeAnnualPackageYear(value: string | undefined, now = new Date()) { const previousYear = now.getUTCFullYear() - 1; const parsed = Number(value); return Number.isInteger(parsed) && parsed >= 2000 && parsed <= now.getUTCFullYear() ? parsed : previousYear; }
+export function annualPackagePeriod(year: number, now = new Date()) { const today=businessDateKey(now),currentYear=Number(today.slice(0,4)),closed=year<currentYear,toKey=closed?`${year}-12-31`:today;return { from:businessDateKeyToInstant(`${year}-01-01`),to:businessDateEndInstant(toKey as `${number}-${number}-${number}`),toKey,closed,mode:closed?"CLOSED" as const:"YTD" as const }; }
+export function normalizeAnnualPackageYear(value: string | undefined, now = new Date()) { const currentYear = Number(businessDateKey(now).slice(0,4)), previousYear = currentYear - 1; const parsed = Number(value); return Number.isInteger(parsed) && parsed >= 2000 && parsed <= currentYear ? parsed : previousYear; }
 function proportional(amountCents: number | bigint, basisPoints: number) { const amount=Number(amountCents); if(!Number.isSafeInteger(amount))throw new Error("Jistina je mimo bezpečný rozsah reportu."); return Math.round(amount * basisPoints / 10_000); }
 
 export async function loadAnnualOwnerPackage(user: ReportingUser, input: { ownerId?: string; year: number }) {
@@ -26,8 +26,8 @@ export async function loadAnnualOwnerPackage(user: ReportingUser, input: { owner
     for (const unit of property.units) for (const ownership of unit.ownerships) ownerMap.set(ownership.owner.id, ownership.owner.name);
   }
   const owners = [...ownerMap].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, "cs"));
-  const selectedOwner = owners.find((owner) => owner.id === input.ownerId) || null, range = yearRange(input.year);
-  if (!selectedOwner || !propertyIds.length || !unitIds.length) return emptyPackage(input.year, owners, selectedOwner);
+  const selectedOwner = owners.find((owner) => owner.id === input.ownerId) || null, range = annualPackagePeriod(input.year);
+  if (!selectedOwner || !propertyIds.length || !unitIds.length) return emptyPackage(input.year, owners, selectedOwner, range);
 
   const costAccess = scope.mode === "ALL" ? { propertyId: { in: propertyIds } } : { OR: [
     ...(scope.wholePropertyIds.length ? [{ propertyId: { in: scope.wholePropertyIds } }] : []),
@@ -50,7 +50,7 @@ export async function loadAnnualOwnerPackage(user: ReportingUser, input: { owner
     }, orderBy: [{ property: { name: "asc" } }, { label: "asc" }] }),
   ]);
 
-  const issues: AnnualPackageIssue[] = [{ code: "CURRENT_OWNERSHIP", severity: "WARNING", message: "Rozdělení používá současné vlastnické podíly. Aplikace zatím neeviduje jejich historickou účinnost; změny vlastníka v průběhu roku ověřte mimo tento balíček." }];
+  const issues: AnnualPackageIssue[] = [...(!range.closed?[{ code:"OPEN_ANNUAL_PERIOD",severity:"BLOCKER" as const,message:`Rok ${input.year} není uzavřený. Podklady jsou průběžné pouze do ${range.toKey} a nesmí být označené jako finální roční balíček.` }]:[]), { code: "CURRENT_OWNERSHIP", severity: "WARNING", message: "Rozdělení používá současné vlastnické podíly. Aplikace zatím neeviduje jejich historickou účinnost; změny vlastníka v průběhu roku ověřte mimo tento balíček." }];
   const ownerShareForUnit = (unit: { ownerships: Array<{ ownerId: string; shareBasisPoints: number }>; property: { ownershipMode: string; ownerId: string; ownerships: Array<{ ownerId: string; shareBasisPoints: number }> } }) => {
     const unitShare = unit.ownerships.find((row) => row.ownerId === selectedOwner.id)?.shareBasisPoints; if (unitShare != null) return unitShare;
     if (unit.property.ownershipMode !== "WHOLE_OBJECT") return 0;
@@ -82,7 +82,7 @@ export async function loadAnnualOwnerPackage(user: ReportingUser, input: { owner
   const loanRows: AnnualLoanRow[] = loans.flatMap((loan) => { const share = loan.property.ownershipMode === "WHOLE_OBJECT" ? loan.property.ownerships.find((row) => row.ownerId === selectedOwner.id)?.shareBasisPoints ?? (loan.property.ownerId === selectedOwner.id ? 10_000 : 0) : 0; const snapshot=loan.snapshots[0]; if (!share||!snapshot) return []; return [{ id:loan.id, propertyId:loan.propertyId, propertyName:loan.property.name, label:loan.label, lender:loan.lender, outstandingPrincipalCents:proportional(snapshot.outstandingPrincipalCents,share), annualInterestRateBps:snapshot.annualInterestRateBps, asOfDate:snapshot.asOfDate, evidence:"Sazba a jistina nejsou dokladem zaplaceného úroku" }]; });
   if (loanRows.length) issues.push({ code: "LOAN_INTEREST_SOURCE", severity: "BLOCKER", message: "U úvěrů chybí samostatná evidence skutečně zaplacených úroků. Sazba a zůstatek jistiny jsou pouze kontrolní údaje; doplňte finanční náklad a účetní doklad." });
   const incomeCents=incomeRows.reduce((sum,row)=>sum+row.ownerAmountCents,0), rentIncomeCents=incomeRows.reduce((sum,row)=>sum+row.rentCents,0), servicesIncomeCents=incomeRows.reduce((sum,row)=>sum+row.servicesCents,0), depositIncomeCents=incomeRows.reduce((sum,row)=>sum+row.depositCents,0), expenseCents=expenseRows.reduce((sum,row)=>sum+row.ownerAmountCents,0), documentedExpenseCents=expenseRows.filter((row)=>row.documentCount>0).reduce((sum,row)=>sum+row.ownerAmountCents,0);
-  return { year:input.year, owners, selectedOwner, incomeRows, expenseRows, loanRows, issues, totals:{incomeCents,rentIncomeCents,servicesIncomeCents,depositIncomeCents,expenseCents,differenceCents:incomeCents-depositIncomeCents-expenseCents,documentedExpenseCents}, ready:!issues.some((issue)=>issue.severity==="BLOCKER") };
+  return { year:input.year, periodMode:range.mode, dataThrough:range.toKey, owners, selectedOwner, incomeRows, expenseRows, loanRows, issues, totals:{incomeCents,rentIncomeCents,servicesIncomeCents,depositIncomeCents,expenseCents,differenceCents:incomeCents-depositIncomeCents-expenseCents,documentedExpenseCents}, ready:!issues.some((issue)=>issue.severity==="BLOCKER") };
 }
 
-function emptyPackage(year:number,owners:Array<{id:string;name:string}>,selectedOwner:{id:string;name:string}|null){return {year,owners,selectedOwner,incomeRows:[] as AnnualIncomeRow[],expenseRows:[] as AnnualExpenseRow[],loanRows:[] as AnnualLoanRow[],issues:[] as AnnualPackageIssue[],totals:{incomeCents:0,rentIncomeCents:0,servicesIncomeCents:0,depositIncomeCents:0,expenseCents:0,differenceCents:0,documentedExpenseCents:0},ready:false};}
+function emptyPackage(year:number,owners:Array<{id:string;name:string}>,selectedOwner:{id:string;name:string}|null,range:ReturnType<typeof annualPackagePeriod>){return {year,periodMode:range.mode,dataThrough:range.toKey,owners,selectedOwner,incomeRows:[] as AnnualIncomeRow[],expenseRows:[] as AnnualExpenseRow[],loanRows:[] as AnnualLoanRow[],issues:[] as AnnualPackageIssue[],totals:{incomeCents:0,rentIncomeCents:0,servicesIncomeCents:0,depositIncomeCents:0,expenseCents:0,differenceCents:0,documentedExpenseCents:0},ready:false};}

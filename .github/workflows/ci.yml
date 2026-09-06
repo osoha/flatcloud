@@ -132,6 +132,7 @@ jobs:
       - run: npm run verify:ux-remodel-r8c
       - run: npm run verify:ux-remodel-r8d
       - run: npm run verify:ux-remodel-r9a
+      - run: npm run verify:ux-remodel-r10a
       - run: npm run verify:live-report-periods
 
   browser-smoke:

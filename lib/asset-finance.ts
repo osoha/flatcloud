@@ -93,3 +93,9 @@ export function calculateAssetFinanceSummary(
     monthlyDebtServiceCents: loans.filter((loan) => loan.active).reduce((sum, loan) => sum + safeMoneyNumber(loan.monthlyDebtServiceCents || 0), 0),
   };
 }
+
+export function confirmedLoanState<T extends { outstandingPrincipalCents: number | bigint; annualInterestRateBps: number; monthlyDebtServiceCents: number | bigint | null; snapshots: Array<{ asOfDate: Date; outstandingPrincipalCents: number | bigint; annualInterestRateBps: number; monthlyDebtServiceCents: number | bigint | null }> }>(loan: T, now = new Date()) {
+  const today = businessTodayKey(now);
+  const snapshot = loan.snapshots.find((row) => businessDateKey(row.asOfDate) <= today);
+  return snapshot ? { ...loan, outstandingPrincipalCents: snapshot.outstandingPrincipalCents, annualInterestRateBps: snapshot.annualInterestRateBps, monthlyDebtServiceCents: snapshot.monthlyDebtServiceCents, confirmedAsOfDate: snapshot.asOfDate } : { ...loan, confirmedAsOfDate: null };
+}
