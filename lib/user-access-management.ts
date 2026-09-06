@@ -8,11 +8,28 @@ export const strongerPermission = (a: PropertyPermission, b: PropertyPermission)
 export const strongerRole = (a: UserRole, b: UserRole) => roleRank[a] >= roleRank[b] ? a : b;
 
 export type AccessScope = { role: UserRole; permission: PropertyPermission; allProperties: boolean; propertyIds: string[]; unitIds: string[] };
+export type EditableUserAccess = {
+  role: UserRole;
+  active: boolean;
+  allProperties: boolean;
+  memberships: Array<{ propertyId: string; permission: PropertyPermission }>;
+  unitMemberships: Array<{ unitId: string; permission: PropertyPermission }>;
+};
 export type InvitationScopeLike = { email?: string; propertyId: string; propertyIds: string[]; unitIds: string[]; allProperties: boolean; role: UserRole };
 export type InvitationCreateMode = "GLOBAL_EMAIL" | "PROPERTY_LOCAL";
 
 export function canonicalizeAccessScope(scope: AccessScope): AccessScope {
   return scope.role === UserRole.MANAGER || scope.role === UserRole.SUPER_ADMIN ? { ...scope, allProperties: true, propertyIds: [], unitIds: [] } : scope;
+}
+
+function grantKeys<T extends Record<string, string>>(rows: T[], id: keyof T) {
+  return rows.map((row) => `${row[id]}:${row.permission}`).sort();
+}
+
+export function editableUserAccessChanged(current: EditableUserAccess, requested: EditableUserAccess) {
+  if (current.role !== requested.role || current.active !== requested.active || current.allProperties !== requested.allProperties) return true;
+  return JSON.stringify(grantKeys(current.memberships, "propertyId")) !== JSON.stringify(grantKeys(requested.memberships, "propertyId"))
+    || JSON.stringify(grantKeys(current.unitMemberships, "unitId")) !== JSON.stringify(grantKeys(requested.unitMemberships, "unitId"));
 }
 
 export function isPropertyLocalInvitation(invitation: InvitationScopeLike, propertyId: string) {
