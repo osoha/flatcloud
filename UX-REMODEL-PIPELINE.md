@@ -171,6 +171,13 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - katalog dokumentů má programově popsanou sadu filtrů, viditelné názvy polí, české názvy kategorií a fotografických fází, pojmenovaný odkaz na náhled a jednoznačné zrušení aktivních filtrů,
 - R10 tím uzavírá hloubkovou funkční sanaci; navazuje samostatná R11 designerská a vizuální kontrolní vlna.
 
+### R11 — designerská a vizuální kontrolní vlna
+
+- **R11A implementováno bez migrace:** katalog Dokumentů používá předvídatelný responzivní grid; na širokém desktopu drží filtry v jednom kompaktním řádku, ve střední šířce je skládá do dvou vyvážených řádků a na mobilu do jednoho sloupce bez osiřelého pole nebo prázdné poloviny karty,
+- datumové filtry zůstávají vedle sebe, akce mají stabilní výšku a zrušení filtru je vizuálně sekundární,
+- všechny kotvy detailu jednotky včetně Kvality, Upomínek a Dokumentů respektují sticky horní lištu a lokální navigaci, takže nadpis cílové sekce po skoku nezmizí pod navigací,
+- R11A vychází z cloudové vizuální kontroly na reálných scénářových datech; další blok R11B pokračuje průřezem hustých tabulek, navigací a menších viewportů.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,
