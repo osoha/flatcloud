@@ -45,7 +45,7 @@ async function main() {
     const schema = read("prisma/schema.prisma");
     const migration = read("prisma/migrations/20260906070000_unit_condition_assessments/migration.sql");
     for (const marker of ["enum UnitConditionPlanStatus", "model UnitConditionAssessment", "planStatus", "targetDate", "@@index([unitId, assessedAt])"]) assert.match(schema, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
-    for (const marker of ["INSERT INTO \"UnitConditionAssessment\"", "FROM \"UnitAssetAssessment\"", "UnitConditionAssessment_immutable_trigger", "BEFORE UPDATE OR DELETE", "ON DELETD RESTRICT"]) assert.match(migration, new RegExp(marker));
+    for (const marker of ["INSERT INTO \"UnitConditionAssessment\"", "FROM \"UnitAssetAssessment\"", "UnitConditionAssessment_immutable_trigger", "BEFORE UPDATE OR DELETE", "ON DELETE RESTRICT"]) assert.match(migration, new RegExp(marker));
     assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|TRUNCATE/);
   });
 
@@ -62,14 +62,12 @@ async function main() {
   await check("pipeline, browser smoke and CI cover R8A", () => {
     assert.match(read("UX-REMODEL-PIPELINE.md"), /R8A implementovÃ¡no aditivnÄ›/);
     assert.match(read("prisma/seed-portfolio-quality.ts"), /QA_PORTFOLIO_QUALITY_R8A_V1/);
-    assert.match(read("prisma/seed.ts"), /ensurePortfoliÔ]X[]TØÙ[˜\š[ÜËÊNÂˆ\ÜÙ\›X]Ú
-™XY
-™L™KÙ›]ÛÝYœÛ[ÚÙKœÜXËÈŠKÚÝ˜[]H™Y›ÝÞHH\ÝšXq#[°ëH1fZ\˜]™[›ÜÝXZ°ëHÙ1&Û[°ïH±kØÚÙÊNÂˆ\ÜÙ\›X]Ú
-™XY
-‹™Ú]X‹ÝÛÜšÙ›ÝÜËØÚKž[[ŠKÝ™\šYžN^\™[[Ù[\ŽKÊNÂˆJNÂ‚ˆÛÛœÛÛK›ÙÊV™[[Ù[ŽHÝ±&ñfY[Žˆ	ØÚXÚÜßHÛÛ›Û˜
-NÂŸB‚›XZ[Š
-K™š[˜[J
+    assert.match(read("prisma/seed.ts"), /ensurePortfolioQualityScenarios/);
+    assert.match(read("e2e/flatcloud.smoke.spec.ts"), /kvalita jednotky a distribuÄnÃ­ pÅ™ipravenost majÃ­ oddÄ›lenÃ½ prÅ¯chod/);
+    assert.match(read(".github/workflows/ci.yml"), /verify:ux-remodel-r8a/);
+  });
 
-HOˆš\ÛXK‰\ØÛÛ›™XÝ
+  console.log(`UX remodel R8A ovÄ›Å™en: ${checks} kontrol.`);
+}
 
-JNÂ
+main().finally(() => prisma.$disconnect());
