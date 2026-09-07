@@ -245,6 +245,8 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R18D implementováno aditivně:** výroční editor nově generuje a samostatně edituje mapu portfolia, tým, strukturu skupiny, kontaktní údaje a obě právní poučení; všechny vrstvy jsou zmrazené v konkrétní revizi reportu,
 - souřadnice se doplní pouze na výslovnou akci uživatele z adres, uloží se do reportu a lze je ručně opravit; PDF renderer externí geokódování nevolá a automaticky skládá mapové body, spojnice, infoboxy i fotografie objektů,
 - tým může převzít uživatelské profily a jejich aktuální avatary, ale reportové jméno, role, e-mail a pořadí zůstávají editovatelné; struktura skupiny vychází z evidovaných vlastníků/SPV a kontaktní kapitola odpovídá rozsahu referenčního výročního reportu.
+- **R18E implementováno bez migrace:** podklad mapy republiky používá čistý mapový objekt z WIP PPTX pouze v rozsahu shodném s autoritativním PDF; barva, dynamické body, spojnice, popisky a fotografie se řídí platným PDF a aplikačním rendererem,
+- technický text o zdroji souřadnic se již nezobrazuje v akcionářském PDF; informace o uživatelsky spuštěném geokódování zůstává pouze v interním editoru mapy.
 
 ### Odložený blok — smluvní dokumentace a vzdálený podpis
 
