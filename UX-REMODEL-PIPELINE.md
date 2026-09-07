@@ -186,6 +186,19 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - exportní blok náhledu je zbavený jednorázových inline stylů, drží společnou responzivní hierarchii a výslovně vede tiskovou kontrolu přes PDF renderer, který respektuje rozměr konkrétní šablony,
 - R11 uzavírá první designerskou sanační vlnu; navazuje agentní scénářová a profesní kontrola nad nasazenou sandboxovou verzí.
 
+### R12 — kontinuita vnořených workflow
+
+- **R12A implementováno bez migrace:** horní zkratky Ruční platba a Nový úkol zachovají kontext nemovitosti také na vnořených stránkách dokumentů, nájemníků, nákladů, reportingu a editace objektu,
+- smluvní workflow předpisů, změny nájemného a služeb a vyúčtování předává současně nemovitost i konkrétní smlouvu; u bankovní transakce se smlouva předvybere pouze tehdy, když všechny dostupné vazby ukazují jednoznačně na stejný vztah,
+- R12 uzavírá opravnou pipeline a uvolňuje dříve odložené produktové bloky.
+
+### R13 — výroční akcionářský report
+
+- **R13A implementováno aditivně:** roční report má vlastní korporátní a portfolio vrstvu, která se neskládá z kvartálních kapitol; editor eviduje slovo zakladatele, investiční tezi, tvorbu hodnoty, výhled, hrubou a čistou hodnotu aktiv, dluh, cílovou hodnotu portfolia, realizované a plánované exity a cenu akcie,
+- report znovu používá reportovací skupiny, jejich oprávnění a neměnné Q4 snapshoty k 31. prosinci; každá nemovitost má samostatnou hodnotovou kapitolu s počáteční, aktuální a cílovou hodnotou, exitovým plánem a poznámkou ke zdroji,
+- koncept je editovatelný pouze ve stavu DRAFT a všechny změny mají auditní stopu; datový model už rezervuje workflow REVIEW/PUBLISHED a samostatný typ výroční šablony,
+- další řez R13B doplní kontrolní bránu, verzované publikování, náhled a finální PDF; veřejná distribuce zůstává mimo rozsah.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,
