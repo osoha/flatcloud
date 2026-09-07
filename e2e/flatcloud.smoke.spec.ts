@@ -459,7 +459,7 @@ test("R12: horní zkratky zachovají kontext vnořené nemovitosti a smlouvy", a
   await login(page);
   await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
   const propertyId = new URL(page.url()).pathname.split("/")[2];
-  await page.locator(".property-subnav").getByRole("link", { name: "Dokumenty", exact: true }).click();
+  await page.locator(".section-nav").getByRole("link", { name: "Dokumenty", exact: true }).click();
   await expect(page.locator(".top-actions").getByRole("link", { name: "Ruční platba", exact: true })).toHaveAttribute("href", `/platby/nova?properties=${propertyId}`);
   await expect(page.locator(".top-actions").getByRole("link", { name: "Nový úkol", exact: true })).toHaveAttribute("href", `/ukoly/novy?propertyId=${propertyId}`);
 
@@ -467,7 +467,7 @@ test("R12: horní zkratky zachovají kontext vnořené nemovitosti a smlouvy", a
   await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
   const leaseTaskHref = await page.locator(".top-actions").getByRole("link", { name: "Nový úkol", exact: true }).getAttribute("href");
   expect(leaseTaskHref).toMatch(/^\/ukoly\/novy\?propertyId=.+&leaseId=.+$/);
-  await page.getByRole("link", { name: "Změnit nájemné / služby", exact: true }).click();
+  await page.getByRole("link", { name: "Změnit nájem / služby", exact: true }).click();
   await expect(page.locator(".top-actions").getByRole("link", { name: "Nový úkol", exact: true })).toHaveAttribute("href", leaseTaskHref!);
   assertNoBrowserFailures();
 });
