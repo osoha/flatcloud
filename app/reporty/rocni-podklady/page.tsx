@@ -63,12 +63,12 @@ export default async function AnnualOwnerPackagePage({
             </p>
           </div>
           {exportHref && (
-            <Link className="primary" href={exportHref}>
+            <a className="primary" href={exportHref}>
               <Download size={16} />{" "}
               {data.periodMode === "CLOSED"
                 ? "Stáhnout CSV"
                 : "Stáhnout pracovní YTD CSV"}
-            </Link>
+            </a>
           )}
         </div>
         <nav className="report-tabs" aria-label="Report Center views">
