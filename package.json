@@ -136,7 +136,8 @@
     "verify:r19a-distribution-welcome-letters": "node --import tsx scripts/verify-r19a-distribution-welcome-letters.ts",
     "verify:r19b-collapsible-navigation": "node --import tsx scripts/verify-r19b-collapsible-navigation.ts",
     "verify:r19c-shell-deduplication": "node --import tsx scripts/verify-r19c-shell-deduplication.ts",
-    "verify:r21-owner-year-package": "node --import tsx scripts/verify-r21-owner-year-package.ts"
+    "verify:r21-owner-year-package": "node --import tsx scripts/verify-r21-owner-year-package.ts",
+    "verify:r22-annual-readiness": "node --import tsx scripts/verify-r22-annual-readiness.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",
