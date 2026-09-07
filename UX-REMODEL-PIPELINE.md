@@ -247,6 +247,8 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - tým může převzít uživatelské profily a jejich aktuální avatary, ale reportové jméno, role, e-mail a pořadí zůstávají editovatelné; struktura skupiny vychází z evidovaných vlastníků/SPV a kontaktní kapitola odpovídá rozsahu referenčního výročního reportu.
 - **R18E implementováno bez migrace:** podklad mapy republiky používá čistý mapový objekt z WIP PPTX pouze v rozsahu shodném s autoritativním PDF; barva, dynamické body, spojnice, popisky a fotografie se řídí platným PDF a aplikačním rendererem,
 - technický text o zdroji souřadnic se již nezobrazuje v akcionářském PDF; informace o uživatelsky spuštěném geokódování zůstává pouze v interním editoru mapy.
+- **R18F implementováno bez migrace:** převod zeměpisných souřadnic na výroční mapu používá společnou kalibrovanou projekci odvozenou ze 13 krajských měst referenční mapy a stejný zobrazovací rámec jako mapový asset,
+- regresní body Brno, Plzeň, Ústí nad Labem a Ostrava chrání mapu proti opětovnému stažení značek ke středu; geokódované souřadnice uložené v reportech se nemění.
 
 ### Odložený blok — smluvní dokumentace a vzdálený podpis
 

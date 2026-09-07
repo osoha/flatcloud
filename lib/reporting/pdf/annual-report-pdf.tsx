@@ -3,13 +3,19 @@ import { Document, Font, Image, Page, StyleSheet, Text, View, renderToBuffer } f
 import { ANNUAL_REPORT_COVER_PATH, CZECH_REGIONS_MAP_PATH, REPORT_PDF_CONTENT_HEADER_PATH, REPORT_PDF_LOGO_REPORT_PATH, REPORT_PDF_LOGO_WHITE_PATH, REPORT_PDF_RALEWAY_BOLD_PATH, REPORT_PDF_RALEWAY_REGULAR_PATH } from "./assets";
 import type { FrozenAnnualReportPdfData, FrozenAnnualReportPdfProperty } from "./annual-report-pdf-data";
 
-export const ANNUAL_REPORT_PDF_RENDERER_VERSION = "r18d-annual-v3";
+export const ANNUAL_REPORT_PDF_RENDERER_VERSION = "r18f-annual-v4";
 export const ANNUAL_REPORT_PAGE_SIZE = { width: 780, height: 540 } as const;
 const FONT_FAMILY = "FlatCloudRalewayAnnual";
 Font.register({ family: FONT_FAMILY, src: REPORT_PDF_RALEWAY_REGULAR_PATH });
 Font.register({ family: FONT_FAMILY, src: REPORT_PDF_RALEWAY_BOLD_PATH, fontWeight: 700 });
 
 const colors = { ink: "#231f20", muted: "#687386", primary: "#26639f", light: "#caddf2", pale: "#eef5fb", line: "#b9cce0", white: "#ffffff" };
+const annualMapImageFrame = { left: 175, top: 44, width: 490, height: 278 } as const;
+const annualMapPdfPoint = (latitude: number, longitude: number) => {
+  const x = Math.max(0, Math.min(1, 0.14649689612230307 * longitude + 0.003528409648982586 * latitude - 1.9517049607161026));
+  const y = Math.max(0, Math.min(1, 0.0027944020023575353 * longitude - 0.3943046083477732 * latitude + 20.092762601474156));
+  return { x: annualMapImageFrame.left + x * annualMapImageFrame.width, y: annualMapImageFrame.top + y * annualMapImageFrame.height };
+};
 const styles = StyleSheet.create({
   page: { fontFamily: FONT_FAMILY, fontSize: 9, lineHeight: 1.3, color: colors.ink, position: "relative", backgroundColor: colors.white },
   absolute: { position: "absolute" }, content: { position: "absolute", left: 48, right: 48, top: 132, bottom: 42 },
@@ -32,7 +38,7 @@ const styles = StyleSheet.create({
   coverAccent: { position: "absolute", left: 353, top: 0, width: 24, height: 540, backgroundColor: colors.light }, coverLogo: { position: "absolute", right: 48, top: 42, width: 170, height: 50, objectFit: "contain", objectPosition: "right" },
   coverText: { position: "absolute", left: 424, right: 44, top: 174, color: colors.white }, coverYear: { fontSize: 58, fontWeight: 700, lineHeight: 0.95 }, coverTitle: { fontSize: 24, marginTop: 13 }, coverGroup: { fontSize: 11, marginTop: 14, color: colors.light },
   closingPanel: { width: "56%", backgroundColor: colors.primary, padding: 20, color: colors.white, minHeight: 230 }, closingAside: { width: "39%", paddingTop: 10 }, disclaimer: { fontSize: 7.4, lineHeight: 1.35, color: colors.muted, marginTop: 18 },
-  mapImage: { position: "absolute", left: 175, top: 38, width: 490, height: 290, objectFit: "contain" },
+  mapImage: { position: "absolute", ...annualMapImageFrame },
   mapCard: { position: "absolute", width: 148, minHeight: 70, backgroundColor: colors.primary, color: colors.white }, mapCardPhoto: { width: 148, height: 62, objectFit: "cover" }, mapCardCopy: { padding: 8 }, mapCardTitle: { fontSize: 8.5, fontWeight: 700, marginBottom: 2 }, mapCardAddress: { fontSize: 7, color: colors.light },
   teamGrid: { flexDirection: "row", flexWrap: "wrap", gap: 14 }, teamMember: { width: 126 }, teamPhoto: { width: 126, height: 112, objectFit: "cover", marginBottom: 9 }, teamPlaceholder: { width: 126, height: 112, marginBottom: 9, backgroundColor: colors.pale, color: colors.primary, fontSize: 30, fontWeight: 700, alignItems: "center", justifyContent: "center" }, teamName: { color: colors.primary, fontSize: 9, fontWeight: 700 }, teamRole: { fontSize: 8, fontWeight: 700, minHeight: 30, marginTop: 4 }, teamEmail: { fontSize: 7.5, color: colors.muted },
   structureParent: { alignSelf: "center", width: 330, minHeight: 100, padding: 15, backgroundColor: colors.primary, color: colors.white, borderRadius: 8, textAlign: "center" }, structureChildren: { flexDirection: "row", flexWrap: "wrap", gap: 14, justifyContent: "center", marginTop: 52 }, structureChild: { width: 205, minHeight: 92, padding: 12, borderWidth: 1, borderColor: colors.primary, borderRadius: 8, textAlign: "center" }, structureName: { fontSize: 10, fontWeight: 700, marginBottom: 5 }, structureMeta: { fontSize: 7.5, lineHeight: 1.4 },
@@ -40,7 +46,6 @@ const styles = StyleSheet.create({
 });
 
 const dash = "—";
-const czechMapPoint = (latitude: number, longitude: number) => { const bounds = { west: 12, east: 18.95, north: 51.15, south: 48.45 }; return { x: Math.max(0, Math.min(1, (longitude - bounds.west) / (bounds.east - bounds.west))), y: Math.max(0, Math.min(1, (bounds.north - latitude) / (bounds.north - bounds.south))) }; };
 const money = (value: bigint | null) => value === null ? dash : `${(value / BigInt(100)).toLocaleString("cs-CZ")} Kč`;
 const count = (value: number | null) => value === null ? dash : value.toLocaleString("cs-CZ");
 const fallback = "Obsah této kapitoly zatím nebyl redakčně doplněn.";
@@ -58,7 +63,7 @@ function ContentsPage({ data }: { data: FrozenAnnualReportPdfData }) {
 function MapPage({ data }: { data: FrozenAnnualReportPdfData }) {
   const located = data.properties.filter((property) => property.mapLatitude !== null && property.mapLongitude !== null);
   const placements = located.map((property, index) => { const forceRight = property.mapCardSide === "RIGHT"; const right = forceRight || (property.mapCardSide === "AUTO" && index >= 3); const laneIndex = right ? index - 3 : index; return { property, right, cardX: right ? 536 : 0, cardY: 14 + Math.max(0, laneIndex) * 111 }; });
-  return <ContentPage data={data} section="03" title="Mapa portfolia" pageNumber={5}><Image src={CZECH_REGIONS_MAP_PATH} style={styles.mapImage}/>{placements.map(({ property, right, cardX, cardY }) => { const point = czechMapPoint(property.mapLatitude!, property.mapLongitude!); const x = 193 + point.x * 438; const y = 66 + point.y * 222; const startX = right ? cardX : cardX + 148; const elbowX = right ? x + 24 : x - 24; return <MapConnector startX={startX} startY={cardY + 37} elbowX={elbowX} pointX={x} pointY={y} key={`line-${property.propertyName}`}/>; })}{placements.map(({ property, cardX, cardY }) => <View style={[styles.mapCard, { left: cardX, top: cardY }]} key={property.propertyName}>{property.mapPhotoDataUrl ? <Image src={property.mapPhotoDataUrl} style={styles.mapCardPhoto}/> : null}<View style={styles.mapCardCopy}><Text style={styles.mapCardTitle}>{property.mapLabel || property.propertyName}</Text><Text style={styles.mapCardAddress}>{property.propertyAddress}</Text></View></View>)}{!located.length && <View style={[styles.absolute, { left: 0, top: 45, width: 150 }]}><DraftHint/><Text style={styles.body}>V editoru doplňte souřadnice objektů z uložených adres.</Text></View>}</ContentPage>;
+  return <ContentPage data={data} section="03" title="Mapa portfolia" pageNumber={5}><Image src={CZECH_REGIONS_MAP_PATH} style={styles.mapImage}/>{placements.map(({ property, right, cardX, cardY }) => { const point = annualMapPdfPoint(property.mapLatitude!, property.mapLongitude!); const x = point.x; const y = point.y; const startX = right ? cardX : cardX + 148; const elbowX = right ? x + 24 : x - 24; return <MapConnector startX={startX} startY={cardY + 37} elbowX={elbowX} pointX={x} pointY={y} key={`line-${property.propertyName}`}/>; })}{placements.map(({ property, cardX, cardY }) => <View style={[styles.mapCard, { left: cardX, top: cardY }]} key={property.propertyName}>{property.mapPhotoDataUrl ? <Image src={property.mapPhotoDataUrl} style={styles.mapCardPhoto}/> : null}<View style={styles.mapCardCopy}><Text style={styles.mapCardTitle}>{property.mapLabel || property.propertyName}</Text><Text style={styles.mapCardAddress}>{property.propertyAddress}</Text></View></View>)}{!located.length && <View style={[styles.absolute, { left: 0, top: 45, width: 150 }]}><DraftHint/><Text style={styles.body}>V editoru doplňte souřadnice objektů z uložených adres.</Text></View>}</ContentPage>;
 }
 
 function MapConnector({ startX, startY, elbowX, pointX, pointY }: { startX: number; startY: number; elbowX: number; pointX: number; pointY: number }) { const horizontalStart = Math.min(startX, elbowX); const pointStart = Math.min(elbowX, pointX); return <><View style={[styles.absolute, { left: horizontalStart, top: startY, width: Math.abs(startX - elbowX), height: 1.2, backgroundColor: colors.light }]}/><View style={[styles.absolute, { left: elbowX, top: Math.min(startY, pointY), width: 1.2, height: Math.abs(startY - pointY), backgroundColor: colors.light }]}/><View style={[styles.absolute, { left: pointStart, top: pointY, width: Math.abs(elbowX - pointX), height: 1.2, backgroundColor: colors.light }]}/><View style={[styles.absolute, { left: pointX - 5, top: pointY - 5, width: 10, height: 10, borderRadius: 5, backgroundColor: "#86b4e2" }]}/></>; }
