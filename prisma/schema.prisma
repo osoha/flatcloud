@@ -354,6 +354,12 @@ enum QuarterlyReportStatus {
   PUBLISHED
 }
 
+enum AnnualReportStatus {
+  DRAFT
+  REVIEW
+  PUBLISHED
+}
+
 enum PropertyReportingStatus {
   STABILIZED
   RENOVATION
@@ -389,6 +395,7 @@ enum QuarterlyReportMediaRole {
 
 enum ReportDesignTemplateType {
   QUARTERLY_PROPERTY
+  ANNUAL_PORTFOLIO
 }
 
 enum ReportDesignTemplateVersionStatus {
@@ -441,6 +448,9 @@ model User {
   quarterlyReportsCreated             QuarterlyReport[]              @relation("QuarterlyReportCreator")
   quarterlyReportsReviewed            QuarterlyReport[]              @relation("QuarterlyReportReviewer")
   quarterlyReportsPublished           QuarterlyReport[]              @relation("QuarterlyReportPublisher")
+  annualReportsCreated                AnnualReport[]                 @relation("AnnualReportCreator")
+  annualReportsReviewed               AnnualReport[]                 @relation("AnnualReportReviewer")
+  annualReportsPublished              AnnualReport[]                 @relation("AnnualReportPublisher")
   fileAssetsUploaded                  FileAsset[]                    @relation("FileAssetUploader")
   documentsCreated                    Document[]                     @relation("DocumentCreator")
   quarterlyPropertyReportMediaCreated QuarterlyPropertyReportMedia[] @relation("QuarterlyPropertyReportMediaCreator")
@@ -548,6 +558,7 @@ model Property {
   reportingGroups                   ReportingGroupProperty[]
   quarterSnapshots                  QuarterSnapshot[]
   quarterlyPropertyReports          QuarterlyPropertyReport[]
+  annualPropertyReports             AnnualPropertyReport[]
   documents                         Document[]
   tenantLinks                       TenantProperty[]
   mfRentLocation                    PropertyMfRentLocation?
@@ -1693,6 +1704,7 @@ model ReportingGroup {
   properties       ReportingGroupProperty[]
   members          ReportingGroupMember[]
   quarterlyReports QuarterlyReport[]
+  annualReports    AnnualReport[]
   createdAt        DateTime                 @default(now())
   updatedAt        DateTime                 @updatedAt
 }
@@ -1726,23 +1738,24 @@ model ReportingGroupMember {
 }
 
 model QuarterSnapshot {
-  id                String                    @id @default(cuid())
-  propertyId        String
-  property          Property                  @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  asOfDate          DateTime
-  year              Int
-  quarter           Int
-  revision          Int
-  source            QuarterSnapshotSource
-  schemaVersion     Int
-  calculatorVersion String
-  data              Json
-  quality           Json
-  sourceNote        String?
-  createdById       String?
-  createdBy         User?                     @relation(fields: [createdById], references: [id], onDelete: SetNull)
-  propertyReports   QuarterlyPropertyReport[]
-  createdAt         DateTime                  @default(now())
+  id                    String                    @id @default(cuid())
+  propertyId            String
+  property              Property                  @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  asOfDate              DateTime
+  year                  Int
+  quarter               Int
+  revision              Int
+  source                QuarterSnapshotSource
+  schemaVersion         Int
+  calculatorVersion     String
+  data                  Json
+  quality               Json
+  sourceNote            String?
+  createdById           String?
+  createdBy             User?                     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  propertyReports       QuarterlyPropertyReport[]
+  annualPropertyReports AnnualPropertyReport[]
+  createdAt             DateTime                  @default(now())
 
   @@unique([propertyId, asOfDate, revision])
   @@index([propertyId, year, quarter])
@@ -1779,6 +1792,76 @@ model QuarterlyReport {
   @@index([designTemplateVersionId])
 }
 
+model AnnualReport {
+  id                         String                       @id @default(cuid())
+  reportingGroupId           String
+  reportingGroup             ReportingGroup               @relation(fields: [reportingGroupId], references: [id], onDelete: Restrict)
+  reportingGroupNameSnapshot String
+  year                       Int
+  revision                   Int
+  status                     AnnualReportStatus           @default(DRAFT)
+  asOfDate                   DateTime
+  founderLetter              String?
+  executiveSummary           String?
+  investmentThesis           String?
+  valueCreationSummary       String?
+  outlook                    String?
+  grossAssetValueCents       BigInt?
+  netAssetValueCents         BigInt?
+  debtCents                  BigInt?
+  targetPortfolioValueCents  BigInt?
+  realizedExitProceedsCents  BigInt?
+  plannedExitProceedsCents   BigInt?
+  issuedShares               Int?
+  treasuryShares             Int?
+  sharePriceCents            BigInt?
+  createdById                String
+  createdBy                  User                         @relation("AnnualReportCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  reviewedById               String?
+  reviewedBy                 User?                        @relation("AnnualReportReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  publishedById              String?
+  publishedBy                User?                        @relation("AnnualReportPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  publishedAt                DateTime?
+  publishedAssetId           String?
+  publishedAsset             FileAsset?                   @relation("AnnualReportPublishedAsset", fields: [publishedAssetId], references: [id], onDelete: Restrict)
+  designTemplateVersionId    String?
+  designTemplateVersion      ReportDesignTemplateVersion? @relation(fields: [designTemplateVersionId], references: [id], onDelete: Restrict)
+  propertyReports            AnnualPropertyReport[]
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
+
+  @@unique([reportingGroupId, year, revision])
+  @@index([publishedAssetId])
+  @@index([designTemplateVersionId])
+}
+
+model AnnualPropertyReport {
+  id                        String          @id @default(cuid())
+  annualReportId            String
+  annualReport              AnnualReport    @relation(fields: [annualReportId], references: [id], onDelete: Cascade)
+  propertyId                String
+  property                  Property        @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  propertyNameSnapshot      String
+  propertyAddressSnapshot   String
+  snapshotId                String
+  snapshot                  QuarterSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Restrict)
+  openingValueCents         BigInt?
+  currentValueCents         BigInt?
+  targetValueCents          BigInt?
+  realizedExitProceedsCents BigInt?
+  plannedExitProceedsCents  BigInt?
+  plannedExitYear           Int?
+  investmentCase            String?
+  valueCreationNarrative    String?
+  outlook                   String?
+  sourceNote                String?
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+
+  @@unique([annualReportId, propertyId])
+  @@index([snapshotId])
+}
+
 model ReportDesignTemplate {
   id        String                        @id @default(cuid())
   code      String                        @unique
@@ -1799,6 +1882,7 @@ model ReportDesignTemplateVersion {
   config           Json
   pages            ReportDesignTemplatePage[]
   quarterlyReports QuarterlyReport[]
+  annualReports    AnnualReport[]
   createdAt        DateTime                          @default(now())
   activatedAt      DateTime?
 
@@ -1856,6 +1940,7 @@ model FileAsset {
   uploadedBy                   User                           @relation("FileAssetUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   documents                    Document[]
   publishedReports             QuarterlyReport[]              @relation("QuarterlyReportPublishedAsset")
+  publishedAnnualReports       AnnualReport[]                 @relation("AnnualReportPublishedAsset")
   quarterlyPropertyReportMedia QuarterlyPropertyReportMedia[]
   reportDesignTemplatePages    ReportDesignTemplatePage[]     @relation("ReportDesignTemplateBackground")
   createdAt                    DateTime                       @default(now())
