@@ -109,7 +109,7 @@ test("globální správce vidí provozní rozsah napříč vlastníky", async ({
   const financeAlerts = page.locator(".asset-alert-card");
   await expect(financeAlerts.getByRole("heading", { name: "Finanční alarmy", exact: true })).toBeVisible();
   await expect(financeAlerts).toContainText("DSCR kleslo pod 1,00×");
-  await expect(financeAlerts).toContainText(`Chybí schválený rozpočet ${new Date().getUTCFullYear()}`);
+  await expect(financeAlerts).not.toContainText(`Chybí schválený rozpočet ${new Date().getUTCFullYear()}`);
   await expect(financeAlerts.getByRole("link").first()).toHaveAttribute("href", /\/nemovitosti\/.+\/finance#/);
   await expect(financeAlerts).toContainText("LTV varování nad 60 %");
   const assetCockpit = page.locator(".contract-cockpit");
