@@ -765,9 +765,11 @@ async function main() {
   await check(
     "no trend, MF benchmark, or new narrative model was added",
     () => {
-      const sources = schema + service + workspace;
+      // Scope this historical checkpoint to the REPORT-DESIGN-2 media slice.
+      // Later additive report types may legitimately introduce their own narratives.
+      const reportDesign2Sources = migration + service + workspace + imageRoutes;
       assert.doesNotMatch(
-        sources,
+        reportDesign2Sources,
         /MF benchmark|nextSteps|investmentThesis|customKpi|CAPEX commentary|shareholder return|trend calculation/i,
       );
       assert.equal(
