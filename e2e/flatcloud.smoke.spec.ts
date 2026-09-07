@@ -1008,6 +1008,17 @@ test("R7: interní moduly a administrace mají jasné rozcestníky", async ({ pa
   assertNoBrowserFailures();
 });
 
+test("R22: roční checklist spojuje zdroje bez automatických změn", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/reporty/akcionarske");
+  await page.getByRole("link", { name: /Roční připravenost/ }).click();
+  await expect(page.getByRole("heading", { name: "Roční připravenost", exact: true })).toBeVisible();
+  await expect(page.getByText("Checklist nic automaticky neopravuje", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Podklady vlastníků/ })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("R13: výroční editor odděluje korporátní a nemovitostní vrstvu", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
