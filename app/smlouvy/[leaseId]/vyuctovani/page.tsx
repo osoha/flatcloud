@@ -31,7 +31,7 @@ export default async function ServiceSettlementPreviewPage({ params, searchParam
   const existing = protocols.find((protocol) => businessDateKey(protocol.periodFrom) === preview.period.from && businessDateKey(protocol.periodTo) === preview.period.to);
   const suggestedDueDate = new Date(); suggestedDueDate.setUTCDate(suggestedDueDate.getUTCDate() + 14);
   const resultLabel = preview.balanceCents > 0 ? "Předběžný nedoplatek" : preview.balanceCents < 0 ? "Předběžný přeplatek" : "Předběžně vyrovnáno";
-  return <Shell user={user}><div className="page service-settlement-page">
+  return <Shell user={user} taskPropertyId={preview.lease.unit.propertyId} taskLeaseId={preview.lease.id}><div className="page service-settlement-page">
     <div className="breadcrumb"><Link href={`/smlouvy/${leaseId}`}>← Smlouva</Link><span>›</span><span>Vyúčtování služeb</span></div>
     <div className="page-title"><div><span className="eyebrow">Pracovní náhled · bez zaúčtování</span><h1>Vyúčtování služeb</h1><p>{contractingPartyNames(preview.lease).join(" + ")} · {preview.lease.unit.property.name} · {preview.lease.unit.label}</p></div><span className={`status ${preview.ready ? "ok" : "warn"}`}>{preview.ready ? "Podklady připravené" : "Doplnit podklady"}</span></div>
     <Flash ok={query.ok} error={query.error}/>

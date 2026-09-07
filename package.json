@@ -117,7 +117,8 @@
     "verify:ux-remodel-r11a": "node --import tsx scripts/verify-ux-remodel-r11a.ts",
     "verify:ux-remodel-r11b": "node --import tsx scripts/verify-ux-remodel-r11b.ts",
     "verify:ux-remodel-r11c": "node --import tsx scripts/verify-ux-remodel-r11c.ts",
-    "verify:ux-remodel-r11d": "node --import tsx scripts/verify-ux-remodel-r11d.ts"
+    "verify:ux-remodel-r11d": "node --import tsx scripts/verify-ux-remodel-r11d.ts",
+    "verify:ux-remodel-r12a": "node --import tsx scripts/verify-ux-remodel-r12a.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

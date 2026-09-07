@@ -29,7 +29,7 @@ export default async function LeaseFinancialChangePage({ params, searchParams }:
   }
   const currentRent = preview?.current.rent.amountCents ?? lease.rentCents;
   const currentServices = preview?.current.services.amountCents ?? lease.servicesCents;
-  return <Shell user={user}><div className="page form-page rent-change-proposal-page">
+  return <Shell user={user} taskPropertyId={lease.unit.propertyId} taskLeaseId={lease.id}><div className="page form-page rent-change-proposal-page">
     <div className="breadcrumb"><Link href={`/smlouvy/${leaseId}`}>← Zpět na smlouvu</Link></div>
     <div className="page-title"><div><span className="eyebrow">Finance smlouvy · bezpečná změna</span><h1>Změnit nájemné a služby</h1><p>{lease.unit.property.name} · {lease.unit.label} · {lease.tenant.name}</p></div></div>
     <Flash error={query.error || previewError || undefined}/>

@@ -43,7 +43,7 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
   const allocatedAmountCents = cost.allocations.reduce((sum, row) => sum + row.amountCents, 0);
   const allocatedShareBasisPoints = cost.allocations.reduce((sum, row) => sum + row.shareBasisPoints, 0);
   const allUnitsHaveArea = property.units.length > 0 && property.units.every((unit) => unit.areaM2 && unit.areaM2 > 0);
-  return <Shell user={user}><div className="page">
+  return <Shell user={user} taskPropertyId={id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/finance`}>{property.name}</Link><span>›</span><span>{cost.title}</span></div>
     <div className="page-title"><div><h1>{cost.title}</h1><p>{propertyCostKinds[cost.kind]} · {propertyCostStatuses[cost.status]} · {date(cost.effectiveAt)}</p></div><Link className="secondary" href={`/nemovitosti/${id}/finance#naklady`}>Zpět na finance</Link></div>
     <PropertySubnav propertyId={id} active="finance" unitLimited={false}/>
