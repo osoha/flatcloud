@@ -32,6 +32,7 @@ export async function POST(request: Request) {
       const shareBasisPoints = shareBasisPointsFromPercent(
         text(form, "sharePercent", true)!,
       );
+      const sourceNote = text(form, "sourceNote");
       if (validTo && validTo < validFrom)
         throw new Error("Konec účinnosti nesmí být před začátkem.");
       const property = await prisma.property.findUnique({
@@ -63,6 +64,19 @@ export async function POST(request: Request) {
           OR: [{ validTo: null }, { validTo: { gte: validFrom } }],
         },
       });
+      const repeatsSamePeriod =
+        overlap &&
+        overlap.shareBasisPoints === shareBasisPoints &&
+        overlap.validFrom.getTime() === validFrom.getTime() &&
+        (overlap.validTo?.getTime() ?? null) === (validTo?.getTime() ?? null) &&
+        (overlap.sourceNote || null) === (sourceNote || null);
+      if (repeatsSamePeriod)
+        return goWithMessage(
+          request,
+          returnTo,
+          "ok",
+          "Historicky účinný vlastnický podíl byl uložen.",
+        );
       if (overlap)
         throw new Error(
           "Pro tohoto vlastníka už existuje překrývající se období.",
@@ -76,7 +90,7 @@ export async function POST(request: Request) {
           shareBasisPoints,
           validFrom,
           validTo,
-          sourceNote: text(form, "sourceNote"),
+          sourceNote,
           confirmedById: user.id,
         },
       });

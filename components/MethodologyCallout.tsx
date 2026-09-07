@@ -8,6 +8,6 @@ export function MethodologyCallout({ slug, compact = false }: { slug: string; co
   return <aside className={`methodology-callout${compact ? " compact" : ""}`}>
     <span className="methodology-callout-icon"><BookOpen size={18}/></span>
     <div><strong>{chapter.title}</strong><p>{chapter.summary}</p></div>
-    <Link href={`/metodika#${chapter.slug}`}>Otevřít metodiku →</Link>
+    <Link href={`/metodika?view=chapters#${chapter.slug}`}>Otevřít metodiku →</Link>
   </aside>;
 }

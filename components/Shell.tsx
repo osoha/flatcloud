@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, Hammer, Handshake, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, LayoutDashboard, Library, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
@@ -97,7 +97,10 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         </CollapsibleNavGroup>
 
         <CollapsibleNavGroup id="support" label="Podpora práce" activeRoots={["/metodika"]}>
-          <Nav href="/metodika" icon={<BookOpen size={17}/>} label="Metodika"/>
+          <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={17}/>} label="Průvodci"/>
+          <Nav href="/metodika?view=chapters" activeQuery={{view:"chapters"}} icon={<BookOpen size={17}/>} label="Metodika"/>
+          <Nav href="/metodika?view=glossary" activeQuery={{view:"glossary"}} icon={<Library size={17}/>} label="Slovník"/>
+          <Nav href="/metodika?view=media" activeQuery={{view:"media"}} icon={<Headphones size={17}/>} label="Znalostní média"/>
         </CollapsibleNavGroup>
 
         {superAdmin && <CollapsibleNavGroup id="administration" label="Správa" activeRoots={["/uzivatele", "/nastaveni"]}>
@@ -128,6 +131,6 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
   </div>;
 }
 
-function Nav({href,icon,label,count=0}:{href:string;icon:React.ReactNode;label:string;count?:number}){
-  return <ScopeAwareLink href={href}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
+function Nav({href,icon,label,count=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;activeQuery?:Record<string,string>}){
+  return <ScopeAwareLink href={href} activeQuery={activeQuery}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
 }
