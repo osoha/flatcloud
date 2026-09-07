@@ -14,6 +14,7 @@ import { authorizationScopeLabel } from "@/lib/access-scope-label";
 import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
 import { ScopeAwareLink } from "@/components/ScopeAwareLink";
 import { NativeDetailsEscape } from "@/components/NativeDetailsEscape";
+import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
 
 type ShellUser = {
   id: string;
@@ -88,18 +89,21 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
         <Nav href="/kauce" icon={<WalletCards size={17}/>} label="Kauce"/>
 
-        <div className="nav-label">Evidence</div>
-        <Nav href="/najemnici" icon={<Users size={17}/>} label="Nájemníci"/>
-        <Nav href="/smlouvy" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
-        <Nav href="/dokumenty" icon={<FileText size={17}/>} label="Dokumenty"/>
-        {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
+        <CollapsibleNavGroup id="evidence" label="Evidence" activeRoots={["/najemnici", "/smlouvy", "/dokumenty", "/vlastnici"]} defaultOpen>
+          <Nav href="/najemnici" icon={<Users size={17}/>} label="Nájemníci"/>
+          <Nav href="/smlouvy" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
+          <Nav href="/dokumenty" icon={<FileText size={17}/>} label="Dokumenty"/>
+          {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
+        </CollapsibleNavGroup>
 
-        <div className="nav-label">Podpora práce</div>
-        <Nav href="/metodika" icon={<BookOpen size={17}/>} label="Metodika"/>
+        <CollapsibleNavGroup id="support" label="Podpora práce" activeRoots={["/metodika"]}>
+          <Nav href="/metodika" icon={<BookOpen size={17}/>} label="Metodika"/>
+        </CollapsibleNavGroup>
 
-        <div className="nav-label">Správa</div>
-        {superAdmin && <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>}
-        {superAdmin && <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>}
+        {superAdmin && <CollapsibleNavGroup id="administration" label="Správa" activeRoots={["/uzivatele", "/nastaveni"]}>
+          <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>
+          <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>
+        </CollapsibleNavGroup>}
       </nav>
       <div className="sidebar-footer">
         <div className="user-card">
