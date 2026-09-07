@@ -231,6 +231,14 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - chybějící Q4 report, neshoda data a neshoda rozsahu zůstávají samostatně rozlišitelné; dostupný Q4 report lze otevřít přímo z výročního workspace,
 - kontrola nemění kvartální ani výroční snapshoty, nevstupuje do publikovaného PDF a nezasahuje do existujícího workflow či publikační sémantiky.
 
+### R18 — opravy po první lidské kontrole
+
+- **R18A implementováno bez migrace:** demo seed doplňuje také již existující databázi a vytváří reprezentativní náklady, závazky, plány a schválené rozpočty pro tři základní objekty v letech 2024–2026,
+- scénáře pokrývají OPEX i CAPEX, všechny pracovní stavy, přímý náklad jednotky, plošné alokace, dva úvěry a datovanou historii jistiny; opakované spuštění doplní jen chybějící záznamy,
+- falešné soubory účetních dokladů nevznikají: demo data obsahují dodavatele a čísla dokladů, ale skutečný FileAsset bude možné připojit pouze přes aktivní úložiště,
+- **R18B čeká na implementaci:** výroční PDF přejde z A4 portrait na FlatCloud 13:9 landscape, získá korporátní master, Raleway, pevný stránkový plán a odstraní interní technická metadata z viditelného investorského výstupu,
+- **R18C odloženo po R18B:** metodika dostane vzorce ve slovníčku a návrh rozdělovací obrazovky nebo sbalovacího členění méně používaných položek hlavní navigace.
+
 ### Odložený blok — smluvní dokumentace a vzdálený podpis
 
 - **Generátor nájemních smluv:** z údajů uložených v aplikaci připravit formulářovou nájemní smlouvu podle verzovaného globálního vzoru; jako inspirační referenci prověřit formulářový vzor na `https://www.zvladneme.cz/vzor-najemni-smlouvy.php`, nikoli jej automaticky převzít jako právně závazný text,

@@ -126,7 +126,8 @@
     "verify:r15a-methodology-guidance": "node --import tsx scripts/verify-r15a-methodology-guidance.ts",
     "verify:r15b-methodology-library": "node --import tsx scripts/verify-r15b-methodology-library.ts",
     "verify:r16a-cost-evidence": "node --import tsx scripts/verify-r16a-cost-evidence.ts",
-    "verify:r17a-quarterly-annual-alignment": "node --import tsx scripts/verify-r17a-quarterly-annual-alignment.ts"
+    "verify:r17a-quarterly-annual-alignment": "node --import tsx scripts/verify-r17a-quarterly-annual-alignment.ts",
+    "verify:r18a-demo-costs": "node --import tsx scripts/verify-r18a-demo-costs.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",
