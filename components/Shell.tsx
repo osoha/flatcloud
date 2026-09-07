@@ -120,7 +120,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
           {canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
           {canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
-          <Link className="account-chip" href="/ucet"><UserRound size={15}/><span>{user.name}</span></Link>
+          <Link className="account-chip" href="/ucet" aria-label="Můj účet"><UserRound size={15}/><span>{user.name}</span></Link>
         </div>
       </header>
       {children}
