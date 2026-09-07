@@ -242,6 +242,9 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R18C implementováno bez migrace:** metodika dostala třícestný rozcestník na praktické postupy, slovník a vzorce a znalostní média; na úzkých obrazovkách se rozcestník skládá do jednoho sloupce,
 - slovník nyní přesně popisuje aplikační výpočty ročního nájemného, NOI, cashflow, yield, ROE, LTV a DSCR a zahrnuje vzorce také do společného hledání,
 - sbalovací členění méně používaných položek hlavní navigace zůstává samostatným navazujícím blokem, protože musí zachovat přímou dostupnost pracovních agend, role i stávající browser scénáře.
+- **R18D implementováno aditivně:** výroční editor nově generuje a samostatně edituje mapu portfolia, tým, strukturu skupiny, kontaktní údaje a obě právní poučení; všechny vrstvy jsou zmrazené v konkrétní revizi reportu,
+- souřadnice se doplní pouze na výslovnou akci uživatele z adres, uloží se do reportu a lze je ručně opravit; PDF renderer externí geokódování nevolá a automaticky skládá mapové body, spojnice, infoboxy i fotografie objektů,
+- tým může převzít uživatelské profily a jejich aktuální avatary, ale reportové jméno, role, e-mail a pořadí zůstávají editovatelné; struktura skupiny vychází z evidovaných vlastníků/SPV a kontaktní kapitola odpovídá rozsahu referenčního výročního reportu.
 
 ### Odložený blok — smluvní dokumentace a vzdálený podpis
 

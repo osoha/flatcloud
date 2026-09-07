@@ -129,7 +129,8 @@
     "verify:r17a-quarterly-annual-alignment": "node --import tsx scripts/verify-r17a-quarterly-annual-alignment.ts",
     "verify:r18a-demo-costs": "node --import tsx scripts/verify-r18a-demo-costs.ts",
     "verify:r18b-annual-pdf-design": "node --import tsx scripts/verify-r18b-annual-pdf-design.ts",
-    "verify:r18c-methodology-formulas": "node --import tsx scripts/verify-r18c-methodology-formulas.ts"
+    "verify:r18c-methodology-formulas": "node --import tsx scripts/verify-r18c-methodology-formulas.ts",
+    "verify:r18d-annual-corporate-sections": "node --import tsx scripts/verify-r18d-annual-corporate-sections.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

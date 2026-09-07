@@ -153,6 +153,7 @@ jobs:
       - run: npm run verify:r18a-demo-costs
       - run: npm run verify:r18b-annual-pdf-design
       - run: npm run verify:r18c-methodology-formulas
+      - run: npm run verify:r18d-annual-corporate-sections
       - run: npm run verify:live-report-periods
 
   browser-smoke:

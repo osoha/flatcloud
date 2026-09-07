@@ -1853,6 +1853,9 @@ model AnnualReport {
   issuedShares               Int?
   treasuryShares             Int?
   sharePriceCents            BigInt?
+  teamSnapshot               Json?
+  groupStructureSnapshot     Json?
+  contactSnapshot            Json?
   createdById                String
   createdBy                  User                         @relation("AnnualReportCreator", fields: [createdById], references: [id], onDelete: Restrict)
   reviewedById               String?
@@ -1893,6 +1896,12 @@ model AnnualPropertyReport {
   valueCreationNarrative    String?
   outlook                   String?
   sourceNote                String?
+  mapLatitude              Float?
+  mapLongitude             Float?
+  mapLabel                 String?
+  mapCardSide              String?         @default("AUTO")
+  mapPhotoData             Bytes?
+  mapPhotoMimeType         String?
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
 
