@@ -11,11 +11,12 @@ check("sidebar separates shareholder reporting from distribution", () => {
   assert.match(shell, /href="\/distribuce"[^\n]+label="Distribuce"/);
   assert.doesNotMatch(shell, /label="Kategorizace"/);
 });
-check("shareholder hub exposes quarterly workflow without a dead annual link", () => {
+check("shareholder hub exposes active quarterly and annual workflows", () => {
   const page = read("app/reporty/akcionarske/page.tsx");
   assert.match(page, /href="\/reporty\/kvartalni"/);
+  assert.match(page, /href="\/reporty\/vyrocni"/);
   assert.match(page, /Výroční reporty/);
-  assert.match(page, /aria-disabled="true"/);
+  assert.doesNotMatch(page, /aria-disabled="true"/);
   assert.match(page, /hasReportingBackofficeAccess/);
 });
 check("administration has a focused overview and preserves the settings workspace", () => {
