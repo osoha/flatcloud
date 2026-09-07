@@ -231,6 +231,14 @@ enum DistributionOptionStatus {
   CANCELLED
 }
 
+enum DistributionWelcomeLetterStatus {
+  DRAFT
+  READY
+  SENDING
+  SENT
+  ARCHIVED
+}
+
 enum TenantType {
   PERSON
   COMPANY
@@ -480,29 +488,34 @@ model User {
   distributionProspectsCreated         DistributionProspect[]         @relation("DistributionProspectCreator")
   distributionOpportunitiesCreated     DistributionOpportunity[]      @relation("DistributionOpportunityCreator")
   distributionOpportunityEventsCreated DistributionOpportunityEvent[] @relation("DistributionOpportunityEventCreator")
+  distributionWelcomeLettersCreated    DistributionWelcomeLetter[]    @relation("DistributionWelcomeLetterCreator")
+  distributionWelcomeLettersUpdated    DistributionWelcomeLetter[]    @relation("DistributionWelcomeLetterUpdater")
+  distributionWelcomeLettersReadied    DistributionWelcomeLetter[]    @relation("DistributionWelcomeLetterReadier")
+  distributionWelcomeLettersSent       DistributionWelcomeLetter[]    @relation("DistributionWelcomeLetterSender")
   createdAt                            DateTime                       @default(now())
   updatedAt                            DateTime                       @updatedAt
 }
 
 model Owner {
-  id                      String              @id @default(cuid())
-  name                    String
-  type                    OwnerType           @default(COMPANY)
-  affiliation             OwnerAffiliation    @default(UNCLASSIFIED)
-  ico                     String?
-  email                   String?
-  phone                   String?
-  address                 String?
-  note                    String?
-  active                  Boolean             @default(true)
-  properties              Property[]
-  propertyOwnerships      PropertyOwnership[]
-  unitOwnerships          UnitOwnership[]
-  bankAccounts            BankAccount[]
-  paymentAccounts         OwnerBankAccount[]
-  communicationProperties Property[]          @relation("PropertyCommunicationOwner")
-  createdAt               DateTime            @default(now())
-  updatedAt               DateTime            @updatedAt
+  id                                 String                      @id @default(cuid())
+  name                               String
+  type                               OwnerType                   @default(COMPANY)
+  affiliation                        OwnerAffiliation            @default(UNCLASSIFIED)
+  ico                                String?
+  email                              String?
+  phone                              String?
+  address                            String?
+  note                               String?
+  active                             Boolean                     @default(true)
+  properties                         Property[]
+  propertyOwnerships                 PropertyOwnership[]
+  unitOwnerships                     UnitOwnership[]
+  bankAccounts                       BankAccount[]
+  paymentAccounts                    OwnerBankAccount[]
+  communicationProperties            Property[]                  @relation("PropertyCommunicationOwner")
+  distributionWelcomeLettersAsSeller DistributionWelcomeLetter[] @relation("DistributionWelcomeLetterSeller")
+  createdAt                          DateTime                    @default(now())
+  updatedAt                          DateTime                    @updatedAt
 
   @@index([affiliation])
 }
@@ -572,6 +585,7 @@ model Property {
   annualPropertyReports             AnnualPropertyReport[]
   documents                         Document[]
   tenantLinks                       TenantProperty[]
+  distributionWelcomeLetters        DistributionWelcomeLetter[]
   mfRentLocation                    PropertyMfRentLocation?
   createdAt                         DateTime                     @default(now())
   updatedAt                         DateTime                     @updatedAt
@@ -1101,6 +1115,7 @@ model DistributionOpportunity {
   createdById       String
   createdBy         User                           @relation("DistributionOpportunityCreator", fields: [createdById], references: [id], onDelete: Restrict)
   events            DistributionOpportunityEvent[]
+  welcomeLetters    DistributionWelcomeLetter[]
   createdAt         DateTime                       @default(now())
   updatedAt         DateTime                       @updatedAt
 
@@ -1108,6 +1123,68 @@ model DistributionOpportunity {
   @@index([unitId, stage])
   @@index([stage, nextActionAt])
   @@index([optionStatus, optionExpiresAt])
+}
+
+model DistributionWelcomeLetter {
+  id                      String                                @id @default(cuid())
+  opportunityId           String
+  opportunity             DistributionOpportunity               @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  propertyId              String
+  property                Property                              @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  sellerOwnerId           String
+  sellerOwner             Owner                                 @relation("DistributionWelcomeLetterSeller", fields: [sellerOwnerId], references: [id], onDelete: Restrict)
+  revision                Int                                   @default(1)
+  status                  DistributionWelcomeLetterStatus       @default(DRAFT)
+  templateVersion         String                                @default("flatcloud-welcome-v1")
+  recipientNameSnapshot   String
+  recipientEmail          String
+  propertyNameSnapshot    String
+  propertyAddressSnapshot String
+  unitLabelSnapshot       String
+  sellerNameSnapshot      String
+  ownershipRegisteredAt   DateTime
+  subject                 String
+  introduction            String                                @db.Text
+  handoverText            String                                @db.Text
+  leaseText               String                                @db.Text
+  insuranceText           String                                @db.Text
+  managementText          String                                @db.Text
+  platformText            String                                @db.Text
+  taxText                 String                                @db.Text
+  associationText         String                                @db.Text
+  closingText             String                                @db.Text
+  contactText             String                                @db.Text
+  attachments             DistributionWelcomeLetterAttachment[]
+  createdById             String
+  createdBy               User                                  @relation("DistributionWelcomeLetterCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedById             String
+  updatedBy               User                                  @relation("DistributionWelcomeLetterUpdater", fields: [updatedById], references: [id], onDelete: Restrict)
+  readyById               String?
+  readyBy                 User?                                 @relation("DistributionWelcomeLetterReadier", fields: [readyById], references: [id], onDelete: SetNull)
+  readyAt                 DateTime?
+  sendingStartedAt        DateTime?
+  sentById                String?
+  sentBy                  User?                                 @relation("DistributionWelcomeLetterSender", fields: [sentById], references: [id], onDelete: SetNull)
+  sentAt                  DateTime?
+  providerMessageId       String?
+  createdAt               DateTime                              @default(now())
+  updatedAt               DateTime                              @updatedAt
+
+  @@unique([opportunityId, revision])
+  @@index([propertyId, status, ownershipRegisteredAt])
+  @@index([sellerOwnerId])
+}
+
+model DistributionWelcomeLetterAttachment {
+  welcomeLetterId String
+  welcomeLetter   DistributionWelcomeLetter @relation(fields: [welcomeLetterId], references: [id], onDelete: Cascade)
+  documentId      String
+  document        Document                  @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  sortOrder       Int                       @default(0)
+  createdAt       DateTime                  @default(now())
+
+  @@id([welcomeLetterId, documentId])
+  @@index([documentId])
 }
 
 model DistributionOpportunityEvent {
@@ -1896,12 +1973,12 @@ model AnnualPropertyReport {
   valueCreationNarrative    String?
   outlook                   String?
   sourceNote                String?
-  mapLatitude              Float?
-  mapLongitude             Float?
-  mapLabel                 String?
-  mapCardSide              String?         @default("AUTO")
-  mapPhotoData             Bytes?
-  mapPhotoMimeType         String?
+  mapLatitude               Float?
+  mapLongitude              Float?
+  mapLabel                  String?
+  mapCardSide               String?         @default("AUTO")
+  mapPhotoData              Bytes?
+  mapPhotoMimeType          String?
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
 
@@ -1997,33 +2074,34 @@ model FileAsset {
 }
 
 model Document {
-  id                           String                         @id @default(cuid())
-  propertyId                   String
-  property                     Property                       @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  fileAssetId                  String
-  fileAsset                    FileAsset                      @relation(fields: [fileAssetId], references: [id], onDelete: Restrict)
-  category                     DocumentCategory
-  photoStage                   DocumentPhotoStage?
-  title                        String
-  description                  String?
-  documentDate                 DateTime?
-  unitId                       String?
-  unit                         Unit?                          @relation(fields: [unitId], references: [id], onDelete: SetNull)
-  leaseId                      String?
-  lease                        Lease?                         @relation(fields: [leaseId], references: [id], onDelete: SetNull)
-  taskId                       String?
-  task                         Task?                          @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  taskEntryId                  String?
-  taskEntry                    TaskEntry?                     @relation(fields: [taskEntryId], references: [id], onDelete: SetNull)
-  complianceRecordId           String?
-  complianceRecord             ComplianceRecord?              @relation(fields: [complianceRecordId], references: [id], onDelete: SetNull)
-  propertyCostId               String?
-  propertyCost                 PropertyCost?                  @relation(fields: [propertyCostId], references: [id], onDelete: SetNull)
-  createdById                  String
-  createdBy                    User                           @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  quarterlyPropertyReportMedia QuarterlyPropertyReportMedia[]
-  createdAt                    DateTime                       @default(now())
-  deletedAt                    DateTime?
+  id                                   String                                @id @default(cuid())
+  propertyId                           String
+  property                             Property                              @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  fileAssetId                          String
+  fileAsset                            FileAsset                             @relation(fields: [fileAssetId], references: [id], onDelete: Restrict)
+  category                             DocumentCategory
+  photoStage                           DocumentPhotoStage?
+  title                                String
+  description                          String?
+  documentDate                         DateTime?
+  unitId                               String?
+  unit                                 Unit?                                 @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  leaseId                              String?
+  lease                                Lease?                                @relation(fields: [leaseId], references: [id], onDelete: SetNull)
+  taskId                               String?
+  task                                 Task?                                 @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskEntryId                          String?
+  taskEntry                            TaskEntry?                            @relation(fields: [taskEntryId], references: [id], onDelete: SetNull)
+  complianceRecordId                   String?
+  complianceRecord                     ComplianceRecord?                     @relation(fields: [complianceRecordId], references: [id], onDelete: SetNull)
+  propertyCostId                       String?
+  propertyCost                         PropertyCost?                         @relation(fields: [propertyCostId], references: [id], onDelete: SetNull)
+  createdById                          String
+  createdBy                            User                                  @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  quarterlyPropertyReportMedia         QuarterlyPropertyReportMedia[]
+  distributionWelcomeLetterAttachments DistributionWelcomeLetterAttachment[]
+  createdAt                            DateTime                              @default(now())
+  deletedAt                            DateTime?
 
   @@index([propertyId, deletedAt])
   @@index([fileAssetId])

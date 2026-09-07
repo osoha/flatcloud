@@ -293,6 +293,42 @@ test("interní CRM vede zájemce přes příležitost a další krok", async ({ 
   assertNoBrowserFailures();
 });
 
+test("uvítací dopis navazuje na uzavřený prodej a vyžaduje ruční kontrolu", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/distribuce/zajemci");
+  const prospectName = `E2E nový vlastník ${Date.now()}`;
+  await page.getByText("Nový zájemce", { exact: true }).click();
+  await page.getByLabel("Jméno / název *").fill(prospectName);
+  await page.getByLabel("E-mail").fill("new.owner@example.test");
+  await page.getByRole("button", { name: "Přidat zájemce", exact: true }).click();
+  await page.getByText("Nový zájem o jednotku", { exact: true }).click();
+  await page.getByLabel("Zájemce *").selectOption({ label: prospectName });
+  await page.getByLabel("Jednotka *").selectOption({ index: 1 });
+  await page.getByLabel("Fáze *").first().selectOption("WON");
+  await page.getByRole("button", { name: "Založit příležitost", exact: true }).click();
+  await expect(page.getByRole("row").filter({ hasText: prospectName })).toContainText("Uzavřeno");
+  await page.getByRole("link", { name: "Uvítací dopisy", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Uvítací dopisy novým vlastníkům", exact: true })).toBeVisible();
+  await expect(page.getByText("Žádné automatické odesílání podle katastru", { exact: true })).toBeVisible();
+  await page.getByText("Založit uvítací dopis", { exact: true }).click();
+  const opportunityOption = page.getByLabel("Uzavřený prodej *").locator("option").filter({ hasText: prospectName });
+  await page.getByLabel("Uzavřený prodej *").selectOption((await opportunityOption.getAttribute("value"))!);
+  await page.getByRole("button", { name: "Vytvořit z FlatCloud šablony", exact: true }).click();
+  await expect(page.getByRole("heading", { name: prospectName, exact: true })).toBeVisible();
+  await expect(page.locator(".welcome-email-preview")).toContainText("Průvodce nového vlastníka");
+  await page.getByLabel("Úvod a obchodní shrnutí *").fill(`Vážený vlastníku,\n\n${prospectName} – test editovatelného obchodního shrnutí.`);
+  await page.getByRole("button", { name: "Uložit koncept", exact: true }).click();
+  await expect(page.getByText("Koncept byl uložen.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Předat ke kontrole", exact: true }).click();
+  await expect(page.getByText("Dopis je připraven k odeslání.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Odeslat uvítací e-mail", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Vrátit k úpravám", exact: true }).click();
+  await expect(page.getByText("Dopis byl vrácen k úpravám.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Uložit koncept", exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
 test("distribuční podklad odděluje LIVE stav od aktivity a exportuje bez PII", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

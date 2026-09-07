@@ -125,6 +125,9 @@ export default async function DistributionCrmPage({
             </p>
           </div>
           <div className="action-row">
+            <Link className="secondary" href="/distribuce/uvitaci-dopisy">
+              Uvítací dopisy
+            </Link>
             <Link className="secondary" href="/distribuce/reporting">
               Reportovací podklady
             </Link>

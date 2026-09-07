@@ -249,6 +249,10 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - technický text o zdroji souřadnic se již nezobrazuje v akcionářském PDF; informace o uživatelsky spuštěném geokódování zůstává pouze v interním editoru mapy.
 - **R18F implementováno bez migrace:** převod zeměpisných souřadnic na výroční mapu používá společnou kalibrovanou projekci odvozenou ze 13 krajských měst referenční mapy a stejný zobrazovací rámec jako mapový asset,
 - regresní body Brno, Plzeň, Ústí nad Labem a Ostrava chrání mapu proti opětovnému stažení značek ke středu; geokódované souřadnice uložené v reportech se nemění.
+- **R19A implementováno aditivní migrací:** Distribuce obsahuje uvítací dopisy jako postprodejní péči navázanou na uzavřenou CRM příležitost, konkrétní jednotku, dům, prodávající SPV a datum nabytí podle katastru,
+- dopis používá FlatCloud e-mailovou šablonu, ale obchodní úvod, sedm tematických doporučení, závěr, kontakty a výběr až osmi existujících dokumentů domu jsou editovatelné v každé revizi,
+- koncept musí projít stavem Připraveno a výslovným potvrzením příjemce, obsahu i příloh; před datem nabytí jej nelze odeslat, souběžné odeslání blokuje stav SENDING a odeslaná revize se již nepřepisuje,
+- tato etapa nezavádí automatické sledování katastru ani automatické odesílání; obě vnější akce zůstávají za lidskou kontrolou a auditní stopou.
 
 ### Odložený blok — smluvní dokumentace a vzdálený podpis
 
