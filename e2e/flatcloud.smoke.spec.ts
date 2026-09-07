@@ -435,6 +435,9 @@ test("metodika je dohledatelná globálně a umí filtrovat životní situace", 
   await page.getByRole("button", { name: "Hledat", exact: true }).click();
   await expect(page).toHaveURL(/\/metodika\?q=valorizace/);
   await expect(page.getByRole("heading", { name: "Valorizace a plán nájemného", exact: true })).toBeVisible();
+  await page.getByLabel("Hledat v metodice").fill("výroční report");
+  await page.getByRole("button", { name: "Hledat", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Výroční report pro akcionáře", exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
 
@@ -916,6 +919,7 @@ test("R13: výroční editor odděluje korporátní a nemovitostní vrstvu", asy
   await page.goto("/reporty/akcionarske");
   await page.getByRole("link", { name: /Výroční reporty/ }).click();
   await expect(page.getByRole("heading", { name: "Výroční reporty", exact: true })).toBeVisible();
+  await expect(page.getByText("Výroční report pro akcionáře", { exact: true })).toBeVisible();
   await page.goto("/reporty/kvartalni");
   await page.getByText("Nová reportovací skupina", { exact: true }).click();
   await page.getByLabel("Název").fill("R13 E2E portfolio");

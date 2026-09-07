@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { Shell } from "@/components/Shell";
 import { AnnualReportReviewExport } from "@/components/annual-report/AnnualReportReviewExport";
 import { Flash } from "@/components/FormUi";
+import { MethodologyCallout } from "@/components/MethodologyCallout";
 import { requireUser } from "@/lib/auth";
 import { businessDateKey } from "@/lib/calendar";
 import { prisma } from "@/lib/db";
@@ -39,6 +40,7 @@ export default async function AnnualReportWorkspace({ params, searchParams }: { 
     <div className="breadcrumb"><Link href={`/reporty/vyrocni/${groupId}`}>← {report.reportingGroupNameSnapshot}</Link><span>›</span><span>Výroční report {report.year}</span></div>
     <header className="annual-report-hero"><div><span>FlatCloud · Výroční report</span><h1>{report.year}</h1><p>{report.reportingGroupNameSnapshot} · revize {report.revision} · rozhodné datum {businessDateKey(report.asOfDate)}</p></div><div><span className="status">{statusLabels[report.status]}</span><strong>{completedProperties}/{report.propertyReports.length} kapitol připraveno</strong></div></header>
     <Flash ok={query.ok} error={query.error}/>
+    <MethodologyCallout slug="vyrocni-report" compact/>
     <div className="annual-report-workspace-layout">
       <nav className="annual-report-nav" aria-label="Příprava výročního reportu">
         <Link className={section === "overview" ? "active" : ""} href={`${baseHref}?section=overview`}><strong>01 · Korporátní příběh</strong><small>Portfolio, hodnota a akcie</small></Link>

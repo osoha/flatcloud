@@ -210,6 +210,12 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R14B implementováno bez migrace:** akcionářský distribuční podklad odděluje dnešní LIVE fázi od neměnných pohybů funnelu ve zvoleném čtvrtletí nebo roce, agreguje podepsané a využité opce bez osobních údajů a přenáší stejné členění do interního CSV,
 - historický řez čte pouze události zavedené v R14A; nepřepisuje CRM, nezpřístupňuje PII a nemění hranici interního workflow.
 
+### R15 — metodika a znalostní vedení
+
+- **R15A implementováno bez migrace:** Metodika získává samostatný postup výročního akcionářského reportu od zmrazení Q4 rozsahu přes redakční vrstvy a kontrolu PDF až po neměnnou publikaci a opravnou revizi,
+- kapitoly CRM a distribučního reportingu nově odpovídají lifecycle opcí, neměnné historii funnelu, bezpečnému převzetí valuace a oddělení LIVE stavu od periodické aktivity,
+- kontextové metodické odkazy jsou přímo ve výročním seznamu a editoru, CRM zájemců i distribučním reportingu; veřejná distribuce a automatická komunikace zůstávají mimo rozsah.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,
