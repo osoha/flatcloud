@@ -33,7 +33,7 @@ check("LIVE asset report uses business-day end and dated loan snapshots",()=>{
 check("same-day valuation is included and annual history has no current-card fallback",()=>{
   const kpis=read("lib/reporting/asset-finance-kpis.ts"),annual=read("lib/reporting/annual-owner-package.ts");
   assert.match(kpis,/asOfDate: \{ lte: asOfEnd \}/);
-  assert.match(annual,/if \(!share\|\|!snapshot\) return \[\]/);
+  assert.match(annual,/if\s*\(\s*!resolved\.share\s*\|\|\s*!snapshot\s*\)\s*return\s*\[\]/);
   assert.doesNotMatch(annual,/snapshot\?\.outstandingPrincipalCents\?\?loan\.outstandingPrincipalCents/);
 });
 
