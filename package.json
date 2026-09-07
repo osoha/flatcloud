@@ -133,7 +133,8 @@
     "verify:r18d-annual-corporate-sections": "node --import tsx scripts/verify-r18d-annual-corporate-sections.ts",
     "verify:r18e-annual-map-cleanup": "node --import tsx scripts/verify-r18e-annual-map-cleanup.ts",
     "verify:r18f-annual-map-projection": "node --import tsx scripts/verify-r18f-annual-map-projection.ts",
-    "verify:r19a-distribution-welcome-letters": "node --import tsx scripts/verify-r19a-distribution-welcome-letters.ts"
+    "verify:r19a-distribution-welcome-letters": "node --import tsx scripts/verify-r19a-distribution-welcome-letters.ts",
+    "verify:r19b-collapsible-navigation": "node --import tsx scripts/verify-r19b-collapsible-navigation.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

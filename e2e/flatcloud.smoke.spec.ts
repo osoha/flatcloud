@@ -464,6 +464,7 @@ test("kritické registry a administrace se otevřou bez browser chyb", async ({ 
 test("metodika je dohledatelná globálně a umí filtrovat životní situace", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
+  await page.getByRole("button", { name: "Podpora práce", exact: true }).click();
   await page.getByRole("link", { name: "Metodika", exact: true }).click();
   await expect(page).toHaveURL(/\/metodika(?:\?|$)/);
   await expect(page.getByRole("heading", { name: "Metodika správy", exact: true })).toBeVisible();
@@ -482,6 +483,33 @@ test("metodika je dohledatelná globálně a umí filtrovat životní situace", 
   await page.getByLabel("Hledat v metodice").fill("daňové přiznání");
   await page.getByRole("button", { name: "Hledat", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Roční podklady vlastníka bez záměny za daňové přiznání", exact: true })).toBeVisible();
+  assertNoBrowserFailures();
+});
+
+test("R19B: sbalovací navigace pamatuje volbu a odhalí aktivní sekci", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  const evidence = page.getByRole("button", { name: "Evidence", exact: true });
+  const support = page.getByRole("button", { name: "Podpora práce", exact: true });
+  const administration = page.getByRole("button", { name: "Správa", exact: true });
+  await expect(evidence).toHaveAttribute("aria-expanded", "true");
+  await expect(support).toHaveAttribute("aria-expanded", "false");
+  await expect(administration).toHaveAttribute("aria-expanded", "false");
+  await support.focus();
+  await page.keyboard.press("Enter");
+  await expect(support).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("link", { name: "Metodika", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Podpora práce", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await page.getByRole("button", { name: "Podpora práce", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Podpora práce", exact: true })).toHaveAttribute("aria-expanded", "false");
+  await page.goto("/metodika");
+  await expect(page.getByRole("button", { name: "Podpora práce", exact: true })).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByRole("link", { name: "Metodika", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.goto("/portfolio");
+  await administration.focus();
+  await page.keyboard.press(" ");
+  await expect(administration).toHaveAttribute("aria-expanded", "true");
   assertNoBrowserFailures();
 });
 
@@ -950,6 +978,7 @@ test("R7: interní moduly a administrace mají jasné rozcestníky", async ({ pa
   await expect(page.getByRole("heading", { name: "Akcionářské reporty", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Kvartální reporty/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Výroční reporty/ })).toBeVisible();
+  await page.getByRole("button", { name: "Správa", exact: true }).click();
   await page.getByRole("link", { name: "Administrace", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Administrace", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: /Integrace a automatizace/ }).first()).toBeVisible();
