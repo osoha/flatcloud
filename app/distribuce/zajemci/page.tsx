@@ -15,6 +15,7 @@ import {
 } from "@/lib/distribution/crm";
 
 export const dynamic = "force-dynamic";
+const moneyNumberInput = (cents: number | null | undefined) => moneyInput(cents).replace(",", ".");
 export default async function DistributionCrmPage({
   searchParams,
 }: {
@@ -100,7 +101,7 @@ export default async function DistributionCrmPage({
           ? [
               [
                 unit.id,
-                moneyInput(Number(unit.valuationSnapshots[0].marketValueCents)),
+                moneyNumberInput(Number(unit.valuationSnapshots[0].marketValueCents)),
               ],
             ]
           : [],
@@ -423,7 +424,7 @@ export default async function DistributionCrmPage({
                                   type="number"
                                   min="0.01"
                                   step="0.01"
-                                  defaultValue={moneyInput(
+                                  defaultValue={moneyNumberInput(
                                     item.askingPriceCents
                                       ? Number(item.askingPriceCents)
                                       : null,
@@ -434,7 +435,7 @@ export default async function DistributionCrmPage({
                                 prices={
                                   item.unit.valuationSnapshots[0]
                                     ? {
-                                        [item.unitId]: moneyInput(
+                                        [item.unitId]: moneyNumberInput(
                                           Number(
                                             item.unit.valuationSnapshots[0]
                                               .marketValueCents,
@@ -452,7 +453,7 @@ export default async function DistributionCrmPage({
                                   type="number"
                                   min="0.01"
                                   step="0.01"
-                                  defaultValue={moneyInput(
+                                  defaultValue={moneyNumberInput(
                                     item.offeredPriceCents
                                       ? Number(item.offeredPriceCents)
                                       : null,
@@ -489,7 +490,7 @@ export default async function DistributionCrmPage({
                                   type="number"
                                   min="0.01"
                                   step="0.01"
-                                  defaultValue={moneyInput(
+                                  defaultValue={moneyNumberInput(
                                     item.optionPriceCents
                                       ? Number(item.optionPriceCents)
                                       : null,

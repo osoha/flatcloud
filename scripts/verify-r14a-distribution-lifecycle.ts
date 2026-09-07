@@ -47,6 +47,7 @@ async function main() {
     await check("CRM UI exposes valuation prefill, option lifecycle and event history", () => {
       const page = read("app/distribuce/zajemci/page.tsx"), prefill = read("components/distribution/ValuationPricePrefill.tsx");
       for (const marker of ["Stav opce", "Cena opce Kč", "Platnost opce do", "Reference dokumentu", "Historie funnelu"]) assert.match(page, new RegExp(marker));
+      assert.match(page, /moneyInput\(cents\)\.replace\(",", "\."\)/);
       assert.match(prefill, /input\[name="askingPrice"\]/);
       assert.match(prefill, /!input\.value/);
     });
