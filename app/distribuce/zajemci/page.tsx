@@ -5,6 +5,7 @@ import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { DismissibleDetails } from "@/components/DismissibleDetails";
 import { ValuationPricePrefill } from "@/components/distribution/ValuationPricePrefill";
+import { MethodologyCallout } from "@/components/MethodologyCallout";
 import { canSeeAll, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
@@ -133,6 +134,7 @@ export default async function DistributionCrmPage({
           </div>
         </div>
         <Flash ok={query.ok} error={query.error} />
+        <MethodologyCallout slug="crm-distribuce" compact />
         <div className="stat-grid v21-stat-grid distribution-crm-kpis">
           <Stat
             label="Aktivní zájemci"

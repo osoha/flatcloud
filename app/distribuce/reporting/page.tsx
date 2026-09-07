@@ -9,6 +9,7 @@ import {
   Download,
 } from "lucide-react";
 import { Shell } from "@/components/Shell";
+import { MethodologyCallout } from "@/components/MethodologyCallout";
 import { canSeeAll, requireUser } from "@/lib/auth";
 import { date, money } from "@/lib/format";
 import { loadDistributionReport } from "@/lib/distribution/reporting";
@@ -45,6 +46,7 @@ export default async function DistributionReportingPage({
             <Download size={16} /> Stáhnout CSV bez osobních údajů
           </Link>
         </div>
+        <MethodologyCallout slug="reporting-distribuce" compact />
         <form className="card distribution-report-filter" method="get">
           <label className="field">
             <span>Období aktivity</span>

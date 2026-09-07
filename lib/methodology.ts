@@ -111,6 +111,16 @@ export const methodologyChapters: MethodologyChapter[] = [
     href: "/revize",
   },
   {
+    slug: "vyrocni-report",
+    category: "Asset management",
+    title: "Výroční report pro akcionáře",
+    summary: "Interní příprava korporátního příběhu, hodnoty portfolia, kapitol nemovitostí a kontrolovaného PDF z uzavřených Q4 snapshotů.",
+    audience: "Vedení, asset manager a interní reporting",
+    steps: ["Zvolte aktivní reportovací skupinu a uzavřený rok; založením reportu se zmrazí přesný rozsah nemovitostí a jejich Q4 snapshoty k 31. prosinci.", "V konceptu doplňte slovo zakladatele, shrnutí roku, investiční tezi, tvorbu hodnoty, výhled, hodnotu aktiv, dluh, exity a údaje o akcii.", "U každé nemovitosti oddělte počáteční, koncovou a cílovou hodnotu, investiční případ, tvorbu hodnoty, výhled exitu a poznámku ke zdroji.", "Před odesláním ke kontrole odstraňte všechny blokátory úplnosti a ověřte provenienci zmrazených dat v příloze.", "Ve stavu Ke kontrole otevřete deterministický PDF náhled; administrátor musí potvrdit jeho vizuální kontrolu před publikací.", "Publikovanou revizi neupravujte. Potřebnou opravu založte jako novou revizi, aby původní PDF, snapshoty i auditní stopa zůstaly zachované."],
+    check: "Publikovat lze pouze uzavřený a úplný report se shodným zmrazeným rozsahem, schváleným PDF náhledem a dohledatelnými zdroji. Workflow je interní a samo nic veřejně nerozesílá.",
+    href: "/reporty/vyrocni",
+  },
+  {
     slug: "vice-vlastniku",
     category: "Asset management",
     title: "Více vlastníků a rozsah reportu",
@@ -146,8 +156,8 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "CRM zájemců pro distribuci",
     summary: "Interní vedení zájemce od prvního kontaktu přes prohlídku a nabídku až k rezervaci nebo uzavření.",
     audience: "Interní distribuční tým",
-    steps: ["Založte zájemce až s alespoň jedním použitelným kontaktem a uveďte zdroj.", "Zájem o každou jednotku veďte jako samostatnou příležitost.", "Nastavte věcnou fázi, cenu a konkrétní datum dalšího kroku.", "Po každém kontaktu aktualizujte fázi a poznámku; systém změnu zaznamená do auditu.", "Rezervaci v CRM nepovažujte za právní rezervaci a bez samostatného souhlasu neposílejte automatickou komunikaci."],
-    check: "Každá otevřená příležitost má vlastníka kontaktu, jednotku, aktuální fázi a budoucí další krok; osobní údaje zůstávají interní.",
+    steps: ["Založte zájemce až s alespoň jedním použitelným kontaktem a uveďte zdroj.", "Zájem o každou jednotku veďte jako samostatnou příležitost; nabídkovou cenu můžete převzít z poslední valuace, ruční hodnotu však systém bez výslovného pokynu nepřepíše.", "Nastavte věcnou fázi, cenu a konkrétní datum dalšího kroku.", "Opci veďte odděleným stavem. Nabídnutá nebo podepsaná opce vyžaduje cenu a platnost; podepsaná či využitá také referenci dokumentu.", "Po každé změně zkontrolujte neměnnou historii funnelu s původní a novou fází, stavem opce a autorem.", "Rezervaci v CRM nepovažujte za právní rezervaci a bez samostatného souhlasu neposílejte automatickou komunikaci."],
+    check: "Každá otevřená příležitost má zájemce, jednotku, aktuální fázi a budoucí další krok; opce má úplné podklady, historie se nepřepisuje a osobní údaje zůstávají interní.",
     href: "/distribuce/zajemci",
   },
   {
@@ -156,8 +166,8 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Distribuční podklady pro akcionáře",
     summary: "Kvartální a roční agregace technického podkladu, valuací, CAPEX a distribuční pipeline bez osobních údajů zájemců.",
     audience: "Interní reporting FlatCloud",
-    steps: ["Vyberte kvartál nebo celý rok aktivity.", "Ověřte úplnost technických podkladů a valuací po nemovitostech.", "Čtěte fáze jako dnešní LIVE stav a nové příležitosti jako aktivitu podle data založení.", "Před předáním vysvětlete chybějící historizaci přechodů fází.", "Exportujte pouze agregované CSV bez osobních údajů a odborně ověřte komentář reportu."],
-    check: "Podklad obsahuje jen potvrzená aktiva FlatCloud, neobsahuje PII a jasně označuje rozdíl mezi LIVE stavem a periodickou aktivitou.",
+    steps: ["Vyberte kvartál nebo celý rok aktivity.", "Ověřte úplnost technických podkladů a valuací po nemovitostech.", "Čtěte první řez fází jako dnešní LIVE stav a nové příležitosti podle data založení.", "Samostatný historický řez čtěte jako počet neměnných událostí podle cílové fáze; podepsané a využité opce jsou agregované bez identifikace zájemce.", "Exportujte pouze interní agregované CSV bez osobních údajů a odborně ověřte komentář reportu."],
+    check: "Podklad obsahuje jen potvrzená aktiva FlatCloud, neobsahuje PII a jasně odděluje dnešní LIVE stav od historických pohybů ve zvoleném období.",
     href: "/distribuce/reporting",
   },
 ];
