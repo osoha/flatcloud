@@ -113,7 +113,7 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Roční podklady vlastníka",
     summary: "Kontrolní balíček skutečně přijatých úhrad, skutečných výdajů, dokladů a úvěrových mezer před předáním účetnímu.",
     audience: "Vlastník a finanční správce",
-    steps: ["Vyberte jednoho právního vlastníka a uzavřený kalendářní rok.", "Ověřte, že příjmy vycházejí z přiřazených bankovních úhrad a výdaje pouze ze stavu Skutečnost.", "Doplňte rozdělení společných nákladů a účetní doklady u každé chybějící položky.", "Zaplacené úroky evidujte jako samostatný skutečný finanční náklad s dokladem; sazba ani jistina nejsou náhradou výpisu.", "Při změně vlastnictví v průběhu roku ověřte historické podíly mimo automatický přehled.", "CSV předejte účetnímu jako pracovní zdroj, ne jako hotové daňové přiznání."],
+    steps: ["Vyberte jednoho právního vlastníka a uzavřený kalendářní rok.", "Ověřte, že příjmy vycházejí z přiřazených bankovních úhrad a výdaje pouze ze stavu Skutečnost.", "Doplňte účinné intervaly vlastnických podílů; ke každému datu musí úplná struktura dát 100 %.", "Doplňte rozdělení společných nákladů, účetní doklady a stav odborné kontroly každé klasifikace.", "U úvěru zapište skutečně zaplacený roční úrok a připojte účetní doklad; sazba ani jistina nejsou náhradou výpisu.", "CSV předejte účetnímu jako pracovní zdroj, ne jako hotové daňové přiznání."],
     check: "Balíček nemá blokátor, každý výdaj má doklad a odborník potvrdil kategorizaci, historické vlastnictví i daňové zacházení.",
     href: "/reporty/rocni-podklady",
   },
