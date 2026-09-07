@@ -32,6 +32,7 @@ check("methodology offers a responsive three-way landing screen", () => {
   const page = read("app/metodika/page.tsx");
   const css = read("app/globals.css");
   for (const marker of ["Rozcestník metodiky", "Praktické postupy", "Slovník a vzorce", "Znalostní média", "Vzorec v aplikaci"]) assert.match(page, new RegExp(marker));
+  assert.match(read("e2e/flatcloud.smoke.spec.ts"), /Slovník pojmů a vzorců/);
   assert.match(css, /\.methodology-hub\{display:grid;grid-template-columns:repeat\(3/);
   assert.match(css, /methodology-media-grid,.methodology-hub,.onboarding-step-grid\{grid-template-columns:1fr\}/);
 });

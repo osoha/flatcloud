@@ -431,7 +431,7 @@ test("metodika je dohledatelná globálně a umí filtrovat životní situace", 
   await page.getByRole("link", { name: "Metodika", exact: true }).click();
   await expect(page).toHaveURL(/\/metodika(?:\?|$)/);
   await expect(page.getByRole("heading", { name: "Metodika správy", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Slovník pojmů", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Slovník pojmů a vzorců", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Podcastové a video osnovy", exact: true })).toBeVisible();
   await page.getByLabel("Hledat v metodice").fill("valorizace");
   await page.getByRole("button", { name: "Hledat", exact: true }).click();
