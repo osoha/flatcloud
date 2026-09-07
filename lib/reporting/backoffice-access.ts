@@ -39,7 +39,7 @@ export async function backofficePermissionForGroup(actor: ReportingBackofficeAct
 export async function requireReportingBackoffice(actor: ReportingBackofficeActor, groupId: string, minimum: "EDIT" | "ADMIN", tx: Prisma.TransactionClient | typeof prisma = prisma) {
   const permission = await backofficePermissionForGroup(actor, groupId, tx);
   const allowed = minimum === "ADMIN" ? canAdminReportingBackoffice(permission) : canReadReportingBackoffice(permission);
-  if (!allowed) domainError(minimum === "ADMIN" ? "Nemáte oprávnění spravovat tuto reportovací skupinu." : "Nemáte přístup k přípravě akcionářských reportů.");
+  if (!allowed) domainError(minimum === "ADMIN" ? "Nemáte oprávnění spravovat tuto reportovací skupinu." : "Nemáte přístup k přípravě kvartálních reportů.");
   return permission;
 }
 export async function hasReportingBackofficeAccess(actor: ReportingBackofficeActor) {
@@ -48,8 +48,8 @@ export async function hasReportingBackofficeAccess(actor: ReportingBackofficeAct
 }
 export async function listReportingBackofficeGroups(actor: ReportingBackofficeActor) {
   const where = actor.role === "SUPER_ADMIN" ? {} : { members: { some: { userId: actor.id, permission: { in: ["EDIT", "ADMIN"] as ReportingGroupPermission[] } } } };
-  const groups = await prisma.reportingGroup.findMany({ where, select: { id: true, name: true, description: true, active: true, properties: { select: { propertyId: true } }, members: { where: { userId: actor.id }, select: { permission: true }, take: 1 }, quarterlyReports: { select: { year: true, quarter: true, revision: true, status: true }, orderBy: [{ year: "desc" }, { quarter: "desc" }, { revision: "desc" }], take: 1 }, annualReports: { select: { year: true, revision: true, status: true }, orderBy: [{ year: "desc" }, { revision: "desc" }], take: 1 } }, orderBy: [{ active: "desc" }, { name: "asc" }] });
-  return groups.map((group) => ({ ...group, propertyCount: new Set(group.properties.map((row) => row.propertyId)).size, effectivePermission: effectiveBackofficePermission(actor.role, group.members[0]?.permission), latestReport: group.quarterlyReports[0] || null, latestAnnualReport: group.annualReports[0] || null }));
+  const groups = await prisma.reportingGroup.findMany({ where, select: { id: true, name: true, description: true, active: true, properties: { select: { propertyId: true } }, members: { where: { userId: actor.id }, select: { permission: true }, take: 1 }, quarterlyReports: { select: { year: true, quarter: true, revision: true, status: true }, orderBy: [{ year: "desc" }, { quarter: "desc" }, { revision: "desc" }], take: 1 } }, orderBy: [{ active: "desc" }, { name: "asc" }] });
+  return groups.map((group) => ({ ...group, propertyCount: new Set(group.properties.map((row) => row.propertyId)).size, effectivePermission: effectiveBackofficePermission(actor.role, group.members[0]?.permission), latestReport: group.quarterlyReports[0] || null }));
 }
 export function parseReportingBusinessDate(value: string, required = true) {
   const raw = value.trim(); if (!raw) { if (required) domainError("Datum je povinné."); return null; }
