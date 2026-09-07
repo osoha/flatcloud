@@ -28,13 +28,13 @@ check("formula wording stays aligned with the finance calculator", () => {
   for (const marker of ["monthlyNetRentCents * 12", "annualRentCents - row.actualOpexTtmCents", "noiCents - row.annualDebtServiceCents", "ratioBasisPoints(noiCents, row.marketValueCents)", "ratioBasisPoints(cashflowCents, equityCents)", "ratioBasisPoints(row.outstandingPrincipalCents, row.marketValueCents)", "ratioBasisPoints(noiCents, row.annualDebtServiceCents)"]) assert.match(finance, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
 });
 
-check("methodology offers a responsive three-way landing screen", () => {
+check("methodology offers a responsive separated landing screen", () => {
   const page = read("app/metodika/page.tsx");
   const css = read("app/globals.css");
-  for (const marker of ["Rozcestník metodiky", "Praktické postupy", "Slovník a vzorce", "Znalostní média", "Vzorec v aplikaci"]) assert.match(page, new RegExp(marker));
+  for (const marker of ["Rozcestník metodiky", "Praktická metodika", "Slovník a vzorce", "Znalostní média", "Vzorec v aplikaci"]) assert.match(page, new RegExp(marker));
   assert.match(read("e2e/flatcloud.smoke.spec.ts"), /Slovník pojmů a vzorců/);
-  assert.match(css, /\.methodology-hub\{display:grid;grid-template-columns:repeat\(3/);
-  assert.match(css, /methodology-media-grid,.methodology-hub,.onboarding-step-grid\{grid-template-columns:1fr\}/);
+  assert.match(css, /\.methodology-hub\{display:grid;grid-template-columns:repeat\(4/);
+  assert.match(css, /methodology-media-grid,.methodology-hub,.methodology-guide-grid,.onboarding-step-grid\{grid-template-columns:1fr\}/);
 });
 
 check("R18C is additive, migration-free and release-gated", () => {

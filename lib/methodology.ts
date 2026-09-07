@@ -26,6 +26,48 @@ export type MethodologyMediaBrief = {
   chapterSlug: string;
 };
 
+export type MethodologyGuide = {
+  slug: string;
+  title: string;
+  situation: string;
+  audience: string;
+  outcome: string;
+  steps: Array<{ label: string; note: string; href: string }>;
+};
+
+export const methodologyGuides: MethodologyGuide[] = [
+  { slug: "prevzeti-objektu", title: "Přebírám nový dům do správy", situation: "Nové aktivum", audience: "Portfolio a property manager", outcome: "Objekt má úplnou identitu, jednotky, odpovědnosti a finanční vstupy.", steps: [
+    { label: "Založit vlastníka a nemovitost", note: "Ověřte právní subjekt, adresu a rozsah správy.", href: "/nemovitosti/nova" },
+    { label: "Doplnit jednotky a přístupy", note: "Oddělte vlastnictví jednotek od uživatelských oprávnění.", href: "/portfolio" },
+    { label: "Nastavit finance a revize", note: "Přiřaďte účty, rozpočet, úvěry a povinné kontroly.", href: "/portfolio/kvalita" },
+  ] },
+  { slug: "novy-najemce", title: "Nastěhovávám nového nájemce", situation: "Nový nájem", audience: "Správce nájmů", outcome: "Smlouva, osoby, předpisy, kauce a počáteční stav na sebe navazují.", steps: [
+    { label: "Založit osoby a smlouvu", note: "Rozlište smluvní strany, plátce a pouhé obyvatele.", href: "/smlouvy/nova" },
+    { label: "Zkontrolovat předpis", note: "Oddělte čisté nájemné, služby a kauci.", href: "/reporty/predpisy" },
+    { label: "Potvrdit pohyb kauce", note: "Skutečný příjem evidujte až podle bankovní úhrady.", href: "/kauce" },
+  ] },
+  { slug: "chybejici-uhrada", title: "Nájemce neuhradil předpis", situation: "Dluh po splatnosti", audience: "Finanční a property manager", outcome: "Platba je správně spárovaná nebo má dohledatelný další krok bez předčasné eskalace.", steps: [
+    { label: "Prověřit nespárované platby", note: "Nejdřív vylučte chybné VS, účet nebo částečnou úhradu.", href: "/platby/nesparovane" },
+    { label: "Otevřít saldo dlužníka", note: "Rozlišujte budoucí předpis od skutečného dluhu po splatnosti.", href: "/reporty/saldo" },
+    { label: "Založit řízený úkol", note: "Další kontakt a výsledek ponechte v auditované pracovní frontě.", href: "/ukoly/novy" },
+  ] },
+  { slug: "obnova-jednotky", title: "Plánuji opravu nebo obnovu jednotky", situation: "OPEX / CAPEX", audience: "Technický a asset manager", outcome: "Rozhodnutí má stav, rozpočet, odpovědnost a oddělený plán od skutečnosti.", steps: [
+    { label: "Posoudit technický stav", note: "Hodnocení a naléhavost uložte jako nový datovaný snapshot.", href: "/portfolio/kvalita" },
+    { label: "Schválit plán CAPEX", note: "Teprve potvrzený plán převádějte do realizace.", href: "/portfolio/kvalita/plan" },
+    { label: "Doložit skutečný náklad", note: "Po dokončení připojte účetní doklad a zkontrolujte odchylku.", href: "/reporty/rocni-podklady" },
+  ] },
+  { slug: "rocni-uzaverka", title: "Připravuji roční závěrku a report", situation: "Konec roku", audience: "Finance, asset management a vedení", outcome: "Q4, výroční report a podklady vlastníků mají společný dohledatelný stav.", steps: [
+    { label: "Otevřít roční checklist", note: "Začněte společnou kontrolou rozsahu a chybějících zdrojů.", href: "/reporty/rocni-checklist" },
+    { label: "Doplnit podklady vlastníků", note: "Historické podíly, náklady a úroky potvrďte před předáním účetnímu.", href: "/reporty/rocni-podklady" },
+    { label: "Dokončit výroční revizi", note: "Publikujte až po obsahové a vizuální kontrole uzavřeného reportu.", href: "/reporty/vyrocni" },
+  ] },
+  { slug: "novy-vlastnik", title: "Dokončili jsme prodej novému vlastníkovi", situation: "Postprodejní péče", audience: "Distribuční a klientský tým", outcome: "Nový vlastník obdrží po nabytí zkontrolovaný uvítací dopis a správné přílohy.", steps: [
+    { label: "Uzavřít příležitost", note: "Ověřte kupujícího, jednotku a finální stav obchodu.", href: "/distribuce/zajemci" },
+    { label: "Připravit uvítací dopis", note: "Upravte text, doporučení, kontakty a přílohy konkrétního domu.", href: "/distribuce/uvitaci-dopisy" },
+    { label: "Ručně potvrdit odeslání", note: "Odešlete až po datu nabytí a výslovné kontrole příjemce i příloh.", href: "/distribuce/uvitaci-dopisy" },
+  ] },
+];
+
 export const methodologyChapters: MethodologyChapter[] = [
   {
     slug: "zalozeni-nemovitosti",

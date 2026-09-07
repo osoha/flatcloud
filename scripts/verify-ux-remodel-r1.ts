@@ -21,8 +21,8 @@ check("methodology is available globally and in context", () => {
   const property = read("app/nemovitosti/nova/page.tsx");
   const newLease = read("app/nemovitosti/[id]/smlouvy/nova/page.tsx");
   const lease = read("app/smlouvy/[leaseId]/page.tsx");
-  assert.match(shell, /href="\/metodika"/);
-  assert.match(page, /Metodika správy/);
+  assert.match(shell, /href="\/metodika\?view=chapters"/);
+  assert.match(page, /Praktická metodika/);
   assert.match(property, /MethodologyCallout slug="zalozeni-nemovitosti"/);
   assert.match(newLease, /MethodologyCallout slug="najemni-smlouva"/);
   assert.match(lease, /MethodologyCallout slug="najemni-smlouva"/);
