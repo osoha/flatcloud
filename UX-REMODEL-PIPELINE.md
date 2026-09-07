@@ -215,6 +215,9 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R15A implementováno bez migrace:** Metodika získává samostatný postup výročního akcionářského reportu od zmrazení Q4 rozsahu přes redakční vrstvy a kontrolu PDF až po neměnnou publikaci a opravnou revizi,
 - kapitoly CRM a distribučního reportingu nově odpovídají lifecycle opcí, neměnné historii funnelu, bezpečnému převzetí valuace a oddělení LIVE stavu od periodické aktivity,
 - kontextové metodické odkazy jsou přímo ve výročním seznamu a editoru, CRM zájemců i distribučním reportingu; veřejná distribuce a automatická komunikace zůstávají mimo rozsah.
+- **R15B implementováno bez migrace:** Metodika obsahuje prohledávatelný slovník reportovacích, finančních a distribučních pojmů včetně synonym a vazby na příslušný pracovní postup,
+- interní knihovna obsahuje odborně kontrolovatelné podcastové a video osnovy s účelem, délkou a strukturou; nejde o publikovaný obsah ani o automatickou externí distribuci,
+- společné hledání prohledává kapitoly, pojmy, synonyma i mediální osnovy a zachovává explicitní hranice mezi LIVE stavem, snapshotem, účetním podkladem a právním krokem.
 
 ## Release gate každé etapy
 
