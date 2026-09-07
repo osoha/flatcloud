@@ -1,7 +1,7 @@
 import { canSeeAll } from "@/lib/auth";
 import { businessDateEndInstant, businessDateKeyToInstant, type BusinessDateKey } from "@/lib/calendar";
 import { prisma } from "@/lib/db";
-import { distributionOpportunityStages } from "@/lib/distribution/crm";
+import { distributionOpportunityStages, distributionOptionStatuses } from "@/lib/distribution/crm";
 
 export function parseDistributionReportPeriod(value: string | undefined, now = new Date()) {
   const fallback = `${now.getUTCFullYear()}-Q${Math.floor(now.getUTCMonth() / 3) + 1}`;
@@ -27,7 +27,10 @@ export async function loadDistributionReport(actor: { id: string; role: string; 
       conditionAssessments: { orderBy: [{ assessedAt: "desc" }, { createdAt: "desc" }], take: 1 },
       assetAssessments: { orderBy: [{ assessedAt: "desc" }, { createdAt: "desc" }], take: 1 },
       valuationSnapshots: { orderBy: [{ valuationDate: "desc" }, { createdAt: "desc" }], take: 1 },
-      distributionOpportunities: { select: { id: true, stage: true, askingPriceCents: true, offeredPriceCents: true, createdAt: true, updatedAt: true } },
+      distributionOpportunities: { select: {
+        id: true, stage: true, optionStatus: true, askingPriceCents: true, offeredPriceCents: true, createdAt: true, updatedAt: true,
+        events: { where: { createdAt: { gte: period.from, lte: period.to } }, select: { fromStage: true, toStage: true, optionStatus: true, createdAt: true } },
+      } },
     } } },
     orderBy: { name: "asc" },
   });
@@ -38,7 +41,11 @@ export async function loadDistributionReport(actor: { id: string; role: string; 
     const valuations = property.units.map((unit) => unit.valuationSnapshots[0]).filter(Boolean);
     const opportunities = property.units.flatMap((unit) => unit.distributionOpportunities);
     const activity = opportunities.filter((item) => item.createdAt >= period.from && item.createdAt <= period.to);
+    const funnelEvents = opportunities.flatMap((item) => item.events.map((event) => ({ ...event, opportunityId: item.id })));
     const stageCounts = Object.fromEntries(stageEntries.map(([stage]) => [stage, opportunities.filter((item) => item.stage === stage).length]));
+    const stageActivityCounts = Object.fromEntries(stageEntries.map(([stage]) => [stage, funnelEvents.filter((item) => item.toStage === stage).length]));
+    const signedOptionCount = new Set(funnelEvents.filter((item) => item.optionStatus === "SIGNED").map((item) => item.opportunityId)).size;
+    const exercisedOptionCount = new Set(funnelEvents.filter((item) => item.optionStatus === "EXERCISED").map((item) => item.opportunityId)).size;
     return {
       propertyId: property.id,
       propertyName: property.name,
@@ -51,8 +58,12 @@ export async function loadDistributionReport(actor: { id: string; role: string; 
       marketValueCents: valuations.reduce((sum, item) => sum + Number(item.marketValueCents), 0),
       openOpportunityCount: opportunities.filter((item) => !["WON", "LOST"].includes(item.stage)).length,
       newOpportunityCount: activity.length,
+      funnelEventCount: funnelEvents.length,
+      signedOptionCount,
+      exercisedOptionCount,
       offeredValueCents: opportunities.filter((item) => item.stage === "OFFER" || item.stage === "RESERVED").reduce((sum, item) => sum + Number(item.offeredPriceCents || 0), 0),
       stageCounts,
+      stageActivityCounts,
       issues: property.units.flatMap((unit) => [
         ...(!unit.conditionAssessments.length ? ["Chybí technické hodnocení"] : []),
         ...(!unit.valuationSnapshots.length ? ["Chybí valuace"] : []),
@@ -70,9 +81,13 @@ export async function loadDistributionReport(actor: { id: string; role: string; 
     marketValueCents: rows.reduce((sum, row) => sum + row.marketValueCents, 0),
     openOpportunityCount: rows.reduce((sum, row) => sum + row.openOpportunityCount, 0),
     newOpportunityCount: rows.reduce((sum, row) => sum + row.newOpportunityCount, 0),
+    funnelEventCount: rows.reduce((sum, row) => sum + row.funnelEventCount, 0),
+    signedOptionCount: rows.reduce((sum, row) => sum + row.signedOptionCount, 0),
+    exercisedOptionCount: rows.reduce((sum, row) => sum + row.exercisedOptionCount, 0),
     offeredValueCents: rows.reduce((sum, row) => sum + row.offeredValueCents, 0),
     stageCounts: Object.fromEntries(stageEntries.map(([stage]) => [stage, rows.reduce((sum, row) => sum + (row.stageCounts[stage] || 0), 0)])),
+    stageActivityCounts: Object.fromEntries(stageEntries.map(([stage]) => [stage, rows.reduce((sum, row) => sum + (row.stageActivityCounts[stage] || 0), 0)])),
     issueCount: rows.reduce((sum, row) => sum + row.issues.length, 0),
   };
-  return { period, rows, totals, generatedAt: new Date(), scopeLabel: "Potvrzená aktiva FlatCloud · LIVE stav", stageLabels: distributionOpportunityStages };
+  return { period, rows, totals, generatedAt: new Date(), scopeLabel: "Potvrzená aktiva FlatCloud · LIVE stav", stageLabels: distributionOpportunityStages, optionLabels: distributionOptionStatuses };
 }

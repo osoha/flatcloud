@@ -145,6 +145,7 @@ jobs:
       - run: npm run verify:r13a-annual-report
       - run: npm run verify:r13b-annual-publication
       - run: npm run verify:r14a-distribution-lifecycle
+      - run: npm run verify:r14b-distribution-history
       - run: npm run verify:live-report-periods
 
   browser-smoke:
