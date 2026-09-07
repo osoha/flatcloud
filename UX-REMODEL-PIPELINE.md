@@ -225,6 +225,12 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - chybějící účetní doklad je v otevřeném YTD roce upozorněním, ale v uzavřeném roce blokuje připravenost balíčku pro předání účetnímu,
 - obrazovka i CSV ukazují zvlášť počet účetních dokladů, počet podpůrných příloh a stav evidence; detail nákladu vysvětluje stejnou klasifikaci už při nahrávání.
 
+### R17 — návaznost kvartálního a výročního reportingu
+
+- **R17A implementováno bez migrace:** výroční editor read-only kontroluje poslední publikovanou Q4 revizi stejné reportovací skupiny a roku a viditelně porovnává rozhodné datum i množinu nemovitostí,
+- chybějící Q4 report, neshoda data a neshoda rozsahu zůstávají samostatně rozlišitelné; dostupný Q4 report lze otevřít přímo z výročního workspace,
+- kontrola nemění kvartální ani výroční snapshoty, nevstupuje do publikovaného PDF a nezasahuje do existujícího workflow či publikační sémantiky.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,

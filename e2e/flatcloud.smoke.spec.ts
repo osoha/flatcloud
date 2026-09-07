@@ -943,6 +943,7 @@ test("R13: výroční editor odděluje korporátní a nemovitostní vrstvu", asy
   await page.getByLabel("Rok").fill(String(new Date().getUTCFullYear()));
   await page.getByRole("button", { name: "Založit výroční report", exact: true }).click();
   await expect(page.getByText("Výroční report byl založen.", { exact: true })).toBeVisible();
+  await expect(page.locator(".annual-q4-alignment")).toBeVisible();
   await expect(page.getByRole("heading", { name: String(new Date().getUTCFullYear()), exact: true })).toBeVisible();
   await page.getByLabel("Manažerské shrnutí roku").fill("R13 E2E shrnutí investorského příběhu.");
   await page.getByLabel("Cílová hodnota portfolia Kč").fill("125000000");
