@@ -236,7 +236,9 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R18A implementováno bez migrace:** demo seed doplňuje také již existující databázi a vytváří reprezentativní náklady, závazky, plány a schválené rozpočty pro tři základní objekty v letech 2024–2026,
 - scénáře pokrývají OPEX i CAPEX, všechny pracovní stavy, přímý náklad jednotky, plošné alokace, dva úvěry a datovanou historii jistiny; opakované spuštění doplní jen chybějící záznamy,
 - falešné soubory účetních dokladů nevznikají: demo data obsahují dodavatele a čísla dokladů, ale skutečný FileAsset bude možné připojit pouze přes aktivní úložiště,
-- **R18B čeká na implementaci:** výroční PDF přejde z A4 portrait na FlatCloud 13:9 landscape, získá korporátní master, Raleway, pevný stránkový plán a odstraní interní technická metadata z viditelného investorského výstupu,
+- **R18B implementováno bez migrace:** výroční PDF přešlo z A4 portrait na FlatCloud 13:9 landscape a používá Raleway, dělenou fotografickou obálku, diagonální korporátní master, tmavě modré tabulky a konzistentní footer,
+- pevná osnova nyní obsahuje obálku, obsah, slovo zakladatele, klíčové údaje, portfolio aktiv, samostatné hodnotové kapitoly a kontaktní/disclaimer závěr; prázdný koncept působí jako záměrný pracovní náhled namísto rozbitého finálního dokumentu,
+- interní ID reportovací skupiny, verze rendereru, fingerprint, schéma a verze kalkulátoru nejsou ve viditelných akcionářských stranách; auditní metadata zůstávají zachována mimo hlavní čtenářský obsah,
 - **R18C odloženo po R18B:** metodika dostane vzorce ve slovníčku a návrh rozdělovací obrazovky nebo sbalovacího členění méně používaných položek hlavní navigace.
 
 ### Odložený blok — smluvní dokumentace a vzdálený podpis
