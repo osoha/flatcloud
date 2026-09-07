@@ -1,4 +1,5 @@
 import sharp from "sharp";
+export { czechMapPoint } from "./annual-map-projection";
 
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
@@ -27,9 +28,4 @@ export async function geocodeCzechAddress(address: string, fetcher: typeof fetch
   const rows = await response.json() as Array<{ lat?: string; lon?: string; display_name?: string }>;
   const latitude = Number(rows[0]?.lat); const longitude = Number(rows[0]?.lon);
   return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude, displayName: rows[0]?.display_name || address } : null;
-}
-
-export function czechMapPoint(latitude: number, longitude: number) {
-  const bounds = { west: 12.0, east: 18.95, north: 51.15, south: 48.45 };
-  return { x: Math.max(0, Math.min(1, (longitude - bounds.west) / (bounds.east - bounds.west))), y: Math.max(0, Math.min(1, (bounds.north - latitude) / (bounds.north - bounds.south))) };
 }
