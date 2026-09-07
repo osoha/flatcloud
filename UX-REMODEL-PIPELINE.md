@@ -197,7 +197,9 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R13A implementováno aditivně:** roční report má vlastní korporátní a portfolio vrstvu, která se neskládá z kvartálních kapitol; editor eviduje slovo zakladatele, investiční tezi, tvorbu hodnoty, výhled, hrubou a čistou hodnotu aktiv, dluh, cílovou hodnotu portfolia, realizované a plánované exity a cenu akcie,
 - report znovu používá reportovací skupiny, jejich oprávnění a neměnné Q4 snapshoty k 31. prosinci; každá nemovitost má samostatnou hodnotovou kapitolu s počáteční, aktuální a cílovou hodnotou, exitovým plánem a poznámkou ke zdroji,
 - koncept je editovatelný pouze ve stavu DRAFT a všechny změny mají auditní stopu; datový model už rezervuje workflow REVIEW/PUBLISHED a samostatný typ výroční šablony,
-- další řez R13B doplní kontrolní bránu, verzované publikování, náhled a finální PDF; veřejná distribuce zůstává mimo rozsah.
+- **R13B implementováno:** workflow `DRAFT → REVIEW → PUBLISHED` vyžaduje uzavřený rok, úplnou korporátní i nemovitostní vrstvu, konzistentní zmrazené Q4 snapshoty a administrátorem potvrzenou kontrolu PDF náhledu; publikovaný report je neměnný a opravy vznikají jako nové revize,
+- deterministický výroční PDF renderer používá pouze zmrazená data a stabilní metadata; finální soubor se ukládá jako auditovaný `FileAsset` s SHA-256 a samostatným verzovaným umístěním,
+- workflow zůstává čistě interní. Veřejná distribuce výročních reportů není zpřístupněná a čeká na samostatné výslovné schválení.
 
 ## Release gate každé etapy
 

@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Shell } from "@/components/Shell";
+import { AnnualReportReviewExport } from "@/components/annual-report/AnnualReportReviewExport";
 import { Flash } from "@/components/FormUi";
 import { requireUser } from "@/lib/auth";
 import { businessDateKey } from "@/lib/calendar";
 import { prisma } from "@/lib/db";
 import { moneyInput } from "@/lib/forms";
-import { backofficePermissionForGroup, canReadReportingBackoffice } from "@/lib/reporting/backoffice-access";
+import { annualPeriodState, annualReportMissingFields } from "@/lib/reporting/annual-report-service";
+import { backofficePermissionForGroup, canAdminReportingBackoffice, canReadReportingBackoffice } from "@/lib/reporting/backoffice-access";
+import { fileStorageCapabilities } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
 const statusLabels: Record<string, string> = { DRAFT: "Koncept", REVIEW: "Ke kontrole", PUBLISHED: "Publikováno" };
@@ -22,11 +25,16 @@ export default async function AnnualReportWorkspace({ params, searchParams }: { 
     include: { propertyReports: { include: { snapshot: { select: { revision: true, source: true, schemaVersion: true, calculatorVersion: true, createdAt: true } } }, orderBy: { propertyNameSnapshot: "asc" } } },
   });
   if (!report) notFound();
-  const section = ["overview", "property", "appendix"].includes(query.section || "") ? query.section! : "overview";
+  const section = ["overview", "property", "appendix", "review"].includes(query.section || "") ? query.section! : "overview";
   const selectedProperty = report.propertyReports.find((row) => row.propertyId === query.propertyId) || report.propertyReports[0] || null;
   const editable = report.status === "DRAFT";
   const baseHref = `/reporty/vyrocni/${groupId}/reporty/${reportId}`;
   const completedProperties = report.propertyReports.filter((row) => row.currentValueCents !== null && row.targetValueCents !== null && row.investmentCase).length;
+  const missingFields = annualReportMissingFields(report);
+  const reviewStarted = report.status === "REVIEW" ? await prisma.auditLog.findFirst({ where: { entityType: "AnnualReport", entityId: report.id, action: "ANNUAL_REPORT_SUBMITTED_REVIEW" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }) : null;
+  const previewApproved = reviewStarted ? Boolean(await prisma.auditLog.findFirst({ where: { entityType: "AnnualReport", entityId: report.id, action: "ANNUAL_REPORT_PREVIEW_APPROVED", createdAt: { gte: reviewStarted.createdAt } }, select: { id: true } })) : false;
+  const transitionAction = `/api/reporting-groups/${groupId}/annual-reports/${reportId}/transition`;
+  const previewHref = `/api/reporting-groups/${groupId}/annual-reports/${reportId}/assets/preview`;
   return <Shell user={user}><div className="page annual-report-workspace-page">
     <div className="breadcrumb"><Link href={`/reporty/vyrocni/${groupId}`}>← {report.reportingGroupNameSnapshot}</Link><span>›</span><span>Výroční report {report.year}</span></div>
     <header className="annual-report-hero"><div><span>FlatCloud · Výroční report</span><h1>{report.year}</h1><p>{report.reportingGroupNameSnapshot} · revize {report.revision} · rozhodné datum {businessDateKey(report.asOfDate)}</p></div><div><span className="status">{statusLabels[report.status]}</span><strong>{completedProperties}/{report.propertyReports.length} kapitol připraveno</strong></div></header>
@@ -36,6 +44,7 @@ export default async function AnnualReportWorkspace({ params, searchParams }: { 
         <Link className={section === "overview" ? "active" : ""} href={`${baseHref}?section=overview`}><strong>01 · Korporátní příběh</strong><small>Portfolio, hodnota a akcie</small></Link>
         <div className="annual-report-nav-group"><span>02 · Nemovitosti</span>{report.propertyReports.map((property) => <Link className={section === "property" && selectedProperty?.propertyId === property.propertyId ? "active" : ""} key={property.id} href={`${baseHref}?section=property&propertyId=${property.propertyId}`}><strong>{property.propertyNameSnapshot}</strong><small>{property.targetValueCents !== null && property.investmentCase ? "Kapitola připravena" : "Čeká na doplnění"}</small></Link>)}</div>
         <Link className={section === "appendix" ? "active" : ""} href={`${baseHref}?section=appendix`}><strong>03 · Příloha a zdroje</strong><small>Snapshoty a provenience</small></Link>
+        <Link className={section === "review" ? "active" : ""} href={`${baseHref}?section=review`}><strong>04 · Kontrola a publikace</strong><small>PDF náhled · interní workflow</small></Link>
       </nav>
       <main>
         {section === "overview" && <div className="annual-report-editor-stack">
@@ -82,7 +91,20 @@ export default async function AnnualReportWorkspace({ params, searchParams }: { 
             {editable && <button className="primary" type="submit">Uložit kapitolu nemovitosti</button>}
           </form>
         </div>}
-        {section === "appendix" && <div className="annual-report-editor-stack"><section className="card"><span className="annual-report-kicker">Příloha a provenience</span><h2>Zmrazené zdroje reportu</h2><p className="muted-copy">Každá nemovitost používá společný kvartální snapshot k 31. prosinci. Výroční redakční pole jsou uložena odděleně a publikace je v této etapě ještě nedostupná.</p></section><section className="card portfolio-table-card"><div className="table-wrap"><table><thead><tr><th>Nemovitost</th><th>Snapshot</th><th>Zdroj</th><th>Kalkulátor</th><th>Vytvořeno</th></tr></thead><tbody>{report.propertyReports.map((property) => <tr key={property.id}><td><strong>{property.propertyNameSnapshot}</strong><span className="owner-sub">{property.propertyAddressSnapshot}</span></td><td>Q4 · revize {property.snapshot.revision}</td><td>{property.snapshot.source}</td><td>{property.snapshot.calculatorVersion}</td><td>{property.snapshot.createdAt.toLocaleDateString("cs-CZ")}</td></tr>)}</tbody></table></div></section></div>}
+        {section === "appendix" && <div className="annual-report-editor-stack"><section className="card"><span className="annual-report-kicker">Příloha a provenience</span><h2>Zmrazené zdroje reportu</h2><p className="muted-copy">Každá nemovitost používá společný kvartální snapshot k 31. prosinci. Výroční redakční pole jsou uložena odděleně a publikovaná revize je neměnná.</p></section><section className="card portfolio-table-card"><div className="table-wrap"><table><thead><tr><th>Nemovitost</th><th>Snapshot</th><th>Zdroj</th><th>Kalkulátor</th><th>Vytvořeno</th></tr></thead><tbody>{report.propertyReports.map((property) => <tr key={property.id}><td><strong>{property.propertyNameSnapshot}</strong><span className="owner-sub">{property.propertyAddressSnapshot}</span></td><td>Q4 · revize {property.snapshot.revision}</td><td>{property.snapshot.source}</td><td>{property.snapshot.calculatorVersion}</td><td>{property.snapshot.createdAt.toLocaleDateString("cs-CZ")}</td></tr>)}</tbody></table></div></section></div>}
+        {section === "review" && <AnnualReportReviewExport
+          status={report.status}
+          admin={canAdminReportingBackoffice(permission)}
+          missingFields={missingFields}
+          previewApproved={previewApproved}
+          transitionAction={transitionAction}
+          previewHref={previewHref}
+          publishedAssetId={report.publishedAssetId}
+          persistentStorageAvailable={fileStorageCapabilities().persistentWrites}
+          periodOpen={annualPeriodState(report.asOfDate).open}
+          reportId={report.id}
+          groupId={groupId}
+        />}
       </main>
     </div>
   </div></Shell>;
