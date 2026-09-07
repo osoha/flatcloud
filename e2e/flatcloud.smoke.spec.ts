@@ -431,6 +431,8 @@ test("metodika je dohledatelná globálně a umí filtrovat životní situace", 
   await page.getByRole("link", { name: "Metodika", exact: true }).click();
   await expect(page).toHaveURL(/\/metodika(?:\?|$)/);
   await expect(page.getByRole("heading", { name: "Metodika správy", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Slovník pojmů", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Podcastové a video osnovy", exact: true })).toBeVisible();
   await page.getByLabel("Hledat v metodice").fill("valorizace");
   await page.getByRole("button", { name: "Hledat", exact: true }).click();
   await expect(page).toHaveURL(/\/metodika\?q=valorizace/);
@@ -438,6 +440,12 @@ test("metodika je dohledatelná globálně a umí filtrovat životní situace", 
   await page.getByLabel("Hledat v metodice").fill("výroční report");
   await page.getByRole("button", { name: "Hledat", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Výroční report pro akcionáře", exact: true })).toBeVisible();
+  await page.getByLabel("Hledat v metodice").fill("loan-to-value");
+  await page.getByRole("button", { name: "Hledat", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "LTV", exact: true })).toBeVisible();
+  await page.getByLabel("Hledat v metodice").fill("daňové přiznání");
+  await page.getByRole("button", { name: "Hledat", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Roční podklady vlastníka bez záměny za daňové přiznání", exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
 

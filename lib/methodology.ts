@@ -9,6 +9,22 @@ export type MethodologyChapter = {
   href?: string;
 };
 
+export type MethodologyGlossaryTerm = {
+  term: string;
+  aliases: string[];
+  definition: string;
+  chapterSlug: string;
+};
+
+export type MethodologyMediaBrief = {
+  kind: "Podcast" | "Video";
+  title: string;
+  duration: string;
+  purpose: string;
+  outline: string[];
+  chapterSlug: string;
+};
+
 export const methodologyChapters: MethodologyChapter[] = [
   {
     slug: "zalozeni-nemovitosti",
@@ -174,4 +190,33 @@ export const methodologyChapters: MethodologyChapter[] = [
 
 export function methodologyChapter(slug: string) {
   return methodologyChapters.find((chapter) => chapter.slug === slug);
+}
+
+export const methodologyGlossary: MethodologyGlossaryTerm[] = [
+  { term: "LIVE stav", aliases: ["aktuální stav", "dnešní stav"], definition: "Aktuální provozní pohled přepočtený z dnešních dat. Není historickým snapshotem ani účetní závěrkou.", chapterSlug: "reporting-distribuce" },
+  { term: "Snapshot", aliases: ["zmrazená data", "datový otisk"], definition: "Neměnný datovaný otisk vstupů použitý pro reprodukovatelný report nebo rozhodnutí.", chapterSlug: "vyrocni-report" },
+  { term: "Q4 snapshot", aliases: ["snapshot k 31. prosinci"], definition: "Uzavřený snapshot nemovitosti k 31. prosinci, který je zdrojem výročního reportu za daný rok.", chapterSlug: "vyrocni-report" },
+  { term: "OPEX", aliases: ["provozní náklad"], definition: "Výdaj související s běžným provozem a správou aktiva; v evidenci zůstává oddělený od investičního CAPEX.", chapterSlug: "naklady-a-uvery" },
+  { term: "CAPEX", aliases: ["investiční náklad", "investice"], definition: "Investiční výdaj na pořízení, obnovu nebo významné zhodnocení aktiva; plán a skutečnost se evidují odděleně.", chapterSlug: "kategorizace-jednotek" },
+  { term: "NOI", aliases: ["čistý provozní výnos"], definition: "Indikativní provozní výnos před financováním a daněmi. V aplikaci jde o LIVE run-rate, ne účetní závěrku.", chapterSlug: "naklady-a-uvery" },
+  { term: "LTV", aliases: ["loan-to-value"], definition: "Poměr nesplacené jistiny úvěru k evidované hodnotě aktiva; závisí na datu obou vstupů.", chapterSlug: "naklady-a-uvery" },
+  { term: "DSCR", aliases: ["debt service coverage ratio"], definition: "Poměr provozního cashflow k dluhové službě. Hodnota pod 1,00× je kritický finanční alarm.", chapterSlug: "naklady-a-uvery" },
+  { term: "Konsolidační podíl", aliases: ["podíl FlatCloud"], definition: "Potvrzený podíl, kterým aktivum vstupuje do korporátních KPI FlatCloud; není totožný s rozsahem svěřené správy.", chapterSlug: "vice-vlastniku" },
+  { term: "Příležitost", aliases: ["opportunity", "zájem o jednotku"], definition: "Samostatně vedený zájem konkrétního zájemce o jednu jednotku, včetně fáze, ceny a dalšího kroku.", chapterSlug: "crm-distribuce" },
+  { term: "Opce", aliases: ["option"], definition: "Interně evidovaná nabídka nebo smluvní právo s cenou, platností a případně referencí dokumentu; sama nenahrazuje právní kontrolu.", chapterSlug: "crm-distribuce" },
+  { term: "Reportovací skupina", aliases: ["reporting group"], definition: "Řízený rozsah nemovitostí a oprávnění použitý pro kvartální a výroční reporting.", chapterSlug: "vyrocni-report" },
+  { term: "Revize reportu", aliases: ["verze reportu"], definition: "Nová neměnná verze reportu. Publikovaná revize se neopravuje přepisem.", chapterSlug: "vyrocni-report" },
+  { term: "PII", aliases: ["osobní údaje"], definition: "Údaje umožňující identifikovat člověka. Agregovaný distribuční report je nesmí obsahovat.", chapterSlug: "reporting-distribuce" },
+];
+
+export const methodologyMediaBriefs: MethodologyMediaBrief[] = [
+  { kind: "Video", title: "Od Q4 snapshotu k výročnímu reportu", duration: "6–8 min", purpose: "Ukázat interní editor, kontrolu úplnosti, PDF náhled a založení nové revize.", outline: ["Výběr skupiny a roku", "Zmrazená data a editace", "Kontrola a publikace"], chapterSlug: "vyrocni-report" },
+  { kind: "Podcast", title: "Co znamenají NOI, LTV a DSCR", duration: "12–15 min", purpose: "Sjednotit interpretaci finančních KPI a vysvětlit jejich datové limity.", outline: ["Definice metrik", "Datované vstupy", "Alarmy a lidské rozhodnutí"], chapterSlug: "naklady-a-uvery" },
+  { kind: "Video", title: "Roční podklady vlastníka bez záměny za daňové přiznání", duration: "5–7 min", purpose: "Provést kontrolou příjmů, nákladových dokladů, úvěrových mezer a exportu CSV.", outline: ["Uzavřený rok a vlastník", "Blokátory a doklady", "Pracovní export pro účetního"], chapterSlug: "rocni-podklady" },
+  { kind: "Podcast", title: "LIVE funnel versus historie pohybů", duration: "10–12 min", purpose: "Vysvětlit dva odlišné řezy distribuční pipeline a pravidla agregace bez PII.", outline: ["Dnešní stav", "Neměnné události", "Bezpečný reporting"], chapterSlug: "reporting-distribuce" },
+];
+
+export function methodologySearchText(value: MethodologyGlossaryTerm | MethodologyMediaBrief) {
+  if ("term" in value) return `${value.term} ${value.aliases.join(" ")} ${value.definition}`;
+  return `${value.kind} ${value.title} ${value.duration} ${value.purpose} ${value.outline.join(" ")}`;
 }
