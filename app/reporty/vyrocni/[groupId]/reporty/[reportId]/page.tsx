@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CircleCheck, TriangleAlert } from "lucide-react";
 import { notFound, redirect } from "next/navigation";
 import { Shell } from "@/components/Shell";
 import { AnnualReportReviewExport } from "@/components/annual-report/AnnualReportReviewExport";
@@ -9,6 +10,7 @@ import { businessDateKey } from "@/lib/calendar";
 import { prisma } from "@/lib/db";
 import { moneyInput } from "@/lib/forms";
 import { annualPeriodState, annualReportMissingFields } from "@/lib/reporting/annual-report-service";
+import { annualQuarterlyAlignment } from "@/lib/reporting/annual-quarterly-alignment";
 import { backofficePermissionForGroup, canAdminReportingBackoffice, canReadReportingBackoffice } from "@/lib/reporting/backoffice-access";
 import { fileStorageCapabilities } from "@/lib/storage";
 
@@ -26,6 +28,16 @@ export default async function AnnualReportWorkspace({ params, searchParams }: { 
     include: { propertyReports: { include: { snapshot: { select: { revision: true, source: true, schemaVersion: true, calculatorVersion: true, createdAt: true } } }, orderBy: { propertyNameSnapshot: "asc" } } },
   });
   if (!report) notFound();
+  const publishedQ4 = await prisma.quarterlyReport.findFirst({
+    where: { reportingGroupId: groupId, year: report.year, quarter: 4, status: "PUBLISHED" },
+    orderBy: { revision: "desc" },
+    select: { id: true, revision: true, asOfDate: true, propertyReports: { select: { propertyId: true } } },
+  });
+  const q4Alignment = annualQuarterlyAlignment({
+    annualAsOfDate: report.asOfDate,
+    annualPropertyIds: report.propertyReports.map((property) => property.propertyId),
+    publishedQ4: publishedQ4 ? { id: publishedQ4.id, revision: publishedQ4.revision, asOfDate: publishedQ4.asOfDate, propertyIds: publishedQ4.propertyReports.map((property) => property.propertyId) } : null,
+  });
   const section = ["overview", "property", "appendix", "review"].includes(query.section || "") ? query.section! : "overview";
   const selectedProperty = report.propertyReports.find((row) => row.propertyId === query.propertyId) || report.propertyReports[0] || null;
   const editable = report.status === "DRAFT";
@@ -41,6 +53,9 @@ export default async function AnnualReportWorkspace({ params, searchParams }: { 
     <header className="annual-report-hero"><div><span>FlatCloud · Výroční report</span><h1>{report.year}</h1><p>{report.reportingGroupNameSnapshot} · revize {report.revision} · rozhodné datum {businessDateKey(report.asOfDate)}</p></div><div><span className="status">{statusLabels[report.status]}</span><strong>{completedProperties}/{report.propertyReports.length} kapitol připraveno</strong></div></header>
     <Flash ok={query.ok} error={query.error}/>
     <MethodologyCallout slug="vyrocni-report" compact/>
+    <section className={`annual-q4-alignment ${q4Alignment.status === "ALIGNED" ? "aligned" : "attention"}`} aria-label="Kontrola návaznosti Q4">
+      {q4Alignment.status === "ALIGNED" ? <CircleCheck size={19}/> : <TriangleAlert size={19}/>}<div><strong>{q4Alignment.status === "ALIGNED" ? "Q4 a výroční rozsah jsou sladěné" : q4Alignment.status === "NO_PUBLISHED_Q4" ? "Publikovaný Q4 report není k dispozici" : "Q4 a výroční podklad vyžadují kontrolu"}</strong><span>{q4Alignment.status === "ALIGNED" ? `Publikovaný Q4 report, revize ${publishedQ4!.revision}, používá stejné rozhodné datum a stejný rozsah ${report.propertyReports.length} nemovitostí.` : q4Alignment.status === "NO_PUBLISHED_Q4" ? "Výroční report má vlastní zmrazené snapshoty. Pro redakční srovnání ale zatím chybí publikovaný Q4 report stejné skupiny a roku." : `Shoda data: ${q4Alignment.dateMatches ? "ano" : "ne"} · shoda rozsahu: ${q4Alignment.scopeMatches ? "ano" : "ne"}. Výroční snapshoty se automaticky nemění.`}</span></div>{publishedQ4&&<Link href={`/reporty/kvartalni/${groupId}/reporty/${publishedQ4.id}`}>Otevřít Q4 report</Link>}
+    </section>
     <div className="annual-report-workspace-layout">
       <nav className="annual-report-nav" aria-label="Příprava výročního reportu">
         <Link className={section === "overview" ? "active" : ""} href={`${baseHref}?section=overview`}><strong>01 · Korporátní příběh</strong><small>Portfolio, hodnota a akcie</small></Link>
