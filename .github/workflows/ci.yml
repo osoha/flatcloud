@@ -148,6 +148,7 @@ jobs:
       - run: npm run verify:r14b-distribution-history
       - run: npm run verify:r15a-methodology-guidance
       - run: npm run verify:r15b-methodology-library
+      - run: npm run verify:r16a-cost-evidence
       - run: npm run verify:live-report-periods
 
   browser-smoke:
