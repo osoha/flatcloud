@@ -47,8 +47,13 @@ export default async function TransactionDetail({ params, searchParams }: { para
   const rentAllocated = transaction.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0);
   const depositAllocated = transaction.securityDepositReceipts.reduce((sum, movement) => sum + movement.amountCents, 0);
   const hasCorrections = canCorrect && !cancelledManual && transaction.status !== "IGNORED";
+  const contextualLeaseIds = [...new Set([
+    transaction.suggestedLeaseId,
+    ...transaction.allocations.map((allocation) => allocation.charge.leaseId),
+    ...transaction.securityDepositReceipts.map((movement) => movement.leaseId),
+  ].filter((leaseId): leaseId is string => Boolean(leaseId)))];
 
-  return <Shell user={user}><FormPage title="Bankovní platba" description={`${property.name} · ${transaction.bankAccount.bankName}`} backHref={`/nemovitosti/${id}/platby`}>
+  return <Shell user={user} taskPropertyId={id} taskLeaseId={contextualLeaseIds.length === 1 ? contextualLeaseIds[0] : undefined}><FormPage title="Bankovní platba" description={`${property.name} · ${transaction.bankAccount.bankName}`} backHref={`/nemovitosti/${id}/platby`}>
     <Flash ok={query.ok} error={query.error}/>
     <div className="detail-grid">
       <div className="card col-12"><div className="card-head"><div><span className="eyebrow">Bankovní transakce</span><h2>{money(transaction.amountCents)}</h2><p className="muted-copy">{date(transaction.bookedAt)} · {property.name} / {transaction.bankAccount.ibanMasked}</p></div><span className={`status ${transaction.status === "MATCHED" ? "ok" : transaction.status === "UNMATCHED" ? "bad" : transaction.status === "IGNORED" ? "" : "warn"}`}>{paymentStatuses[transaction.status]}</span></div><div className="summary-list"><div><span>Plátce / protistrana</span><strong>{transaction.counterpartyName || "Plátce neuveden"}</strong></div><div><span>Účet plátce</span><strong>{transaction.counterpartyIban || "—"}</strong></div><div><span>Variabilní symbol</span><strong>{transaction.variableSymbol || "—"}</strong></div><div><span>Zbývá přiřadit</span><strong>{money(remaining)}</strong></div></div></div>

@@ -32,7 +32,7 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
   const ownerAccountsByUnit = Object.fromEntries(availableUnits.map((unit) => { const account = unit.ownerships[0]?.ownerBankAccount; return [unit.id, account ? { id: account.id, label: ownerBankAccountLabel(account) } : null]; }));
   const withLease = query.mode === "lease";
 
-  return <Shell user={user}><FormPage title={withLease ? "Nový nájemník a smlouva" : "Nový profil nájemníka"} description={withLease ? "V jednom kroku založíte profil i jeho první nájemní vztah." : "Profil můžete založit bez smlouvy a následně jej přidat jako spolunájemníka, plátce, kontakt nebo ručitele."} backHref={`/nemovitosti/${id}/najemnici`}>
+  return <Shell user={user} taskPropertyId={id}><FormPage title={withLease ? "Nový nájemník a smlouva" : "Nový profil nájemníka"} description={withLease ? "V jednom kroku založíte profil i jeho první nájemní vztah." : "Profil můžete založit bez smlouvy a následně jej přidat jako spolunájemníka, plátce, kontakt nebo ručitele."} backHref={`/nemovitosti/${id}/najemnici`}>
     <Flash ok={query.ok} error={query.error}/>
     <div className="creation-mode-switch"><Link className={!withLease ? "primary" : "secondary"} href={`/nemovitosti/${id}/najemnici/novy`}>Pouze profil</Link><Link className={withLease ? "primary" : "secondary"} href={`/nemovitosti/${id}/najemnici/novy?mode=lease${query.unitId ? `&unitId=${query.unitId}` : ""}`}>Profil + první smlouva</Link></div>
     {withLease && <MethodologyCallout slug="najemni-smlouva"/>}

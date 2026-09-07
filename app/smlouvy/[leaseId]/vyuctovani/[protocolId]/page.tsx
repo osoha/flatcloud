@@ -14,7 +14,7 @@ export default async function ServiceSettlementProtocolPage({ params, searchPara
   let protocol: Awaited<ReturnType<typeof loadServiceSettlementProtocol>>;
   try { protocol = await loadServiceSettlementProtocol(user, leaseId, protocolId); } catch { notFound(); }
   const snapshot = parseServiceSettlementSnapshot(protocol.snapshot), resultLabel = protocol.balanceCents > 0 ? "Nedoplatek" : protocol.balanceCents < 0 ? "Přeplatek" : "Vyrovnáno";
-  return <Shell user={user}><div className="page service-protocol-page">
+  return <Shell user={user} taskPropertyId={protocol.lease.unit.propertyId} taskLeaseId={protocol.leaseId}><div className="page service-protocol-page">
     <div className="breadcrumb"><Link href={`/smlouvy/${leaseId}/vyuctovani?from=${snapshot.period.from}&to=${snapshot.period.to}`}>← Vyúčtování</Link><span>›</span><span>Vystavený protokol</span></div>
     <div className="page-title"><div><span className="eyebrow">Neměnný protokol · vystaveno {date(protocol.issuedAt)}</span><h1>Vyúčtování služeb</h1><p>{snapshot.lease.tenantNames.join(" + ")} · {snapshot.property.name} · {snapshot.unit.label}</p></div><div className="action-row"><span className="status ok">Vystaveno</span><PrintButton label="Vytisknout / uložit PDF"/></div></div>
     <Flash ok={query.ok} error={query.error}/>

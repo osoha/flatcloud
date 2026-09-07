@@ -28,7 +28,7 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
   const financiallyLocked = paid > 0;
   const itemTotal = charge.items.reduce((sum, item) => sum + item.amountCents, 0);
 
-  return <Shell user={user}><FormPage
+  return <Shell user={user} taskPropertyId={id} taskLeaseId={charge.leaseId}><FormPage
     title={`Měsíční předpis ${charge.period}`}
     description={`${charge.lease.unit.label} · ${charge.lease.tenant.name}`}
     backHref={`/nemovitosti/${id}/predpisy/${charge.leaseId}`}
