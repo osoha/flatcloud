@@ -40,7 +40,7 @@ async function main() {
       assert.equal(events[1].optionReference, "OPCE-R14A");
     });
     await check("migration is additive and database-enforces positive prices", () => {
-      const migration = read("prisma/migrations/20260907090000_r14a_distribution_lifecycle/migration.sql");
+      const migration = read("prisma/migrations/20260907090000_distribution_lifecycle_options/migration.sql");
       for (const marker of ["DistributionOptionStatus", "DistributionOpportunityEvent", "DistributionOpportunity_optionPrice_check", "ON DELETE RESTRICT", "INSERT INTO \"DistributionOpportunityEvent\""]) assert.match(migration, new RegExp(marker));
       assert.doesNotMatch(migration, /DROP TABLE|DROP COLUMN|TRUNCATE|DELETE FROM/i);
     });
