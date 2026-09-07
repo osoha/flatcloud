@@ -219,6 +219,12 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - interní knihovna obsahuje odborně kontrolovatelné podcastové a video osnovy s účelem, délkou a strukturou; nejde o publikovaný obsah ani o automatickou externí distribuci,
 - společné hledání prohledává kapitoly, pojmy, synonyma i mediální osnovy a zachovává explicitní hranice mezi LIVE stavem, snapshotem, účetním podkladem a právním krokem.
 
+### R16 — evidence nákladů a roční podklady
+
+- **R16A implementováno bez migrace:** roční podklady rozlišují fakturu nebo účetní doklad od nabídky a jiné podpůrné přílohy; pouhá existence libovolného souboru už nezvyšuje pokrytí účetními doklady,
+- chybějící účetní doklad je v otevřeném YTD roce upozorněním, ale v uzavřeném roce blokuje připravenost balíčku pro předání účetnímu,
+- obrazovka i CSV ukazují zvlášť počet účetních dokladů, počet podpůrných příloh a stav evidence; detail nákladu vysvětluje stejnou klasifikaci už při nahrávání.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,

@@ -124,7 +124,8 @@
     "verify:r14a-distribution-lifecycle": "node --import tsx scripts/verify-r14a-distribution-lifecycle.ts",
     "verify:r14b-distribution-history": "node --import tsx scripts/verify-r14b-distribution-history.ts",
     "verify:r15a-methodology-guidance": "node --import tsx scripts/verify-r15a-methodology-guidance.ts",
-    "verify:r15b-methodology-library": "node --import tsx scripts/verify-r15b-methodology-library.ts"
+    "verify:r15b-methodology-library": "node --import tsx scripts/verify-r15b-methodology-library.ts",
+    "verify:r16a-cost-evidence": "node --import tsx scripts/verify-r16a-cost-evidence.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",

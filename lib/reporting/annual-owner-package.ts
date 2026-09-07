@@ -4,12 +4,20 @@ import { reportingPropertyAccessWhere, reportingScopeForUser, reportingUnitAcces
 
 export type AnnualPackageIssue = { code: string; severity: "BLOCKER" | "WARNING"; message: string; href?: string };
 export type AnnualIncomeRow = { id: string; bookedAt: Date; propertyId: string; propertyName: string; unitLabel: string; tenantName: string; counterpartyName: string | null; variableSymbol: string | null; receivedCents: number; ownerShareBasisPoints: number; ownerAmountCents: number; rentCents: number; servicesCents: number; depositCents: number; otherCents: number; allocationNote: string };
-export type AnnualExpenseRow = { id: string; effectiveAt: Date; propertyId: string; propertyName: string; title: string; kind: string; category: string; documentNumber: string | null; sourceAmountCents: number; ownerShareBasisPoints: number | null; ownerAmountCents: number; allocationNote: string; documentCount: number };
+export type AnnualExpenseEvidenceStatus = "ACCOUNTING_DOCUMENT" | "SUPPORT_ONLY" | "MISSING";
+export type AnnualExpenseRow = { id: string; effectiveAt: Date; propertyId: string; propertyName: string; title: string; kind: string; category: string; documentNumber: string | null; sourceAmountCents: number; ownerShareBasisPoints: number | null; ownerAmountCents: number; allocationNote: string; documentCount: number; accountingDocumentCount: number; supportingDocumentCount: number; evidenceStatus: AnnualExpenseEvidenceStatus };
 export type AnnualLoanRow = { id: string; propertyId: string; propertyName: string; label: string; lender: string; outstandingPrincipalCents: number; annualInterestRateBps: number; asOfDate: Date | null; evidence: string };
 
 export function annualPackagePeriod(year: number, now = new Date()) { const today=businessDateKey(now),currentYear=Number(today.slice(0,4)),closed=year<currentYear,toKey=closed?`${year}-12-31`:today;return { from:businessDateKeyToInstant(`${year}-01-01`),to:businessDateEndInstant(toKey as `${number}-${number}-${number}`),toKey,closed,mode:closed?"CLOSED" as const:"YTD" as const }; }
 export function normalizeAnnualPackageYear(value: string | undefined, now = new Date()) { const currentYear = Number(businessDateKey(now).slice(0,4)), previousYear = currentYear - 1; const parsed = Number(value); return Number.isInteger(parsed) && parsed >= 2000 && parsed <= currentYear ? parsed : previousYear; }
 function proportional(amountCents: number | bigint, basisPoints: number) { const amount=Number(amountCents); if(!Number.isSafeInteger(amount))throw new Error("Jistina je mimo bezpečný rozsah reportu."); return Math.round(amount * basisPoints / 10_000); }
+export function classifyAnnualExpenseEvidence(categories: string[]) {
+  const accountingDocumentCount = categories.filter((category) => category === "INVOICE").length;
+  const supportingDocumentCount = categories.length - accountingDocumentCount;
+  const evidenceStatus: AnnualExpenseEvidenceStatus = accountingDocumentCount ? "ACCOUNTING_DOCUMENT" : supportingDocumentCount ? "SUPPORT_ONLY" : "MISSING";
+  return { accountingDocumentCount, supportingDocumentCount, evidenceStatus };
+}
+export function missingAnnualExpenseEvidenceSeverity(closed: boolean): AnnualPackageIssue["severity"] { return closed ? "BLOCKER" : "WARNING"; }
 
 export async function loadAnnualOwnerPackage(user: ReportingUser, input: { ownerId?: string; year: number }) {
   const scope = reportingScopeForUser(user), propertyWhere = reportingPropertyAccessWhere(scope), unitWhere = reportingUnitAccessWhere(scope);
@@ -41,7 +49,7 @@ export async function loadAnnualOwnerPackage(user: ReportingUser, input: { owner
     prisma.propertyCost.findMany({ where: { ...costAccess, status: "ACTUAL", effectiveAt: { gte: range.from, lte: range.to } }, select: {
       id: true, propertyId: true, title: true, kind: true, category: true, amountCents: true, effectiveAt: true, documentNumber: true, unitId: true,
       property: { select: { name: true, ownershipMode: true, ownerId: true, ownerships: { select: { ownerId: true, shareBasisPoints: true } } } }, unit: { select: { ownerships: { select: { ownerId: true, shareBasisPoints: true } } } },
-      allocations: { where: scope.mode === "ALL" ? undefined : { unitId: { in: unitIds } }, select: { amountCents: true, unit: { select: { ownerships: { select: { ownerId: true, shareBasisPoints: true } } } } } }, documents: { where: { deletedAt: null }, select: { id: true } },
+      allocations: { where: scope.mode === "ALL" ? undefined : { unitId: { in: unitIds } }, select: { amountCents: true, unit: { select: { ownerships: { select: { ownerId: true, shareBasisPoints: true } } } } } }, documents: { where: { deletedAt: null }, select: { id: true, category: true } },
     }, orderBy: [{ effectiveAt: "asc" }, { id: "asc" }] }),
     prisma.propertyLoan.findMany({ where: { propertyId: { in: wholePropertyIds }, active: true }, select: {
       id: true, propertyId: true, label: true, lender: true, outstandingPrincipalCents: true, annualInterestRateBps: true,
@@ -76,13 +84,21 @@ export async function loadAnnualOwnerPackage(user: ReportingUser, input: { owner
     else if (cost.property.ownershipMode === "WHOLE_OBJECT") { ownerShareBasisPoints = cost.property.ownerships.find((row) => row.ownerId === selectedOwner.id)?.shareBasisPoints ?? (cost.property.ownerId === selectedOwner.id ? 10_000 : 0); ownerAmountCents = proportional(cost.amountCents, ownerShareBasisPoints); allocationNote = "Náklad objektu × současný podíl vlastníka"; }
     else issues.push({ code: `UNALLOCATED_COST:${cost.id}`, severity: "BLOCKER", message: `${cost.property.name}: náklad „${cost.title}“ není rozdělený na jednotky, proto jej nelze přiřadit vlastníkovi.`, href: `/nemovitosti/${cost.propertyId}/naklady/${cost.id}` });
     if (!ownerAmountCents) continue;
-    if (!cost.documents.length) issues.push({ code: `MISSING_COST_DOCUMENT:${cost.id}`, severity: "WARNING", message: `${cost.property.name}: náklad „${cost.title}“ nemá připojený účetní doklad.`, href: `/nemovitosti/${cost.propertyId}/naklady/${cost.id}` });
-    expenseRows.push({ id: cost.id, effectiveAt: cost.effectiveAt, propertyId: cost.propertyId, propertyName: cost.property.name, title: cost.title, kind: cost.kind, category: cost.category, documentNumber: cost.documentNumber, sourceAmountCents: cost.amountCents, ownerShareBasisPoints, ownerAmountCents, allocationNote, documentCount: cost.documents.length });
+    const { accountingDocumentCount, supportingDocumentCount, evidenceStatus } = classifyAnnualExpenseEvidence(cost.documents.map((document) => document.category));
+    if (!accountingDocumentCount) issues.push({
+      code: `MISSING_ACCOUNTING_DOCUMENT:${cost.id}`,
+      severity: missingAnnualExpenseEvidenceSeverity(range.closed),
+      message: supportingDocumentCount
+        ? `${cost.property.name}: náklad „${cost.title}“ má pouze podpůrnou přílohu. Pro skutečný výdaj doplňte fakturu nebo účetní doklad.`
+        : `${cost.property.name}: náklad „${cost.title}“ nemá připojenou fakturu ani účetní doklad.`,
+      href: `/nemovitosti/${cost.propertyId}/naklady/${cost.id}`,
+    });
+    expenseRows.push({ id: cost.id, effectiveAt: cost.effectiveAt, propertyId: cost.propertyId, propertyName: cost.property.name, title: cost.title, kind: cost.kind, category: cost.category, documentNumber: cost.documentNumber, sourceAmountCents: cost.amountCents, ownerShareBasisPoints, ownerAmountCents, allocationNote, documentCount: cost.documents.length, accountingDocumentCount, supportingDocumentCount, evidenceStatus });
   }
   const loanRows: AnnualLoanRow[] = loans.flatMap((loan) => { const share = loan.property.ownershipMode === "WHOLE_OBJECT" ? loan.property.ownerships.find((row) => row.ownerId === selectedOwner.id)?.shareBasisPoints ?? (loan.property.ownerId === selectedOwner.id ? 10_000 : 0) : 0; const snapshot=loan.snapshots[0]; if (!share||!snapshot) return []; return [{ id:loan.id, propertyId:loan.propertyId, propertyName:loan.property.name, label:loan.label, lender:loan.lender, outstandingPrincipalCents:proportional(snapshot.outstandingPrincipalCents,share), annualInterestRateBps:snapshot.annualInterestRateBps, asOfDate:snapshot.asOfDate, evidence:"Sazba a jistina nejsou dokladem zaplaceného úroku" }]; });
   if (loanRows.length) issues.push({ code: "LOAN_INTEREST_SOURCE", severity: "BLOCKER", message: "U úvěrů chybí samostatná evidence skutečně zaplacených úroků. Sazba a zůstatek jistiny jsou pouze kontrolní údaje; doplňte finanční náklad a účetní doklad." });
-  const incomeCents=incomeRows.reduce((sum,row)=>sum+row.ownerAmountCents,0), rentIncomeCents=incomeRows.reduce((sum,row)=>sum+row.rentCents,0), servicesIncomeCents=incomeRows.reduce((sum,row)=>sum+row.servicesCents,0), depositIncomeCents=incomeRows.reduce((sum,row)=>sum+row.depositCents,0), expenseCents=expenseRows.reduce((sum,row)=>sum+row.ownerAmountCents,0), documentedExpenseCents=expenseRows.filter((row)=>row.documentCount>0).reduce((sum,row)=>sum+row.ownerAmountCents,0);
-  return { year:input.year, periodMode:range.mode, dataThrough:range.toKey, owners, selectedOwner, incomeRows, expenseRows, loanRows, issues, totals:{incomeCents,rentIncomeCents,servicesIncomeCents,depositIncomeCents,expenseCents,differenceCents:incomeCents-depositIncomeCents-expenseCents,documentedExpenseCents}, ready:!issues.some((issue)=>issue.severity==="BLOCKER") };
+  const incomeCents=incomeRows.reduce((sum,row)=>sum+row.ownerAmountCents,0), rentIncomeCents=incomeRows.reduce((sum,row)=>sum+row.rentCents,0), servicesIncomeCents=incomeRows.reduce((sum,row)=>sum+row.servicesCents,0), depositIncomeCents=incomeRows.reduce((sum,row)=>sum+row.depositCents,0), expenseCents=expenseRows.reduce((sum,row)=>sum+row.ownerAmountCents,0), documentedExpenseCents=expenseRows.filter((row)=>row.accountingDocumentCount>0).reduce((sum,row)=>sum+row.ownerAmountCents,0), supportedOnlyExpenseCents=expenseRows.filter((row)=>row.evidenceStatus==="SUPPORT_ONLY").reduce((sum,row)=>sum+row.ownerAmountCents,0);
+  return { year:input.year, periodMode:range.mode, dataThrough:range.toKey, owners, selectedOwner, incomeRows, expenseRows, loanRows, issues, totals:{incomeCents,rentIncomeCents,servicesIncomeCents,depositIncomeCents,expenseCents,differenceCents:incomeCents-depositIncomeCents-expenseCents,documentedExpenseCents,supportedOnlyExpenseCents}, ready:!issues.some((issue)=>issue.severity==="BLOCKER") };
 }
 
-function emptyPackage(year:number,owners:Array<{id:string;name:string}>,selectedOwner:{id:string;name:string}|null,range:ReturnType<typeof annualPackagePeriod>){return {year,periodMode:range.mode,dataThrough:range.toKey,owners,selectedOwner,incomeRows:[] as AnnualIncomeRow[],expenseRows:[] as AnnualExpenseRow[],loanRows:[] as AnnualLoanRow[],issues:[] as AnnualPackageIssue[],totals:{incomeCents:0,rentIncomeCents:0,servicesIncomeCents:0,depositIncomeCents:0,expenseCents:0,differenceCents:0,documentedExpenseCents:0},ready:false};}
+function emptyPackage(year:number,owners:Array<{id:string;name:string}>,selectedOwner:{id:string;name:string}|null,range:ReturnType<typeof annualPackagePeriod>){return {year,periodMode:range.mode,dataThrough:range.toKey,owners,selectedOwner,incomeRows:[] as AnnualIncomeRow[],expenseRows:[] as AnnualExpenseRow[],loanRows:[] as AnnualLoanRow[],issues:[] as AnnualPackageIssue[],totals:{incomeCents:0,rentIncomeCents:0,servicesIncomeCents:0,depositIncomeCents:0,expenseCents:0,differenceCents:0,documentedExpenseCents:0,supportedOnlyExpenseCents:0},ready:false};}
