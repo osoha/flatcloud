@@ -187,6 +187,16 @@ export const methodologyChapters: MethodologyChapter[] = [
     check: "Podklad obsahuje jen potvrzená aktiva FlatCloud, neobsahuje PII a jasně odděluje dnešní LIVE stav od historických pohybů ve zvoleném období.",
     href: "/distribuce/reporting",
   },
+  {
+    slug: "uvitaci-dopis-vlastnikovi",
+    category: "Asset management",
+    title: "Uvítací dopis novému vlastníkovi",
+    summary: "Kontrolovaná postprodejní komunikace od uzavřené CRM příležitosti přes datum nabytí a přílohy až k auditovanému odeslání.",
+    audience: "Distribuční a klientský tým FlatCloud",
+    steps: ["Uzavřete prodej v CRM a zkontrolujte jméno a e-mail kupujícího.", "Založte dopis z konkrétní příležitosti a potvrďte datum nabytí podle katastru; systém zmrazí jednotku, dům a prodávající SPV do revize.", "Upravte obchodní úvod, jednotlivá doporučení, kontakty a vyberte pouze aktuální dokumenty daného domu.", "Uložte koncept a zkontrolujte FlatCloud náhled včetně předmětu a příloh.", "Předejte dopis do stavu Připraveno. Pokud je potřeba změna, vraťte jej před odesláním zpět do konceptu.", "Po dni nabytí potvrďte příjemce, obsah a přílohy a odešlete e-mail ručně. Odeslanou revizi již neupravujte; opravu založte jako novou revizi."],
+    check: "Dopis lze odeslat pouze k uzavřenému prodeji, po datu nabytí a po výslovném potvrzení člověka. Odeslaná revize, přílohy a auditní stopa zůstávají dohledatelné.",
+    href: "/distribuce/uvitaci-dopisy",
+  },
 ];
 
 export function methodologyChapter(slug: string) {
@@ -212,6 +222,7 @@ export const methodologyGlossary: MethodologyGlossaryTerm[] = [
   { term: "Reportovací skupina", aliases: ["reporting group"], definition: "Řízený rozsah nemovitostí a oprávnění použitý pro kvartální a výroční reporting.", chapterSlug: "vyrocni-report" },
   { term: "Revize reportu", aliases: ["verze reportu"], definition: "Nová neměnná verze reportu. Publikovaná revize se neopravuje přepisem.", chapterSlug: "vyrocni-report" },
   { term: "PII", aliases: ["osobní údaje"], definition: "Údaje umožňující identifikovat člověka. Agregovaný distribuční report je nesmí obsahovat.", chapterSlug: "reporting-distribuce" },
+  { term: "Uvítací dopis", aliases: ["welcome letter", "postprodejní e-mail"], definition: "Verzovaná a auditovaná komunikace novému vlastníkovi navázaná na konkrétní uzavřený prodej, datum nabytí, dům, jednotku a prodávající SPV.", chapterSlug: "uvitaci-dopis-vlastnikovi" },
 ];
 
 export const methodologyMediaBriefs: MethodologyMediaBrief[] = [
