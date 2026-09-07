@@ -54,10 +54,3 @@ export async function reportStoragePlacement(storage: FileStorage, year: number,
   const yearFolder = await storage.ensureFolder(String(year), legacy);
   return { folderId: await storage.ensureFolder(`Q${quarter}`, yearFolder), displayName };
 }
-
-export async function annualReportStoragePlacement(storage: FileStorage, year: number, displayName: string): Promise<StoragePlacement> {
-  if (!(storage instanceof GoogleDriveFileStorage)) return { displayName };
-  await validateCanonicalDriveFolders(storage);
-  const annual = await storage.ensureFolder("Výroční reporty", envFolder("GOOGLE_DRIVE_REPORTS_FOLDER_ID"));
-  return { folderId: await storage.ensureFolder(String(year), annual), displayName };
-}
