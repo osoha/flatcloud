@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { CalendarRange, FileClock, LayoutTemplate } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
 import { hasReportingBackofficeAccess, listReportingBackofficeGroups } from "@/lib/reporting/backoffice-access";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export default async function ShareholderReportsPage() {
   if (!await hasReportingBackofficeAccess(user)) redirect("/reporty");
   const groups = await listReportingBackofficeGroups(user);
   const latest = groups.map((group) => group.latestReport).filter((report): report is NonNullable<typeof report> => Boolean(report)).sort((a, b) => (b.year - a.year) || (b.quarter - a.quarter))[0];
-  const latestAnnual = groups.map((group) => group.latestAnnualReport).filter((report): report is NonNullable<typeof report> => Boolean(report)).sort((a, b) => b.year - a.year)[0];
+  const latestAnnual = groups.length ? await prisma.annualReport.findFirst({ where: { reportingGroupId: { in: groups.map((group) => group.id) } }, select: { year: true }, orderBy: [{ year: "desc" }, { revision: "desc" }] }) : null;
   return <Shell user={user}><div className="page shareholder-reports-page">
     <div className="page-title"><div><h1>Akcionářské reporty</h1><p>Interní příprava, kontrola a publikace pravidelných výstupů pro akcionáře.</p><span className="scope-context-badge">Interní modul · oddělený od provozních reportů</span></div>{user.role === "SUPER_ADMIN" && <Link className="secondary" href="/reporty/sablony"><LayoutTemplate size={15}/> Šablony</Link>}</div>
     <div className="shareholder-report-grid">
