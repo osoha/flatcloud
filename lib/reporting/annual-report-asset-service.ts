@@ -2,7 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "../db";
 import { createFileStorage } from "../storage";
-import { annualReportStoragePlacement } from "../storage/locations";
+import { GoogleDriveFileStorage } from "../storage/google-drive";
+import { validateCanonicalDriveFolders, type StoragePlacement } from "../storage/locations";
 import { StorageDisabledError, type FileStorage } from "../storage/types";
 import { backofficePermissionForGroup } from "./backoffice-access";
 import { loadFrozenAnnualReportPdfData } from "./pdf/annual-report-pdf-data";
@@ -33,6 +34,15 @@ function storageUnavailable(error: unknown) {
 }
 
 async function cleanup(storage: FileStorage, key: string) { try { await storage.deleteObject(key); } catch { /* Cleanup must not mask the original failure. */ } }
+
+async function annualReportStoragePlacement(storage: FileStorage, year: number, displayName: string): Promise<StoragePlacement> {
+  if (!(storage instanceof GoogleDriveFileStorage)) return { displayName };
+  await validateCanonicalDriveFolders(storage);
+  const reportsFolderId = process.env.GOOGLE_DRIVE_REPORTS_FOLDER_ID;
+  if (!reportsFolderId) throw new Error("GOOGLE_DRIVE_REPORTS_FOLDER_ID is required for Google Drive storage.");
+  const annual = await storage.ensureFolder("Výroční reporty", reportsFolderId);
+  return { folderId: await storage.ensureFolder(String(year), annual), displayName };
+}
 
 export async function renderAnnualReportPdfPreview(reportId: string, groupId: string, actor: AnnualReportAssetActor) {
   const permission = await backofficePermissionForGroup(actor, groupId);
