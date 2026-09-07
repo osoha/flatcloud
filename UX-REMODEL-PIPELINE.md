@@ -207,6 +207,8 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - vznik i každá změna příležitosti vytváří neměnnou událost funnelu s původní a novou fází, stavem opce, cenami, dalším krokem a autorem; současný řádek zůstává rychlým LIVE přehledem,
 - formulář bezpečně předvyplní nabídkovou cenu z poslední valuace pouze do prázdného pole a nabízí výslovné opakované převzetí; ručně zadanou cenu při změně jednotky bez potvrzení nepřepisuje,
 - veřejná distribuce, právní podpisy a automatická komunikace zůstávají mimo rozsah.
+- **R14B implementováno bez migrace:** akcionářský distribuční podklad odděluje dnešní LIVE fázi od neměnných pohybů funnelu ve zvoleném čtvrtletí nebo roce, agreguje podepsané a využité opce bez osobních údajů a přenáší stejné členění do interního CSV,
+- historický řez čte pouze události zavedené v R14A; nepřepisuje CRM, nezpřístupňuje PII a nemění hranici interního workflow.
 
 ## Release gate každé etapy
 
