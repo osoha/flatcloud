@@ -150,8 +150,18 @@ test("roční podklady vedou od vlastníka ke zdrojům a bezpečnému exportu", 
   await expect(page.getByRole("heading", { name: "Přijaté úhrady", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Skutečné výdaje", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Úvěry a úroky", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Historická vlastnická struktura", exact: true })).toBeVisible();
   await expect(page.getByText(/Nejde o automatické stanovení základu daně/)).toBeVisible();
   await expect(page.getByRole("link", { name: "Stáhnout CSV", exact: true })).toHaveAttribute("href", /annual-owner-package\.csv\?ownerId=.+&year=\d{4}/);
+  await page.getByText("Přidat účinný vlastnický podíl", { exact: true }).click();
+  const ownershipForm = page.locator('form[action="/api/reports/annual-owner-package/evidence"]').filter({ has: page.locator('input[value="ownership"]') });
+  await ownershipForm.getByLabel("Nemovitost *").selectOption({ index: 1 });
+  await ownershipForm.getByLabel("Podíl % *").fill("100");
+  await ownershipForm.getByLabel("Účinný od *").fill("2025-01-01");
+  await ownershipForm.getByLabel("Účinný do").fill("2025-12-31");
+  await ownershipForm.getByLabel("Zdroj / poznámka").fill("R21 E2E potvrzený stav");
+  await ownershipForm.getByRole("button", { name: "Uložit období", exact: true }).click();
+  await expect(page.getByText("Historicky účinný vlastnický podíl byl uložen.", { exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
 

@@ -129,6 +129,13 @@ enum PropertyValuationSource {
   EXTERNAL
 }
 
+enum AnnualReviewStatus {
+  DRAFT
+  READY_FOR_ACCOUNTANT
+  CONFIRMED_BY_ACCOUNTANT
+  EXCLUDED
+}
+
 enum RentForecastPlanStatus {
   DRAFT
   APPROVED
@@ -492,6 +499,9 @@ model User {
   distributionWelcomeLettersUpdated    DistributionWelcomeLetter[]    @relation("DistributionWelcomeLetterUpdater")
   distributionWelcomeLettersReadied    DistributionWelcomeLetter[]    @relation("DistributionWelcomeLetterReadier")
   distributionWelcomeLettersSent       DistributionWelcomeLetter[]    @relation("DistributionWelcomeLetterSender")
+  ownershipPeriodsConfirmed            OwnershipPeriod[]              @relation("OwnershipPeriodConfirmer")
+  loanAnnualEvidenceReviewed           PropertyLoanAnnualEvidence[]   @relation("LoanAnnualEvidenceReviewer")
+  propertyCostsReviewed                PropertyCost[]                 @relation("PropertyCostReviewer")
   createdAt                            DateTime                       @default(now())
   updatedAt                            DateTime                       @updatedAt
 }
@@ -514,6 +524,7 @@ model Owner {
   paymentAccounts                    OwnerBankAccount[]
   communicationProperties            Property[]                  @relation("PropertyCommunicationOwner")
   distributionWelcomeLettersAsSeller DistributionWelcomeLetter[] @relation("DistributionWelcomeLetterSeller")
+  ownershipPeriods                   OwnershipPeriod[]
   createdAt                          DateTime                    @default(now())
   updatedAt                          DateTime                    @updatedAt
 
@@ -586,6 +597,7 @@ model Property {
   documents                         Document[]
   tenantLinks                       TenantProperty[]
   distributionWelcomeLetters        DistributionWelcomeLetter[]
+  ownershipPeriods                  OwnershipPeriod[]
   mfRentLocation                    PropertyMfRentLocation?
   createdAt                         DateTime                     @default(now())
   updatedAt                         DateTime                     @updatedAt
@@ -612,6 +624,11 @@ model PropertyCost {
   vendor                 String?
   documentNumber         String?
   note                   String?
+  annualReviewStatus     AnnualReviewStatus          @default(DRAFT)
+  annualReviewNote       String?
+  annualReviewedById     String?
+  annualReviewedBy       User?                       @relation("PropertyCostReviewer", fields: [annualReviewedById], references: [id], onDelete: SetNull)
+  annualReviewedAt       DateTime?
   documents              Document[]
   allocations            PropertyCostAllocation[]
   conditionPlanExecution UnitConditionPlanExecution?
@@ -657,23 +674,24 @@ model PropertyBudgetLine {
 }
 
 model PropertyLoan {
-  id                        String                 @id @default(cuid())
+  id                        String                       @id @default(cuid())
   propertyId                String
-  property                  Property               @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property                  Property                     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   lender                    String
   label                     String
   principalCents            BigInt
   outstandingPrincipalCents BigInt
   annualInterestRateBps     Int
-  rateType                  LoanRateType           @default(FIXED)
+  rateType                  LoanRateType                 @default(FIXED)
   fixedUntil                DateTime?
   maturityDate              DateTime?
   monthlyDebtServiceCents   BigInt?
   note                      String?
-  active                    Boolean                @default(true)
+  active                    Boolean                      @default(true)
   snapshots                 PropertyLoanSnapshot[]
-  createdAt                 DateTime               @default(now())
-  updatedAt                 DateTime               @updatedAt
+  annualEvidence            PropertyLoanAnnualEvidence[]
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
 
   @@index([propertyId, active])
   @@index([fixedUntil])
@@ -692,6 +710,27 @@ model PropertyLoanSnapshot {
   createdAt                 DateTime     @default(now())
 
   @@index([loanId, asOfDate])
+}
+
+model PropertyLoanAnnualEvidence {
+  id                String             @id @default(cuid())
+  loanId            String
+  loan              PropertyLoan       @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  year              Int
+  interestPaidCents BigInt
+  documentId        String?
+  document          Document?          @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  reviewStatus      AnnualReviewStatus @default(DRAFT)
+  note              String?
+  reviewedById      String?
+  reviewedBy        User?              @relation("LoanAnnualEvidenceReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt        DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([loanId, year])
+  @@index([year, reviewStatus])
+  @@index([documentId])
 }
 
 model PropertyValuationSnapshot {
@@ -804,6 +843,31 @@ model PropertyOwnership {
 
   @@unique([propertyId, ownerId])
   @@index([ownerId])
+}
+
+model OwnershipPeriod {
+  id               String    @id @default(cuid())
+  scopeKey         String
+  propertyId       String
+  property         Property  @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId           String?
+  unit             Unit?     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  ownerId          String
+  owner            Owner     @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  shareBasisPoints Int
+  validFrom        DateTime
+  validTo          DateTime?
+  sourceNote       String?
+  confirmedById    String
+  confirmedBy      User      @relation("OwnershipPeriodConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+  confirmedAt      DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([scopeKey, ownerId, validFrom])
+  @@index([propertyId, validFrom, validTo])
+  @@index([unitId, validFrom, validTo])
+  @@index([ownerId, validFrom, validTo])
 }
 
 model UserProperty {
@@ -979,6 +1043,7 @@ model Unit {
   conditionAssessments      UnitConditionAssessment[]
   valuationSnapshots        UnitValuationSnapshot[]
   distributionOpportunities DistributionOpportunity[]
+  ownershipPeriods          OwnershipPeriod[]
   createdAt                 DateTime                     @default(now())
   updatedAt                 DateTime                     @updatedAt
 
@@ -2100,6 +2165,7 @@ model Document {
   createdBy                            User                                  @relation("DocumentCreator", fields: [createdById], references: [id], onDelete: Restrict)
   quarterlyPropertyReportMedia         QuarterlyPropertyReportMedia[]
   distributionWelcomeLetterAttachments DistributionWelcomeLetterAttachment[]
+  propertyLoanAnnualEvidence           PropertyLoanAnnualEvidence[]
   createdAt                            DateTime                              @default(now())
   deletedAt                            DateTime?
 
