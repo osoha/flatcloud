@@ -13,6 +13,7 @@ export type MethodologyGlossaryTerm = {
   term: string;
   aliases: string[];
   definition: string;
+  formula?: string;
   chapterSlug: string;
 };
 
@@ -198,9 +199,13 @@ export const methodologyGlossary: MethodologyGlossaryTerm[] = [
   { term: "Q4 snapshot", aliases: ["snapshot k 31. prosinci"], definition: "Uzavřený snapshot nemovitosti k 31. prosinci, který je zdrojem výročního reportu za daný rok.", chapterSlug: "vyrocni-report" },
   { term: "OPEX", aliases: ["provozní náklad"], definition: "Výdaj související s běžným provozem a správou aktiva; v evidenci zůstává oddělený od investičního CAPEX.", chapterSlug: "naklady-a-uvery" },
   { term: "CAPEX", aliases: ["investiční náklad", "investice"], definition: "Investiční výdaj na pořízení, obnovu nebo významné zhodnocení aktiva; plán a skutečnost se evidují odděleně.", chapterSlug: "kategorizace-jednotek" },
-  { term: "NOI", aliases: ["čistý provozní výnos"], definition: "Indikativní provozní výnos před financováním a daněmi. V aplikaci jde o LIVE run-rate, ne účetní závěrku.", chapterSlug: "naklady-a-uvery" },
-  { term: "LTV", aliases: ["loan-to-value"], definition: "Poměr nesplacené jistiny úvěru k evidované hodnotě aktiva; závisí na datu obou vstupů.", chapterSlug: "naklady-a-uvery" },
-  { term: "DSCR", aliases: ["debt service coverage ratio"], definition: "Poměr provozního cashflow k dluhové službě. Hodnota pod 1,00× je kritický finanční alarm.", chapterSlug: "naklady-a-uvery" },
+  { term: "Roční nájemné", aliases: ["annual rent", "roční run-rate nájemného"], definition: "Indikativní roční nájemné odvozené z aktuálního měsíčního čistého nájemného. Nezohledňuje budoucí expirace ani neobsazenost.", formula: "Měsíční čisté nájemné × 12", chapterSlug: "naklady-a-uvery" },
+  { term: "NOI", aliases: ["čistý provozní výnos"], definition: "Indikativní provozní výnos před financováním a daněmi. V aplikaci jde o LIVE run-rate, ne účetní závěrku.", formula: "Roční nájemné − skutečný OPEX za posledních 12 měsíců", chapterSlug: "naklady-a-uvery" },
+  { term: "Cashflow", aliases: ["peněžní tok po dluhové službě"], definition: "Indikativní částka, která zbývá z NOI po odečtení evidované roční dluhové služby. Nezahrnuje daně ani neevidované výdaje.", formula: "NOI − roční dluhová služba", chapterSlug: "naklady-a-uvery" },
+  { term: "Yield", aliases: ["výnosnost aktiva"], definition: "Poměr indikativního NOI k poslední evidované tržní hodnotě aktiva. Výsledek závisí na úplnosti OPEX a datu ocenění.", formula: "NOI ÷ tržní hodnota × 100 %", chapterSlug: "naklady-a-uvery" },
+  { term: "ROE", aliases: ["return on equity", "výnosnost vlastního kapitálu"], definition: "Poměr indikativního cashflow k vlastnímu kapitálu odvozenému z evidované tržní hodnoty a nesplacené jistiny.", formula: "Cashflow ÷ (tržní hodnota − nesplacená jistina) × 100 %", chapterSlug: "naklady-a-uvery" },
+  { term: "LTV", aliases: ["loan-to-value"], definition: "Poměr nesplacené jistiny úvěru k evidované hodnotě aktiva; závisí na datu obou vstupů.", formula: "Nesplacená jistina ÷ tržní hodnota × 100 %", chapterSlug: "naklady-a-uvery" },
+  { term: "DSCR", aliases: ["debt service coverage ratio"], definition: "Poměr NOI k evidované roční dluhové službě. Hodnota pod 1,00× je kritický finanční alarm.", formula: "NOI ÷ roční dluhová služba", chapterSlug: "naklady-a-uvery" },
   { term: "Konsolidační podíl", aliases: ["podíl FlatCloud"], definition: "Potvrzený podíl, kterým aktivum vstupuje do korporátních KPI FlatCloud; není totožný s rozsahem svěřené správy.", chapterSlug: "vice-vlastniku" },
   { term: "Příležitost", aliases: ["opportunity", "zájem o jednotku"], definition: "Samostatně vedený zájem konkrétního zájemce o jednu jednotku, včetně fáze, ceny a dalšího kroku.", chapterSlug: "crm-distribuce" },
   { term: "Opce", aliases: ["option"], definition: "Interně evidovaná nabídka nebo smluvní právo s cenou, platností a případně referencí dokumentu; sama nenahrazuje právní kontrolu.", chapterSlug: "crm-distribuce" },
@@ -217,6 +222,6 @@ export const methodologyMediaBriefs: MethodologyMediaBrief[] = [
 ];
 
 export function methodologySearchText(value: MethodologyGlossaryTerm | MethodologyMediaBrief) {
-  if ("term" in value) return `${value.term} ${value.aliases.join(" ")} ${value.definition}`;
+  if ("term" in value) return `${value.term} ${value.aliases.join(" ")} ${value.definition} ${value.formula || ""}`;
   return `${value.kind} ${value.title} ${value.duration} ${value.purpose} ${value.outline.join(" ")}`;
 }

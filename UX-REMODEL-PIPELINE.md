@@ -239,7 +239,9 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - **R18B implementováno bez migrace:** výroční PDF přešlo z A4 portrait na FlatCloud 13:9 landscape a používá Raleway, dělenou fotografickou obálku, diagonální korporátní master, tmavě modré tabulky a konzistentní footer,
 - pevná osnova nyní obsahuje obálku, obsah, slovo zakladatele, klíčové údaje, portfolio aktiv, samostatné hodnotové kapitoly a kontaktní/disclaimer závěr; prázdný koncept působí jako záměrný pracovní náhled namísto rozbitého finálního dokumentu,
 - interní ID reportovací skupiny, verze rendereru, fingerprint, schéma a verze kalkulátoru nejsou ve viditelných akcionářských stranách; auditní metadata zůstávají zachována mimo hlavní čtenářský obsah,
-- **R18C odloženo po R18B:** metodika dostane vzorce ve slovníčku a návrh rozdělovací obrazovky nebo sbalovacího členění méně používaných položek hlavní navigace.
+- **R18C implementováno bez migrace:** metodika dostala třícestný rozcestník na praktické postupy, slovník a vzorce a znalostní média; na úzkých obrazovkách se rozcestník skládá do jednoho sloupce,
+- slovník nyní přesně popisuje aplikační výpočty ročního nájemného, NOI, cashflow, yield, ROE, LTV a DSCR a zahrnuje vzorce také do společného hledání,
+- sbalovací členění méně používaných položek hlavní navigace zůstává samostatným navazujícím blokem, protože musí zachovat přímou dostupnost pracovních agend, role i stávající browser scénáře.
 
 ### Odložený blok — smluvní dokumentace a vzdálený podpis
 
