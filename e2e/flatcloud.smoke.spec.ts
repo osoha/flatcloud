@@ -1002,7 +1002,15 @@ test("R13B: výroční report prochází kontrolou a verzovanou publikací", asy
   await page.getByLabel("Poznámka ke zdrojům hodnot").fill("Interní valuace k 31. 12. 2025.");
   await page.getByRole("button", { name: "Uložit kapitolu nemovitosti", exact: true }).click();
   await expect(page.getByText("Kapitola nemovitosti byla uložena.", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: /04 · Kontrola a publikace/ }).click();
+  await page.getByRole("link", { name: /02 · Mapa portfolia/ }).click();
+  await page.getByLabel("Zeměpisná šířka").fill("50.6607");
+  await page.getByLabel("Zeměpisná délka").fill("14.0436");
+  await page.getByRole("button", { name: "Uložit mapu", exact: true }).click();
+  await expect(page.getByText("Mapa portfolia byla uložena.", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /04 · Tým a skupina/ }).click();
+  await page.getByRole("button", { name: "Uložit tým, strukturu a kontakty", exact: true }).click();
+  await expect(page.getByText("Tým, struktura skupiny a kontakty byly uloženy.", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: /06 · Kontrola a publikace/ }).click();
   await expect(page.getByText("Povinné korporátní údaje i kapitoly nemovitostí jsou kompletní.", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Odeslat ke kontrole", exact: true }).click();
   await expect(page.locator(".annual-report-hero .status")).toHaveText("Ke kontrole");

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { prisma } from "../../db";
+import { imageDataUrl, readAnnualContact, readAnnualGroupStructure, readAnnualTeam, type AnnualContact, type AnnualGroupStructure, type AnnualTeamMember } from "../annual-corporate-sections";
 
 export type FrozenAnnualReportPdfProperty = {
   propertyName: string;
@@ -14,6 +15,11 @@ export type FrozenAnnualReportPdfProperty = {
   valueCreationNarrative: string | null;
   outlook: string | null;
   sourceNote: string | null;
+  mapLatitude: number | null;
+  mapLongitude: number | null;
+  mapLabel: string | null;
+  mapCardSide: string;
+  mapPhotoDataUrl: string | null;
   snapshot: {
     revision: number;
     source: "CALCULATED" | "MANUAL_BASELINE";
@@ -43,6 +49,9 @@ export type FrozenAnnualReportPdfData = {
   issuedShares: number | null;
   treasuryShares: number | null;
   sharePriceCents: bigint | null;
+  team: AnnualTeamMember[];
+  groupStructure: AnnualGroupStructure;
+  contact: AnnualContact;
   properties: FrozenAnnualReportPdfProperty[];
 };
 
@@ -60,11 +69,12 @@ export async function loadFrozenAnnualReportPdfData(reportId: string, reportingG
       founderLetter: true, executiveSummary: true, investmentThesis: true, valueCreationSummary: true, outlook: true,
       grossAssetValueCents: true, netAssetValueCents: true, debtCents: true, targetPortfolioValueCents: true,
       realizedExitProceedsCents: true, plannedExitProceedsCents: true, issuedShares: true, treasuryShares: true, sharePriceCents: true,
+      teamSnapshot: true, groupStructureSnapshot: true, contactSnapshot: true,
       propertyReports: {
         select: {
           propertyNameSnapshot: true, propertyAddressSnapshot: true, openingValueCents: true, currentValueCents: true, targetValueCents: true,
           realizedExitProceedsCents: true, plannedExitProceedsCents: true, plannedExitYear: true, investmentCase: true,
-          valueCreationNarrative: true, outlook: true, sourceNote: true,
+          valueCreationNarrative: true, outlook: true, sourceNote: true, mapLatitude: true, mapLongitude: true, mapLabel: true, mapCardSide: true, mapPhotoData: true, mapPhotoMimeType: true,
           snapshot: { select: { revision: true, source: true, schemaVersion: true, calculatorVersion: true, sourceNote: true, data: true, quality: true } },
         },
         orderBy: [{ propertyNameSnapshot: "asc" }, { id: "asc" }],
@@ -91,6 +101,9 @@ export async function loadFrozenAnnualReportPdfData(reportId: string, reportingG
     issuedShares: report.issuedShares,
     treasuryShares: report.treasuryShares,
     sharePriceCents: report.sharePriceCents,
+    team: readAnnualTeam(report.teamSnapshot),
+    groupStructure: readAnnualGroupStructure(report.groupStructureSnapshot),
+    contact: readAnnualContact(report.contactSnapshot),
     properties: report.propertyReports.map((row) => ({
       propertyName: row.propertyNameSnapshot,
       propertyAddress: row.propertyAddressSnapshot,
@@ -104,6 +117,11 @@ export async function loadFrozenAnnualReportPdfData(reportId: string, reportingG
       valueCreationNarrative: row.valueCreationNarrative,
       outlook: row.outlook,
       sourceNote: row.sourceNote,
+      mapLatitude: row.mapLatitude,
+      mapLongitude: row.mapLongitude,
+      mapLabel: row.mapLabel,
+      mapCardSide: row.mapCardSide || "AUTO",
+      mapPhotoDataUrl: imageDataUrl(row.mapPhotoData, row.mapPhotoMimeType),
       snapshot: {
         revision: row.snapshot.revision,
         source: row.snapshot.source,

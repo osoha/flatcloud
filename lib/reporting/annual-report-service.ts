@@ -11,6 +11,7 @@ import {
   type AnnualReportEditorialInput,
 } from "./annual-report-schema";
 import { calculateAndStoreSnapshotTx } from "./snapshot-service";
+import { annualContactSchema, annualGroupStructureSchema, annualTeamSchema, imageDataUrl, readAnnualTeam, type AnnualContact, type AnnualGroupStructure, type AnnualTeamMember } from "./annual-corporate-sections";
 
 type Tx = Prisma.TransactionClient;
 const CREATE_RETRIES = 3;
@@ -28,6 +29,9 @@ type AnnualCompletenessReport = {
   issuedShares: number | null;
   treasuryShares: number | null;
   sharePriceCents: bigint | null;
+  teamSnapshot?: Prisma.JsonValue | null;
+  groupStructureSnapshot?: Prisma.JsonValue | null;
+  contactSnapshot?: Prisma.JsonValue | null;
   propertyReports: Array<{
     propertyNameSnapshot: string;
     openingValueCents: bigint | null;
@@ -37,6 +41,8 @@ type AnnualCompletenessReport = {
     valueCreationNarrative: string | null;
     outlook: string | null;
     sourceNote: string | null;
+    mapLatitude?: number | null;
+    mapLongitude?: number | null;
   }>;
 };
 
@@ -91,6 +97,10 @@ export function annualReportMissingFields(report: AnnualCompletenessReport) {
     ["Cena akcie", report.sharePriceCents],
   ] as const;
   for (const [label, value] of corporateNumbers) if (value === null) missing.push(label);
+  const team = annualTeamSchema.safeParse(report.teamSnapshot);
+  if (!team.success || team.data.length === 0) missing.push("Tým");
+  if (!annualGroupStructureSchema.safeParse(report.groupStructureSnapshot).success) missing.push("Struktura skupiny");
+  if (!annualContactSchema.safeParse(report.contactSnapshot).success) missing.push("Kontakty a poučení");
   for (const property of report.propertyReports) {
     const prefix = property.propertyNameSnapshot;
     if (property.openingValueCents === null) missing.push(`${prefix}: hodnota na začátku roku`);
@@ -100,6 +110,7 @@ export function annualReportMissingFields(report: AnnualCompletenessReport) {
     if (!property.valueCreationNarrative?.trim()) missing.push(`${prefix}: tvorba hodnoty`);
     if (!property.outlook?.trim()) missing.push(`${prefix}: výhled`);
     if (!property.sourceNote?.trim()) missing.push(`${prefix}: zdroj hodnot`);
+    if (property.mapLatitude == null || property.mapLongitude == null) missing.push(`${prefix}: poloha v mapě`);
   }
   return missing;
 }
@@ -209,6 +220,57 @@ export async function updateAnnualPropertyEditorial(reportId: string, propertyId
       hasExitPlan: content.plannedExitProceedsCents !== null || content.plannedExitYear !== null,
     });
     return tx.annualPropertyReport.findUniqueOrThrow({ where: { annualReportId_propertyId: { annualReportId: report.id, propertyId } } });
+  });
+}
+
+export async function updateAnnualCorporateSections(reportId: string, input: { team: AnnualTeamMember[]; structure: AnnualGroupStructure; contact: AnnualContact }, actor: ReportingBackofficeActor) {
+  return serializableTransaction(async (tx) => {
+    const report = await tx.annualReport.findUnique({ where: { id: reportId } });
+    if (!report) throw new Error("Annual report was not found.");
+    await requireReportingBackoffice(actor, report.reportingGroupId, "EDIT", tx);
+    if (report.status !== "DRAFT") throw new Error("Annual report content can only change in DRAFT.");
+    const teamInput = annualTeamSchema.parse(input.team);
+    const userIds = [...new Set(teamInput.flatMap((member) => member.sourceUserId ? [member.sourceUserId] : []))];
+    const users = userIds.length ? await tx.user.findMany({ where: { id: { in: userIds }, active: true }, select: { id: true, avatarData: true, avatarMimeType: true } }) : [];
+    const avatars = new Map(users.map((user) => [user.id, imageDataUrl(user.avatarData, user.avatarMimeType)]));
+    const previous = readAnnualTeam(report.teamSnapshot);
+    const team = teamInput.map((member) => ({ ...member, photoDataUrl: member.sourceUserId ? avatars.get(member.sourceUserId) || previous.find((row) => row.sourceUserId === member.sourceUserId)?.photoDataUrl || member.photoDataUrl : previous.find((row) => row.name === member.name)?.photoDataUrl || member.photoDataUrl }));
+    const structure = annualGroupStructureSchema.parse(input.structure);
+    const contact = annualContactSchema.parse(input.contact);
+    const changed = await tx.annualReport.updateMany({ where: { id: report.id, status: "DRAFT" }, data: { teamSnapshot: team, groupStructureSnapshot: structure, contactSnapshot: contact } });
+    if (changed.count !== 1) throw new Error("Annual report is no longer editable.");
+    await audit(tx, actor.id, "ANNUAL_REPORT_CORPORATE_SECTIONS_UPDATED", report, { teamCount: team.length, subsidiaryCount: structure.subsidiaries.length });
+  });
+}
+
+export async function updateAnnualMapEntries(reportId: string, entries: Array<{ propertyId: string; latitude: number | null; longitude: number | null; label: string | null; cardSide: string }>, actor: ReportingBackofficeActor) {
+  return serializableTransaction(async (tx) => {
+    const report = await tx.annualReport.findUnique({ where: { id: reportId }, select: { id: true, reportingGroupId: true, year: true, revision: true, status: true, propertyReports: { select: { propertyId: true } } } });
+    if (!report) throw new Error("Annual report was not found.");
+    await requireReportingBackoffice(actor, report.reportingGroupId, "EDIT", tx);
+    if (report.status !== "DRAFT") throw new Error("Annual report content can only change in DRAFT.");
+    const allowed = new Set(report.propertyReports.map((row) => row.propertyId));
+    if (entries.length !== allowed.size || new Set(entries.map((entry) => entry.propertyId)).size !== allowed.size || entries.some((entry) => !allowed.has(entry.propertyId))) throw new Error("Annual map scope is inconsistent.");
+    for (const entry of entries) {
+      if ((entry.latitude === null) !== (entry.longitude === null)) throw new Error("Map coordinates must be provided together.");
+      if (entry.latitude !== null && (entry.latitude < -90 || entry.latitude > 90 || entry.longitude! < -180 || entry.longitude! > 180)) throw new Error("Map coordinates are invalid.");
+      if (!["AUTO", "LEFT", "RIGHT"].includes(entry.cardSide)) throw new Error("Map card position is invalid.");
+      await tx.annualPropertyReport.update({ where: { annualReportId_propertyId: { annualReportId: report.id, propertyId: entry.propertyId } }, data: { mapLatitude: entry.latitude, mapLongitude: entry.longitude, mapLabel: entry.label, mapCardSide: entry.cardSide } });
+    }
+    await audit(tx, actor.id, "ANNUAL_REPORT_MAP_UPDATED", report, { propertyCount: entries.length, locatedCount: entries.filter((entry) => entry.latitude !== null).length });
+  });
+}
+
+export async function updateAnnualMapPhoto(reportId: string, propertyId: string, photo: { data: Uint8Array; mimeType: string } | null, actor: ReportingBackofficeActor) {
+  return serializableTransaction(async (tx) => {
+    const report = await tx.annualReport.findUnique({ where: { id: reportId } });
+    if (!report) throw new Error("Annual report was not found.");
+    await requireReportingBackoffice(actor, report.reportingGroupId, "EDIT", tx);
+    if (report.status !== "DRAFT") throw new Error("Annual report content can only change in DRAFT.");
+    const mapPhotoData = photo ? new Uint8Array(new ArrayBuffer(photo.data.byteLength)) : null; if (photo) mapPhotoData!.set(photo.data);
+    const changed = await tx.annualPropertyReport.updateMany({ where: { annualReportId: report.id, propertyId, annualReport: { status: "DRAFT" } }, data: { mapPhotoData, mapPhotoMimeType: photo?.mimeType || null } });
+    if (changed.count !== 1) throw new Error("Annual map property was not found.");
+    await audit(tx, actor.id, photo ? "ANNUAL_REPORT_MAP_PHOTO_UPDATED" : "ANNUAL_REPORT_MAP_PHOTO_REMOVED", report, { propertyId });
   });
 }
 
@@ -354,6 +416,9 @@ export async function createAnnualCorrectionRevision(publishedReportId: string, 
         issuedShares: source.issuedShares,
         treasuryShares: source.treasuryShares,
         sharePriceCents: source.sharePriceCents,
+        teamSnapshot: source.teamSnapshot ?? undefined,
+        groupStructureSnapshot: source.groupStructureSnapshot ?? undefined,
+        contactSnapshot: source.contactSnapshot ?? undefined,
         designTemplateVersionId: source.designTemplateVersionId,
         createdById: actor.id,
         propertyReports: { create: source.propertyReports.map((row) => ({
@@ -371,6 +436,12 @@ export async function createAnnualCorrectionRevision(publishedReportId: string, 
           valueCreationNarrative: row.valueCreationNarrative,
           outlook: row.outlook,
           sourceNote: row.sourceNote,
+          mapLatitude: row.mapLatitude,
+          mapLongitude: row.mapLongitude,
+          mapLabel: row.mapLabel,
+          mapCardSide: row.mapCardSide,
+          mapPhotoData: row.mapPhotoData,
+          mapPhotoMimeType: row.mapPhotoMimeType,
         })) },
       },
     });

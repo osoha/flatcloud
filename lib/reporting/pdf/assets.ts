@@ -8,3 +8,4 @@ export const REPORT_PDF_LOGO_WHITE_PATH = path.join(process.cwd(), "public", "fl
 export const REPORT_PDF_LOGO_REPORT_PATH = path.join(process.cwd(), "public", "flatcloud-logo-report.png");
 export const REPORT_PDF_CONTENT_HEADER_PATH = path.join(process.cwd(), "public", "flatcloud-quarterly-page-header.png");
 export const ANNUAL_REPORT_COVER_PATH = path.join(process.cwd(), "public", "annual-report-cover.jpg");
+export const CZECH_REGIONS_MAP_PATH = path.join(process.cwd(), "public", "czech-regions-map.png");
