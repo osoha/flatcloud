@@ -119,7 +119,8 @@
     "verify:ux-remodel-r11c": "node --import tsx scripts/verify-ux-remodel-r11c.ts",
     "verify:ux-remodel-r11d": "node --import tsx scripts/verify-ux-remodel-r11d.ts",
     "verify:ux-remodel-r12a": "node --import tsx scripts/verify-ux-remodel-r12a.ts",
-    "verify:r13a-annual-report": "node --import tsx scripts/verify-r13a-annual-report.ts"
+    "verify:r13a-annual-report": "node --import tsx scripts/verify-r13a-annual-report.ts",
+    "verify:r13b-annual-publication": "node --import tsx scripts/verify-r13b-annual-publication.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.879.0",
