@@ -231,6 +231,15 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - chybějící Q4 report, neshoda data a neshoda rozsahu zůstávají samostatně rozlišitelné; dostupný Q4 report lze otevřít přímo z výročního workspace,
 - kontrola nemění kvartální ani výroční snapshoty, nevstupuje do publikovaného PDF a nezasahuje do existujícího workflow či publikační sémantiky.
 
+### Odložený blok — smluvní dokumentace a vzdálený podpis
+
+- **Generátor nájemních smluv:** z údajů uložených v aplikaci připravit formulářovou nájemní smlouvu podle verzovaného globálního vzoru; jako inspirační referenci prověřit formulářový vzor na `https://www.zvladneme.cz/vzor-najemni-smlouvy.php`, nikoli jej automaticky převzít jako právně závazný text,
+- globální vzor musí oddělovat schválené znění od mapovaných proměnných, evidovat použitou verzi a před vytvořením finálního dokumentu nabídnout úplný náhled; textaci i každou změnu vzoru musí schválit právník,
+- **další smluvní dokumenty:** stejným řízeným způsobem generovat dodatky, předávací a ukončovací protokoly a další opakované dokumenty přímo z aplikace, vždy s vazbou na konkrétní nemovitost, jednotku, smlouvu a použitou verzi šablony,
+- vygenerování dokumentu samo nemění stav nájemního vztahu, nepředává dokument protistraně a nenahrazuje kontrolu údajů ani lidské schválení,
+- **prověření vzdáleného podpisu:** samostatně porovnat DocuSign a vhodné alternativy z hlediska úrovní elektronického podpisu, eIDAS, ověření identity, auditní stopy, API, evropského uložení dat, ochrany osobních údajů, dlouhodobé archivace, ceny a použitelnosti pro nájemní dokumentaci,
+- případná podpisová integrace vznikne až po výběru služby, právním a bezpečnostním posouzení a výslovném schválení; automatické odeslání nebo podpis dokumentu zůstává do té doby mimo rozsah.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,
