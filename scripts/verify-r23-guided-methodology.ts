@@ -62,7 +62,8 @@ check(
   () => {
     const link = read("components/ScopeAwareLink.tsx");
     assert.match(link, /activeQuery/);
-    assert.match(link, /searchParams\.get\(key\) === value/);
+    assert.match(link, /pathname === "\/metodika"/);
+    assert.match(link, /currentValue === value/);
   },
 );
 check("R23 is migration-free and browser gated", () => {

@@ -70,9 +70,12 @@ export function ScopeAwareLink({
     (targetPath !== "/portfolio" && pathname.startsWith(`${targetPath}/`));
   const queryMatches =
     !activeQuery ||
-    Object.entries(activeQuery).every(
-      ([key, value]) => searchParams.get(key) === value,
-    );
+    Object.entries(activeQuery).every(([key, value]) => {
+      const currentValue =
+        searchParams.get(key) ??
+        (pathname === "/metodika" && key === "view" ? "guides" : null);
+      return currentValue === value;
+    });
   const current = pathMatches && queryMatches;
   return (
     <Link

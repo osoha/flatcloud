@@ -520,7 +520,7 @@ test("R19B: sbalovací navigace pamatuje volbu a odhalí aktivní sekci", async 
   await expect(page.getByRole("button", { name: "Podpora práce", exact: true })).toHaveAttribute("aria-expanded", "false");
   await page.goto("/metodika");
   await expect(page.getByRole("button", { name: "Podpora práce", exact: true })).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByRole("link", { name: "Metodika", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("link", { name: "Průvodci", exact: true })).toHaveAttribute("aria-current", "page");
   await page.goto("/portfolio");
   await administration.focus();
   await page.keyboard.press(" ");
