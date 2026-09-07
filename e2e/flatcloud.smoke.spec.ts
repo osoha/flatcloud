@@ -78,7 +78,7 @@ test("průvodce nemovitostí ověří zadanou adresu mapovým PINem", async ({ p
 test("globální správce vidí provozní rozsah napříč vlastníky", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
-  await expect(page.getByText("Provozní cockpit · napříč vlastníky", { exact: true })).toBeVisible();
+  await expect(page.getByText("Provozní cockpit · napříč vlastníky", { exact: true })).toHaveCount(0);
   const picker = page.locator(".scope-picker-trigger");
   await expect(picker).toContainText("Rozsah správy");
   await expect(picker).toContainText("Vše ve správě");
@@ -510,6 +510,18 @@ test("R19B: sbalovací navigace pamatuje volbu a odhalí aktivní sekci", async 
   await administration.focus();
   await page.keyboard.press(" ");
   await expect(administration).toHaveAttribute("aria-expanded", "true");
+  assertNoBrowserFailures();
+});
+
+test("R19C: účet se na desktopu neduplikuje a na mobilu zůstává dostupný", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await expect(page.locator(".sidebar-footer .user-card-profile")).toBeVisible();
+  await expect(page.locator(".v21-topbar .account-chip")).toBeHidden();
+  await expect(page.getByText("Provozní cockpit · napříč vlastníky", { exact: true })).toHaveCount(0);
+  await page.setViewportSize({ width: 650, height: 844 });
+  await expect(page.locator(".sidebar")).toBeHidden();
+  await expect(page.getByRole("link", { name: "Můj účet", exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
 
