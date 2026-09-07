@@ -14,7 +14,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ gro
     await requireAnnualReportInGroup(reportId, groupId); const form = await request.formData();
     const team = annualTeamSchema.parse(rows(form, "team", 8, ["name", "role", "email", "sourceUserId"]).map((row) => ({ ...row, sourceUserId: row.sourceUserId || null, photoDataUrl: null })));
     const entities = rows(form, "entity", 8, ["name", "type", "ico", "address", "leadership"]);
-    const structure = annualGroupStructureSchema.parse({ parent: { name: text(form, "parent.name"), type: text(form, "parent.type"), ico: text(form, "parent.ico"), address: text(form, "parent.address"), leadership: text(form, "parent.leadership") }, subsidiaries: entities });
+    const structure = annualGroupStructureSchema.parse({ parent: { name: text(form, "parent.name"), type: text(form, "parent.type") || "", ico: text(form, "parent.ico") || "", address: text(form, "parent.address") || "", leadership: text(form, "parent.leadership") || "" }, subsidiaries: entities });
     const contact = annualContactSchema.parse({ companyName: text(form, "companyName"), registeredAddress: text(form, "registeredAddress") || "", officeAddress: text(form, "officeAddress") || "", phone: text(form, "phone") || "", email: text(form, "email") || "", dataBox: text(form, "dataBox") || "", boardMembers: text(form, "boardMembers") || "", investmentCommittee: text(form, "investmentCommittee") || "", confidentialityNotice: text(form, "confidentialityNotice"), investmentDisclaimer: text(form, "investmentDisclaimer") });
     await updateAnnualCorporateSections(reportId, { team, structure, contact }, actor);
     return goWithMessage(request, workspace, "ok", "Tým, struktura skupiny a kontakty byly uloženy.");

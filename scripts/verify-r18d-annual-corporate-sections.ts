@@ -9,9 +9,10 @@ async function check(name: string, run: () => void | Promise<void>) { await run(
 
 async function main() {
 await check("annual editor exposes map, team, structure, contacts and legal copy", () => {
-  const page = read("app/reporty/vyrocni/[groupId]/reporty/[reportId]/page.tsx"); const editor = read("components/annual-report/AnnualCorporateSectionsEditor.tsx");
+  const page = read("app/reporty/vyrocni/[groupId]/reporty/[reportId]/page.tsx"); const editor = read("components/annual-report/AnnualCorporateSectionsEditor.tsx"); const route = read("app/api/reporting-groups/[groupId]/annual-reports/[reportId]/corporate-sections/route.ts");
   for (const marker of ["Mapa portfolia", "Tým a skupina", "Doplnit chybějící polohy z adres", "Nahrát fotografii"]) assert.match(page, new RegExp(marker));
   for (const marker of ["Tým", "Struktura skupiny", "Kontakty a poučení", "Poučení o důvěrnosti", "Investiční výbor"]) assert.match(editor, new RegExp(marker));
+  for (const field of ["parent.type", "parent.ico", "parent.address", "parent.leadership"]) assert.match(route, new RegExp(`text\\(form, "${field.replace(".", "\\.")}"\\) \\|\\| ""`));
 });
 
 await check("geocoding is user-triggered, Czech-scoped, identified and persisted separately from rendering", async () => {
