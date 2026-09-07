@@ -271,15 +271,25 @@ test("interní CRM vede zájemce přes příležitost a další krok", async ({ 
   await page.getByText("Nový zájem o jednotku", { exact: true }).click();
   await page.getByLabel("Zájemce *").selectOption({ label: prospectName });
   await page.getByLabel("Jednotka *").selectOption({ index: 1 });
+  await expect(page.locator("details[open] .valuation-price-prefill")).toContainText("Aktuální valuace");
+  await expect(page.getByLabel("Nabídková cena Kč").first()).not.toHaveValue("");
   await page.getByLabel("Další krok k datu").first().fill(new Date(Date.now()+7*86_400_000).toISOString().slice(0,10));
   await page.getByRole("button", { name: "Založit příležitost", exact: true }).click();
   await expect(page.getByText("Příležitost byla založena.")).toBeVisible();
   const row = page.getByRole("row").filter({ hasText: prospectName });
   await row.getByText("Upravit", { exact: true }).click();
   await row.getByLabel("Fáze *").selectOption("CONTACTED");
-  await row.getByRole("button", { name: "Uložit fázi a další krok", exact: true }).click();
-  await expect(page.getByText("Fáze a další krok byly aktualizovány.")).toBeVisible();
+  await row.getByLabel("Stav opce").selectOption("SIGNED");
+  await row.getByLabel("Cena opce Kč").fill("150000");
+  await row.getByLabel("Platnost opce do").fill(new Date(Date.now()+30*86_400_000).toISOString().slice(0,10));
+  await row.getByLabel("Reference dokumentu").fill("OPCE-E2E-001");
+  await row.getByRole("button", { name: "Uložit fázi a další krok včetně opce", exact: true }).click();
+  await expect(page.getByText("Fáze, opce a další krok byly aktualizovány.")).toBeVisible();
   await expect(page.getByRole("row").filter({ hasText: prospectName })).toContainText("Kontaktován");
+  await expect(page.getByRole("row").filter({ hasText: prospectName })).toContainText("Opce podepsána");
+  await page.getByRole("row").filter({ hasText: prospectName }).getByText("Upravit", { exact: true }).click();
+  await expect(page.getByText("Historie funnelu", { exact: true })).toBeVisible();
+  await expect(page.locator(".distribution-funnel-history span")).toHaveCount(2);
   assertNoBrowserFailures();
 });
 

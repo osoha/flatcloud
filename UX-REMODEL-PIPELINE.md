@@ -201,6 +201,13 @@ Tato etapa je první implementovaný vertikální řez. Nemění databázové sc
 - deterministický výroční PDF renderer používá pouze zmrazená data a stabilní metadata; finální soubor se ukládá jako auditovaný `FileAsset` s SHA-256 a samostatným verzovaným umístěním,
 - workflow zůstává čistě interní. Veřejná distribuce výročních reportů není zpřístupněná a čeká na samostatné výslovné schválení.
 
+### R14 — dokončení interní distribuční pipeline
+
+- **R14A implementováno aditivně:** každá obchodní příležitost eviduje interní lifecycle opce včetně ceny, data platnosti a reference dokumentu; podepsaná opce vyžaduje úplné podklady a nadále nepředstavuje právní rezervaci ani veřejnou nabídku,
+- vznik i každá změna příležitosti vytváří neměnnou událost funnelu s původní a novou fází, stavem opce, cenami, dalším krokem a autorem; současný řádek zůstává rychlým LIVE přehledem,
+- formulář bezpečně předvyplní nabídkovou cenu z poslední valuace pouze do prázdného pole a nabízí výslovné opakované převzetí; ručně zadanou cenu při změně jednotky bez potvrzení nepřepisuje,
+- veřejná distribuce, právní podpisy a automatická komunikace zůstávají mimo rozsah.
+
 ## Release gate každé etapy
 
 - izolovaná pracovní větev,

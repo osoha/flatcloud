@@ -221,6 +221,16 @@ enum DistributionOpportunityStage {
   LOST
 }
 
+enum DistributionOptionStatus {
+  NONE
+  PREPARING
+  OFFERED
+  SIGNED
+  EXERCISED
+  EXPIRED
+  CANCELLED
+}
+
 enum TenantType {
   PERSON
   COMPANY
@@ -418,59 +428,60 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
-  id                                  String                         @id @default(cuid())
-  email                               String                         @unique
-  name                                String
-  passwordHash                        String
-  role                                UserRole                       @default(OWNER_VIEWER)
-  active                              Boolean                        @default(true)
-  allProperties                       Boolean                        @default(false)
-  phone                               String?
-  title                               String?
-  avatarData                          Bytes?
-  avatarMimeType                      String?
-  memberships                         UserProperty[]
-  unitMemberships                     UserUnit[]
-  invitationsSent                     UserInvitation[]               @relation("InvitationSender")
-  managedProperties                   Property[]                     @relation("PropertyManager")
-  auditLogs                           AuditLog[]
-  tasksCreated                        Task[]                         @relation("TaskCreator")
-  tasksAssigned                       Task[]                         @relation("TaskAssignee")
-  taskEntries                         TaskEntry[]
-  complianceRecordsCreated            ComplianceRecord[]             @relation("ComplianceRecordCreator")
-  securityDepositTermsCreated         SecurityDepositTerm[]          @relation("SecurityDepositTermCreator")
-  securityDepositMovementsCreated     SecurityDepositMovement[]      @relation("SecurityDepositMovementCreator")
-  leaseCreditsCreated                 LeaseCredit[]                  @relation("LeaseCreditCreator")
-  leaseCreditApplicationsCreated      LeaseCreditApplication[]       @relation("LeaseCreditApplicationCreator")
-  operationalStatusEventsCreated      UnitOperationalStatusEvent[]
-  reportingGroupMemberships           ReportingGroupMember[]
-  quarterSnapshotsCreated             QuarterSnapshot[]
-  quarterlyReportsCreated             QuarterlyReport[]              @relation("QuarterlyReportCreator")
-  quarterlyReportsReviewed            QuarterlyReport[]              @relation("QuarterlyReportReviewer")
-  quarterlyReportsPublished           QuarterlyReport[]              @relation("QuarterlyReportPublisher")
-  annualReportsCreated                AnnualReport[]                 @relation("AnnualReportCreator")
-  annualReportsReviewed               AnnualReport[]                 @relation("AnnualReportReviewer")
-  annualReportsPublished              AnnualReport[]                 @relation("AnnualReportPublisher")
-  fileAssetsUploaded                  FileAsset[]                    @relation("FileAssetUploader")
-  documentsCreated                    Document[]                     @relation("DocumentCreator")
-  quarterlyPropertyReportMediaCreated QuarterlyPropertyReportMedia[] @relation("QuarterlyPropertyReportMediaCreator")
-  mfRentDatasetReleasesImported       MfRentDatasetRelease[]         @relation("MfRentDatasetImporter")
-  mfRentLocationsConfirmed            PropertyMfRentLocation[]       @relation("MfRentLocationConfirmer")
-  propertyValuationsCreated           PropertyValuationSnapshot[]    @relation("PropertyValuationCreator")
-  rentForecastPlansCreated            RentForecastPlan[]             @relation("RentForecastPlanCreator")
-  rentForecastPlansApproved           RentForecastPlan[]             @relation("RentForecastPlanApprover")
-  rentChangeProposalsCreated          RentChangeProposal[]           @relation("RentChangeProposalCreator")
-  rentChangeProposalsConfirmed        RentChangeProposal[]           @relation("RentChangeProposalConfirmer")
-  serviceSettlementProtocolsIssued    ServiceSettlementProtocol[]    @relation("ServiceSettlementProtocolIssuer")
-  unitAssetAssessmentsCreated         UnitAssetAssessment[]          @relation("UnitAssetAssessmentCreator")
-  unitConditionAssessmentsCreated     UnitConditionAssessment[]      @relation("UnitConditionAssessmentCreator")
-  unitConditionPlanExecutionsCreated  UnitConditionPlanExecution[]   @relation("UnitConditionPlanExecutionCreator")
-  unitConditionExecutionEventsCreated UnitConditionExecutionEvent[]  @relation("UnitConditionExecutionEventCreator")
-  unitValuationsCreated               UnitValuationSnapshot[]        @relation("UnitValuationCreator")
-  distributionProspectsCreated        DistributionProspect[]         @relation("DistributionProspectCreator")
-  distributionOpportunitiesCreated    DistributionOpportunity[]      @relation("DistributionOpportunityCreator")
-  createdAt                           DateTime                       @default(now())
-  updatedAt                           DateTime                       @updatedAt
+  id                                   String                         @id @default(cuid())
+  email                                String                         @unique
+  name                                 String
+  passwordHash                         String
+  role                                 UserRole                       @default(OWNER_VIEWER)
+  active                               Boolean                        @default(true)
+  allProperties                        Boolean                        @default(false)
+  phone                                String?
+  title                                String?
+  avatarData                           Bytes?
+  avatarMimeType                       String?
+  memberships                          UserProperty[]
+  unitMemberships                      UserUnit[]
+  invitationsSent                      UserInvitation[]               @relation("InvitationSender")
+  managedProperties                    Property[]                     @relation("PropertyManager")
+  auditLogs                            AuditLog[]
+  tasksCreated                         Task[]                         @relation("TaskCreator")
+  tasksAssigned                        Task[]                         @relation("TaskAssignee")
+  taskEntries                          TaskEntry[]
+  complianceRecordsCreated             ComplianceRecord[]             @relation("ComplianceRecordCreator")
+  securityDepositTermsCreated          SecurityDepositTerm[]          @relation("SecurityDepositTermCreator")
+  securityDepositMovementsCreated      SecurityDepositMovement[]      @relation("SecurityDepositMovementCreator")
+  leaseCreditsCreated                  LeaseCredit[]                  @relation("LeaseCreditCreator")
+  leaseCreditApplicationsCreated       LeaseCreditApplication[]       @relation("LeaseCreditApplicationCreator")
+  operationalStatusEventsCreated       UnitOperationalStatusEvent[]
+  reportingGroupMemberships            ReportingGroupMember[]
+  quarterSnapshotsCreated              QuarterSnapshot[]
+  quarterlyReportsCreated              QuarterlyReport[]              @relation("QuarterlyReportCreator")
+  quarterlyReportsReviewed             QuarterlyReport[]              @relation("QuarterlyReportReviewer")
+  quarterlyReportsPublished            QuarterlyReport[]              @relation("QuarterlyReportPublisher")
+  annualReportsCreated                 AnnualReport[]                 @relation("AnnualReportCreator")
+  annualReportsReviewed                AnnualReport[]                 @relation("AnnualReportReviewer")
+  annualReportsPublished               AnnualReport[]                 @relation("AnnualReportPublisher")
+  fileAssetsUploaded                   FileAsset[]                    @relation("FileAssetUploader")
+  documentsCreated                     Document[]                     @relation("DocumentCreator")
+  quarterlyPropertyReportMediaCreated  QuarterlyPropertyReportMedia[] @relation("QuarterlyPropertyReportMediaCreator")
+  mfRentDatasetReleasesImported        MfRentDatasetRelease[]         @relation("MfRentDatasetImporter")
+  mfRentLocationsConfirmed             PropertyMfRentLocation[]       @relation("MfRentLocationConfirmer")
+  propertyValuationsCreated            PropertyValuationSnapshot[]    @relation("PropertyValuationCreator")
+  rentForecastPlansCreated             RentForecastPlan[]             @relation("RentForecastPlanCreator")
+  rentForecastPlansApproved            RentForecastPlan[]             @relation("RentForecastPlanApprover")
+  rentChangeProposalsCreated           RentChangeProposal[]           @relation("RentChangeProposalCreator")
+  rentChangeProposalsConfirmed         RentChangeProposal[]           @relation("RentChangeProposalConfirmer")
+  serviceSettlementProtocolsIssued     ServiceSettlementProtocol[]    @relation("ServiceSettlementProtocolIssuer")
+  unitAssetAssessmentsCreated          UnitAssetAssessment[]          @relation("UnitAssetAssessmentCreator")
+  unitConditionAssessmentsCreated      UnitConditionAssessment[]      @relation("UnitConditionAssessmentCreator")
+  unitConditionPlanExecutionsCreated   UnitConditionPlanExecution[]   @relation("UnitConditionPlanExecutionCreator")
+  unitConditionExecutionEventsCreated  UnitConditionExecutionEvent[]  @relation("UnitConditionExecutionEventCreator")
+  unitValuationsCreated                UnitValuationSnapshot[]        @relation("UnitValuationCreator")
+  distributionProspectsCreated         DistributionProspect[]         @relation("DistributionProspectCreator")
+  distributionOpportunitiesCreated     DistributionOpportunity[]      @relation("DistributionOpportunityCreator")
+  distributionOpportunityEventsCreated DistributionOpportunityEvent[] @relation("DistributionOpportunityEventCreator")
+  createdAt                            DateTime                       @default(now())
+  updatedAt                            DateTime                       @updatedAt
 }
 
 model Owner {
@@ -1073,24 +1084,51 @@ model DistributionProspect {
 }
 
 model DistributionOpportunity {
-  id                String                       @id @default(cuid())
+  id                String                         @id @default(cuid())
   prospectId        String
-  prospect          DistributionProspect         @relation(fields: [prospectId], references: [id], onDelete: Restrict)
+  prospect          DistributionProspect           @relation(fields: [prospectId], references: [id], onDelete: Restrict)
   unitId            String
-  unit              Unit                         @relation(fields: [unitId], references: [id], onDelete: Restrict)
-  stage             DistributionOpportunityStage @default(NEW)
+  unit              Unit                           @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  stage             DistributionOpportunityStage   @default(NEW)
   askingPriceCents  BigInt?
   offeredPriceCents BigInt?
   nextActionAt      DateTime?
   note              String?
+  optionStatus      DistributionOptionStatus       @default(NONE)
+  optionExpiresAt   DateTime?
+  optionPriceCents  BigInt?
+  optionReference   String?
   createdById       String
-  createdBy         User                         @relation("DistributionOpportunityCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt         DateTime                     @default(now())
-  updatedAt         DateTime                     @updatedAt
+  createdBy         User                           @relation("DistributionOpportunityCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  events            DistributionOpportunityEvent[]
+  createdAt         DateTime                       @default(now())
+  updatedAt         DateTime                       @updatedAt
 
   @@unique([prospectId, unitId])
   @@index([unitId, stage])
   @@index([stage, nextActionAt])
+  @@index([optionStatus, optionExpiresAt])
+}
+
+model DistributionOpportunityEvent {
+  id                String                        @id @default(cuid())
+  opportunityId     String
+  opportunity       DistributionOpportunity       @relation(fields: [opportunityId], references: [id], onDelete: Restrict)
+  fromStage         DistributionOpportunityStage?
+  toStage           DistributionOpportunityStage
+  optionStatus      DistributionOptionStatus
+  askingPriceCents  BigInt?
+  offeredPriceCents BigInt?
+  optionPriceCents  BigInt?
+  optionReference   String?
+  optionExpiresAt   DateTime?
+  nextActionAt      DateTime?
+  note              String?
+  createdById       String
+  createdBy         User                          @relation("DistributionOpportunityEventCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime                      @default(now())
+
+  @@index([opportunityId, createdAt])
 }
 
 model UnitOperationalStatusEvent {
