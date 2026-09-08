@@ -1108,6 +1108,7 @@ test("R13B: výroční report prochází kontrolou a verzovanou publikací", asy
   await page.getByRole("link", { name: /02 · Mapa portfolia/ }).click();
   await page.getByLabel("Zeměpisná šířka").fill("50.6607");
   await page.getByLabel("Zeměpisná délka").fill("14.0436");
+  await page.getByLabel("Zkontroloval/a jsem polohu změněných bodů").check();
   await page.getByRole("button", { name: "Uložit mapu", exact: true }).click();
   await expect(page.getByText("Mapa portfolia byla uložena.", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: /04 · Tým a skupina/ }).click();
