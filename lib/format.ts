@@ -8,3 +8,6 @@ export function phone(value: string | null | undefined) {
   if (/^\+420\d{9}$/.test(compact)) return `+420 ${compact.slice(4, 7)} ${compact.slice(7, 10)} ${compact.slice(10)}`;
   return original;
 }
+
+/** Exact cents for accounting details; compact dashboard money() is unchanged. */
+export const moneyExact = (cents: number) => new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
