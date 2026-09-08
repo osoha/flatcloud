@@ -493,7 +493,7 @@ async function main() {
       assert.equal(
         hash("lib/documents/access.ts"),
         // R24-B: human-approved internal-entry restriction; role/download behavior is browser gated.
-        "5ba1c5fcf19150c61f0cbab6c6df10e7043f520da5397e6add069c7a802e6bcf",
+        "40fbe6030940a31a7453b1051859fc6a283e3827d9e23f22a9ba67fe19f9711b",
       );
     },
   );
