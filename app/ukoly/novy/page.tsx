@@ -29,5 +29,5 @@ export default async function NewTaskPage({ searchParams }: { searchParams: Prom
     return { id: property.id, name: property.name, managerId: property.managerId, managers: [...managerMap.values()].sort((a,b)=>a.name.localeCompare(b.name,"cs")), units: property.units.map((unit) => ({ id: unit.id, label: unit.label, leases: unit.leases.map((lease) => ({ id: lease.id, tenantId: lease.tenantId, tenantName: lease.tenant.name, contractNumber: lease.contractNumber, status: leaseStatusAt(lease) })) })) };
   });
 
-  return <Shell user={user}><FormPage title="Nový úkol" description="Založte provozní úkol nebo případ. Pokud úkol vzniká z detailu nemovitosti, objekt lze předvyplnit odkazem." backHref="/ukoly"><Flash ok={query.ok} error={query.error}/><TaskCreateForm properties={options} initialPropertyId={query.propertyId} initialLeaseId={query.leaseId}/></FormPage></Shell>;
+  return <Shell user={user}><FormPage title="Nový úkol" description="Založte provozní úkol nebo případ. Pokud úkol vzniká z detailu nemovitosti, objekt lze předvyplnit odkazem." backHref="/ukoly"><Flash ok={query.ok} error={query.error}/><TaskCreateForm key={`${query.propertyId || ""}:${query.leaseId || ""}`} properties={options} initialPropertyId={query.propertyId} initialLeaseId={query.leaseId}/></FormPage></Shell>;
 }
