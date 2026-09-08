@@ -1804,7 +1804,13 @@ model Task {
   @@index([leaseId, category, status])
 }
 
+enum TaskEntryVisibility {
+  INTERNAL
+  OWNER_VISIBLE
+}
+
 model TaskEntry {
+  visibility          TaskEntryVisibility @default(INTERNAL)
   id                  String        @id @default(cuid())
   taskId              String
   task                Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)

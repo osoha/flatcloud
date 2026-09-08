@@ -4,7 +4,7 @@ import { text } from "@/lib/forms";
 import { go, goWithMessage } from "@/lib/route-response";
 import { prepareDocumentFiles,documentCategory } from "@/lib/documents/upload";
 import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepareDocumentBatch, storePreparedDocumentBatch } from "@/lib/documents/batch-service";
-import { authoritativeTaskUnitId, canEditTask } from "@/lib/task-access";
+import { authoritativeTaskUnitId, canEditTask, parseTaskEntryVisibility } from "@/lib/task-access";
 import { randomUUID } from "node:crypto";
 import { serializableTransaction } from "@/lib/serializable";
 
@@ -20,6 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!canEdit) return goWithMessage(request, `/ukoly/${id}`, "error", "Nemáte oprávnění přidávat záznamy.");
   try {
     const form = await request.formData();
+    const visibility = parseTaskEntryVisibility(form);
     const hasFiles=form.getAll("files").some(value=>value instanceof File&&value.size>0);
     const preparedFiles=hasFiles?await prepareDocumentFiles(form):[];
     const body = text(form, "body", true)!;
@@ -40,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const storedBatch=await storePreparedDocumentBatch(preparedBatch);
     try{await serializableTransaction(async tx=>{
     if (kindRaw === "PROMISE") {
-      const claim = await tx.task.updateMany({ where: { id, status: { notIn: ["DONE", "CANCELLED"] }, conditionPlanExecution: { is: null } }, data: { status: "WAITING", closedAt: null, ...(promiseDate ? { dueAt: promiseDate } : {}) } });
+      const claim = await tx.task.updateMany({ where: { id, status: { notIn: ["DONE", "CANCELLED"] }, conditionPlanExecution: { is: null } }, data: { status: "WAITING", closedAt: null, ...(promiseDate && visibility === "OWNER_VISIBLE" ? { dueAt: promiseDate } : {}) } });
       if (claim.count !== 1) throw new Error("Příslib nelze přidat k uzavřenému případu ani řízené CAPEX realizaci. Nejprve znovu otevřete případ příslušným postupem.");
     }
     const entry = await tx.taskEntry.create({
@@ -49,16 +50,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         taskId: id,
         authorId: user.id,
         kind: kindRaw as "COMMENT" | "CALL" | "EMAIL" | "PROMISE" | "STATUS" | "SYSTEM",
-        body,
+        body, visibility,
         promisedPaymentDate: kindRaw === "PROMISE" ? promiseDate : null,
         promisedAmountCents: kindRaw === "PROMISE" ? promiseAmountCents : null,
       },
     });
     if (kindRaw === "PROMISE") {
-      if (task.leaseId) await tx.lease.update({ where: { id: task.leaseId }, data: { promisedPaymentDate: promiseDate, promisedAmountCents: promiseAmountCents && promiseAmountCents > 0 ? promiseAmountCents : null, collectionNote: body } });
+      if (task.leaseId && visibility === "OWNER_VISIBLE") await tx.lease.update({ where: { id: task.leaseId }, data: { promisedPaymentDate: promiseDate, promisedAmountCents: promiseAmountCents && promiseAmountCents > 0 ? promiseAmountCents : null, collectionNote: body } });
     }
     await createStoredDocumentsInTransaction(tx,storedBatch);
-    await tx.auditLog.create({data:{userId:user.id,propertyId:task.propertyId,action:"TASK_ENTRY_ADDED",entityType:"TaskEntry",entityId:entry.id,details:{taskId:id,kind:kindRaw,promiseDate:promiseDate?.toISOString(),promiseAmountCents}}});
+    await tx.auditLog.create({data:{userId:user.id,propertyId:task.propertyId,action:"TASK_ENTRY_ADDED",entityType:"TaskEntry",entityId:entry.id,details:{taskId:id,kind:kindRaw,visibility,promiseDate:promiseDate?.toISOString(),promiseAmountCents}}});
     });}catch(error){await cleanupStoredDocumentBatch(storedBatch);throw error;}
     return goWithMessage(request, `/ukoly/${id}`, "ok", "Záznam byl přidán do vlákna.");
   } catch (error) {

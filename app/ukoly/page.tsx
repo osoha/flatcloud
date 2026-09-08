@@ -1,3 +1,4 @@
+import { taskEntryVisibilityWhere } from "@/lib/task-access";
 import Link from "next/link";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { accessibleProperties } from "@/lib/access";
@@ -27,7 +28,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const statusWhere = query.status === "open" ? { status: { in: openTaskStatuses } } : query.status === "done" ? { status: "DONE" as const } : {};
   const tasks = propertyIds.length ? await prisma.task.findMany({
     where: { AND: [taskScope, statusWhere] },
-    include: { property: true, unit: true, tenant: true, assignee: true, _count: { select: { entries: true } } },
+    include: { property: true, unit: true, tenant: true, assignee: true, _count: { select: { entries: { where: taskEntryVisibilityWhere(user) } } } },
     orderBy: [{ status: "asc" }, { dueAt: "asc" }, { updatedAt: "desc" }],
   }) : [];
   const open = tasks.filter((task) => openTaskStatuses.includes(task.status)).length;

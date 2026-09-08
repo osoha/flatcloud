@@ -25,7 +25,7 @@
 | ID | Závažnost | Role | Lifecycle | Stav | Shrnutí |
 |---|---|---|---|---|---|
 | R24-001 | P1 | senior graphic designer / novic | navigace a reporting | FIXED_CI_LIVE | Reportové podtrasy nemají jednoznačnou aktivní položku levého menu. |
-| R24-002 | P1 | technický správce / externí vlastník / security admin | úkoly a postprodejní péče | OPEN | Vlákno úkolu nemá interní a vlastnickou viditelnost; všechny záznamy se zobrazují vlastníkovi. |
+| R24-002 | P1 | technický správce / externí vlastník / security admin | úkoly a postprodejní péče | IMPLEMENTED_PENDING_CI | Schválený blok B zavádí interní a vlastnickou viditelnost; úplný CI a živý retest se evidují v samostatném PR. |
 | R24-003 | P2 | specialista přístupnosti | kvartální a výroční reporting | FIXED_CI_LIVE | Oba reportové editory vkládají druhý landmark `main` do hlavního `main`. |
 | R24-004 | P1 | správce jednotek / asistentka | dokumenty a úložiště | COVERAGE_GAP | Sandbox má Google Drive provider `disabled`, proto v něm nelze uživatelsky ověřit upload, preview, verze a zotavení. |
 | R24-005 | P1 | asset manager / security admin | uživatelé a reporting | PARTIAL | Trvalé testovací identity vstupují do běžných obchodních výběrů a automatických týmových defaultů. |
@@ -245,7 +245,7 @@ Každý blok má samostatný PR, kompletní CI na aktuálním head a merge výhr
 | F / R24-001/003/007/009 | PR #89, merge e2ff4f2c. CI 34243847784 SUCCESS, 62/62; rozšířeny původní scénáře klávesnice, navigace a čitelnosti. |
 | G / R24-006 | PR #90, merge 56538766. CI 34244893248 SUCCESS, 64/64. Dva nové scénáře kvality fixture a browser návrh → neuložený reload → potvrzený zápis. Textová shoda není prostorová přesnost; původní chybný bod není tímto automaticky opraven. |
 | I / pokrytí | PR #91; distribuční souběh a retry již prošly izolovaným CI 34244062353 (63/63). Dvě nové kontroly šířky 390/640 px prošly v CI 34246355622 SUCCESS (70/70 na tehdejší sestavě). Finální integrační gate zahrne všechny sloučené bloky, celkem 72 scénářů včetně navazujícího E2: 58 výchozích + A 4 + C 3 + E 1 + E2 1 + G 2 + I 3. D a F rozšířily existující testy bez navyšování počtu. Finální výsledek a merge jsou autoritativně u PR #91. |
-| B / R24-002 | BLOCKED_DECISION: bezpečnostní politika historie a nových interních záznamů dle AGENTS.md. Konkrétní návrh v [bránách B/H](../r24-storage-and-visibility-gates.md). |
+| B / R24-002 | IMPLEMENTED_PENDING_CI: uživatel schválil migrační politiku 2026-09-08. Historie OWNER_VISIBLE, nové INTERNAL; přílohy, vyhledávání, reportové kandidáty, roční evidence a koncept uvítání sdílejí ochranu. Podrobnosti v [bránách B/H](../r24-storage-and-visibility-gates.md). |
 | H / R24-004 | BLOCKED_CONFIG: izolovaný storage a přístup ke konfiguraci sandboxu. Kontrakt driverů ověřen lokálně 44 kontrolami; není to živý upload gate. Render plugin byl nabídnut, připojení ani izolovaný bucket nejsou doloženy. |
 
 ### Živé retesty po opravách

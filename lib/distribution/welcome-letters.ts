@@ -1,3 +1,4 @@
+import { ownerVisibleDocumentWhere } from "../documents/access";
 import type { Prisma } from "@prisma/client";
 import { canSeeAll } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -62,7 +63,7 @@ export async function createWelcomeLetter(actor: Actor, input: { opportunityId: 
 async function validDocuments(client: Prisma.TransactionClient, propertyId: string, documentIds: string[]) {
   const ids = [...new Set(documentIds.filter(Boolean))];
   if (ids.length > 8) throw new Error("K jednomu dopisu lze připojit nejvýše 8 dokumentů.");
-  const documents = await client.document.findMany({ where: { id: { in: ids }, propertyId, deletedAt: null }, select: { id: true } });
+  const documents = await client.document.findMany({ where: { id: { in: ids }, propertyId, deletedAt: null, AND: [ownerVisibleDocumentWhere] }, select: { id: true } });
   if (documents.length !== ids.length) throw new Error("Některá příloha nepatří k vybranému domu nebo již není dostupná.");
   return ids;
 }

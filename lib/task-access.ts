@@ -15,3 +15,25 @@ export async function canEditTask(user: User, task: TaskAuthorizationTarget, cli
   if (!unitId) return false;
   return Boolean(await client.userUnit.findFirst({where:{userId:user.id,unitId,permission:{in:["EDIT","ADMIN"]},unit:{propertyId:task.propertyId}},select:{unitId:true}}));
 }
+
+/** Same authoritative unit precedence as canEditTask, usable in relational filters. */
+export function taskEditWhere(user: User): Prisma.TaskWhereInput {
+  if (hasAllPropertyAccess(user)) return {};
+  const permission = { userId: user.id, permission: { in: ["EDIT", "ADMIN"] as ("EDIT" | "ADMIN")[] } };
+  return { OR: [
+    { property: { memberships: { some: permission } } },
+    { unit: { userAccesses: { some: permission } } },
+    { unitId: null, lease: { unit: { userAccesses: { some: permission } } } },
+  ] };
+}
+
+/** Apply inside an already authorized task/document scope. */
+export function taskEntryVisibilityWhere(user: User): Prisma.TaskEntryWhereInput {
+  return hasAllPropertyAccess(user) ? {} : { OR: [{ visibility: "OWNER_VISIBLE" }, { task: taskEditWhere(user) }] };
+}
+
+export function parseTaskEntryVisibility(form: FormData) {
+  const value = form.get("visibility") || "INTERNAL";
+  if (value !== "INTERNAL" && value !== "OWNER_VISIBLE") throw new Error("Vyberte platnou viditelnost záznamu.");
+  return value;
+}

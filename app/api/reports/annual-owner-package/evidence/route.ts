@@ -1,3 +1,4 @@
+import { ownerVisibleDocumentWhere } from "@/lib/documents/access";
 import { AnnualReviewStatus } from "@prisma/client";
 import { hasAllPropertyAccess, requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -172,6 +173,7 @@ export async function POST(request: Request) {
         !(await prisma.document.findFirst({
           where: {
             id: documentId,
+            AND: [ownerVisibleDocumentWhere],
             propertyId: loan.propertyId,
             deletedAt: null,
           },
