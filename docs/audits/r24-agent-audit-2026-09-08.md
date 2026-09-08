@@ -231,3 +231,22 @@ Výchozí kód: PR #84, `c8a4aaeee8409077a3a2f5aafa4b34c5726bb39b`. Živé kroky
 ### Zbývající důkazní mezery
 
 Tento blok obsahuje 14 živých scénářů výše, není novým automatickým browser gate. Původních 58 CI scénářů nesmí být vydáváno za pokrytí těchto nových mutací. Zbývají souběh dvou uživatelů, duplicity a retry CRM, samostatné přihlášení osmi živých rolí, celý lifecycle revizí a příloh, faktický převod účinného vlastníka a širší postprodejní úkoly. Odeslání dopisu a veřejná publikace jsou mimo povolený rozsah. Audit proto nadále `IN_PROGRESS`; návrh pipeline je průběžný, nikoli potvrzení produkční připravenosti.
+
+## Opravná pipeline – průběžný retest 8. 9. 2026
+
+Opravy byly uživatelem spuštěny samostatným pokynem. Každý blok má vlastní PR a povinné celé CI; sandbox je jediný cíl merge. Audit zůstává IN_PROGRESS do odstranění níže uvedených důkazních mezer.
+
+| Blok | Důkaz / průběžný stav |
+|---|---|
+| A / R24-010 | PR #86, merge 4954197c. CI 34241405916: build + browser-smoke success, 62/62 scénářů (58 původních + 4 nové lifecycle browser/DB regrese). |
+| A živě | 15:06–15:07 UTC: po nasazení Hotovo nenabízí Příslib úhrady. Prázdný důvod reopen neodeslal formulář; označený důvod A-RETEST-02 otevřel stejný případ a zůstal ve vlákně vedle staré historie. closedAt a souběh doloženy izolovanou CI DB, nikoli přímým čtením sandbox DB. |
+| C / R24-011 | PR #87; první CI odhalilo nejednoznačný přístupný název nového selectu. Opraveno, nové kompletní CI probíhá. Souběh a negativní zápisy prošly již prvním během. |
+| E / R24-005/008 | PR #88, nezávislá větev; kompletní CI probíhá. Explicitní isTestIdentity a prázdný globální objekt; historické snapshoty se automaticky nepřepisují. |
+| F / R24-001/003/007/009 | PR #89; kompletní CI probíhá. |
+| G / R24-006 | PR #90; kompletní CI probíhá. Návrhy jsou neuložené, změna bodů vyžaduje ruční potvrzení. Textová shoda není prostorová přesnost. |
+| B / R24-002 | BLOCKED_DECISION: bezpečnostní politika staré historie a nových interních záznamů. Konkrétní návrh v r24-storage-and-visibility-gates.md. |
+| H / R24-004 | BLOCKED_CONFIG: izolovaný storage a přístup ke konfiguraci sandboxu. Kontrakt existujících driverů ověřen lokálně 44 kontrolami; není to živý upload gate. |
+
+Živý testovací úkol má nadále ID b3334543-dc2b-4081-b12e-970d0d29ed02. V této opravné etapě vznikly pouze označené záznamy A-RETEST-01 a A-RETEST-02; žádný e-mail, platba ani publikace.
+
+Nový distribuční integrační scénář v izolované CI DB testuje souběžné vytvoření příležitosti a konceptu dopisu, retry konceptu, zachování jedné revize a statusu DRAFT bez sentAt/readyAt. Není náhradou samostatných živých přihlášení osmi rolí, účinného převodu vlastnictví ani storage gate. Případné selhání zůstává viditelné v CI a blokuje merge.

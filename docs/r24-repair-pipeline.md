@@ -1,6 +1,6 @@
 # R24 – prioritizovaný návrh opravné pipeline
 
-Podklad: [audit R24](audits/r24-agent-audit-2026-09-08.md), nálezy R24-001 až R24-012. Stav návrhu: průběžný po 14 mutačních scénářích dne 8. 9. 2026. Implementace oprav není součástí auditního PR.
+Podklad: [audit R24](audits/r24-agent-audit-2026-09-08.md), nálezy R24-001 až R24-012. Stav návrhu: průběžný po 14 mutačních scénářích dne 8. 9. 2026. Původní auditní PR #85 neobsahoval opravy. Uživatel následně spustil implementační pipeline.
 
 Každý blok samostatně: pracovní větev ze současné `sandbox/ux-agent` → relevantní regresní testy → PR s base `sandbox/ux-agent` → kompletní CI build, migrace a browser-smoke na aktuálním SHA → kontrola diffu → merge pouze do sandboxu → živý retest. Bez úprav `main`, produkce, skutečné komunikace či plateb, publikace a nevratného mazání. Chybějící či neúspěšný důkaz blokuje merge; nesnižovat přísnost gate.
 
@@ -20,4 +20,9 @@ Nejprve A a C: oba blokují běžný provozní lifecycle. B má nejvyšší důl
 
 ## Průběh implementace
 
-- Blok A: implementováno explicitní znovuotevření s důvodem a kontrolou verze; terminální a CAPEX případy odmítají příslib atomicky. Doplněny čtyři browser/DB regrese (DONE, CANCELLED, souběh, CAPEX). Před merge je nutné kompletní CI; živý retest následuje po nasazení.
+- A: PR #86 sloučen po kompletním CI 62/62; živě ověřeno explicitní znovuotevření s důvodem a skrytí příslibu v Hotovo.
+- C: PR #87, oprava přístupných názvů selectů po prvním CI; druhé kompletní CI probíhá.
+- D: připraven samostatný diff haléřového zobrazení; navazuje na C.
+- E: PR #88. F: PR #89. G: PR #90. Nezávislé bloky mají samostatné pracovní větve z ověřeného sandboxu a samostatné celé CI.
+- B/H: konkrétní rozhodnutí a konfigurace v [r24-storage-and-visibility-gates.md](r24-storage-and-visibility-gates.md). Práce na ostatních blocích pokračuje.
+- I: doplněn izolovaný distribuční integrační scénář; konečná aktualizace auditu následuje po výsledcích merge a retestů.
