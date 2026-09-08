@@ -625,6 +625,8 @@ model PropertyCost {
   vendor                 String?
   documentNumber         String?
   note                   String?
+  taskId                 String?
+  task                   Task?                       @relation(fields: [taskId], references: [id], onDelete: SetNull)
   annualReviewStatus     AnnualReviewStatus          @default(DRAFT)
   annualReviewNote       String?
   annualReviewedById     String?
@@ -639,6 +641,7 @@ model PropertyCost {
   @@index([propertyId, effectiveAt])
   @@index([propertyId, kind, status])
   @@index([unitId])
+  @@index([taskId])
 }
 
 model PropertyCostAllocation {
@@ -1791,6 +1794,7 @@ model Task {
   dedupeKey              String?                     @unique
   entries                TaskEntry[]
   documents              Document[]
+  costs                  PropertyCost[]
   conditionPlanExecution UnitConditionPlanExecution?
   createdAt              DateTime                    @default(now())
   updatedAt              DateTime                    @updatedAt
