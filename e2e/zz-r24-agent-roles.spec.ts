@@ -33,6 +33,26 @@ test.describe("R24 · agentní role a lifecycle", () => {
     clean();
   });
 
+  test("pokročilý uživatel zapíše označený náklad pouze ve svém objektu", async ({ page }) => {
+    const clean = watchBrowserFailures(page);
+    await loginAs(page, R24_ROLE_USERS.advanced);
+    await expect(page.getByText("Moskevská", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("Karla Aksamita", { exact: true })).toHaveCount(0);
+    await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
+    await page.getByRole("link", { name: "Náklady a úvěry", exact: true }).click();
+    const costs = page.locator("#naklady");
+    await costs.getByText("Přidat náklad", { exact: true }).click();
+    await costs.getByLabel("Název *").fill("R24 · diagnostika střešní vpusti");
+    await costs.getByLabel("Částka v Kč *").fill("2400");
+    await costs.getByLabel("Stav *").selectOption("ACTUAL");
+    await costs.getByLabel("Dodavatel").fill("R24_AGENT_QA_2026_09 · syntetický dodavatel");
+    await costs.getByLabel("Číslo dokladu").fill("R24-QA-COST-001");
+    await costs.getByRole("button", { name: "Uložit náklad", exact: true }).click();
+    await expect(page.getByText("Náklad byl přidán do asset finance.", { exact: true })).toBeVisible();
+    await expect(page.getByText("R24 · diagnostika střešní vpusti", { exact: true })).toBeVisible();
+    clean();
+  });
+
   test("externí vlastník nevidí interní portfolio ani správu uživatelů", async ({ page }) => {
     const clean = watchBrowserFailures(page);
     await loginAs(page, R24_ROLE_USERS.distributionLead);

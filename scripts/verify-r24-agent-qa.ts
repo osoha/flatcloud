@@ -30,7 +30,7 @@ check("role seed is isolated, idempotent and uses only visibly marked test ident
 
 check("browser suite exercises real pages for each application persona and direct URL isolation", () => {
   const spec = read("e2e/zz-r24-agent-roles.spec.ts");
-  for (const marker of ["R24_ROLE_USERS.novice", "R24_ROLE_USERS.externalOwner", "R24_ROLE_USERS.internalAssistant", "R24_ROLE_USERS.technicalManager", "R24_ROLE_USERS.unitManager", "R24_ROLE_USERS.distributionLead", "R24_ROLE_USERS.assetManager", "forbidden?.status()", "R24_AGENT_QA_2026_09"]) assert.match(spec, new RegExp(marker.replace(/[?.()]/g, "\\$&")));
+  for (const marker of ["R24_ROLE_USERS.novice", "R24_ROLE_USERS.advanced", "R24_ROLE_USERS.externalOwner", "R24_ROLE_USERS.internalAssistant", "R24_ROLE_USERS.technicalManager", "R24_ROLE_USERS.unitManager", "R24_ROLE_USERS.distributionLead", "R24_ROLE_USERS.assetManager", "forbidden?.status()", "R24_AGENT_QA_2026_09"]) assert.match(spec, new RegExp(marker.replace(/[?.()]/g, "\\$&")));
 });
 
 check("visual gate checks heading, active navigation and viewport overflow", () => {
