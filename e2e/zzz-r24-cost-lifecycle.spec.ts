@@ -24,9 +24,9 @@ async function setup(page: Page) {
   await expect(page).toHaveURL(/\/portfolio(?:\?|$)/);
   const actor = await db.user.findUniqueOrThrow({ where: { email: R24_ROLE_USERS.advanced }, include: { memberships: true } });
   const propertyId = actor.memberships[0].propertyId;
-  const units = await db.unit.findMany({ where: { propertyId }, take: 2, orderBy: { id: "asc" } });
-  expect(units).toHaveLength(2);
-  const cost = await db.propertyCost.create({ data: { propertyId, title: "R24_AGENT_QA_2026_09 · cost lifecycle", kind: "OPEX", status: "PLANNED", amountCents: 100000, effectiveAt: new Date("2026-09-08T12:00:00Z"), allocations: { create: units.map(unit => ({ unitId: unit.id, shareBasisPoints: 5000, amountCents: 50000 })) } }, include: { allocations: true } });
+  const units = await db.unit.findMany({ where: { propertyId }, take: 3, orderBy: { id: "asc" } });
+  expect(units).toHaveLength(3);
+  const cost = await db.propertyCost.create({ data: { propertyId, title: "R24_AGENT_QA_2026_09 · cost lifecycle", kind: "OPEX", status: "PLANNED", amountCents: 100000, effectiveAt: new Date("2026-09-08T12:00:00Z"), allocations: { create: units.map((unit, index) => ({ unitId: unit.id, shareBasisPoints: index === 2 ? 3334 : 3333, amountCents: index === 2 ? 33340 : 33330 })) } }, include: { allocations: true } });
   const asset = await db.fileAsset.create({ data: { storageKey: `r24-fixture-${cost.id}`, originalName: "test.txt", mimeType: "text/plain", sizeBytes: 4, sha256: "test-metadata-only", uploadedById: actor.id } });
   const doc = await db.document.create({ data: { propertyId, propertyCostId: cost.id, createdById: actor.id, title: "R24 TEST invoice metadata", category: "INVOICE", fileAssetId: asset.id } });
   return { cost, doc, propertyId, actor };
@@ -45,6 +45,16 @@ test("R24 náklad projde plánem, závazkem a skutečností na jednom ID a zacho
     await editor.getByLabel("Důvod změny *", { exact: true }).fill(`R24 · ${status}`);
     await editor.getByRole("button", { name: "Uložit změnu nákladu" }).click();
     await expect(page.getByRole("status")).toContainText("Náklad byl aktualizován.");
+    await expect(page.locator(".summary-list")).toContainText(status === "COMMITTED" ? "1 234,56 Kč" : "1 500,01 Kč");
+    await expect(page.getByTestId("cost-allocation").locator("tfoot")).toContainText(status === "COMMITTED" ? "1 234,56 Kč" : "1 500,01 Kč");
+    const visibleAmounts = await page.getByTestId("cost-allocation").locator("tbody tr td:last-child").allTextContents();
+    expect(visibleAmounts).toHaveLength(3);
+    const visibleCents = visibleAmounts.map(value => {
+      const decimal = value.replace(/\s/g, "").replace("Kč", "");
+      expect(decimal).toMatch(/^\d+,\d{2}$/);
+      return Math.round(Number(decimal.replace(",", ".")) * 100);
+    });
+    expect(visibleCents.reduce((sum, value) => sum + value, 0)).toBe(Math.round(Number(amount) * 100));
     const updated = await db.propertyCost.findUniqueOrThrow({ where: { id: cost.id }, include: { allocations: true, documents: true } });
     expect(updated.status).toBe(status);
     expect(updated.amountCents).toBe(Math.round(Number(amount) * 100));

@@ -695,9 +695,9 @@ test("správce rozdělí společný náklad mezi více jednotek", async ({ page 
   const firstUnit = allocation.getByRole("row").filter({ hasText: "1.01" });
   const secondUnit = allocation.getByRole("row").filter({ hasText: "2.02" });
   await expect(firstUnit).toContainText("60 %");
-  await expect(firstUnit).toContainText("11 100 Kč");
+  await expect(firstUnit).toContainText("11 100,00 Kč");
   await expect(secondUnit).toContainText("40 %");
-  await expect(secondUnit).toContainText("7 400 Kč");
+  await expect(secondUnit).toContainText("7 400,00 Kč");
   await allocation.getByRole("button", { name: "Rozdělit rovnoměrně", exact: true }).click();
   await expect(page.getByText("Náklad byl rozdělen mezi 5 jednotek.", { exact: true })).toBeVisible();
   await expect(allocation.getByText("20 %", { exact: true })).toHaveCount(5);
