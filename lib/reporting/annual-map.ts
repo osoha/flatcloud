@@ -14,7 +14,7 @@ export async function processAnnualMapPhoto(upload: FormDataEntryValue | null) {
   } catch { throw new Error("Fotografii se nepodařilo zpracovat."); }
 }
 
-export type GeocodedAddress = { latitude: number; longitude: number; displayName: string };
+export type GeocodedAddress = { latitude: number; longitude: number; displayName: string; quality: string };
 
 export async function geocodeCzechAddress(address: string, fetcher: typeof fetch = fetch): Promise<GeocodedAddress | null> {
   const baseUrl = process.env.GEOCODING_BASE_URL || "https://nominatim.openstreetmap.org";
@@ -27,5 +27,17 @@ export async function geocodeCzechAddress(address: string, fetcher: typeof fetch
   if (!response.ok) throw new Error("Mapová služba je dočasně nedostupná.");
   const rows = await response.json() as Array<{ lat?: string; lon?: string; display_name?: string }>;
   const latitude = Number(rows[0]?.lat); const longitude = Number(rows[0]?.lon);
-  return Number.isFinite(latitude) && Number.isFinite(longitude) ? { latitude, longitude, displayName: rows[0]?.display_name || address } : null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude) || latitude < 48.5 || latitude > 51.1 || longitude < 12 || longitude > 18.9) return null;
+  const displayName = rows[0]?.display_name || "Adresa ve výsledku chybí";
+  return { latitude, longitude, displayName, quality: geocodeMatchQuality(address, displayName) };
+}
+
+// This is textual agreement, not positional accuracy or an authoritative address match.
+export function geocodeMatchQuality(address: string, displayName: string) {
+  const normalize = (value: string) => value.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
+  const postcode = address.match(/\b(\d{3})\s?(\d{2})\b/);
+  const postcodeMatches = Boolean(postcode && displayName.replace(/\s/g, "").includes(postcode[1] + postcode[2]));
+  const words = normalize(address).match(/[a-z]{3,}/g) || [];
+  const wordsMatch = words.length > 0 && words.every(word => normalize(displayName).includes(word));
+  return postcodeMatches && wordsMatch ? "Textová shoda adresy a PSČ; poloha vyžaduje kontrolu" : "Nízká nebo neověřená shoda adresy; nutná ruční kontrola";
 }

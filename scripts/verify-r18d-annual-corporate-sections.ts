@@ -17,7 +17,7 @@ await check("annual editor exposes map, team, structure, contacts and legal copy
 
 await check("geocoding is user-triggered, Czech-scoped, identified and persisted separately from rendering", async () => {
   const result = await geocodeCzechAddress("Moskevská 1575/24, Ústí nad Labem", async (input, init) => { const url = new URL(String(input)); assert.equal(url.searchParams.get("countrycodes"), "cz"); assert.match(String(init?.headers && (init.headers as Record<string,string>)["user-agent"]), /FlatCloud/); return new Response(JSON.stringify([{ lat: "50.661", lon: "14.043", display_name: "Moskevská" }]), { status: 200 }); });
-  assert.deepEqual(result, { latitude: 50.661, longitude: 14.043, displayName: "Moskevská" });
+  assert.deepEqual(result, { latitude: 50.661, longitude: 14.043, displayName: "Moskevská", quality: "Nízká nebo neověřená shoda adresy; nutná ruční kontrola" });
   assert.deepEqual(czechMapPoint(90, 200), { x: 1, y: 0 });
   assert.doesNotMatch(read("lib/reporting/pdf/annual-report-pdf.tsx"), /geocodeCzechAddress|fetch\(/);
 });
