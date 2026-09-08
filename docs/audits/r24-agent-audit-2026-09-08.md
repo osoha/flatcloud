@@ -33,6 +33,9 @@
 | R24-007 | P2 | senior graphic designer / novic | informační bloky | OPEN | Obecná komponenta `notice` slepuje tučný titulek s navazujícím textem bez mezery. |
 | R24-008 | P1 | novic / technický správce | založení úkolu | OPEN | Formulář nového úkolu bez kontextového odkazu předvybere první objekt v seznamu. |
 | R24-009 | P2 | novic / interní asistentka | platby a rozsáhlé výběry | OPEN | Ruční platba používá dlouhý plochý select bez hledání nebo filtrování. |
+| R24-010 | P1 | technický správce | uzavření a znovuotevření | OPEN | Hotový úkol nemá řízené znovuotevření, ale příslib úhrady jej přepne do WAITING. |
+| R24-011 | P1 | účetní / technický správce | nákladový lifecycle | OPEN | Ručně založený závazek nelze v UI převést na skutečnost ani opravit. |
+| R24-012 | P2 | účetní | rozdělení nákladů | OPEN | Zobrazené zaokrouhlené řádky rozdělení nesouhlasí se zobrazeným celkem. |
 
 ## Důkazy a akceptační testy
 
@@ -152,6 +155,8 @@ Skutečné role a scope byly ověřeny nad osmi deterministickými identitami v 
 
 ## Kandidáti do následné pipeline
 
+Prioritizované bloky a jejich testovací brány jsou doplněné v [návrhu opravné pipeline](../r24-repair-pipeline.md). Následující původní seznam zachovává kontext prvního průchodu.
+
 1. P0/P1 bezpečné oddělení interních a vlastnických záznamů v úkolech a přílohách.
 2. P1 označení a izolace testovacích/service identit od obchodních defaultů a výstupů.
 3. P1 validace geokódu a potvrzení nejednoznačné adresy.
@@ -160,3 +165,69 @@ Skutečné role a scope byly ověřeny nad osmi deterministickými identitami v 
 6. P1 sandboxové dokumentové úložiště a pozdější izolovaný Google Drive integrační gate.
 7. P2 oprava landmarků obou reportových editorů, notice spacing a škálovatelných vyhledávacích výběrů.
 8. Dokončit živé vizuální rolové průchody bezpečnou autentizací a potom uzavřít výslednou opravnou pipeline.
+
+## Mutační pokračování 8. 9. 2026
+
+Výchozí kód: PR #84, `c8a4aaeee8409077a3a2f5aafa4b34c5726bb39b`. Živé kroky proběhly v přihlášené relaci **UX Sandbox Admin**, s odbornými optikami uvedenými v tabulce; nejde o důkaz přihlášení technického správce či účetního. Rozšířené povolení uživatele zahrnuje syntetické provozní, finanční a smluvní zápisy. Žádný e-mail, podpis, platba, publikace ani nevratné mazání nebyly provedeny. Dopis zůstal DRAFT, nebyl předán k odeslání.
+
+### Provedené scénáře a výsledky
+
+| Scénář | Výchozí stav a akce | Ověřený výsledek |
+|---|---|---|
+| TECH-01 | Existující R24 úkol OPEN; změna na IN_PROGRESS, URGENT, termín 7. 9.; přidání označené poznámky | PASS: stav, termín i poznámka uložené, historie změny dostupná. Historie používá anglické enumy IN_PROGRESS/URGENT. |
+| TECH-02 | Pokus o uzavření bez komentáře, poté s označeným závěrem | PASS: prázdný komentář blokuje nativní validace; s komentářem stav Hotovo. |
+| TECH-03 | Hotový úkol; hledání znovuotevření, následně příslib 1 234 Kč k 15. 9. | FAIL R24-010: řízené znovuotevření chybí; příslib uložen a stav změněn na Čeká na reakci. |
+| COST-01 | Založení OPEX závazku 1 234,56 Kč, dodavatel a číslo R24-TEST-001 | PASS vytvoření; FAIL R24-011 při hledání přechodu na skutečnost. Vazba na úkol je jen v poznámce. |
+| COST-02 | Vlastní podíly 60 % + 30 % | PASS: server vrací „Součet podílů musí být přesně 100 %. Nyní je 90 %.“ |
+| COST-03 | Rovnoměrné rozdělení stejného nákladu | PASS: 100 % rozděleno; FAIL R24-012 ve zobrazeném součtu částek. |
+| CRM-01 | Nový označený zájemce s adresou r24-crm-01@example.invalid; nabídka jednotky G-01 za 950 000 Kč | PASS: kontakt a příležitost uložené, řádek pipeline dostupný. |
+| CRM-02 | U nabídky volba Opce podepsána bez ceny a data | PASS: „Nabídnutá nebo podepsaná opce vyžaduje cenu a datum platnosti.“ |
+| CRM-03 | Cena opce 10 000 Kč, platnost 15. 10., reference R24_AGENT_QA_2026_09_TEST_OPTION_01; Rezervace / Opce podepsána → Uzavřeno / Opce využita | PASS: obě evidenční změny potvrzené; uzavřený obchod dostupný v zakládání uvítacího dopisu. Nejde o podpis ani právní převod. |
+| WELCOME-01 | Uzavřený syntetický obchod; budoucí datum nabytí 15. 9.; vytvoření šablony | PASS: vznikla revize 1 ve stavu Koncept, návaznost na G-01 a prodávajícího. |
+| WELCOME-02 | Změna předmětu a úvodu na TEST NEODESÍLAT; uložení | PASS: „Koncept byl uložen.“, náhled dostupný. DRAFT ponechán bez odeslání a bez příloh. |
+| LEASE-01 | Volná AGT-DEEP3-U04, existující syntetický Tenant 01; smlouva 1. 10.–31. 12., nájem 10 000 + služby 2 000 | PASS: vznikly právě tři měsíční předpisy 12 000 Kč pro říjen–prosinec. |
+| LEASE-02 | Změna nájmu na 11 000 Kč od 1. 11., důvod s markerem; preview a potvrzení | PASS: preview vybral pouze listopad a prosinec; po uložení říjen 12 000, listopad a prosinec 13 000 Kč. |
+| LEASE-03 | Zrušení budoucí smlouvy s důvodem a potvrzením dopadů | PASS: jednotka Volná, smlouva dostupná v historii jako zrušená před začátkem; žádný záznam smlouvy ani osoby se nesmazal. |
+
+### R24-010 – neřízené znovuotevření hotového úkolu
+
+- Persona: technický správce; živé oprávnění administrátora.
+- URL: `/ukoly/b3334543-dc2b-4081-b12e-970d0d29ed02`.
+- Kroky: uzavřít úkol s komentářem TECH-02; v editaci je pouze stav Hotovo; ve stále dostupném composeru zvolit Příslib úhrady, vložit TECH-03, datum 15. 9. 2026 a částku 1 234 Kč, uložit.
+- Očekávání: terminální stav mění pouze explicitní znovuotevření s důvodem; příslib u uzavřeného případu nesmí stav skrytě změnit.
+- Skutečnost: úkol přešel z Hotovo do Čeká na reakci, získal nový termín a znovu se objevil mezi otevřenými úkoly objektu. Běžná editace znovuotevření nenabízí.
+- Důkaz: DOM před a po TECH-03, potvrzení „Záznam byl přidán do vlákna.“; `app/api/tasks/[id]/entries/route.ts` při PROMISE bez podmínky zapisuje WAITING a nečistí closedAt. Zachování closedAt je doloženo kódem, nikoli přímým čtením sandbox DB.
+- Scope: composer všech uzavřených úkolů; tento test byl provozní úkol bez smlouvy. Reprodukovatelnost 1/1.
+- Akceptační test: DONE/CANCELLED + PROMISE nesmí změnit stav ani termín; explicitní reopen zaznamená důvod, vyčistí closedAt atomicky a funguje i při souběhu s jiným zápisem. CAPEX zůstane pod svým řízeným lifecycle.
+
+### R24-011 – přerušený lifecycle ručně evidovaného nákladu
+
+- Persona: technický správce / účetní; živé oprávnění administrátora.
+- URL: `/nemovitosti/cmtlxsapt0005un2a5u7o803g/naklady/cmtsr4v9m000bts29qq5wdpye` a finance téhož objektu.
+- Kroky: založit COST-01 jako Objednáno, otevřít detail a hledat opravu částky či změnu na Skutečnost.
+- Očekávání: tentýž náklad projde Plán → Objednáno → Skutečnost, se zachováním ID, dokladu, alokací a historie; není nutné přidat další započítávaný řádek.
+- Skutečnost: detail nabízí pouze účetní podklady a rozdělení. Přehled má pouze přidání nákladu. Pro ruční náklad existují API create a allocations, nikoli update lifecycle.
+- Důkaz: uložený detail COST-01 a kontrola `app/api/properties/[id]/costs`. Scope: ručně zakládané náklady, nikoli samostatná CAPEX realizace. Reprodukovatelnost 1/1.
+- Akceptační test: na jednom ID převést plán na závazek a skutečnost; KPI nesmí dvojitě započíst starý závazek, alokace a doklady zůstanou; korekce má autora, důvod a historii. Přechod nezakládá bankovní platbu.
+
+### R24-012 – zaokrouhlení skrývá kontrolovatelný součet
+
+- Persona: účetní; živé oprávnění administrátora.
+- URL a data: detail COST-01 výše; vstup 1 234,56 Kč, rovnoměrné rozdělení mezi tři jednotky.
+- Kroky: uložit částku se dvěma desetinnými místy, zvolit Rozdělit rovnoměrně, porovnat řádky a Celkem.
+- Očekávání: účetní detail zobrazí přesné částky na haléře a umožní ověřit součet.
+- Skutečnost: řádky 412 Kč + 411 Kč + 411 Kč, Celkem 1 235 Kč. Z viditelných částek vychází 1 234 Kč. Tento nález nedokazuje chybu uložených haléřů.
+- Důkaz: DOM tabulky rozdělení; podíly 33,34 % / 33,33 % / 33,33 %. Scope: účetní detail a jeho alokační tabulka. Reprodukovatelnost 1/1.
+- Akceptační test: haléřová fixture a tři alokace mají přesně zobrazený součet; kompaktní KPI mohou zaokrouhlovat, účetní detail zachová dvě desetinná místa.
+
+### Trvalá testovací stopa tohoto pokračování
+
+- Technický úkol: `b3334543-dc2b-4081-b12e-970d0d29ed02`, aktuálně WAITING po reprodukci R24-010; historie TECH-01 až TECH-03 ponechána.
+- Náklad: `cmtsr4v9m000bts29qq5wdpye`, Objednáno, rovnoměrně rozdělený, bez příloh.
+- CRM: `R24_AGENT_QA_2026_09 · CRM-01 Testovací zájemce`, kontakt `r24-crm-01@example.invalid`, příležitost G-01 Uzavřeno / Opce využita.
+- Dopis: `cmtsr9osg0012ts29zgwzxrni`, DRAFT, revize 1, předmět `R24_AGENT_QA_2026_09 · WELCOME-01 · TEST NEODESÍLAT`, syntetické datum nabytí 15. 9. 2026.
+- Nájem: `cmtsrbnmo001ats29i28ttnkp`, číslo `R24_AGENT_QA_2026_09_LEASE_01`, zrušen před začátkem, jednotka `cmtofqovr003aub2abyxrfwy7` volná.
+
+### Zbývající důkazní mezery
+
+Tento blok obsahuje 14 živých scénářů výše, není novým automatickým browser gate. Původních 58 CI scénářů nesmí být vydáváno za pokrytí těchto nových mutací. Zbývají souběh dvou uživatelů, duplicity a retry CRM, samostatné přihlášení osmi živých rolí, celý lifecycle revizí a příloh, faktický převod účinného vlastníka a širší postprodejní úkoly. Odeslání dopisu a veřejná publikace jsou mimo povolený rozsah. Audit proto nadále `IN_PROGRESS`; návrh pipeline je průběžný, nikoli potvrzení produkční připravenosti.
