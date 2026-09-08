@@ -58,13 +58,13 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
       <input type="hidden" name="expectedUpdatedAt" value={cost.updatedAt.toISOString()}/>
       <label className="field"><span>Název *</span><input name="title" defaultValue={cost.title} required/></label>
       <label className="field"><span>Částka v Kč *</span><input name="amount" type="number" min="0.01" step="0.01" max="21474836.47" defaultValue={(cost.amountCents/100).toFixed(2)} required/></label>
-      <label className="field"><span>Typ *</span><select name="kind" defaultValue={cost.kind}>{Object.entries(propertyCostKinds).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-      <label className="field"><span>Stav *</span><select name="status" defaultValue={cost.status}>{Object.entries(propertyCostStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
-      <label className="field"><span>Kategorie *</span><select name="category" defaultValue={cost.category}>{Object.entries(propertyCostCategories).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="field"><span>Typ *</span><select aria-label="Typ *" name="kind" defaultValue={cost.kind}>{Object.entries(propertyCostKinds).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="field"><span>Stav *</span><select aria-label="Stav *" name="status" defaultValue={cost.status}>{Object.entries(propertyCostStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="field"><span>Kategorie *</span><select aria-label="Kategorie *" name="category" defaultValue={cost.category}>{Object.entries(propertyCostCategories).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
       <label className="field"><span>Datum plánu / vzniku *</span><input name="effectiveAt" type="date" defaultValue={dateInput(cost.effectiveAt)} required/></label>
       <label className="field"><span>Dodavatel</span><input name="vendor" defaultValue={cost.vendor||""}/></label>
       <label className="field"><span>Číslo dokladu</span><input name="documentNumber" defaultValue={cost.documentNumber||""}/></label>
-      <label className="field"><span>Související úkol</span><select name="taskId" defaultValue={cost.taskId||""}><option value="">Bez vazby</option>{tasks.map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
+      <label className="field"><span>Související úkol</span><select aria-label="Související úkol" name="taskId" defaultValue={cost.taskId||""}><option value="">Bez vazby</option>{tasks.map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
       <label className="field"><span>Poznámka</span><textarea name="note" defaultValue={cost.note||""}/></label>
       <label className="field"><span>Důvod změny *</span><textarea name="reason" required/></label><div className="form-actions"><button className="primary" type="submit">Uložit změnu nákladu</button></div>
     </form></details>}
