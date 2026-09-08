@@ -105,7 +105,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
     const firstUnit = page.locator("tbody tr").first();
     await expect(firstUnit).toContainText("Obsazená");
     await firstUnit.getByRole("link").first().click();
-    await expect(page.getByRole("heading", { name: /Jednotka/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "1.01", exact: true })).toBeVisible();
     await expect(page.getByText("Aktivní smlouva", { exact: true })).toBeVisible();
     clean();
   });
