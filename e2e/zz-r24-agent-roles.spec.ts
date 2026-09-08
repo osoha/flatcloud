@@ -63,9 +63,9 @@ test.describe("R24 · agentní role a lifecycle", () => {
     await expect(page.getByText("Moskevská", { exact: true })).toHaveCount(0);
     await page.goto("/uzivatele");
     await expect(page).toHaveURL(/\/portfolio(?:\?|$)/);
+    clean();
     const forbidden = await page.goto(internalHref!);
     expect(forbidden?.status()).toBe(404);
-    clean();
   });
 
   test("interní asistentka dohledá data, ale nemůže spravovat role ani Distribuci", async ({ page }) => {
@@ -103,7 +103,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
     await page.locator("a.property-cell").filter({ hasText: "Dům ve správě" }).first().click();
     await page.getByRole("link", { name: "Jednotky", exact: true }).click();
     const firstUnit = page.locator("tbody tr").first();
-    await expect(firstUnit).toContainText("Obsazeno");
+    await expect(firstUnit).toContainText("Obsazená");
     await firstUnit.getByRole("link").first().click();
     await expect(page.getByRole("heading", { name: /Jednotka/ })).toBeVisible();
     await expect(page.getByText("Aktivní smlouva", { exact: true })).toBeVisible();
