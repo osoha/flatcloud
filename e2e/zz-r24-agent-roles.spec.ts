@@ -95,7 +95,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
     await page.getByRole("link", { name: "Nový úkol", exact: true }).click();
     await expect(page).toHaveURL(/\/ukoly\/novy$/);
     await expect(picker).toHaveValue("");
-    await expect(page.getByLabel("Odpovědný", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Odpovědný")).toBeDisabled();
     await page.goto("/ukoly/novy?propertyId=foreign-r24-id&leaseId=foreign-lease");
     await expect(page.getByLabel("Nemovitost *")).toHaveValue("");
     await expect(page.getByLabel("Smlouva / nájemník", {exact:true})).toHaveValue("");
