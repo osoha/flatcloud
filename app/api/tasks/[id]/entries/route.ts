@@ -6,6 +6,7 @@ import { prepareDocumentFiles,documentCategory } from "@/lib/documents/upload";
 import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepareDocumentBatch, storePreparedDocumentBatch } from "@/lib/documents/batch-service";
 import { authoritativeTaskUnitId, canEditTask } from "@/lib/task-access";
 import { randomUUID } from "node:crypto";
+import { serializableTransaction } from "@/lib/serializable";
 
 const kinds = new Set(["COMMENT", "CALL", "EMAIL", "PROMISE", "STATUS", "SYSTEM"]);
 
@@ -37,7 +38,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const documentScope=unitId?{mode:"UNIT" as const,propertyId:task.propertyId,unitId}:{mode:"PROPERTY" as const,propertyId:task.propertyId};
     const preparedBatch=await prepareDocumentBatch(user,documentInputs,documentInputs.map(()=>documentScope));
     const storedBatch=await storePreparedDocumentBatch(preparedBatch);
-    try{await prisma.$transaction(async tx=>{const entry = await tx.taskEntry.create({
+    try{await serializableTransaction(async tx=>{
+    if (kindRaw === "PROMISE") {
+      const claim = await tx.task.updateMany({ where: { id, status: { notIn: ["DONE", "CANCELLED"] }, conditionPlanExecution: { is: null } }, data: { status: "WAITING", closedAt: null, ...(promiseDate ? { dueAt: promiseDate } : {}) } });
+      if (claim.count !== 1) throw new Error("Příslib nelze přidat k uzavřenému případu ani řízené CAPEX realizaci. Nejprve znovu otevřete případ příslušným postupem.");
+    }
+    const entry = await tx.taskEntry.create({
       data: {
         id:entryId,
         taskId: id,
@@ -49,7 +55,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       },
     });
     if (kindRaw === "PROMISE") {
-      await tx.task.update({ where: { id }, data: { status: "WAITING", ...(promiseDate ? { dueAt: promiseDate } : {}) } });
       if (task.leaseId) await tx.lease.update({ where: { id: task.leaseId }, data: { promisedPaymentDate: promiseDate, promisedAmountCents: promiseAmountCents && promiseAmountCents > 0 ? promiseAmountCents : null, collectionNote: body } });
     }
     await createStoredDocumentsInTransaction(tx,storedBatch);
