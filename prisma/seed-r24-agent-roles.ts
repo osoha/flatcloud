@@ -33,8 +33,8 @@ export async function ensureR24AgentRoles(prisma: PrismaClient) {
   for (const fixture of fixtures) {
     const user = await prisma.user.upsert({
       where: { email: fixture.email },
-      update: { name: fixture.name, role: fixture.role, active: true, allProperties: Boolean(fixture.allProperties), passwordHash, title: R24_DATA_MARKER },
-      create: { email: fixture.email, name: fixture.name, role: fixture.role, active: true, allProperties: Boolean(fixture.allProperties), passwordHash, title: R24_DATA_MARKER },
+      update: { name: fixture.name, role: fixture.role, active: true, allProperties: Boolean(fixture.allProperties), passwordHash, title: R24_DATA_MARKER, isTestIdentity: true },
+      create: { email: fixture.email, name: fixture.name, role: fixture.role, active: true, allProperties: Boolean(fixture.allProperties), passwordHash, title: R24_DATA_MARKER, isTestIdentity: true },
     });
     if (!fixture.propertyName) continue;
     const property = await prisma.property.findFirstOrThrow({ where: { name: fixture.propertyName }, include: { units: { orderBy: { label: "asc" }, take: 1 } } });
