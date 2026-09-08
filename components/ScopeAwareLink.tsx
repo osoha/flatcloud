@@ -65,9 +65,12 @@ export function ScopeAwareLink({
     [href, currentScope, rememberedScope],
   );
   const targetPath = href.split(/[?#]/, 1)[0];
-  const pathMatches =
-    targetPath === pathname ||
-    (targetPath !== "/portfolio" && pathname.startsWith(`${targetPath}/`));
+  const shareholderRoots = ["/reporty/akcionarske", "/reporty/kvartalni", "/reporty/vyrocni", "/reporty/rocni-checklist", "/reporty/sablony"];
+  const shareholderActive = shareholderRoots.some(root => pathname === root || pathname.startsWith(`${root}/`));
+  const financeActive = ["/reporty/predpisy", "/reporty/saldo"].some(root => pathname === root || pathname.startsWith(`${root}/`));
+  const pathMatches = targetPath === "/reporty/akcionarske" ? shareholderActive
+    : targetPath === "/reporty" ? (pathname === targetPath || pathname.startsWith(`${targetPath}/`)) && !shareholderActive && !financeActive
+    : targetPath === pathname || (targetPath !== "/portfolio" && pathname.startsWith(`${targetPath}/`));
   const queryMatches =
     !activeQuery ||
     Object.entries(activeQuery).every(([key, value]) => {
