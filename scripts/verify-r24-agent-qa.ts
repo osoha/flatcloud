@@ -54,12 +54,13 @@ check("legal pipeline distinguishes rent, sublease, signature and delivery", () 
   for (const marker of ["nájem, podnájem", "podpis od důkazu doručení", "podepsaný dokument se neregeneruje", "Zvládneme.cz je pouze inspirační katalog"]) assert.match(plan, new RegExp(marker, "i"));
 });
 
-check("audit records reproducible findings and an explicit incomplete live gate", () => {
+check("audit records continued live findings and explicit incomplete gates", () => {
   const audit = read("docs/audits/r24-agent-audit-2026-09-08.md");
   assert.match(audit, /Stav: `IN_PROGRESS`/);
-  for (const id of ["R24-001", "R24-002", "R24-003", "R24-004"]) assert.match(audit, new RegExp(id));
-  assert.match(audit, /Trvalý sandbox byl procházen přihlášeným administrátorem/);
-  assert.match(audit, /Audit proto zůstává `IN_PROGRESS`/);
+  for (const id of ["R24-001", "R24-002", "R24-003", "R24-004", "R24-005", "R24-006", "R24-007", "R24-008", "R24-009"]) assert.match(audit, new RegExp(id));
+  assert.match(audit, /osm označených účtů je aktivních také v trvalém sandboxu/i);
+  assert.match(audit, /živý vizuální průchod každým účtem zvlášť zůstává otevřený/i);
+  assert.match(audit, /storage lifecycle/);
   assert.doesNotMatch(audit, /Stav: `READY`/);
 });
 
