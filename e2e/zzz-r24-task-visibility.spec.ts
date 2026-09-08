@@ -82,7 +82,11 @@ test("R24 visibility migration preserves historical sharing and defaults new row
     await tx.$executeRawUnsafe('CREATE TABLE "TaskEntry" (id TEXT PRIMARY KEY)');
     await tx.$executeRawUnsafe('INSERT INTO "TaskEntry" (id) VALUES (\'historical\')');
     const sql = readFileSync("prisma/migrations/20260908180000_r24_task_entry_visibility/migration.sql", "utf8");
-    for (const statement of sql.split(";").filter(s => s.trim())) await tx.$executeRawUnsafe(statement);
+    // Production migration holds its DDL lock through the default switch.
+    // This fixture already runs inside a rollback-only transaction.
+    expect(sql.trim().startsWith("BEGIN;")).toBe(true);
+    expect(sql.trim().endsWith("COMMIT;")).toBe(true);
+    for (const statement of sql.split(";").filter(s => s.trim() && !/^(BEGIN|COMMIT)$/i.test(s.trim()))) await tx.$executeRawUnsafe(statement);
     await tx.$executeRawUnsafe('INSERT INTO "TaskEntry" (id) VALUES (\'new\')');
     expect(await tx.$queryRawUnsafe('SELECT id, visibility::text AS visibility FROM "TaskEntry" ORDER BY id')).toEqual([{ id: "historical", visibility: "OWNER_VISIBLE" }, { id: "new", visibility: "INTERNAL" }]);
     throw rollback;
