@@ -77,7 +77,7 @@ export default async function AnnualReportWorkspace({ params, searchParams }: { 
         <Link className={section === "appendix" ? "active" : ""} href={`${baseHref}?section=appendix`}><strong>05 · Příloha a zdroje</strong><small>Snapshoty a provenience</small></Link>
         <Link className={section === "review" ? "active" : ""} href={`${baseHref}?section=review`}><strong>06 · Kontrola a publikace</strong><small>PDF náhled · interní workflow</small></Link>
       </nav>
-      <main>
+      <div className="report-workspace-content">
         {section === "overview" && <div className="annual-report-editor-stack">
           <section className="card annual-report-editor-intro"><span className="annual-report-kicker">Korporátní a portfolio vrstva</span><h2>Příběh roku a vývoj hodnoty</h2><p>Výroční report není součtem kvartálních reportů. Zde vzniká investorský příběh, hodnota portfolia, exity a informace o akcii.</p></section>
           <form className="card annual-report-editor" action={`/api/reporting-groups/${groupId}/annual-reports/${reportId}/editorial`} method="post">
@@ -139,7 +139,7 @@ export default async function AnnualReportWorkspace({ params, searchParams }: { 
           reportId={report.id}
           groupId={groupId}
         />}
-      </main>
+      </div>
     </div>
   </div></Shell>;
 }
