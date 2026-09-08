@@ -1,6 +1,6 @@
 # R24 – prioritizovaný návrh opravné pipeline
 
-Podklad: [audit R24](audits/r24-agent-audit-2026-09-08.md), nálezy R24-001 až R24-012. Stav návrhu: průběžný po 14 mutačních scénářích dne 8. 9. 2026. Implementace oprav není součástí auditního PR.
+Podklad: [audit R24](audits/r24-agent-audit-2026-09-08.md), nálezy R24-001 až R24-012. Stav návrhu: průběžný po 14 mutačních scénářích dne 8. 9. 2026. Původní auditní PR #85 neobsahoval opravy. Uživatel následně spustil implementační pipeline.
 
 Každý blok samostatně: pracovní větev ze současné `sandbox/ux-agent` → relevantní regresní testy → PR s base `sandbox/ux-agent` → kompletní CI build, migrace a browser-smoke na aktuálním SHA → kontrola diffu → merge pouze do sandboxu → živý retest. Bez úprav `main`, produkce, skutečné komunikace či plateb, publikace a nevratného mazání. Chybějící či neúspěšný důkaz blokuje merge; nesnižovat přísnost gate.
 
@@ -20,4 +20,18 @@ Nejprve A a C: oba blokují běžný provozní lifecycle. B má nejvyšší důl
 
 ## Průběh implementace
 
-- Blok A: implementováno explicitní znovuotevření s důvodem a kontrolou verze; terminální a CAPEX případy odmítají příslib atomicky. Doplněny čtyři browser/DB regrese (DONE, CANCELLED, souběh, CAPEX). Před merge je nutné kompletní CI; živý retest následuje po nasazení.
+| Blok | Výsledek opravné etapy |
+|---|---|
+| A | PR #86, sloučeno; celé CI 34241405916 SUCCESS, 62/62. Živý reopen s důvodem a terminální UI ověřeny. |
+| C | PR #87, sloučeno; celé CI 34243574781 SUCCESS, 65/65. Živý přechod na stejném ID a obousměrná vazba úkolu ověřeny. |
+| D | PR #92, sloučeno; celé CI 34246067337 SUCCESS, 67/67. Nové haléřové regrese prošly prvním během; starší očekávání celých korun bylo aktualizováno na přesná dvě desetinná místa. |
+| E | PR #88, sloučeno; celé CI 34246014053 SUCCESS, 68/68 po vyřešení konfliktu s C. R24-005 zůstává částečný, ostatní obchodní výběry nejsou součástí tohoto bloku. |
+| E2 | PR #93: živě nalezené zachování klientského kontextu a chybějící marker u osmi UI účtů. Klíčování formuláře, přesný idempotentní backfill a nové DB/navigační regrese. Konečný CI/merge a živý retest viz PR #93 a #91. |
+| F | PR #89, sloučeno; celé CI 34243847784 SUCCESS, 62/62. Živě ověřeny reportové landmarky, notice a klávesnicový historický výběr bez zápisu platby. Skutečný 200% zoom je důkazní mezera. |
+| G | PR #90, sloučeno; celé CI 34244893248 SUCCESS, 64/64. Živě odmítnut nepotvrzený posun souřadnic, původní bod zachován. Prostorová správnost adresy se tím nepotvrzuje. |
+| I | PR #91: distribuční souběh/retry a dvě úzké šířky 390/640 px již prošly průběžným CI 34246355622 (70/70). Finální sestava včetně E2 má 72 scénářů. Finální integrované CI a merge jsou podmínkou dokončení této etapy; R24 jako celek zůstává IN_PROGRESS. |
+| B / H | BLOCKED_DECISION / BLOCKED_CONFIG. Připravený konkrétní návrh v [bránách B/H](r24-storage-and-visibility-gates.md). |
+
+Neúspěšné běhy zůstávají v historii: A a C zpřesnily selektory a testovací session transport; G doplnil nové povinné potvrzení do původního ročního scénáře; D změnil očekávání účetního formátu. Žádný test nebyl přeskočen ani odstraněn kvůli selhání. Před merge musí být zelené celé CI na posledním SHA.
+
+Další priorita: B (politika historie a interních poznámek) → H (izolovaný storage a živý gate) → zbývající živé role/revize/vlastnictví/postprodejní návaznosti → širší obchodní TEST výběry a 200% zoom. Podrobná evidence, omezení a testovací ID jsou v [auditu](audits/r24-agent-audit-2026-09-08.md).

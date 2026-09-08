@@ -4,7 +4,7 @@
 - Prostředí: `sandbox/ux-agent` + izolovaná CI databáze
 - Datový marker: `R24_AGENT_QA_2026_09`
 - Stav: `IN_PROGRESS`
-- Automatizovaný gate: 58/58 browser scénářů
+- Výchozí automatizovaný gate: 58/58 scénářů; nové bloky a aktuální integrační gate jsou uvedeny na konci auditu.
 - Produkce / `main`: beze změny
 
 ## Pokrytí
@@ -24,18 +24,18 @@
 
 | ID | Závažnost | Role | Lifecycle | Stav | Shrnutí |
 |---|---|---|---|---|---|
-| R24-001 | P1 | senior graphic designer / novic | navigace a reporting | OPEN | Reportové podtrasy nemají jednoznačnou aktivní položku levého menu. |
+| R24-001 | P1 | senior graphic designer / novic | navigace a reporting | FIXED_CI_LIVE | Reportové podtrasy nemají jednoznačnou aktivní položku levého menu. |
 | R24-002 | P1 | technický správce / externí vlastník / security admin | úkoly a postprodejní péče | OPEN | Vlákno úkolu nemá interní a vlastnickou viditelnost; všechny záznamy se zobrazují vlastníkovi. |
-| R24-003 | P2 | specialista přístupnosti | kvartální a výroční reporting | OPEN | Oba reportové editory vkládají druhý landmark `main` do hlavního `main`. |
+| R24-003 | P2 | specialista přístupnosti | kvartální a výroční reporting | FIXED_CI_LIVE | Oba reportové editory vkládají druhý landmark `main` do hlavního `main`. |
 | R24-004 | P1 | správce jednotek / asistentka | dokumenty a úložiště | COVERAGE_GAP | Sandbox má Google Drive provider `disabled`, proto v něm nelze uživatelsky ověřit upload, preview, verze a zotavení. |
-| R24-005 | P1 | asset manager / security admin | uživatelé a reporting | OPEN | Trvalé testovací identity vstupují do běžných obchodních výběrů a automatických týmových defaultů. |
-| R24-006 | P1 | asset manager | mapa výročního reportu | OPEN | Geokódování přijalo chybný bod adresy bez upozornění nebo potvrzení uživatelem. |
-| R24-007 | P2 | senior graphic designer / novic | informační bloky | OPEN | Obecná komponenta `notice` slepuje tučný titulek s navazujícím textem bez mezery. |
-| R24-008 | P1 | novic / technický správce | založení úkolu | OPEN | Formulář nového úkolu bez kontextového odkazu předvybere první objekt v seznamu. |
-| R24-009 | P2 | novic / interní asistentka | platby a rozsáhlé výběry | OPEN | Ruční platba používá dlouhý plochý select bez hledání nebo filtrování. |
-| R24-010 | P1 | technický správce | uzavření a znovuotevření | OPEN | Hotový úkol nemá řízené znovuotevření, ale příslib úhrady jej přepne do WAITING. |
-| R24-011 | P1 | účetní / technický správce | nákladový lifecycle | OPEN | Ručně založený závazek nelze v UI převést na skutečnost ani opravit. |
-| R24-012 | P2 | účetní | rozdělení nákladů | OPEN | Zobrazené zaokrouhlené řádky rozdělení nesouhlasí se zobrazeným celkem. |
+| R24-005 | P1 | asset manager / security admin | uživatelé a reporting | PARTIAL | Trvalé testovací identity vstupují do běžných obchodních výběrů a automatických týmových defaultů. |
+| R24-006 | P1 | asset manager | mapa výročního reportu | MITIGATED | Geokódování přijalo chybný bod adresy bez upozornění nebo potvrzení uživatelem. |
+| R24-007 | P2 | senior graphic designer / novic | informační bloky | FIXED_CI_LIVE | Obecná komponenta `notice` slepuje tučný titulek s navazujícím textem bez mezery. |
+| R24-008 | P1 | novic / technický správce | založení úkolu | RETEST_FOLLOWUP | Formulář nového úkolu bez kontextového odkazu předvybere první objekt v seznamu. |
+| R24-009 | P2 | novic / interní asistentka | platby a rozsáhlé výběry | FIXED_CI_LIVE | Ruční platba používá dlouhý plochý select bez hledání nebo filtrování. |
+| R24-010 | P1 | technický správce | uzavření a znovuotevření | FIXED_CI_LIVE | Hotový úkol nemá řízené znovuotevření, ale příslib úhrady jej přepne do WAITING. |
+| R24-011 | P1 | účetní / technický správce | nákladový lifecycle | FIXED_CI_LIVE | Ručně založený závazek nelze v UI převést na skutečnost ani opravit. |
+| R24-012 | P2 | účetní | rozdělení nákladů | FIXED_CI_LIVE | Zobrazené zaokrouhlené řádky rozdělení nesouhlasí se zobrazeným celkem. |
 
 ## Důkazy a akceptační testy
 
@@ -151,7 +151,7 @@ Dále bylo vytvořeno osm aktivních účtů `R24 · …` s adresami `@flatcloud
 
 ## Omezení průchodu
 
-Skutečné role a scope byly ověřeny nad osmi deterministickými identitami v izolované CI databázi. Stejných osm označených účtů je aktivních také v trvalém sandboxu. Trvalý sandbox byl dále procházen přihlášeným administrátorem; automatizované zadávání přihlašovacích údajů do cloudového prohlížeče není bezpečně povoleno, proto živý vizuální průchod každým účtem zvlášť zůstává otevřený. To neoslabuje CI důkaz serverového scope, ale audit zůstává `IN_PROGRESS` a neoznačuje neprovedené role ani storage lifecycle za hotové.
+Skutečné role a scope byly ověřeny nad osmi deterministickými identitami v izolované CI databázi. Stejných osm označených účtů je aktivních také v trvalém sandboxu. Trvalý sandbox byl dále procházen přihlášeným administrátorem; samostatné živé přihlášení každým účtem nebylo provedeno. Přihlášení je dostupné pouze přes bezpečný browserAuth handoff, proto živý vizuální průchod každým účtem zvlášť zůstává otevřený. To neoslabuje CI důkaz serverového scope, ale audit zůstává `IN_PROGRESS` a neoznačuje neprovedené role ani storage lifecycle za hotové.
 
 ## Kandidáti do následné pipeline
 
@@ -222,12 +222,53 @@ Výchozí kód: PR #84, `c8a4aaeee8409077a3a2f5aafa4b34c5726bb39b`. Živé kroky
 
 ### Trvalá testovací stopa tohoto pokračování
 
-- Technický úkol: `b3334543-dc2b-4081-b12e-970d0d29ed02`, aktuálně WAITING po reprodukci R24-010; historie TECH-01 až TECH-03 ponechána.
-- Náklad: `cmtsr4v9m000bts29qq5wdpye`, Objednáno, rovnoměrně rozdělený, bez příloh.
+- Technický úkol: `b3334543-dc2b-4081-b12e-970d0d29ed02`, v době původní reprodukce WAITING; po A-RETEST-02 OPEN; historie TECH-01 až TECH-03 ponechána.
+- Náklad: `cmtsr4v9m000bts29qq5wdpye`, po C-RETEST-01 Skutečnost, rovnoměrně rozdělený, bez příloh, propojený s technickým úkolem.
 - CRM: `R24_AGENT_QA_2026_09 · CRM-01 Testovací zájemce`, kontakt `r24-crm-01@example.invalid`, příležitost G-01 Uzavřeno / Opce využita.
 - Dopis: `cmtsr9osg0012ts29zgwzxrni`, DRAFT, revize 1, předmět `R24_AGENT_QA_2026_09 · WELCOME-01 · TEST NEODESÍLAT`, syntetické datum nabytí 15. 9. 2026.
 - Nájem: `cmtsrbnmo001ats29i28ttnkp`, číslo `R24_AGENT_QA_2026_09_LEASE_01`, zrušen před začátkem, jednotka `cmtofqovr003aub2abyxrfwy7` volná.
 
 ### Zbývající důkazní mezery
 
-Tento blok obsahuje 14 živých scénářů výše, není novým automatickým browser gate. Původních 58 CI scénářů nesmí být vydáváno za pokrytí těchto nových mutací. Zbývají souběh dvou uživatelů, duplicity a retry CRM, samostatné přihlášení osmi živých rolí, celý lifecycle revizí a příloh, faktický převod účinného vlastníka a širší postprodejní úkoly. Odeslání dopisu a veřejná publikace jsou mimo povolený rozsah. Audit proto nadále `IN_PROGRESS`; návrh pipeline je průběžný, nikoli potvrzení produkční připravenosti.
+Tento blok obsahuje 14 živých scénářů výše, není novým automatickým browser gate. Původních 58 CI scénářů nesmí být vydáváno za pokrytí těchto nových mutací. Původní mezery souběhu, duplicit a retry nyní částečně pokrývají nové izolované regrese níže. Nadále zbývá souběh dvou různých živých uživatelů, samostatné přihlášení osmi živých rolí, celý lifecycle revizí a příloh, faktický převod účinného vlastníka a širší postprodejní úkoly. Odeslání dopisu a veřejná publikace jsou mimo povolený rozsah. Audit proto nadále `IN_PROGRESS`; návrh pipeline je průběžný, nikoli potvrzení produkční připravenosti.
+
+## Opravná pipeline – výsledky 8. 9. 2026
+
+Každý blok má samostatný PR, kompletní CI na aktuálním head a merge výhradně do sandbox/ux-agent. CI znamená oba joby build a browser-smoke včetně migrací, produkčního sestavení a všech verifikátorů. Níže uvedené počty jsou počty testů v Playwright runneru; zahrnují browserové i čistě databázové/fixture integrační scénáře, nejsou počtem nových živých průchodů.
+
+| Blok | Důkaz / stav |
+|---|---|
+| A / R24-010 | PR #86, merge 4954197c. CI 34241405916 SUCCESS, 62/62 (58 původních + 4 nové lifecycle regrese). |
+| C / R24-011 | PR #87, merge ca0d8d83. CI 34243574781 SUCCESS, 65/65. Tři nové scénáře: přechody na stejném ID se zachováním dokladových metadat a alokací, souběh stejné verze, cizí scope a záporná částka. Živý storage není tímto ověřen. |
+| D / R24-012 | PR #92, merge 41b20182. CI 34246067337 SUCCESS, 67/67. Přesné dvě desetinné pozice a součet tří viditelných alokací. |
+| E / R24-005/008 | PR #88, merge aab14f56. CI 34246014053 SUCCESS, 68/68. Explicitní isTestIdentity a prázdný globální objekt; historické snapshoty se nepřepisují. R24-005 je pouze částečně opraven: řešeny automatické reportové týmy a jejich TEST výběr, nikoli všechny obchodní číselníky. |
+| F / R24-001/003/007/009 | PR #89, merge e2ff4f2c. CI 34243847784 SUCCESS, 62/62; rozšířeny původní scénáře klávesnice, navigace a čitelnosti. |
+| G / R24-006 | PR #90, merge 56538766. CI 34244893248 SUCCESS, 64/64. Dva nové scénáře kvality fixture a browser návrh → neuložený reload → potvrzený zápis. Textová shoda není prostorová přesnost; původní chybný bod není tímto automaticky opraven. |
+| I / pokrytí | PR #91; distribuční souběh a retry již prošly izolovaným CI 34244062353 (63/63). Dvě nové kontroly šířky 390/640 px prošly v CI 34246355622 SUCCESS (70/70 na tehdejší sestavě). Finální integrační gate zahrne všechny sloučené bloky, celkem 72 scénářů včetně navazujícího E2: 58 výchozích + A 4 + C 3 + E 1 + E2 1 + G 2 + I 3. D a F rozšířily existující testy bez navyšování počtu. Finální výsledek a merge jsou autoritativně u PR #91. |
+| B / R24-002 | BLOCKED_DECISION: bezpečnostní politika historie a nových interních záznamů dle AGENTS.md. Konkrétní návrh v [bránách B/H](../r24-storage-and-visibility-gates.md). |
+| H / R24-004 | BLOCKED_CONFIG: izolovaný storage a přístup ke konfiguraci sandboxu. Kontrakt driverů ověřen lokálně 44 kontrolami; není to živý upload gate. Render plugin byl nabídnut, připojení ani izolovaný bucket nejsou doloženy. |
+
+### Živé retesty po opravách
+
+- A-RETEST-01/02, 15:06–15:07 UTC: Hotovo nenabízí Příslib úhrady; prázdný důvod reopen blokuje formulář. Označený důvod otevřel stejný případ a zůstal ve vlákně vedle původní historie. closedAt a souběh jsou doloženy CI DB.
+- C-RETEST-01, 15:31 UTC: COST-01 převeden Objednáno → Skutečnost na ID cmtsr4v9m000bts29qq5wdpye, 1 234,56 Kč zachováno, podíly 33,34/33,33/33,33 %. Důvod s markerem uložen, historie ukazuje přechod; technický úkol b3334543-dc2b-4081-b12e-970d0d29ed02 a náklad mají obousměrné odkazy. Nevznikla bankovní platba.
+- F: výroční editor má jeden main a aktivní pouze Akcionářské reporty. Titulek notice končí na 375,39 px, text začíná na 378,39 px. Výběr ruční platby nabízí 39 vztahů; marker LEASE_01 nalezne zrušenou testovací smlouvu, ArrowDown + Tab ji vybere a filtr bez výsledků zachová ID. Formulář nebyl odeslán. Zoom příkaz neměl měřitelný účinek (DPR stále 1), 200% zoom zůstává neověřený. Úzký viewport v CI není totéž co skutečný browser zoom.
+- G-RETEST-01: po nasazení viditelný checkbox potvrzení a popis neuložených návrhů. Ruční změna šířky 49.1428661 → 49.15 bez potvrzení vrací „Změnu polohy potvrďte až po kontrole souřadnic.“ Uložený snapshot zůstává 49.1428661 / 16.6528369. Geokódovací služba nebyla volána; žádná nová poloha se neuložila.
+- WELCOME read-only: dopis cmtsr9osg0012ts29zgwzxrni zůstává Koncept, revize 1, TEST NEODESÍLAT; žádné odeslání ani předání do Ready.
+
+D-RETEST-01 po nasazení: 411,60 + 411,48 + 411,48 Kč = 1 234,56 Kč; účetní kontext, patička i historie nyní zobrazují přesné haléře. Živý retest E odhalil navazující E2 níže; jeho následná evidence a finální CI jsou doplněny v PR #91. Stav FIXED_CI není tvrzením o nasazení do běžící služby.
+
+### Navazující živý retest E2
+
+PR #93 vznikl z dalších dvou reprodukcí R24-008/005: klientský přechod z /ukoly/novy?propertyId=… na globální odkaz ponechal předchozí propertyId v React stavu; osm živých QA účtů založených přes UI nemělo původní title marker, proto je migrace z #88 neoznačila.
+
+Oprava klíčuje formulář dvojicí propertyId/leaseId a přidává aditivní backfill přesně osmi dvojic email/jméno, ověřených 8. 9. v živém seznamu účtů. Žádná heuristika podle domény či role, žádná změna oprávnění, aktivity, hesel ani reportové historie. Nový DB test spouští skutečné SQL, vyžaduje změnu 8 řádků, retry 0, zachování scope a nedotčený podobný účet. Browser regrese prochází skutečný klientský odkaz; tvrdá navigace samotná chybu neodhalovala. Finální CI, merge a následný živý důkaz jsou u [PR #93](https://github.com/osoha/flatcloud/pull/93) a integračního [PR #91](https://github.com/osoha/flatcloud/pull/91).
+
+### Zbytkové riziko a další pořadí
+
+1. B: schválit konkrétní politiku viditelnosti, poté samostatný bezpečnostní PR a úplná matice přímých i odvozených cest.
+2. H: připojit konfiguraci sandboxu a izolovaný TEST storage; provést skutečný upload/preview/download/verze/zotavení bez produkčních dat.
+3. Dokončit živé přihlášení osmi rolí, úplný lifecycle revizí, účinné vlastnictví a širší postprodejní návaznosti; přesný geokód problematické adresy a skutečný 200% zoom.
+4. Rozšířit politiku testovacích identit na zbývající obchodní výběry bez odebrání QA oprávnění.
+
+Audit zůstává IN_PROGRESS. Odesílání, veřejná publikace, skutečné platby, main, produkce a nevratné mazání nebyly provedeny. Nový CRM test ověřuje jednu příležitost, jeden DRAFT revize 1 a null sentAt/readyAt při souběhu a retry v izolované CI DB; není důkazem reálného převodu vlastnictví.
