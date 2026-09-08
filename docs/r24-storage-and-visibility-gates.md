@@ -1,10 +1,10 @@
 # R24 – konkrétní zbývající brány B a H
 
-## B: navržená politika viditelnosti (čeká na samostatné rozhodnutí)
+## B: schválená politika viditelnosti (2026-09-08)
 
-R24-002 mění bezpečnostní hranici. AGENTS.md vyžaduje lidské rozhodnutí; obecné spuštění pipeline není samostatné schválení migrační politiky starých záznamů.
+R24-002 mění bezpečnostní hranici. Uživatel dne 2026-09-08 výslovně schválil předložené zachování historie OWNER_VISIBLE a nový výchozí INTERNAL („ano schvaluji“). Lidská brána dle AGENTS.md je tím pro blok B splněna.
 
-Návrh k rozhodnutí:
+Schválená implementace:
 
 - Nová enum viditelnost `OWNER_VISIBLE` / `INTERNAL` na `TaskEntry`. Nový ruční záznam výchozí `INTERNAL`; zveřejnění vlastníkovi je výslovná volba oprávněného správce.
 - Staré záznamy zachovat `OWNER_VISIBLE`, protože již byly vlastníkům dostupné. Případné zpětné omezení bude samostatná auditovaná operace na konkrétních záznamech. Žádné automatické zveřejnění dosud neveřejných dat.
@@ -12,7 +12,9 @@ Návrh k rozhodnutí:
 - Interní přístup se odvodí od existujícího editorského oprávnění ke stejnému objektu/jednotce, nikoli jen od názvu role. `OWNER_VIEWER` s přiděleným EDIT slouží jako interní asistent; čtenář s VIEW interní obsah neuvidí.
 - Testy: property VIEW, unit VIEW, property EDIT, unit EDIT, SUPER_ADMIN, cizí scope; obsah, metadata i přílohy přes všechny cesty; migrovaná historie a korekce bez rozšíření scope.
 
-Před implementací je nutné schválit zejména zachování staré historie jako OWNER_VISIBLE a nový výchozí INTERNAL. Zatím žádná změna práv ani schématu viditelnosti.
+Implementace mění schéma aditivní migrací. Také automatické nové záznamy mají INTERNAL. Viditelnost je neměnná po vytvoření; zpětná redakce ani změna sdílení starých příloh není součástí tohoto bloku. Interní příslib nepropíše text, datum ani částku do sdílených polí smlouvy nebo termínu úkolu. Stav úkolu zůstává sdíleným provozním údajem. Reportové kandidáty a podklady ročního balíčku přijímají pouze OWNER_VISIBLE přílohy; historické zmrazené exporty se nepřepisují.
+
+Regresní gate: `e2e/zzz-r24-task-visibility.spec.ts` obsahuje role/scope matici, tři varianty přímého downloadu, katalogové hledání, zápisy, migraci historie, příslib, reportové fotografie, roční podklady a koncept uvítání. Dokončení úplného CI a merge eviduje samostatné PR bloku B. Živý owner login a skutečné soubory zůstávají samostatným retestem.
 
 ## H: izolované úložiště (čeká na konfiguraci a živý důkaz)
 

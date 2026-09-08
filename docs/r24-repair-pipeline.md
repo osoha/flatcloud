@@ -7,7 +7,7 @@ Každý blok samostatně: pracovní větev ze současné `sandbox/ux-agent` → 
 | Pořadí / blok | Priorita a nálezy | Rozsah a výsledek | Povinný důkaz před merge |
 |---|---|---|---|
 | A – integrita úkolu | P1, R24-010 | Explicitní reopen s důvodem; příslib nezmění terminální úkol. Atomické změny stavu a closedAt. | Databázové testy DONE/CANCELLED, souběh uzavření a příslibu, UI reopen, CAPEX gate. |
-| B – viditelnost vlákna | P1, R24-002 | Rozlišení interního a vlastnického záznamu včetně příloh a bezpečné migrační strategie. | OWNER_VIEWER nesmí číst interní obsah přes UI, URL ani export; zachování scope jednotky; migrační ověření. Změna bezpečnostní hranice vyžaduje samostatné lidské rozhodnutí dle AGENTS.md před implementací. |
+| B – viditelnost vlákna | P1, R24-002 | Rozlišení interního a vlastnického záznamu včetně příloh a bezpečné migrační strategie. | OWNER_VIEWER nesmí číst interní obsah přes UI, URL ani export; zachování scope jednotky; migrační ověření. Migrační politika samostatně schválena uživatelem 2026-09-08. |
 | C – životní cyklus nákladů | P1, R24-011 | Editace a audit Plán → Objednáno → Skutečnost na jednom ID; vazba na technický úkol. | Bez dvojího započtení, souběh změn, zachování alokací a dokladů, scope vlastníka, účetní období. |
 | D – přesnost účetního detailu | P2, R24-012 | Haléřová přesnost v detailu a rozdělení nákladů. | Částka 1 234,56 Kč a tři jednotky: viditelné řádky i celkem souhlasí; beze změny výpočtu. |
 | E – bezpečné výchozí hodnoty | P1, R24-005/008 | Prázdný objekt globálního úkolu; explicitní politika testovacích identit pro reportové defaulty. Testovací řešitel musí zůstat použitelný v QA. | Kontextový propertyId funguje jen pro dostupný objekt; globální submit vyžaduje volbu; testovací tým nevstoupí automaticky do reportu. Neomezovat přístupová práva rolí. |
@@ -30,7 +30,8 @@ Nejprve A a C: oba blokují běžný provozní lifecycle. B má nejvyšší důl
 | F | PR #89, sloučeno; celé CI 34243847784 SUCCESS, 62/62. Živě ověřeny reportové landmarky, notice a klávesnicový historický výběr bez zápisu platby. Skutečný 200% zoom je důkazní mezera. |
 | G | PR #90, sloučeno; celé CI 34244893248 SUCCESS, 64/64. Živě odmítnut nepotvrzený posun souřadnic, původní bod zachován. Prostorová správnost adresy se tím nepotvrzuje. |
 | I | PR #91: distribuční souběh/retry a dvě úzké šířky 390/640 px již prošly průběžným CI 34246355622 (70/70). Finální sestava včetně E2 má 72 scénářů. Finální integrované CI a merge jsou podmínkou dokončení této etapy; R24 jako celek zůstává IN_PROGRESS. |
-| B / H | BLOCKED_DECISION / BLOCKED_CONFIG. Připravený konkrétní návrh v [bránách B/H](r24-storage-and-visibility-gates.md). |
+| B | IMPLEMENTED: schválená viditelnost historie/nových záznamů, společná autorizace příloh a ochrana návazných podkladů; úplný CI gate a merge eviduje [PR #94](https://github.com/osoha/flatcloud/pull/94). |
+| H | BLOCKED_CONFIG. Konkrétní konfigurace v [bránách B/H](r24-storage-and-visibility-gates.md). |
 
 Neúspěšné běhy zůstávají v historii: A a C zpřesnily selektory a testovací session transport; G doplnil nové povinné potvrzení do původního ročního scénáře; D změnil očekávání účetního formátu. Žádný test nebyl přeskočen ani odstraněn kvůli selhání. Před merge musí být zelené celé CI na posledním SHA.
 

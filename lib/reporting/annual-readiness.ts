@@ -1,3 +1,4 @@
+import { ownerVisibleDocumentWhere } from "../documents/access";
 import { prisma } from "@/lib/db";
 import { businessDateKeyToInstant } from "@/lib/calendar";
 import { annualReportMissingFields } from "@/lib/reporting/annual-report-service";
@@ -139,7 +140,7 @@ export async function loadAnnualReadiness(
           propertyId: true,
           annualReviewStatus: true,
           documents: {
-            where: { deletedAt: null, category: "INVOICE" },
+            where: { deletedAt: null, category: "INVOICE", AND: [ownerVisibleDocumentWhere] },
             select: { id: true },
             take: 1,
           },

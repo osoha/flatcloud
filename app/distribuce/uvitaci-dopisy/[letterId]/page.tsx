@@ -1,3 +1,4 @@
+import { ownerVisibleDocumentWhere } from "@/lib/documents/access";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { FileText, LockKeyhole, Send } from "lucide-react";
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default async function WelcomeLetterDetail({ params, searchParams }: { params: Promise<{ letterId: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
   const [user, { letterId }, query] = await Promise.all([requireUser(), params, searchParams]); if (!canSeeAll(user.role)) redirect("/portfolio");
   const letter = await prisma.distributionWelcomeLetter.findUnique({ where: { id: letterId }, include: { createdBy: { select: { name: true } }, updatedBy: { select: { name: true } }, readyBy: { select: { name: true } }, sentBy: { select: { name: true } }, attachments: { orderBy: { sortOrder: "asc" }, include: { document: { include: { fileAsset: true } } } } } }); if (!letter) notFound();
-  const documents = await prisma.document.findMany({ where: { propertyId: letter.propertyId, deletedAt: null }, include: { fileAsset: true }, orderBy: { createdAt: "desc" }, take: 80 });
+  const documents = await prisma.document.findMany({ where: { propertyId: letter.propertyId, deletedAt: null, AND: [ownerVisibleDocumentWhere] }, include: { fileAsset: true }, orderBy: { createdAt: "desc" }, take: 80 });
   const selected = new Set(letter.attachments.map((item) => item.documentId)), preview = renderWelcomeLetter(letter), editable = letter.status === "DRAFT", ready = letter.status === "READY", due = letter.ownershipRegisteredAt <= new Date();
   return <Shell user={user}><div className="page distribution-welcome-detail"><div className="breadcrumb"><Link href="/distribuce">Distribuce</Link><span>›</span><Link href="/distribuce/uvitaci-dopisy">Uvítací dopisy</Link><span>›</span><span>{letter.recipientNameSnapshot}</span></div><div className="page-title"><div><h1>{letter.recipientNameSnapshot}</h1><p>{letter.propertyNameSnapshot} · {letter.unitLabelSnapshot} · revize {letter.revision}</p></div><span className={`status ${letter.status === "SENT" ? "ok" : ready ? "warn" : ""}`}>{welcomeLetterStatuses[letter.status as WelcomeLetterStatus]}</span></div><Flash ok={query.ok} error={query.error}/>
     <MethodologyCallout slug="uvitaci-dopis-vlastnikovi" compact/>

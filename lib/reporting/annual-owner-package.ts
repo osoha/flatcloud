@@ -1,3 +1,4 @@
+import { ownerVisibleDocumentWhere } from "@/lib/documents/access";
 import { prisma } from "@/lib/db";
 import {
   businessDateEndInstant,
@@ -428,7 +429,7 @@ export async function loadAnnualOwnerPackage(
           },
         },
         documents: {
-          where: { deletedAt: null },
+          where: { deletedAt: null, AND: [ownerVisibleDocumentWhere] },
           select: { id: true, category: true },
         },
       },
@@ -459,7 +460,7 @@ export async function loadAnnualOwnerPackage(
               },
             },
             documents: {
-              where: { deletedAt: null, category: "INVOICE" },
+              where: { deletedAt: null, category: "INVOICE", AND: [ownerVisibleDocumentWhere] },
               select: { id: true, title: true },
               orderBy: { createdAt: "desc" },
             },

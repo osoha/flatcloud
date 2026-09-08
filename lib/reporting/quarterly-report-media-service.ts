@@ -1,3 +1,4 @@
+import { ownerVisibleDocumentWhere } from "../documents/access";
 import { DocumentCategory, DocumentPhotoStage, Prisma, QuarterlyReportMediaRole } from "@prisma/client";
 import { prisma } from "../db";
 import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, storePreparedDocumentBatch } from "../documents/batch-service";
@@ -45,7 +46,7 @@ export async function selectQuarterlyPropertyPrimaryPhoto(input: { reportId: str
   return serializableTransaction(async (tx) => {
     const propertyReport = await editablePropertyReport(tx, input, actor);
     const document = await tx.document.findFirst({
-      where: { id: input.sourceDocumentId, propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } },
+      where: { id: input.sourceDocumentId, propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, AND: [ownerVisibleDocumentWhere], fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } },
       select: { id: true, fileAssetId: true },
     });
     if (!document) throw new Error("Selected property photo is not available.");
@@ -131,7 +132,7 @@ export async function updateQuarterlyPropertyPrimaryPhotoCaption(input: { report
 export async function selectQuarterlyPropertySupportivePhoto(input: { reportId: string; reportingGroupId: string; propertyId: string; sourceDocumentId: string; caption?: string | null }, actor: QuarterlyReportMediaActor) {
   return serializableTransaction(async (tx) => {
     const propertyReport = await editablePropertyReport(tx, input, actor);
-    const document = await tx.document.findFirst({ where: { id: input.sourceDocumentId, propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } }, select: { id: true, fileAssetId: true } });
+    const document = await tx.document.findFirst({ where: { id: input.sourceDocumentId, propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, AND: [ownerVisibleDocumentWhere], fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } }, select: { id: true, fileAssetId: true } });
     if (!document) throw new Error("Selected property photo is not available.");
     const existing = await tx.quarterlyPropertyReportMedia.findFirst({ where: { quarterlyPropertyReportId: propertyReport.id, role: "SECONDARY", sortOrder: 0 } });
     const data = { role: QuarterlyReportMediaRole.SECONDARY, sortOrder: 0, fileAssetId: document.fileAssetId, sourceDocumentId: document.id, caption: captionValue(input.caption) };
@@ -192,7 +193,7 @@ async function readablePropertyReport(input: { reportId: string; reportingGroupI
 export async function listQuarterlyPropertyPhotoCandidates(input: { reportId: string; reportingGroupId: string; propertyId: string }, actor: QuarterlyReportMediaActor) {
   const propertyReport = await readablePropertyReport(input, actor);
   return prisma.document.findMany({
-    where: { propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } },
+    where: { propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, AND: [ownerVisibleDocumentWhere], fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } },
     select: { id: true, title: true, description: true, photoStage: true, documentDate: true, createdAt: true, fileAsset: { select: { id: true, mimeType: true, sizeBytes: true } } },
     orderBy: [{ documentDate: "desc" }, { createdAt: "desc" }, { id: "asc" }],
   });
@@ -200,7 +201,7 @@ export async function listQuarterlyPropertyPhotoCandidates(input: { reportId: st
 
 export async function resolveQuarterlyPropertyCandidateImage(input: { reportId: string; reportingGroupId: string; propertyId: string; documentId: string }, actor: QuarterlyReportMediaActor) {
   const propertyReport = await readablePropertyReport(input, actor);
-  const document = await prisma.document.findFirst({ where: { id: input.documentId, propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } }, select: { fileAsset: true } });
+  const document = await prisma.document.findFirst({ where: { id: input.documentId, propertyId: propertyReport.propertyId, category: "PHOTO", deletedAt: null, AND: [ownerVisibleDocumentWhere], fileAsset: { deletedAt: null, mimeType: { startsWith: "image/" } } }, select: { fileAsset: true } });
   if (!document) throw new Error("Property photo was not found.");
   return document.fileAsset;
 }
