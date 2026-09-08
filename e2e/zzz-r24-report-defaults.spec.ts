@@ -1,0 +1,27 @@
+import { expect, test } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
+import { R24_ROLE_PASSWORD, R24_ROLE_USERS } from "../prisma/seed-r24-agent-roles";
+const db = new PrismaClient();
+test.beforeAll(() => { if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname)) throw new Error("R24 requires local/CI DB"); });
+test.afterAll(async () => { await db.$disconnect(); });
+test("R24 testovací identity nejsou výchozím týmem; explicitní historický výběr se zachová", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByLabel("E-mail").fill(R24_ROLE_USERS.assetManager);
+  await page.getByLabel("Heslo").fill(process.env.E2E_ROLE_PASSWORD || R24_ROLE_PASSWORD);
+  await page.getByRole("button", { name: "Přihlásit se" }).click();
+  await expect(page).toHaveURL(/\/portfolio(?:\?|$)/);
+  const users = await db.user.findMany({ where: { email: { in: Object.values(R24_ROLE_USERS) } } });
+  expect(users).toHaveLength(8);
+  expect(users.every(user => user.isTestIdentity && user.active)).toBe(true);
+  const actor = users.find(user => user.email === R24_ROLE_USERS.assetManager)!;
+  const group = await db.reportingGroup.create({ data: { name: "R24_AGENT_QA_2026_09 · defaults", members: { create: { userId: actor.id, permission: "EDIT" } } } });
+  const report = await db.annualReport.create({ data: { reportingGroupId: group.id, reportingGroupNameSnapshot: group.name, year: 2026, revision: 1, asOfDate: new Date("2026-12-31T12:00:00Z"), createdById: actor.id } });
+  const url = `/reporty/vyrocni/${group.id}/reporty/${report.id}?section=corporate`;
+  await page.goto(url);
+  const selected = await page.locator('select[name$=".sourceUserId"]').evaluateAll((elements: HTMLSelectElement[]) => elements.map(element => element.value));
+  expect(selected.some(id => users.some(user => user.id === id))).toBe(false);
+  await expect(page.locator('select[name="team.0.sourceUserId"] option').filter({ hasText: " · TEST" })).toHaveCount(8);
+  await db.annualReport.update({ where: { id: report.id }, data: { teamSnapshot: [{ sourceUserId: actor.id, name: actor.name, email: actor.email, role: "TEST", photoDataUrl: null }] } });
+  await page.reload();
+  await expect(page.locator('select[name="team.0.sourceUserId"]')).toHaveValue(actor.id);
+});

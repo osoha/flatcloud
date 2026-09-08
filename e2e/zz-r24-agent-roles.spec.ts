@@ -86,8 +86,16 @@ test.describe("R24 · agentní role a lifecycle", () => {
     const clean = watchBrowserFailures(page);
     await loginAs(page, R24_ROLE_USERS.technicalManager);
     await page.goto("/ukoly/novy");
-    await expect(page.getByLabel("Nemovitost *")).toHaveValue(/.+/);
-    await expect(page.getByLabel("Nemovitost *").locator("option")).toHaveCount(1);
+    const picker = page.getByLabel("Nemovitost *");
+    await expect(picker).toHaveValue("");
+    await expect(picker.locator("option")).toHaveCount(2);
+    const propertyId = await picker.locator("option").nth(1).getAttribute("value");
+    await page.goto(`/ukoly/novy?propertyId=${propertyId}`);
+    await expect(page.getByLabel("Nemovitost *")).toHaveValue(propertyId!);
+    await page.goto("/ukoly/novy?propertyId=foreign-r24-id&leaseId=foreign-lease");
+    await expect(page.getByLabel("Nemovitost *")).toHaveValue("");
+    await expect(page.getByLabel("Smlouva / nájemník", {exact:true})).toHaveValue("");
+    await page.getByLabel("Nemovitost *").selectOption(propertyId!);
     await page.getByLabel("Kategorie *").selectOption("MAINTENANCE");
     await page.getByLabel("Název *").fill("R24 · kontrola zatékání ve společných prostorách");
     await page.getByLabel("Priorita").selectOption("HIGH");
