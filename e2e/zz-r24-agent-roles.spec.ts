@@ -29,7 +29,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
     await expect(page.getByText("Moskevská", { exact: true })).toHaveCount(0);
     await page.goto("/metodika");
     await expect(page.getByRole("heading", { name: "Průvodci podle životní situace", exact: true })).toBeVisible();
-    await expect(page.getByText("Nový nájemník", { exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Nastěhovávám nového nájemce", exact: true })).toBeVisible();
     clean();
   });
 
@@ -56,7 +56,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
   test("externí vlastník nevidí interní portfolio ani správu uživatelů", async ({ page }) => {
     const clean = watchBrowserFailures(page);
     await loginAs(page, R24_ROLE_USERS.distributionLead);
-    const internalHref = await page.getByRole("link", { name: "Moskevská", exact: true }).first().getAttribute("href");
+    const internalHref = await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).first().getAttribute("href");
     expect(internalHref).toBeTruthy();
     await loginAs(page, R24_ROLE_USERS.externalOwner);
     await expect(page.getByText("Dům ve správě", { exact: true }).first()).toBeVisible();
@@ -100,7 +100,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
   test("správce jednotek vidí externí dům a může otevřít nájemní lifecycle", async ({ page }) => {
     const clean = watchBrowserFailures(page);
     await loginAs(page, R24_ROLE_USERS.unitManager);
-    await page.getByRole("link", { name: "Dům ve správě", exact: true }).first().click();
+    await page.locator("a.property-cell").filter({ hasText: "Dům ve správě" }).first().click();
     await page.getByRole("link", { name: "Jednotky", exact: true }).click();
     const firstUnit = page.locator("tbody tr").first();
     await expect(firstUnit).toContainText("Obsazeno");
@@ -116,7 +116,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
     await page.goto("/distribuce");
     await expect(page.getByRole("heading", { name: "Interní distribuce", exact: true })).toBeVisible();
     await page.getByRole("link", { name: "CRM zájemců", exact: true }).click();
-    await expect(page.getByRole("heading", { name: "CRM zájemců", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "CRM zájemců o jednotky", exact: true })).toBeVisible();
     await page.goto("/distribuce/uvitaci-dopisy");
     await expect(page.getByRole("heading", { name: "Uvítací dopisy novým vlastníkům", exact: true })).toBeVisible();
     await expect(page.getByText("Externí komunikace · ruční kontrola před odesláním", { exact: true })).toBeVisible();
