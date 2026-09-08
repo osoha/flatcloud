@@ -17,3 +17,7 @@ Každý blok samostatně: pracovní větev ze současné `sandbox/ux-agent` → 
 | I – dokončení R24 | P0/P1 pokrytí | Doplnit živé role, CRM duplicity/retry/souběh, revize, účinné vlastnictví a postprodejní návaznosti. | Nové behaviorální browser testy mají vlastní počet; jasně oddělit starých 58 scénářů, živé scénáře a nezměřené chování. Uvítání nejvýše DRAFT/preview, bez send. |
 
 Nejprve A a C: oba blokují běžný provozní lifecycle. B má nejvyšší důležitost pro důvěrnost a musí mít před kódováním odsouhlasenou politiku viditelnosti starých záznamů. D lze řešit samostatně jako malou opravu čitelnosti. Ostatní bloky nenahrazují závěrečnou lidskou kontrolu a pozdější zátěžový test.
+
+## Průběh implementace
+
+- Blok A: implementováno explicitní znovuotevření s důvodem a kontrolou verze; terminální a CAPEX případy odmítají příslib atomicky. Doplněny čtyři browser/DB regrese (DONE, CANCELLED, souběh, CAPEX). Před merge je nutné kompletní CI; živý retest následuje po nasazení.

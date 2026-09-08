@@ -4,6 +4,8 @@ import { dateValue, text } from "@/lib/forms";
 import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { canEditTask } from "@/lib/task-access";
+import { serializableTransaction } from "@/lib/serializable";
+import { taskStatuses, taskPriorities } from "@/lib/labels";
 
 const statuses = new Set(["OPEN", "IN_PROGRESS", "WAITING", "CANCELLED"]);
 const priorities = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
@@ -45,10 +47,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (!assignee) throw new Error("Vybraný řešitel nemá přístup k této nemovitosti.");
     }
     const closing = status === "DONE" || status === "CANCELLED";
-    await prisma.$transaction([
-      prisma.task.update({ where: { id }, data: { status: status as typeof task.status, priority: priority as typeof task.priority, dueAt, assigneeId: assigneeId || null, title, description, closedAt: closing ? (task.closedAt || new Date()) : null } }),
-      prisma.taskEntry.create({ data: { taskId: id, authorId: user.id, kind: "STATUS", body: `Aktualizace úkolu: stav ${status}, priorita ${priority}${dueAt ? `, termín ${dueAt.toLocaleDateString("cs-CZ")}` : ""}.` } }),
-    ]);
+    await serializableTransaction(async tx => {
+      const claim = await tx.task.updateMany({ where: { id, updatedAt: task.updatedAt, status: task.status }, data: { status: status as typeof task.status, priority: priority as typeof task.priority, dueAt, assigneeId: assigneeId || null, title, description, closedAt: closing ? (task.closedAt || new Date()) : null } });
+      if (claim.count !== 1) throw new Error("Úkol se mezitím změnil. Obnovte detail a změnu zkontrolujte.");
+      await tx.taskEntry.create({ data: { taskId: id, authorId: user.id, kind: "STATUS", body: `Aktualizace úkolu: stav ${taskStatuses[status as typeof task.status]}, priorita ${taskPriorities[priority as typeof task.priority]}${dueAt ? `, termín ${dueAt.toLocaleDateString("cs-CZ")}` : ""}.` } });
+    });
     await audit(user.id, "TASK_UPDATED", "Task", id, { status, priority }, task.propertyId);
     return goWithMessage(request, `/ukoly/${id}`, "ok", "Úkol byl aktualizován.");
   } catch (error) {
