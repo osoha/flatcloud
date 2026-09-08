@@ -59,7 +59,7 @@
 - Persona: specialista přístupnosti.
 - URL: detail výroční revize 2026.
 - Kroky: otevřít výroční editor a zkontrolovat strom landmarků.
-- Očekávání: jeden nen vnořený `main` na dokument.
+- Očekávání: jeden nevnořený `main` na dokument.
 - Skutečnost: `Shell` vykresluje hlavní `main` a výroční editor do něj vkládá další `main`.
 - Reprodukovatelnost: 1/1 výroční editor.
 - Doporučení: vnitřní kontejner změnit na `section` nebo `div` s popsaným regionem.
