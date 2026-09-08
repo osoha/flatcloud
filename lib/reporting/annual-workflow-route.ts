@@ -1,6 +1,7 @@
 import { CzkMoneyParseError } from "../forms";
 
 const friendlyMessages = new Map([
+  ["Změnu polohy potvrďte až po kontrole souřadnic.", "Změnu polohy potvrďte až po kontrole souřadnic."],
   ["Reporting group is inactive.", "Skupina je neaktivní. Nový výroční report nelze založit."],
   ["An annual report already exists for this year.", "Pro tento rok již výroční report existuje."],
   ["Reporting group has no effective properties at annual report end.", "Skupina nemá k poslednímu dni roku žádné platné nemovitosti."],
