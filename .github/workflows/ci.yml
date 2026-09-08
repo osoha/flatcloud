@@ -162,6 +162,7 @@ jobs:
       - run: npm run verify:r21-owner-year-package
       - run: npm run verify:r22-annual-readiness
       - run: npm run verify:r23-guided-methodology
+      - run: npm run verify:r24-agent-qa
       - run: npm run verify:live-report-periods
 
   browser-smoke:
@@ -190,6 +191,7 @@ jobs:
       INITIAL_ADMIN_NAME: E2E administrátor
       E2E_ADMIN_EMAIL: e2e.admin@flatcloud.test
       E2E_ADMIN_PASSWORD: FlatCloud-E2E-Only-Password-2026
+      E2E_ROLE_PASSWORD: FlatCloud-R24-Role-Only-2026
       CI: "true"
     steps:
       - uses: actions/checkout@v6
@@ -202,6 +204,7 @@ jobs:
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run e2e:seed
+      - run: npm run e2e:seed:r24-roles
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
