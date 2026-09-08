@@ -21,6 +21,7 @@ async function fixture(propertyId?: string) {
   for (const visibility of ["INTERNAL", "OWNER_VISIBLE"] as const) {
     const title = `${tag}_${visibility}`;
     const entry = await db.taskEntry.create({ data: { taskId: task.id, authorId: admin.id, kind: "COMMENT", body: title, visibility } });
+    await db.auditLog.create({ data: { userId: admin.id, propertyId: unit.propertyId, action: "TASK_ENTRY_ADDED", entityType: "TaskEntry", entityId: entry.id, details: { body: `${title} audit` } } });
     const asset = await db.fileAsset.create({ data: { storageKey: title, previewStorageKey: `${title}_preview`, thumbnailStorageKey: `${title}_thumbnail`, originalName: `${title}.png`, mimeType: "image/png", sizeBytes: 1, sha256: "0".repeat(64), uploadedById: admin.id } });
     documents.push(await db.document.create({ data: { propertyId: unit.propertyId, unitId: unit.id, taskId: task.id, taskEntryId: entry.id, fileAssetId: asset.id, category: "PHOTO", title: `${title}.png`, createdById: admin.id } }));
   }
@@ -55,6 +56,11 @@ for (const scope of ["property-view", "unit-view", "property-edit", "unit-edit",
       await expect(page.getByText(`${f.tag}_OWNER_VISIBLE`, { exact: true })).toBeVisible();
       await expect(page.getByText(`${f.tag}_INTERNAL`, { exact: true })).toHaveCount(editor ? 1 : 0);
       await expect(page.getByLabel("Viditelnost záznamu", { exact: true })).toHaveCount(editor ? 1 : 0);
+    }
+    if (scope.startsWith("property") || scope === "admin") {
+      await page.goto(`/nemovitosti/${f.unit.propertyId}/provoz`);
+      await expect(page.getByText(`${f.tag}_OWNER_VISIBLE audit`, { exact: true })).toBeVisible();
+      await expect(page.getByText(`${f.tag}_INTERNAL audit`, { exact: true })).toHaveCount(editor ? 1 : 0);
     }
     const allowed = await db.document.findMany({ where: { AND: [documentAccessWhere(actor), { id: { in: [f.privateDoc.id, f.publicDoc.id] } }] } });
     expect(allowed.map(d => d.id).sort()).toEqual((scope === "foreign" ? [] : editor ? [f.privateDoc.id, f.publicDoc.id] : [f.publicDoc.id]).sort());

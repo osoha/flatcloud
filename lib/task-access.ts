@@ -37,3 +37,17 @@ export function parseTaskEntryVisibility(form: FormData) {
   if (value !== "INTERNAL" && value !== "OWNER_VISIBLE") throw new Error("Vyberte platnou viditelnost záznamu.");
   return value;
 }
+
+/** Property activity must not reveal an internal entry through its audit metadata. */
+export async function filterTaskEntryActivity<T extends { entityType: string; entityId: string | null; details: unknown }>(user: User, rows: T[]): Promise<T[]> {
+  if (hasAllPropertyAccess(user)) return rows;
+  const entryId = (row: T) => {
+    if (row.entityType === "TaskEntry") return row.entityId;
+    const details = row.details && typeof row.details === "object" && !Array.isArray(row.details) ? row.details as Record<string, unknown> : {};
+    return typeof details.taskEntryId === "string" ? details.taskEntryId : typeof details.entryId === "string" ? details.entryId : null;
+  };
+  const ids = rows.map(entryId).filter((id): id is string => Boolean(id));
+  if (!ids.length) return rows;
+  const visible = new Set((await prisma.taskEntry.findMany({ where: { id: { in: ids }, ...taskEntryVisibilityWhere(user) }, select: { id: true } })).map(entry => entry.id));
+  return rows.filter(row => { const id = entryId(row); return !id || visible.has(id); });
+}

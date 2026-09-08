@@ -1,4 +1,4 @@
-import { taskEntryVisibilityWhere } from "@/lib/task-access";
+import { taskEntryVisibilityWhere, filterTaskEntryActivity } from "@/lib/task-access";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertCircle, CheckCircle2, Clock3, ExternalLink, Mail, MapPin, Phone, Plus, Settings2, ShieldCheck, UserRound, Wrench } from "lucide-react";
@@ -103,7 +103,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
     propertyWide ? prisma.task.findMany({ where: { propertyId: id }, include: { unit: true, tenant: true, assignee: true, _count: { select: { entries: { where: taskEntryVisibilityWhere(user) } } } }, orderBy: [{ status: "asc" }, { dueAt: "asc" }, { updatedAt: "desc" }], take: 50 }) : Promise.resolve([]),
     section === "prehled" || propertyWide ? prisma.propertyContact.findMany({ where: { propertyId: id, active: true }, orderBy: [{ emergency: "desc" }, { sortOrder: "asc" }, { name: "asc" }] }) : Promise.resolve([]),
     propertyWide ? prisma.complianceItem.findMany({ where: { propertyId: id, active: true }, include: { assignedContact: true, records: { orderBy: { performedAt: "desc" }, take: 3 } }, orderBy: { nextDueAt: "asc" } }) : Promise.resolve([]),
-    propertyWide ? prisma.auditLog.findMany({ where: { propertyId: id }, include: { user: true }, orderBy: { createdAt: "desc" }, take: 40 }) : Promise.resolve([]),
+    propertyWide ? prisma.auditLog.findMany({ where: { propertyId: id }, include: { user: true }, orderBy: { createdAt: "desc" }, take: 40 }).then(rows => filterTaskEntryActivity(user, rows)) : Promise.resolve([]),
   ]);
   const openTasks = propertyTasks.filter((task) => openTaskStatuses.includes(task.status));
   const dueCompliance = complianceItems.filter((item) => { const state = complianceState(item); return state.key === "overdue" || state.key === "today" || state.key === "soon" || state.key === "upcoming"; });
