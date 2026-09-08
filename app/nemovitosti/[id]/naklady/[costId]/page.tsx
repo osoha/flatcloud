@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { hasAllPropertyAccess, requireUser } from "@/lib/auth";
 import { requirePropertyAccess } from "@/lib/access";
 import { prisma } from "@/lib/db";
+import { dateInput } from "@/lib/forms";
 import { date, money } from "@/lib/format";
 import { documentAccessWhere } from "@/lib/documents/access";
 import { propertyCostCategories, propertyCostKinds, propertyCostStatuses } from "@/lib/asset-finance";
@@ -29,6 +30,8 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
     where: { id: costId, propertyId: id },
     include: {
       unit: true,
+      task: true,
+      conditionPlanExecution: true,
       allocations: { include: { unit: true }, orderBy: { unit: { label: "asc" } } },
       documents: {
         where: documentAccessWhere(user),
@@ -38,6 +41,8 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
     },
   });
   if (!cost) notFound();
+  const tasks = canManage ? await prisma.task.findMany({ where: { propertyId: id, ...(cost.unitId ? { OR: [{ unitId: cost.unitId }, { unitId: null, leaseId: null }] } : {}) }, select: { id: true, title: true }, orderBy: { title: "asc" } }) : [];
+  const history = await prisma.auditLog.findMany({ where: { entityType: "PropertyCost", entityId: cost.id, propertyId: id, action: "PROPERTY_COST_UPDATED" }, include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" } });
   const returnTo = `/nemovitosti/${id}/naklady/${cost.id}`;
   const allocationByUnit = new Map(cost.allocations.map((row) => [row.unitId, row]));
   const allocatedAmountCents = cost.allocations.reduce((sum, row) => sum + row.amountCents, 0);
@@ -48,6 +53,22 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
     <div className="page-title"><div><h1>{cost.title}</h1><p>{propertyCostKinds[cost.kind]} · {propertyCostStatuses[cost.status]} · {date(cost.effectiveAt)}</p></div><Link className="secondary" href={`/nemovitosti/${id}/finance#naklady`}>Zpět na finance</Link></div>
     <PropertySubnav propertyId={id} active="finance" unitLimited={false}/>
     <Flash ok={query.ok} error={query.error}/>
+    {cost.task&&<p><Link href={`/ukoly/${cost.task.id}`}>Související úkol: {cost.task.title}</Link></p>}
+    {canManage&&!cost.conditionPlanExecution&&<details className="card"><summary>Upravit náklad a stav</summary><p>Změna upraví tento náklad. Nevytvoří další závazek ani bankovní platbu. Podíly jednotek a doklady zůstanou zachované.</p><form action={`/api/properties/${id}/costs/${cost.id}`} method="post" className="form-grid" data-testid="cost-edit">
+      <input type="hidden" name="expectedUpdatedAt" value={cost.updatedAt.toISOString()}/>
+      <label className="field"><span>Název *</span><input name="title" defaultValue={cost.title} required/></label>
+      <label className="field"><span>Částka v Kč *</span><input name="amount" type="number" min="0.01" step="0.01" max="21474836.47" defaultValue={(cost.amountCents/100).toFixed(2)} required/></label>
+      <label className="field"><span>Typ *</span><select name="kind" defaultValue={cost.kind}>{Object.entries(propertyCostKinds).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="field"><span>Stav *</span><select name="status" defaultValue={cost.status}>{Object.entries(propertyCostStatuses).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="field"><span>Kategorie *</span><select name="category" defaultValue={cost.category}>{Object.entries(propertyCostCategories).map(([value,label])=><option key={value} value={value}>{label}</option>)}</select></label>
+      <label className="field"><span>Datum plánu / vzniku *</span><input name="effectiveAt" type="date" defaultValue={dateInput(cost.effectiveAt)} required/></label>
+      <label className="field"><span>Dodavatel</span><input name="vendor" defaultValue={cost.vendor||""}/></label>
+      <label className="field"><span>Číslo dokladu</span><input name="documentNumber" defaultValue={cost.documentNumber||""}/></label>
+      <label className="field"><span>Související úkol</span><select name="taskId" defaultValue={cost.taskId||""}><option value="">Bez vazby</option>{tasks.map(task=><option key={task.id} value={task.id}>{task.title}</option>)}</select></label>
+      <label className="field"><span>Poznámka</span><textarea name="note" defaultValue={cost.note||""}/></label>
+      <label className="field"><span>Důvod změny *</span><textarea name="reason" required/></label><div className="form-actions"><button className="primary" type="submit">Uložit změnu nákladu</button></div>
+    </form></details>}
+    {cost.conditionPlanExecution&&<p className="notice">Náklad je řízený přes Kvalitu a CAPEX.</p>}
     <div className="detail-grid">
       <div className="card col-5"><h2>Účetní kontext</h2><div className="summary-list"><div><span>Částka</span><strong>{money(cost.amountCents)}</strong></div><div><span>Kategorie</span><strong>{propertyCostCategories[cost.category]}</strong></div><div><span>Rozsah nákladu</span><strong>{propertyCostScopeLabel(cost)}</strong></div><div><span>Dodavatel</span><strong>{cost.vendor||"Neuveden"}</strong></div><div><span>Číslo dokladu</span><strong>{cost.documentNumber||"Neuvedeno"}</strong></div></div>{cost.note&&<p className="technical-note">{cost.note}</p>}</div>
       <div className="card col-7"><div className="card-head"><div><h2>Účetní podklady</h2><p className="muted-copy">Faktura nebo účetní doklad potvrzuje skutečný výdaj. Nabídka a jiná příloha zůstávají podpůrným zdrojem, ale samy účetní doklad nenahrazují.</p></div></div>{canManage&&<DocumentUploadForm propertyId={id} unitId={cost.unitId||undefined} propertyCostId={cost.id} returnTo={returnTo} categories={[["INVOICE","Faktura / účetní doklad"],["OFFER","Nabídka (podpůrný podklad)"],["OTHER","Jiný podpůrný podklad"]]} title={cost.documentNumber?`${cost.title} · ${cost.documentNumber}`:cost.title}/>}<DocumentAttachments documents={cost.documents} canDelete={canManage} returnTo={returnTo}/></div>
@@ -59,5 +80,6 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
         </div>}
       </div>
     </div>
+    {history.length>0&&<section className="card"><h2>Historie změn nákladu</h2>{history.map(event=>{const details=event.details as {reason?:string;before?:{status?:string;amountCents?:number};after?:{status?:string;amountCents?:number}};return <article key={event.id}><strong>{event.user?.name||"Systém"} · {event.createdAt.toLocaleString("cs-CZ")}</strong><p>{details.reason}</p><p>{propertyCostStatuses[details.before?.status as keyof typeof propertyCostStatuses]||details.before?.status} → {propertyCostStatuses[details.after?.status as keyof typeof propertyCostStatuses]||details.after?.status} · {money(details.before?.amountCents||0)} → {money(details.after?.amountCents||0)}</p></article>})}</section>}
   </div></Shell>;
 }
