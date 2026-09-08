@@ -26,9 +26,10 @@ Nejprve A a C: oba blokují běžný provozní lifecycle. B má nejvyšší důl
 | C | PR #87, sloučeno; celé CI 34243574781 SUCCESS, 65/65. Živý přechod na stejném ID a obousměrná vazba úkolu ověřeny. |
 | D | PR #92, sloučeno; celé CI 34246067337 SUCCESS, 67/67. Nové haléřové regrese prošly prvním během; starší očekávání celých korun bylo aktualizováno na přesná dvě desetinná místa. |
 | E | PR #88, sloučeno; celé CI 34246014053 SUCCESS, 68/68 po vyřešení konfliktu s C. R24-005 zůstává částečný, ostatní obchodní výběry nejsou součástí tohoto bloku. |
+| E2 | PR #93: živě nalezené zachování klientského kontextu a chybějící marker u osmi UI účtů. Klíčování formuláře, přesný idempotentní backfill a nové DB/navigační regrese. Konečný CI/merge a živý retest viz PR #93 a #91. |
 | F | PR #89, sloučeno; celé CI 34243847784 SUCCESS, 62/62. Živě ověřeny reportové landmarky, notice a klávesnicový historický výběr bez zápisu platby. Skutečný 200% zoom je důkazní mezera. |
 | G | PR #90, sloučeno; celé CI 34244893248 SUCCESS, 64/64. Živě odmítnut nepotvrzený posun souřadnic, původní bod zachován. Prostorová správnost adresy se tím nepotvrzuje. |
-| I | PR #91: distribuční souběh/retry a dvě úzké šířky 390/640 px již prošly průběžným CI 34246355622 (70/70). Finální sestava má 71 scénářů. Finální integrované CI a merge jsou podmínkou dokončení této etapy; R24 jako celek zůstává IN_PROGRESS. |
+| I | PR #91: distribuční souběh/retry a dvě úzké šířky 390/640 px již prošly průběžným CI 34246355622 (70/70). Finální sestava včetně E2 má 72 scénářů. Finální integrované CI a merge jsou podmínkou dokončení této etapy; R24 jako celek zůstává IN_PROGRESS. |
 | B / H | BLOCKED_DECISION / BLOCKED_CONFIG. Připravený konkrétní návrh v [bránách B/H](r24-storage-and-visibility-gates.md). |
 
 Neúspěšné běhy zůstávají v historii: A a C zpřesnily selektory a testovací session transport; G doplnil nové povinné potvrzení do původního ročního scénáře; D změnil očekávání účetního formátu. Žádný test nebyl přeskočen ani odstraněn kvůli selhání. Před merge musí být zelené celé CI na posledním SHA.

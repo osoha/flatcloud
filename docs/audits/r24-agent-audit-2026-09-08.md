@@ -31,11 +31,11 @@
 | R24-005 | P1 | asset manager / security admin | uživatelé a reporting | PARTIAL | Trvalé testovací identity vstupují do běžných obchodních výběrů a automatických týmových defaultů. |
 | R24-006 | P1 | asset manager | mapa výročního reportu | MITIGATED | Geokódování přijalo chybný bod adresy bez upozornění nebo potvrzení uživatelem. |
 | R24-007 | P2 | senior graphic designer / novic | informační bloky | FIXED_CI_LIVE | Obecná komponenta `notice` slepuje tučný titulek s navazujícím textem bez mezery. |
-| R24-008 | P1 | novic / technický správce | založení úkolu | FIXED_CI | Formulář nového úkolu bez kontextového odkazu předvybere první objekt v seznamu. |
+| R24-008 | P1 | novic / technický správce | založení úkolu | RETEST_FOLLOWUP | Formulář nového úkolu bez kontextového odkazu předvybere první objekt v seznamu. |
 | R24-009 | P2 | novic / interní asistentka | platby a rozsáhlé výběry | FIXED_CI_LIVE | Ruční platba používá dlouhý plochý select bez hledání nebo filtrování. |
 | R24-010 | P1 | technický správce | uzavření a znovuotevření | FIXED_CI_LIVE | Hotový úkol nemá řízené znovuotevření, ale příslib úhrady jej přepne do WAITING. |
 | R24-011 | P1 | účetní / technický správce | nákladový lifecycle | FIXED_CI_LIVE | Ručně založený závazek nelze v UI převést na skutečnost ani opravit. |
-| R24-012 | P2 | účetní | rozdělení nákladů | FIXED_CI | Zobrazené zaokrouhlené řádky rozdělení nesouhlasí se zobrazeným celkem. |
+| R24-012 | P2 | účetní | rozdělení nákladů | FIXED_CI_LIVE | Zobrazené zaokrouhlené řádky rozdělení nesouhlasí se zobrazeným celkem. |
 
 ## Důkazy a akceptační testy
 
@@ -151,7 +151,7 @@ Dále bylo vytvořeno osm aktivních účtů `R24 · …` s adresami `@flatcloud
 
 ## Omezení průchodu
 
-Skutečné role a scope byly ověřeny nad osmi deterministickými identitami v izolované CI databázi. Stejných osm označených účtů je aktivních také v trvalém sandboxu. Trvalý sandbox byl dále procházen přihlášeným administrátorem; samostatné živé přihlášení každým účtem nebylo provedeno. Přihlášení je dostupné pouze přes bezpečný browserAuth handoff, proto tento vizuální důkaz zůstává otevřený. To neoslabuje CI důkaz serverového scope, ale audit zůstává `IN_PROGRESS` a neoznačuje neprovedené role ani storage lifecycle za hotové.
+Skutečné role a scope byly ověřeny nad osmi deterministickými identitami v izolované CI databázi. Stejných osm označených účtů je aktivních také v trvalém sandboxu. Trvalý sandbox byl dále procházen přihlášeným administrátorem; samostatné živé přihlášení každým účtem nebylo provedeno. Přihlášení je dostupné pouze přes bezpečný browserAuth handoff, proto živý vizuální průchod každým účtem zvlášť zůstává otevřený. To neoslabuje CI důkaz serverového scope, ale audit zůstává `IN_PROGRESS` a neoznačuje neprovedené role ani storage lifecycle za hotové.
 
 ## Kandidáti do následné pipeline
 
@@ -244,7 +244,7 @@ Každý blok má samostatný PR, kompletní CI na aktuálním head a merge výhr
 | E / R24-005/008 | PR #88, merge aab14f56. CI 34246014053 SUCCESS, 68/68. Explicitní isTestIdentity a prázdný globální objekt; historické snapshoty se nepřepisují. R24-005 je pouze částečně opraven: řešeny automatické reportové týmy a jejich TEST výběr, nikoli všechny obchodní číselníky. |
 | F / R24-001/003/007/009 | PR #89, merge e2ff4f2c. CI 34243847784 SUCCESS, 62/62; rozšířeny původní scénáře klávesnice, navigace a čitelnosti. |
 | G / R24-006 | PR #90, merge 56538766. CI 34244893248 SUCCESS, 64/64. Dva nové scénáře kvality fixture a browser návrh → neuložený reload → potvrzený zápis. Textová shoda není prostorová přesnost; původní chybný bod není tímto automaticky opraven. |
-| I / pokrytí | PR #91; distribuční souběh a retry již prošly izolovaným CI 34244062353 (63/63). Dvě nové kontroly šířky 390/640 px prošly v CI 34246355622 SUCCESS (70/70 na tehdejší sestavě). Finální integrační gate zahrne všechny sloučené bloky, celkem 71 scénářů: 58 výchozích + A 4 + C 3 + E 1 + G 2 + I 3. D a F rozšířily existující testy bez navyšování počtu. Finální výsledek a merge jsou autoritativně u PR #91. |
+| I / pokrytí | PR #91; distribuční souběh a retry již prošly izolovaným CI 34244062353 (63/63). Dvě nové kontroly šířky 390/640 px prošly v CI 34246355622 SUCCESS (70/70 na tehdejší sestavě). Finální integrační gate zahrne všechny sloučené bloky, celkem 72 scénářů včetně navazujícího E2: 58 výchozích + A 4 + C 3 + E 1 + E2 1 + G 2 + I 3. D a F rozšířily existující testy bez navyšování počtu. Finální výsledek a merge jsou autoritativně u PR #91. |
 | B / R24-002 | BLOCKED_DECISION: bezpečnostní politika historie a nových interních záznamů dle AGENTS.md. Konkrétní návrh v [bránách B/H](../r24-storage-and-visibility-gates.md). |
 | H / R24-004 | BLOCKED_CONFIG: izolovaný storage a přístup ke konfiguraci sandboxu. Kontrakt driverů ověřen lokálně 44 kontrolami; není to živý upload gate. Render plugin byl nabídnut, připojení ani izolovaný bucket nejsou doloženy. |
 
@@ -256,7 +256,13 @@ Každý blok má samostatný PR, kompletní CI na aktuálním head a merge výhr
 - G-RETEST-01: po nasazení viditelný checkbox potvrzení a popis neuložených návrhů. Ruční změna šířky 49.1428661 → 49.15 bez potvrzení vrací „Změnu polohy potvrďte až po kontrole souřadnic.“ Uložený snapshot zůstává 49.1428661 / 16.6528369. Geokódovací služba nebyla volána; žádná nová poloha se neuložila.
 - WELCOME read-only: dopis cmtsr9osg0012ts29zgwzxrni zůstává Koncept, revize 1, TEST NEODESÍLAT; žádné odeslání ani předání do Ready.
 
-Živý retest D/E při uzavření této revize auditu ještě čeká na nasazení; jeho následná evidence a finální CI jsou doplněny v [PR #91](https://github.com/osoha/flatcloud/pull/91). Stav FIXED_CI není tvrzením o nasazení do běžící služby.
+D-RETEST-01 po nasazení: 411,60 + 411,48 + 411,48 Kč = 1 234,56 Kč; účetní kontext, patička i historie nyní zobrazují přesné haléře. Živý retest E odhalil navazující E2 níže; jeho následná evidence a finální CI jsou doplněny v PR #91. Stav FIXED_CI není tvrzením o nasazení do běžící služby.
+
+### Navazující živý retest E2
+
+PR #93 vznikl z dalších dvou reprodukcí R24-008/005: klientský přechod z /ukoly/novy?propertyId=… na globální odkaz ponechal předchozí propertyId v React stavu; osm živých QA účtů založených přes UI nemělo původní title marker, proto je migrace z #88 neoznačila.
+
+Oprava klíčuje formulář dvojicí propertyId/leaseId a přidává aditivní backfill přesně osmi dvojic email/jméno, ověřených 8. 9. v živém seznamu účtů. Žádná heuristika podle domény či role, žádná změna oprávnění, aktivity, hesel ani reportové historie. Nový DB test spouští skutečné SQL, vyžaduje změnu 8 řádků, retry 0, zachování scope a nedotčený podobný účet. Browser regrese prochází skutečný klientský odkaz; tvrdá navigace samotná chybu neodhalovala. Finální CI, merge a následný živý důkaz jsou u [PR #93](https://github.com/osoha/flatcloud/pull/93) a integračního [PR #91](https://github.com/osoha/flatcloud/pull/91).
 
 ### Zbytkové riziko a další pořadí
 
