@@ -492,7 +492,8 @@ async function main() {
       );
       assert.equal(
         hash("lib/documents/access.ts"),
-        "8536cf941bd3e096df858cad5af819c8f6a1a55bcdd2b6df92359a55e3d99fb6",
+        // R24-B: human-approved internal-entry restriction; role/download behavior is browser gated.
+        "5ba1c5fcf19150c61f0cbab6c6df10e7043f520da5397e6add069c7a802e6bcf",
       );
     },
   );
