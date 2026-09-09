@@ -31,7 +31,7 @@ Nejprve A a C: oba blokují běžný provozní lifecycle. B má nejvyšší důl
 | G | PR #90, sloučeno; celé CI 34244893248 SUCCESS, 64/64. Živě odmítnut nepotvrzený posun souřadnic, původní bod zachován. Prostorová správnost adresy se tím nepotvrzuje. |
 | I | PR #91: distribuční souběh/retry a dvě úzké šířky 390/640 px již prošly průběžným CI 34246355622 (70/70). Finální sestava včetně E2 má 72 scénářů. Finální integrované CI a merge jsou podmínkou dokončení této etapy; R24 jako celek zůstává IN_PROGRESS. |
 | B | IMPLEMENTED: schválená viditelnost historie/nových záznamů, společná autorizace příloh a ochrana návazných podkladů; úplný CI gate a merge eviduje [PR #94](https://github.com/osoha/flatcloud/pull/94). |
-| H | Sdílené OAuth a sandboxová složka schváleny 2026-09-09. Ochrana implementována pro samostatné PR/CI; živá konfigurace a testy zůstávají otevřené. Postup v [bránách B/H](r24-storage-and-visibility-gates.md). |
+| H | PR #95 merge `3ad0e58`, CI 97/97. OAuth, čtyři složky, H-01 upload/historie a uživatelem zobrazení PNG + PNG/PDF download GREEN. [PR #96](https://github.com/osoha/flatcloud/pull/96) implementuje modální náhled a 3 UI regrese; přesný finální CI/SHA/merge/deployment důkaz je veden v jeho popisu. Živý file chooser blokuje H-02 náklad/error-retry; VIEW/EDIT/cizí scope a post-upload ancestry neověřené. H = IN_PROGRESS / LIVE_GATE_BLOCKED, nikoli hotový. Postup a důkazy v [bránách B/H](r24-storage-and-visibility-gates.md). |
 
 Neúspěšné běhy zůstávají v historii: A a C zpřesnily selektory a testovací session transport; G doplnil nové povinné potvrzení do původního ročního scénáře; D změnil očekávání účetního formátu. Žádný test nebyl přeskočen ani odstraněn kvůli selhání. Před merge musí být zelené celé CI na posledním SHA.
 

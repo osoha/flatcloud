@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { documentCategories, documentPhotoStages } from "@/lib/labels";
+import { DocumentImagePreview } from "./DocumentImagePreview";
 
 export type DocumentListItem = {
   id: string; propertyId: string; unitId?: string | null; leaseId?: string | null; taskId?: string | null;
@@ -17,7 +18,7 @@ export function DocumentAttachments({ documents, empty = "Zatím nejsou přilož
     const category = documentCategories[document.category] || document.category;
     const stage = document.photoStage ? documentPhotoStages[document.photoStage] || document.photoStage : null;
     return <article className="document-card" key={document.id}>
-      {document.fileAsset.mimeType.startsWith("image/") ? <Link href={`/api/documents/${document.id}/download?variant=preview`} aria-label={`Otevřít náhled: ${document.title}`}><img loading="lazy" src={`/api/documents/${document.id}/download?variant=thumbnail`} alt=""/></Link> : <FileText size={32} aria-hidden="true"/>}
+      {document.fileAsset.mimeType.startsWith("image/") ? <DocumentImagePreview documentId={document.id} title={document.title}/> : <FileText size={32} aria-hidden="true"/>}
       <div><strong>{document.title}</strong><span>{document.fileAsset.originalName} · {(document.fileAsset.sizeBytes / 1024).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} kB</span><span>{stage ? `${stage} · ` : ""}{category}</span>{showContext && <DocumentContext document={document}/>}<div className="document-actions"><Link href={`/api/documents/${document.id}/download`}>Stáhnout</Link>{canDelete && <form action={`/api/documents/${document.id}`} method="post"><input type="hidden" name="returnTo" value={returnTo}/><button className="link-button" type="submit">Odstranit</button></form>}</div></div>
     </article>;
   })}</div>;

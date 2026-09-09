@@ -4,6 +4,16 @@
   gap: 12px;
 }
 
+.document-preview-trigger { flex: 0 0 auto; padding: 0; border: 0; background: transparent; cursor: zoom-in; border-radius: 7px; }
+.document-preview-trigger:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+.document-preview-dialog { width: min(1100px, calc(100vw - 24px)); max-width: calc(100vw - 24px); max-height: calc(100dvh - 24px); margin: auto; padding: 0; border: 1px solid var(--line); border-radius: 14px; color: var(--text, #172033); background: #fff; box-shadow: 0 24px 80px #0005; overflow: auto; }
+.document-preview-dialog::backdrop { background: #0f172abf; }
+.document-preview-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px; border-bottom: 1px solid var(--line); }
+.document-preview-head h2 { margin: 0; min-width: 0; font-size: 18px; overflow-wrap: anywhere; }
+.document-preview-close { flex-shrink: 0; min-height: 44px; }
+.document-preview-body { display: grid; place-items: center; padding: 16px; }
+.document-preview-body img { display: block; max-width: 100%; max-height: max(100px, calc(100dvh - 160px)); width: auto; height: auto; object-fit: contain; }
+
 .document-card {
   display: flex;
   gap: 12px;
