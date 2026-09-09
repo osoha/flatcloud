@@ -272,3 +272,8 @@ Oprava klíčuje formulář dvojicí propertyId/leaseId a přidává aditivní b
 4. Rozšířit politiku testovacích identit na zbývající obchodní výběry bez odebrání QA oprávnění.
 
 Audit zůstává IN_PROGRESS. Odesílání, veřejná publikace, skutečné platby, main, produkce a nevratné mazání nebyly provedeny. Nový CRM test ověřuje jednu příležitost, jeden DRAFT revize 1 a null sentAt/readyAt při souběhu a retry v izolované CI DB; není důkazem reálného převodu vlastnictví.
+
+
+### Doplnění H – 2026-09-09
+
+Schváleno sdílené Google OAuth a samostatný kořen `00_Aplikace_Sandbox`. Připravena ochrana skutečné cesty souborů a zákaz nevratného cleanupu; 12 providerových regresních scénářů. Přihlášení do nové browser session a živá kontrola existujících vazeb/úložiště zůstávají otevřené. Přímý read-only DB konektor Render selhal na TLS. R24-004 není uzavřen; konkrétní nastavení a postup jsou v [bránách B/H](../r24-storage-and-visibility-gates.md).
