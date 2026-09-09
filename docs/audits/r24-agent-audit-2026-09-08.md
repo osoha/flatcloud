@@ -277,3 +277,20 @@ Audit zůstává IN_PROGRESS. Odesílání, veřejná publikace, skutečné plat
 ### Doplnění H – 2026-09-09
 
 Schváleno sdílené Google OAuth a samostatný kořen `00_Aplikace_Sandbox`. Připravena ochrana skutečné cesty souborů a zákaz nevratného cleanupu; 12 providerových regresních scénářů. Přihlášení do nové browser session a živá kontrola existujících vazeb/úložiště zůstávají otevřené. Přímý read-only DB konektor Render selhal na TLS. R24-004 není uzavřen; konkrétní nastavení a postup jsou v [bránách B/H](../r24-storage-and-visibility-gates.md).
+
+### H – pokračování a oprava náhledu, 2026-09-09
+
+Zdroj předchozího nasazení: [PR #95](https://github.com/osoha/flatcloud/pull/95), merge `3ad0e58a60b0bb7014e61ada96fa3d847407bc5c`, CI `34317040881` 97/97. Podrobný deployment log je v popisu PR. OAuth již funguje, čtyři podsložky byly připraveny a `FILE_STORAGE_DRIVER=gdrive`; starší BLOCKED_CONFIG výše je historický, nikoli současný stav.
+
+| Druh důkazu | Výsledek |
+|---|---|
+| Uživatelem ověřeno 2026-09-09 | H-01: zobrazení PNG, stažení PNG a PDF GREEN. Záměrně neopakováno; cloudová URL security policy download zakázala a není obcházena. |
+| Předchozí živý důkaz | Interní poznámka H-01 v úkolu `b3334543-dc2b-4081-b12e-970d0d29ed02`, PDF `cmtubkf5s0003qz2an2608ayh`, PNG `cmtubkf640009qz2a871xd3nl`. Historie zachována. Před uploadem 0 property vazeb / 0 FileAssets. |
+| Nová živá kontrola | SUPER_ADMIN UI dostupné. Náklad `cmtsr4v9m000bts29qq5wdpye` u `cmtlxsapt0005un2a5u7o803g` ověřen jako syntetický COST-01, 1 234,56 Kč, 3 alokace a historie beze změny, před testem bez příloh. |
+| Neplatný soubor → retry | Příprava formuláře H-02 proběhla. Výběr souboru cloudovým file chooserem se zasekl; následující DOM kontrola ukázala prázdný file input a žádné přílohy. Další pokus o výběr opět nedokončen, následně nereaguje ani čtení stránky. **NEOVĚŘENO**, nikoli aplikační PASS ani dokázaná chyba serveru. Neopakovat submit bez kontroly stavu. |
+| Automatické lokální ověření | TypeScript PASS, Drive statické kontroly 44 + 44, R24 10, izolované providerové testy 12/12 PASS, diff check PASS. Lokální Next build blokuje zděděný node_modules symlink mimo Turbopack root; plný build a migrace jsou povinné v CI. |
+| Nové UI regrese | 3 scénáře desktop/mobile/error-retry: nativní modalita, křížek/Esc, návrat focusu, nezměněná URL, zachování rozepsaného komentáře a historie. Image transport je pouze CI fixture, nikoli důkaz živého Google Drive. Výsledek plného CI a nasazení bude uveden v opravném PR. |
+
+Oprava používá společnou komponentu příloh: přístupný nativní dialog místo navigace na obrázek, označené zavření, focus a scroll návrat, chybový stav/retry. Beze změny serverové autorizace, storage endpointu, sdílení či oprávnění; původní download zůstává zachován.
+
+**H zůstává IN_PROGRESS / LIVE_GATE_BLOCKED**: chybí dokončená příloha nákladu, neplatný upload a úspěšné zotavení, živé VIEW/EDIT/cizí vlastník a post-upload kontrola skutečných vazeb pod sandboxovým kořenem. Funkční relace prohlížeče a bezpečné role login jsou potřeba k dokončení. Dosavadní user-green nenahrazuje tyto testy. Main, produkce, e-maily, platby, veřejná publikace a mazání zůstaly nedotčeny.
