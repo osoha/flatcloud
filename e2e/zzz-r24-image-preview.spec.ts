@@ -52,6 +52,10 @@ for (const scenario of ["desktop", "mobile", "error-retry"] as const) {
     expect(await dialog.evaluate(el => el.matches(":modal"))).toBe(true);
     if (scenario === "error-retry") {
       await expect(dialog.getByRole("alert")).toContainText("Náhled se nepodařilo načíst");
+      await close.press("Shift+Tab");
+      await expect(dialog.getByRole("button", { name: "Zkusit znovu" })).toBeFocused();
+      await page.keyboard.press("Tab");
+      await expect(close).toBeFocused();
       await dialog.getByRole("button", { name: "Zkusit znovu" }).click();
     }
     await expect.poll(() => dialog.getByRole("img").evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
