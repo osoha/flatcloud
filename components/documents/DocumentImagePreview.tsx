@@ -30,7 +30,7 @@ export function DocumentImagePreview({ documentId, title }: { documentId: string
     <button ref={trigger} type="button" className="document-preview-trigger" aria-haspopup="dialog" aria-label={`Otevřít náhled: ${title}`} onClick={() => { setFailed(false); setOpen(true); }}>
       <img loading="lazy" src={`/api/documents/${documentId}/download?variant=thumbnail`} alt=""/>
     </button>
-    {open && createPortal(<dialog ref={dialog} className="document-preview-dialog" aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); setOpen(false); }}>
+    {open && createPortal(<dialog ref={dialog} className="document-preview-dialog" aria-labelledby={titleId} onKeyDown={(event) => { if (event.key === "Escape") event.stopPropagation(); }} onPointerDown={(event) => event.stopPropagation()} onCancel={(event) => { event.preventDefault(); setOpen(false); }}>
       <div className="document-preview-head">
         <h2 id={titleId}>{title}</h2>
         <button type="button" className="secondary document-preview-close" autoFocus aria-label="Zavřít náhled" onClick={() => setOpen(false)}><X size={20} aria-hidden="true"/><span>Zavřít</span></button>

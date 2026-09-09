@@ -35,6 +35,9 @@ for (const scenario of ["desktop", "mobile", "error-retry"] as const) {
     await page.getByRole("button", { name: "Přihlásit se" }).click();
     await expect(page).toHaveURL(/\/portfolio(?:\?|$)/);
     await page.goto(`/ukoly/${task.id}`);
+    const editPanel = page.locator("details").filter({ has: page.locator("summary", { hasText: "Upravit případ" }) });
+    await editPanel.locator("summary").click();
+    await expect(editPanel).toHaveAttribute("open", "");
     const draft = page.getByLabel("Nový záznam", { exact: true });
     await draft.fill(`${marker} unsaved draft`);
     const url = page.url();
@@ -65,6 +68,7 @@ for (const scenario of ["desktop", "mobile", "error-retry"] as const) {
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
     await expect(trigger).toBeFocused();
+    await expect(editPanel).toHaveAttribute("open", "");
     expect(page.url()).toBe(url);
     await expect(draft).toHaveValue(`${marker} unsaved draft`);
     expect(await page.evaluate(() => Math.abs(window.scrollY - scrollBefore))).toBeLessThanOrEqual(1);

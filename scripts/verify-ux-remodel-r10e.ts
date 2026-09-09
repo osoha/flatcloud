@@ -38,7 +38,11 @@ check("document filters and previews have accessible names", () => {
   assert.match(page, /aria-label="Filtry katalogu dokumentů"/);
   for (const label of ["Hledat", "Nemovitost", "Kategorie", "Typ souboru", "Datum dokumentu od", "Datum dokumentu do"]) assert.match(page, new RegExp(`>${label}<`));
   assert.match(page, /Zrušit filtry/);
-  assert.match(attachments, /aria-label=\{`Otevřít náhled:/);
+  assert.match(attachments, /<DocumentImagePreview documentId=\{document.id\} title=\{document.title\}/);
+  const preview = read("components/documents/DocumentImagePreview.tsx");
+  assert.match(preview, /aria-label=\{`Otevřít náhled:/);
+  assert.match(preview, /aria-labelledby=\{titleId\}/);
+  assert.match(preview, /aria-label="Zavřít náhled"/);
 });
 
 check("document enum codes are translated for people", () => {
