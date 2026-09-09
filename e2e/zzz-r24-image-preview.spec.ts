@@ -11,7 +11,7 @@ test.beforeAll(() => {
 test.afterAll(async () => { await db.$disconnect(); });
 
 for (const scenario of ["desktop", "mobile", "error-retry"] as const) {
-  test(`R24 H image preview: ${scenario} preserves context and keyboard access`, async ({ page }) => {
+  test(`R24 H image preview: ${scenario} preserves context and keyboard access`, async ({ page }, testInfo) => {
     const title = `${marker} náhled ${randomUUID()} dlouhý název obrázku`;
     const admin = await db.user.findUniqueOrThrow({ where: { email: process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test" } });
     const property = await db.property.findFirstOrThrow({ where: { active: true } });
@@ -64,6 +64,7 @@ for (const scenario of ["desktop", "mobile", "error-retry"] as const) {
     expect(bounds!.x).toBeGreaterThanOrEqual(0);
     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(viewport.width);
     expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(viewport.height);
+    await testInfo.attach(`preview-${scenario}`, { body: await page.screenshot(), contentType: "image/png" });
     await close.focus();
     await page.keyboard.press("Tab");
     expect(await dialog.evaluate(el => el.contains(document.activeElement))).toBe(true);
@@ -75,7 +76,7 @@ for (const scenario of ["desktop", "mobile", "error-retry"] as const) {
     await expect(editPanel).toHaveAttribute("open", "");
     expect(page.url()).toBe(url);
     await expect(draft).toHaveValue(`${marker} unsaved draft`);
-    expect(await page.evaluate(() => Math.abs(window.scrollY - scrollBefore))).toBeLessThanOrEqual(1);
+    expect(await page.evaluate(before => Math.abs(window.scrollY - before), scrollBefore)).toBeLessThanOrEqual(1);
     await trigger.click();
     await expect(dialog).toBeVisible();
     await close.click();
