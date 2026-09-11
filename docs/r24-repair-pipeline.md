@@ -31,7 +31,7 @@ Nejprve A a C: oba blokují běžný provozní lifecycle. B má nejvyšší důl
 | G | PR #90, sloučeno; celé CI 34244893248 SUCCESS, 64/64. Živě odmítnut nepotvrzený posun souřadnic, původní bod zachován. Prostorová správnost adresy se tím nepotvrzuje. |
 | I | PR #91: distribuční souběh/retry a dvě úzké šířky 390/640 px již prošly průběžným CI 34246355622 (70/70). Finální sestava včetně E2 má 72 scénářů. Finální integrované CI a merge jsou podmínkou dokončení této etapy; R24 jako celek zůstává IN_PROGRESS. |
 | B | IMPLEMENTED: schválená viditelnost historie/nových záznamů, společná autorizace příloh a ochrana návazných podkladů; úplný CI gate a merge eviduje [PR #94](https://github.com/osoha/flatcloud/pull/94). |
-| H | PR #95 merge `3ad0e58`, CI 97/97. OAuth, čtyři složky, H-01 upload/historie a uživatelem zobrazení PNG + PNG/PDF download GREEN. [PR #96](https://github.com/osoha/flatcloud/pull/96) implementuje modální náhled a 3 UI regrese; přesný finální CI/SHA/merge/deployment důkaz je veden v jeho popisu. Živý file chooser blokuje H-02 náklad/error-retry; VIEW/EDIT/cizí scope a post-upload ancestry neověřené. H = IN_PROGRESS / LIVE_GATE_BLOCKED, nikoli hotový. Postup a důkazy v [bránách B/H](r24-storage-and-visibility-gates.md). |
+| H | PR #95 merge `3ad0e58`, CI 97/97. OAuth, čtyři složky, H-01 upload/historie a uživatelem zobrazení PNG + PNG/PDF download GREEN. [PR #96](https://github.com/osoha/flatcloud/pull/96) implementuje modální náhled a 3 UI regrese; přesný finální CI/SHA/merge/deployment důkaz je veden v jeho popisu. Živý file chooser blokuje H-02 náklad/error-retry; VIEW/EDIT/cizí scope a post-upload ancestry neověřené. Historický stav; aktuální uzavření viz finální stav H níže. Postup a důkazy v [bránách B/H](r24-storage-and-visibility-gates.md). |
 
 Neúspěšné běhy zůstávají v historii: A a C zpřesnily selektory a testovací session transport; G doplnil nové povinné potvrzení do původního ročního scénáře; D změnil očekávání účetního formátu. Žádný test nebyl přeskočen ani odstraněn kvůli selhání. Před merge musí být zelené celé CI na posledním SHA.
 
@@ -39,3 +39,14 @@ Další priorita: B (politika historie a interních poznámek) → H (izolovaný
 
 
 Pokračování H, 2026-09-11: modal z PR #96 nyní ověřen i živě; COST-01, odmítnutí neplatného PNG + validní PDF retry, post-upload ancestry 2 složek / 5 souborů GREEN. Zůstávají živé omezené role. Schválená obnova přístupu vyžádala doplnění administrátorského resetu (ověření správce, audit, revokace relací, zachované granty); nový opravný blok podléhá kompletnímu CI/PR/merge gate a ručnímu zadání hesel. Finální release důkazy vede opravné PR. H není uzavřen.
+
+
+## Finální stav H — 2026-09-11
+
+Funkční i živé brány H splněné: OAuth/izolace, H-01 a COST-01 upload, invalid → valid retry, ancestry 2 folders / 5 FileAssets, modal včetně Esc/křížku a kontextu, skutečné VIEW/EDIT a cizí scope. Oba účty po uživatelském resetu úspěšně přihlášeny. EDIT uložil označenou interní poznámku; další soubor nevznikl. Download PNG/PDF zůstává uživatelem ověřený, přímá API autorizační matice automaticky testovaná; cloudový zákaz respektován.
+
+- PR #96: CI 34401341795 100/100, merge `dfc5e2667a7bf10ce4254bc75f1cfcac0b76cc05`, modal nasazený a živě GREEN.
+- PR #97: CI 34596527958 103/103 bez retry, merge `58d1a313feb99068cd1ac502963f9e11a7f9c90f`, Render `dep-dahutkqd0e5s73c3l9r0` LIVE 2026-09-11T12:09:38.479819Z. Reset a zachovaný scope potvrzeny živými rolemi.
+- Uzavírací dokumentační PR: bez změny runtime; před merge povinné celé CI. Jeho finální SHA/CI/merge/deploy se doplní přímo do popisu PR. Po této bráně H = DONE; ostatní R24 mezery (širší role/revize/vlastnictví, TEST výběry, 200% zoom) se tím neoznačují za hotové.
+
+Tato část nahrazuje starší průběžné blokace H výše. Úplná důkazní matice je v závěru auditu.

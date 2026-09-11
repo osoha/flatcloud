@@ -47,3 +47,10 @@ Stav 2026-09-09: PR #95 mergnutý, CI 97/97. OAuth a čtyři podsložky GREEN, p
 
 
 Aktualizace 2026-09-11: živý modal, COST-01 upload, invalid PNG → valid PDF retry a skutečná ancestry všech 2 property folders / 5 FileAssets jsou GREEN. Připraven H-ROLE případ na existujícím VIEW/EDIT scope; potřebuje obnovené přihlášení omezených účtů. Uživatel schválil administrátorskou obnovu, implementována pro samostatné PR a plný CI gate. Agent nesmí zadat nové živé heslo; poslední krok resetu se předá uživateli podle control-browser. H zůstává IN_PROGRESS, podrobné ID a rozlišení důkazů viz audit.
+
+
+### Finální stav H — 2026-09-11
+
+Živé brány jsou splněné. Obnova obou účtů potvrzena uživatelem a následným skutečným přihlášením. VIEW zobrazí pouze OWNER_VISIBLE PNG, modal a Esc fungují; interní záznam i zápisové UI jsou skryté. Cizí úkol a náklad vracejí 404. EDIT zobrazí interní PNG a dovolí interní zápis s markerem H-ROLE-EDIT-RETEST. Nový soubor v tomto retestu nevznikl, poslední ancestry audit 2 složek / 5 souborů proto pokrývá všechny testovací přílohy.
+
+Přímé API/metadata a zápisová negativní matice jsou důkazy z izolovaného CI; autorizovaný download je explicitně uživatelský důkaz. Cloudový zákaz downloadu nebyl obcházen. PR #96 (100/100) i PR #97 (103/103) jsou mergnutá a nasazená pouze do sandboxu. H lze po úplném CI a merge uzavíracího dokumentačního PR označit DONE. Přesná ID a rozlišení důkazů viz finální část auditu; zbytek R24 zůstává samostatnou pipeline.
