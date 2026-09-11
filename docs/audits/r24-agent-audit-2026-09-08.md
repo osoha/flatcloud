@@ -334,3 +334,16 @@ Tato část nahrazuje starší průběžné stavy H. Funkční a živé brány H
 H je doložen kombinací automatických testů, živých rolových a storage kontrol a explicitně uživatelského ověření downloadu. Nejde o tvrzení, že agent živě otestoval každou API mutaci nebo download. Schválené sdílené OAuth a aplikační izolace pod `00_Aplikace_Sandbox` zůstávají beze změny. Účty nedostaly nové granty. Žádné produkční změny, skutečné e-maily, platby, publikace ani nevratné mazání.
 
 Finální CI, merge a nasazení tohoto dokumentačního uzavření budou zaznamenány v jeho PR; nevytváří se další kódová oprava ani nová autentizační cesta.
+
+
+## I — pokračování po uzavření H (2026-09-11)
+
+Živá identita: `r24.units@flatcloud.test`, Správce nemovitosti, EDIT pouze Dům ve správě. Načtení po deploy PR #98 green. Vytvořena revize `cmtx4b6ud0001u22ammegpvh1` u `cmtlxai130051un5dkqqk84g0`, název `R24_AGENT_QA_2026_09 · I-REV-01 · Syntetická kontrola`, kategorie `R24_AGENT_QA_2026_09_TEST`, periodicita 12 měsíců, původní termín 10. 9. 2026. UI potvrdilo vytvoření a „Po termínu 1 dní“. Dne 11. 9. zaznamenáno syntetické provedení, výsledek OK, technik a poznámka s markerem. Nejde o reálnou revizi. Další termín 11. 9. 2027, souhrn 1 aktivní / 0 do 60 dnů / 0 po termínu. Audit aktivity potvrdil autora a „Revize provedena“. Nebyl přidán soubor ani změněna předchozí historie.
+
+### R24-013 — nedostupná historie revizí
+
+Živě reprodukováno: po uložení a při opětovném vstupu přes Detail z globálních revizí chybí datum provedení, výsledek, technik, poznámka a historie protokolů. Provozní karta zobrazuje pouze další termín a formulář Provedeno; deník uvádí jen stručnou systémovou událost. Kód načítal poslední tři `records`, ale vůbec je nevykresloval.
+
+Oprava: rozbalovací Historie kontrol se všemi záznamy, stabilní sestupné pořadí, technik/autor/poznámka/výsledek/tehdejší navazující termín a standardní DocumentAttachments. Dotaz načítá historii jen v provozní sekci, používá stávající `documentAccessWhere` a nepřidává endpoint ani oprávnění. Regresní CI scénáře: pět záznamů včetně nejstaršího protokolu, nové provedení z UI, správný termín a počet záznamů; VIEW smí historii číst bez dokončovacího formuláře, unit-only a cizí scope mají 404, odstraněný protokol není zveřejněn. Metadata-only protokol v CI není živý upload/download důkaz.
+
+R24 zůstává IN_PROGRESS; oprava R24-013 musí projít celým CI, merge pouze do sandboxu a živým retestem. Vývojový výhled v pipeline doplněn o externí distribuci / přípravu partikulí v CRM jako poslední blok s dosud neuzavřeným briefem.

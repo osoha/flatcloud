@@ -50,3 +50,21 @@ Funkční i živé brány H splněné: OAuth/izolace, H-01 a COST-01 upload, inv
 - Uzavírací dokumentační PR: bez změny runtime; před merge povinné celé CI. Jeho finální SHA/CI/merge/deploy se doplní přímo do popisu PR. Po této bráně H = DONE; ostatní R24 mezery (širší role/revize/vlastnictví, TEST výběry, 200% zoom) se tím neoznačují za hotové.
 
 Tato část nahrazuje starší průběžné blokace H výše. Úplná důkazní matice je v závěru auditu.
+
+
+## Dokončení R24 po H — 2026-09-11
+
+Uživatel potvrdil pořadí: nejprve dokončit R24, poté navázat vývojem. Nový živý retest Správce jednotek I-REV-01 ověřil vytvoření revize po termínu, zaznamenání provedení a posun 12 měsíců. Nalezen R24-013: historie uložených kontrol se v provozním detailu vůbec nevykresluje. Opravný blok doplňuje úplnou historii (ne pouze načtené tři poslední řádky), výsledek, technika, autora, poznámku a autorizované protokoly. Přímé document endpointy zůstávají pod stávající autorizací. Samostatné PR vyžaduje celé CI a živý retest.
+
+Nadále otevřené: zbývajících šest živých účtů (dva ověřeny v H), souběh různých živých identit, účinné vlastnictví a postprodejní návaznosti, širší obchodní TEST výběry, přesný geokód problematické adresy a skutečný 200% zoom. R24 se neuzavírá pouhým uzavřením H nebo revizního retestu.
+
+## Vývojový výhled po R24
+
+Pracovní pořadí pro navazující briefy, nikoli tvrzení o dosud neexistujících funkcích:
+1. Dotáhnout evidenci nákladů a ekonomiku domu (rozpočet/skutečnost, OPEX/CAPEX a úvěry).
+2. Valorizace a scénáře budoucího cashflow.
+3. Vyúčtování služeb a daňové podklady.
+4. Dotáhnout interní distribuci, valuace, CRM/opce a postprodejní návaznosti.
+5. Metodiky, mentoring, onboarding a multimediální obsah.
+6. Reporty a manažerský přehled napříč vlastníky.
+7. **Externí distribuce:** podpora distribučního manažera v CRM, zejména příprava partikulí prodávaných jednotek. Uživatel nepožaduje nutně realitní server. Rozsah, obsah partikulí, formáty, schvalování a případné sdílení se teprve společně upřesní v briefu před implementací; veřejné publikování tím není schváleno.
