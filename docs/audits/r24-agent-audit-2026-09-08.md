@@ -314,3 +314,23 @@ Lokální policy/session regrese a TypeScript prošly. Lokálně není izolovan�
 
 
 První CI obnovy `34595610336`: build/migrace/statiky GREEN, browser 99/103. UI reset proběhl; tři nové API scénáře odhalily chybějící přenos Secure cookie přes izolované HTTP. Testovací helper nyní předává beze změny skutečnou cookie vydanou běžným login endpointem a před odvoláním ověřuje platnost relace. Zabezpečení aplikace se kvůli testům nemění. Dočasné identity se po každém testu deaktivují, aby neovlivňovaly stávající reportový test (jeho očekávání 8 identit zůstává zachované). Žádný test nebyl přeskočen; následuje celé CI na opraveném SHA. Implementační a finální release evidence: [PR #97](https://github.com/osoha/flatcloud/pull/97).
+
+
+## H — finální živé role a uzavření (2026-09-11)
+
+Tato část nahrazuje starší průběžné stavy H. Funkční a živé brány H jsou splněny; uzavírací dokumentační PR musí před merge projít celým CI. R24 jako celek se tím neuzavírá.
+
+| Typ důkazu | Výsledek a rozsah |
+|---|---|
+| Uživatel | Potvrdil dokončený reset Externího vlastníka i Správce jednotek. Z dřívější kontroly zůstává GREEN zobrazení PNG a stažení PNG/PDF; download neopakován. |
+| Živá autentizace | Oba účty přihlášeny běžným přihlášením přes bezpečný browserAuth / uživatelské převzetí. Čerstvé UI jednoznačně potvrdilo `r24.external-owner@flatcloud.test` / Vlastník, 1 objekt a `r24.units@flatcloud.test` / Správce nemovitosti, 1 objekt. |
+| Živé VIEW | H-ROLE `4948d2e0-8d23-49f1-96a2-1ab4e65b35cc`: vlastník vidí pouze OWNER_VISIBLE poznámku a PNG `cmtwo48lp000nzm1sp44l4twv`. INTERNAL poznámka, systémová historie a formulář zápisu chybí. Modální obrázek skutečně načten 1000 × 600; Esc zavře dialog a URL úkolu zůstane stejná. |
+| Živý cizí scope | Stejný přihlášený vlastník při přímé navigaci na H-01 úkol `b3334543-dc2b-4081-b12e-970d0d29ed02` a COST-01 detail `/nemovitosti/cmtlxsapt0005un2a5u7o803g/naklady/cmtsr4v9m000bts29qq5wdpye` dostane 404 bez obsahu. |
+| Živé EDIT | Správce jednotek ve stejném H-ROLE vidí OWNER_VISIBLE i INTERNAL PNG `cmtwo364u000fzm1syk2r85p3`. Interní náhled skutečně načten 1000 × 600, zavřen tlačítkem. Interní zápis `R24_AGENT_QA_2026_09 · H-ROLE-EDIT-RETEST` úspěšně uložen, UI potvrdilo autora a hlášku „Záznam byl přidán do vlákna.“ (14:59 dle UI). Předchozí historie zachována. |
+| Živé upload/retry/ancestry | Dříve doložené H-01 PDF/PNG a COST-01 invalid PNG → valid PDF GREEN. Finální audit provideru: 2 property folders / 5 FileAssets pod sandboxovým kořenem. V této etapě přibyla jen textová poznámka, žádný nový soubor ani složka. |
+| Automatické autorizace | Izolované CI pokrývá přímé download/preview varianty, skryté metadata, katalog, reporty a zápisovou role/scope matici v `e2e/zzz-r24-task-visibility.spec.ts`. Nezaměňovat za živý download test: cloudová URL security policy se neobcházela. |
+| Automatické opravy a release | PR #95: 97/97. PR #96: CI 34401341795, 100/100, merge `dfc5e2667a7bf10ce4254bc75f1cfcac0b76cc05`, modal živě ověřen. PR #97: CI 34596527958, 103/103 bez retry včetně build/migrací; merge `58d1a313feb99068cd1ac502963f9e11a7f9c90f`. Render deploy `dep-dahutkqd0e5s73c3l9r0` LIVE od 2026-09-11T12:09:38.479819Z, nové účty následně živě použity. |
+
+H je doložen kombinací automatických testů, živých rolových a storage kontrol a explicitně uživatelského ověření downloadu. Nejde o tvrzení, že agent živě otestoval každou API mutaci nebo download. Schválené sdílené OAuth a aplikační izolace pod `00_Aplikace_Sandbox` zůstávají beze změny. Účty nedostaly nové granty. Žádné produkční změny, skutečné e-maily, platby, publikace ani nevratné mazání.
+
+Finální CI, merge a nasazení tohoto dokumentačního uzavření budou zaznamenány v jeho PR; nevytváří se další kódová oprava ani nová autentizační cesta.
