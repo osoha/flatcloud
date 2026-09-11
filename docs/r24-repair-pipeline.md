@@ -36,3 +36,6 @@ Nejprve A a C: oba blokují běžný provozní lifecycle. B má nejvyšší důl
 Neúspěšné běhy zůstávají v historii: A a C zpřesnily selektory a testovací session transport; G doplnil nové povinné potvrzení do původního ročního scénáře; D změnil očekávání účetního formátu. Žádný test nebyl přeskočen ani odstraněn kvůli selhání. Před merge musí být zelené celé CI na posledním SHA.
 
 Další priorita: B (politika historie a interních poznámek) → H (izolovaný storage a živý gate) → zbývající živé role/revize/vlastnictví/postprodejní návaznosti → širší obchodní TEST výběry a 200% zoom. Podrobná evidence, omezení a testovací ID jsou v [auditu](audits/r24-agent-audit-2026-09-08.md).
+
+
+Pokračování H, 2026-09-11: modal z PR #96 nyní ověřen i živě; COST-01, odmítnutí neplatného PNG + validní PDF retry, post-upload ancestry 2 složek / 5 souborů GREEN. Zůstávají živé omezené role. Schválená obnova přístupu vyžádala doplnění administrátorského resetu (ověření správce, audit, revokace relací, zachované granty); nový opravný blok podléhá kompletnímu CI/PR/merge gate a ručnímu zadání hesel. Finální release důkazy vede opravné PR. H není uzavřen.
