@@ -448,6 +448,7 @@ model User {
   email                                String                         @unique
   name                                 String
   passwordHash                         String
+  sessionVersion                       Int                            @default(0)
   role                                 UserRole                       @default(OWNER_VIEWER)
   active                               Boolean                        @default(true)
   allProperties                        Boolean                        @default(false)
