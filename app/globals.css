@@ -493,3 +493,5 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 
 /* R24: separate notice title and explanation at every viewport. */
 .notice>strong+span,.notice>div>strong+span{display:block;margin-top:4px}
+
+.compliance-history{grid-column:1/-1;min-width:0}.compliance-history>summary{cursor:pointer;font-weight:700;padding:8px 0}.compliance-history-record{border-top:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere}.compliance-history-record h3{font-size:14px;margin:0 0 8px}.compliance-history-record p{margin:6px 0}.compliance-history-note{white-space:pre-wrap}
