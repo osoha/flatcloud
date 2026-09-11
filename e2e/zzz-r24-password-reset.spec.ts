@@ -13,14 +13,30 @@ const base = process.env.E2E_BASE_URL || "http://127.0.0.1:3100";
 test.beforeAll(() => {
   if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname) || !["localhost", "127.0.0.1"].includes(new URL(base).hostname)) throw new Error("Password reset fixtures require isolated app and DB");
 });
+const createdIds: string[] = [];
+test.afterEach(async () => {
+  // Keep history but remove this suite's temporary users from later active-user pickers.
+  await db.user.updateMany({ where: { id: { in: createdIds } }, data: { active: false } });
+  createdIds.length = 0;
+});
 test.afterAll(async () => { await db.$disconnect(); });
 
 async function fixture(role: "OWNER_VIEWER" | "MANAGER" | "SUPER_ADMIN" = "OWNER_VIEWER") {
-  return db.user.create({ data: { name: `${marker} password reset`, email: `${randomUUID()}@flatcloud.test`, role, isTestIdentity: true, passwordHash: await bcrypt.hash(oldPassword, 12) } });
+  const user = await db.user.create({ data: { name: `${marker} password reset`, email: `${randomUUID()}@flatcloud.test`, role, isTestIdentity: true, passwordHash: await bcrypt.hash(oldPassword, 12) } });
+  createdIds.push(user.id);
+  return user;
 }
 async function login(request: APIRequestContext, email: string, password: string) {
   const response = await request.post("/api/auth/login", { form: { email, password }, maxRedirects: 0 });
   expect(response.headers().location).toContain("/portfolio");
+  return sessionCookie(response);
+}
+function sessionCookie(response: { headers(): Record<string, string> }) {
+  // Production cookies stay Secure. Only isolated HTTP API tests explicitly forward
+  // the exact server-issued cookie; browser UI and live authentication are untouched.
+  const cookie = response.headers()["set-cookie"]?.match(/(?:^|[,\s])fc_session=([^;]+)/)?.[1];
+  expect(Boolean(cookie)).toBe(true);
+  return `fc_session=${cookie}`;
 }
 
 test("R24 reset: UI, new credentials, unchanged grants, old and legacy sessions revoked, audit contains no secrets", async ({ page, browser }) => {
@@ -31,10 +47,11 @@ test("R24 reset: UI, new credentials, unchanged grants, old and legacy sessions 
   const legacyContext = await browser.newContext({ baseURL: base });
   const freshContext = await browser.newContext({ baseURL: base });
   try {
-    await login(oldContext.request, target.email, oldPassword);
+    const oldCookie = await login(oldContext.request, target.email, oldPassword);
+    expect((await oldContext.request.get("/portfolio", { headers: { cookie: oldCookie }, maxRedirects: 0 })).status()).toBe(200);
     const token = await new SignJWT({ userId: target.id }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("12h").sign(new TextEncoder().encode(process.env.SESSION_SECRET || "flatcloud-local-e2e-session-secret-at-least-32-characters"));
     await legacyContext.addCookies([{ name: "fc_session", value: token, url: base }]);
-    expect((await legacyContext.request.get("/portfolio", { maxRedirects: 0 })).status()).toBe(200);
+    expect((await legacyContext.request.get("/portfolio", { headers: { cookie: `fc_session=${token}` }, maxRedirects: 0 })).status()).toBe(200);
     await login(page.request, adminEmail, adminPassword);
     await page.goto(`/uzivatele/${target.id}`);
     await page.getByRole("link", { name: "Obnovit heslo uživatele", exact: true }).click();
@@ -46,10 +63,10 @@ test("R24 reset: UI, new credentials, unchanged grants, old and legacy sessions 
     await page.getByRole("checkbox").check();
     await page.getByRole("button", { name: "Obnovit heslo a odhlásit uživatele" }).click();
     await expect(page.getByText("Heslo bylo obnoveno a dosavadní přihlášení uživatele zneplatněna. Role a oprávnění zůstaly zachované.")).toBeVisible();
-    for (const context of [oldContext, legacyContext]) expect((await context.request.get("/portfolio", { maxRedirects: 0 })).headers().location).toContain("/login");
+    for (const cookie of [oldCookie, `fc_session=${token}`]) expect((await oldContext.request.get("/portfolio", { headers: { cookie }, maxRedirects: 0 })).headers().location).toContain("/login");
     expect((await freshContext.request.post("/api/auth/login", { form: { email: target.email, password: oldPassword }, maxRedirects: 0 })).headers().location).toContain("error=1");
-    await login(freshContext.request, target.email, newPassword);
-    expect((await freshContext.request.get("/portfolio", { maxRedirects: 0 })).status()).toBe(200);
+    const freshCookie = await login(freshContext.request, target.email, newPassword);
+    expect((await freshContext.request.get("/portfolio", { headers: { cookie: freshCookie }, maxRedirects: 0 })).status()).toBe(200);
     const after = await db.user.findUniqueOrThrow({ where: { id: target.id }, include: { memberships: true } });
     expect(after.sessionVersion).toBe(1);
     expect(after.role).toBe("OWNER_VIEWER");
@@ -73,12 +90,13 @@ test("R24 reset: role, origin, admin proof, validation and target restrictions f
   for (const role of ["OWNER_VIEWER", "MANAGER"] as const) {
     const actor = await fixture(role);
     const context = await browser.newContext({ baseURL: base });
-    try { await login(context.request, actor.email, oldPassword); expect((await context.request.post(path, { headers, form, maxRedirects: 0 })).status()).toBe(403); } finally { await context.close(); }
+    try { const cookie = await login(context.request, actor.email, oldPassword); expect((await context.request.get("/portfolio", { headers: { cookie }, maxRedirects: 0 })).status()).toBe(200); expect((await context.request.post(path, { headers: { ...headers, cookie }, form, maxRedirects: 0 })).status()).toBe(403); } finally { await context.close(); }
   }
-  await login(request, adminEmail, adminPassword);
-  for (const origin of [undefined, "https://foreign.invalid", "null"]) expect((await request.post(path, { headers: origin ? { origin } : {}, form, maxRedirects: 0 })).status()).toBe(403);
+  const adminCookie = await login(request, adminEmail, adminPassword);
+  const authenticatedHeaders = { ...headers, cookie: adminCookie };
+  for (const origin of [undefined, "https://foreign.invalid", "null"]) expect((await request.post(path, { headers: origin ? { origin, cookie: adminCookie } : { cookie: adminCookie }, form, maxRedirects: 0 })).status()).toBe(403);
   for (const invalid of [{ adminPassword: "wrong" }, { confirmReset: "" }, { reason: "" }, { newPassword: "short" }, { confirmPassword: "different" }, { newPassword: "ě".repeat(37), confirmPassword: "ě".repeat(37) }, { newPassword: oldPassword, confirmPassword: oldPassword }]) {
-    const response = await request.post(path, { headers, form: { ...form, ...invalid }, maxRedirects: 0 });
+    const response = await request.post(path, { headers: authenticatedHeaders, form: { ...form, ...invalid }, maxRedirects: 0 });
     expect(response.headers().location).toContain("error=");
   }
   const before = await db.user.findUniqueOrThrow({ where: { id: target.id } });
@@ -86,11 +104,11 @@ test("R24 reset: role, origin, admin proof, validation and target restrictions f
   expect(before.sessionVersion).toBe(0);
   expect(await db.auditLog.count({ where: { action: "USER_PASSWORD_RESET", entityId: target.id } })).toBe(0);
   await db.user.update({ where: { id: target.id }, data: { active: false } });
-  expect((await request.post(path, { headers, form, maxRedirects: 0 })).headers().location).toContain("error=");
+  expect((await request.post(path, { headers: authenticatedHeaders, form, maxRedirects: 0 })).headers().location).toContain("error=");
   const peer = await fixture("SUPER_ADMIN");
   const admin = await db.user.findUniqueOrThrow({ where: { email: adminEmail } });
-  for (const id of [peer.id, admin.id]) expect((await request.post(`/api/users/${id}/password-reset`, { headers, form, maxRedirects: 0 })).headers().location).toContain("error=");
-  expect((await request.post(`/api/users/${randomUUID()}/password-reset`, { headers, form, maxRedirects: 0 })).status()).toBe(404);
+  for (const id of [peer.id, admin.id]) expect((await request.post(`/api/users/${id}/password-reset`, { headers: authenticatedHeaders, form, maxRedirects: 0 })).headers().location).toContain("error=");
+  expect((await request.post(`/api/users/${randomUUID()}/password-reset`, { headers: authenticatedHeaders, form, maxRedirects: 0 })).status()).toBe(404);
 });
 
 test("R24 password change keeps initiating session and revokes another session", async ({ browser }) => {
@@ -98,11 +116,12 @@ test("R24 password change keeps initiating session and revokes another session",
   const first = await browser.newContext({ baseURL: base });
   const second = await browser.newContext({ baseURL: base });
   try {
-    await login(first.request, target.email, oldPassword);
-    await login(second.request, target.email, oldPassword);
-    const response = await first.request.post("/api/account/password", { form: { currentPassword: oldPassword, newPassword, confirmPassword: newPassword }, maxRedirects: 0 });
+    const firstCookie = await login(first.request, target.email, oldPassword);
+    const secondCookie = await login(second.request, target.email, oldPassword);
+    for (const cookie of [firstCookie, secondCookie]) expect((await first.request.get("/portfolio", { headers: { cookie }, maxRedirects: 0 })).status()).toBe(200);
+    const response = await first.request.post("/api/account/password", { headers: { cookie: firstCookie }, form: { currentPassword: oldPassword, newPassword, confirmPassword: newPassword }, maxRedirects: 0 });
     expect(response.headers().location).toContain("changed=1");
-    expect((await first.request.get("/portfolio", { maxRedirects: 0 })).status()).toBe(200);
-    expect((await second.request.get("/portfolio", { maxRedirects: 0 })).headers().location).toContain("/login");
+    expect((await first.request.get("/portfolio", { headers: { cookie: sessionCookie(response) }, maxRedirects: 0 })).status()).toBe(200);
+    expect((await second.request.get("/portfolio", { headers: { cookie: secondCookie }, maxRedirects: 0 })).headers().location).toContain("/login");
   } finally { await first.close(); await second.close(); }
 });
