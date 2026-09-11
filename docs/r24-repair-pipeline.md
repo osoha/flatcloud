@@ -68,3 +68,12 @@ Pracovní pořadí pro navazující briefy, nikoli tvrzení o dosud neexistujíc
 5. Metodiky, mentoring, onboarding a multimediální obsah.
 6. Reporty a manažerský přehled napříč vlastníky.
 7. **Externí distribuce:** podpora distribučního manažera v CRM, zejména příprava partikulí prodávaných jednotek. Uživatel nepožaduje nutně realitní server. Rozsah, obsah partikulí, formáty, schvalování a případné sdílení se teprve společně upřesní v briefu před implementací; veřejné publikování tím není schváleno.
+## Aktuální stav po živých rolích — 2026-09-11
+
+PR #99: R24-013 DONE, historie revizí živě ověřena; merge ace262af77d03b4bc11094147cda02a746972288, CI 34617721743 SUCCESS 105/105 bez retry, Render dep-dai27095efls73as0p60 LIVE. H nadále DONE.
+
+Všech osm identit má doložené živé přihlášení. Nově ověřeno uložení uvítacího DRAFT s existující přílohou, nákladové alokace, prázdný default správce, jednotkový scope, EDIT zápis asistentky a vytvoření/uzavření případu dvěma různými správci se zachováním historie. Podrobnosti a ID jsou v závěrečném doplnění auditu a PR #99.
+
+R24 zůstává IN_PROGRESS: chybí skutečný 200% zoom, současné živé identity, přesný geokód problematické adresy a širší živé administrátorské TEST výběry. Účinný převod vlastnictví je blokován stávajícím deleteMany a absencí časové historie; nebyl proveden. Návrh zachování historie a odděleného potvrzení je v auditu. Pravidla účinnosti, scope a platebních návazností potřebují konkrétní lidské rozhodnutí dle AGENTS.md před implementací změn bezpečnostních/platebních hranic.
+
+Externí distribuce / CRM partikule zůstává posledním budoucím vývojovým blokem s briefem k společnému dopracování.

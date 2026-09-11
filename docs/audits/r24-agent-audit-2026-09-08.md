@@ -347,3 +347,32 @@ Finální CI, merge a nasazení tohoto dokumentačního uzavření budou zazname
 Oprava: rozbalovací Historie kontrol se všemi záznamy, stabilní sestupné pořadí, technik/autor/poznámka/výsledek/tehdejší navazující termín a standardní DocumentAttachments. Dotaz načítá historii jen v provozní sekci, používá stávající `documentAccessWhere` a nepřidává endpoint ani oprávnění. Regresní CI scénáře: pět záznamů včetně nejstaršího protokolu, nové provedení z UI, správný termín a počet záznamů; VIEW smí historii číst bez dokončovacího formuláře, unit-only a cizí scope mají 404, odstraněný protokol není zveřejněn. Metadata-only protokol v CI není živý upload/download důkaz.
 
 R24 zůstává IN_PROGRESS; oprava R24-013 musí projít celým CI, merge pouze do sandboxu a živým retestem. Vývojový výhled v pipeline doplněn o externí distribuci / přípravu partikulí v CRM jako poslední blok s dosud neuzavřeným briefem.
+
+
+## Závěrečné živé role — 2026-09-11 po PR #99
+
+PR #99 sloučeno jako `ace262af77d03b4bc11094147cda02a746972288`; celé CI 34617721743 SUCCESS, 105/105 bez retry. Render `dep-dai27095efls73as0p60` LIVE 2026-09-11T15:54:24.895184Z; historie I-REV-01 živě ověřena. R24-013 = DONE.
+
+Ve spojení s omezenými rolemi z H nyní doloženo přihlášení všech osmi testovacích identit přes bezpečné browserAuth / ruční převzetí. Nejde o úplné pokrytí každého lifecycle ani o současné relace.
+
+| Živá role | Doložený scénář |
+|---|---|
+| Externí vlastník / Správce jednotek | Viz finální H: VIEW/EDIT přílohy, interní vs vlastnická viditelnost a cizí scope. |
+| Šéf distribuce | Uvítací koncept `cmtsr9osg0012ts29zgwzxrni` rev1: připojen existující syntetický H-02 PDF a uloženo; potvrzení úspěchu, stále DRAFT, 1 příloha. Interní H-01 dokumenty ve výběru chybí. Bez odeslání a bez nového FileAsset. |
+| Asset manager | COST-01 skutečnost 1 234,56 Kč; alokace 411,60 + 411,48 + 411,48. Nová nemovitost má správce „Bez přiřazeného správce“, testovací identity nejsou předvybrané. Bez zápisu. |
+| Novic | Jednotka `cmtlxai1b0059un5dcf644ji2` dostupná; sourozenecká `cmtlxai1s005qun5dlw1flbeu` a Provoz domu vracejí 404. Bez zápisu. |
+| Interní asistentka | EDIT zápis I-ASSIST-01 v Provozu Karla Aksamita `cmtlxahvv002kun5d04eq3t56`, následně viditelný text i autor. Cizí Dům ve správě /provoz 404. |
+| Technický správce | V Moskevské vytvořil I-TECH-01 `f0fcb702-1655-44a1-8aec-0940b4286ba6`; výchozí nemovitost prázdná, jediná povolená Moskevská. Interní historie uvádí správného autora. |
+| Pokročilý uživatel | Tentýž I-TECH-01 nalezl a uzavřel s povinným interním komentářem; UI „Případ byl uzavřen“, Hotovo, zachovaní oba autoři a původní zadání. Sekvenční předání, nikoli souběh. |
+
+Všechny nové textové zápisy mají marker `R24_AGENT_QA_2026_09`. Nové živé uploady/downloady v tomto průchodu nebyly prováděny. Uživatelská potvrzení stažení PNG/PDF a zobrazení PNG zůstávají samostatným důkazem H a nebyla opakována.
+
+### Přesné zbývající brány
+
+- **Účinné vlastnictví:** aktuální nahrazovací endpointy mažou staré propertyOwnership/unitOwnership vazby (`deleteMany`) a zakládají nové; jednotková změna také přesměrovává ownerBankAccountId aktivních/budoucích smluv. Živý převod se proto neprovedl: zákaz nevratného mazání platí. Neexistuje důkaz časové historie ani bezpečného převodu s postprodejní návazností.
+- **Návrh další opravy k rozhodnutí:** uchovat staré vlastnické vazby, zavést účinnost od/do a audit změny; oddělit návrh převodu od jeho potvrzení a explicitně určit dopad na scope a příjemce plateb. Akceptace: starý i nový stav dohledatelný, bez mazání; minulý/budoucí den správně vybere vlastníka; žádný samovolný přepis platebních vazeb; opakované potvrzení nevytvoří duplicity. Nejde o implementované chování. AGENTS.md vyžaduje lidské rozhodnutí pro změny plateb a bezpečnostních hranic; obecné dokončení R24 není specifikací těchto pravidel.
+- **200% zoom:** Ctrl+plus v cloudovém prohlížeči nezměnil DPR ani viewport (1; 1363 × 936). Chybí skutečná kontrola při 200 %, mobilní šířky ani CSS zvětšení ji nenahrazují.
+- **Živý souběh:** role byly přepínány ve sdílené cookie relaci. Izolované CI testy souběhu platí jako automatický důkaz; dvě současné živé identity tím nejsou doloženy.
+- **Další neuzavřené kontroly:** přesný geokód problematické adresy a širší administrátorské TEST výběry (roční/kvartální defaulty byly nyní kontrolovány kódem, nikoli novým živým průchodem).
+
+H a R24-013 = DONE. Celé R24 = IN_PROGRESS; závěrečné READY je blokováno uvedenými chybějícími důkazy/rozhodnutím. Externí distribuce a příprava partikulí v CRM zůstává poslední budoucí vývojový blok, jehož brief bude upřesněn společně s uživatelem.
