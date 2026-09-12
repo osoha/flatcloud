@@ -43,20 +43,23 @@ export async function replaceRecurringAmount(
   category: "RENT" | "SERVICES",
   amountCents: number,
   effectiveFrom: Date,
+  options: { preserveFutureFrom?: Date } = {},
 ) {
   const overlapping = await tx.leasePaymentItem.findMany({
     where: {
       leaseId,
       category: category as ChargeCategory,
       active: true,
+      ...(options.preserveFutureFrom ? { validFrom: { lt: options.preserveFutureFrom } } : {}),
       OR: [{ validTo: null }, { validTo: { gte: effectiveFrom } }],
     },
     orderBy: [{ validFrom: "desc" }, { createdAt: "desc" }],
   });
+  const canonicalValidTo = options.preserveFutureFrom ? dayBefore(options.preserveFutureFrom) : null;
   const alreadyCanonical = amountCents > 0
     && overlapping.length === 1
     && overlapping[0].validFrom <= effectiveFrom
-    && !overlapping[0].validTo
+    && (overlapping[0].validTo?.getTime() ?? null) === (canonicalValidTo?.getTime() ?? null)
     && overlapping[0].amountCents === amountCents;
   if (alreadyCanonical) return false;
 
@@ -75,7 +78,7 @@ export async function replaceRecurringAmount(
     category: category as ChargeCategory,
     amountCents,
     validFrom: effectiveFrom,
-    validTo: null,
+    validTo: canonicalValidTo,
     active: amountCents > 0,
     sortOrder: category === "RENT" ? 10 : 20,
   };

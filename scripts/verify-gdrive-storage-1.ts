@@ -29,7 +29,7 @@ await check("delete uses exact Drive ID",async()=>{const {storage,calls}=fakeDri
 await check("gdrive signed downloads are disabled",()=>assert.equal(fileStorageCapabilities("gdrive").signedDownloads,false));
 await check("authorized routes stream non-signed providers",()=>assert.match(read("app/api/documents/[id]/download/route.ts"),/storage\.getObject\(key\)/));
 await check("OAuth refresh token authentication is configured",()=>{const source=read("lib/storage/google-drive.ts");assert.match(source,/OAuth2Client/);assert.match(source,/refresh_token/)});
-await check("secrets are server-only",()=>{assert.doesNotMatch(read("app/nastaveni/page.tsx"),/GOOGLE_DRIVE_CLIENT_SECRET[^&]/);assert.doesNotMatch(read("app/nastaveni/page.tsx"),/GOOGLE_DRIVE_REFRESH_TOKEN[^&]/)});
+await check("secrets are server-only",()=>{assert.doesNotMatch(read("app/nastaveni/system/page.tsx"),/GOOGLE_DRIVE_CLIENT_SECRET[^&]/);assert.doesNotMatch(read("app/nastaveni/system/page.tsx"),/GOOGLE_DRIVE_REFRESH_TOKEN[^&]/)});
 await check("request timeout is bounded",()=>{assert.equal(googleDriveRequestTimeout(environment),30000);assert.throws(()=>googleDriveRequestTimeout({...environment,GOOGLE_DRIVE_REQUEST_TIMEOUT_MS:"1"}))});
 await check("canonical folders are validated",()=>assert.match(read("lib/storage/locations.ts"),/validateCanonicalDriveFolders/));
 await check("property Drive folder is nullable",()=>assert.match(read("prisma/schema.prisma"),/googleDriveFolderId\s+String\?/));

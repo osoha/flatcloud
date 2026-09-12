@@ -19,6 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const mode = text(form, "mode") || "save";
     const paid = paidCents(item.charge);
+    if (paid > 0) throw new Error("Uhrazený nebo částečně uhrazený předpis nelze běžně přepisovat. Použijte auditovanou opravu platby nebo nový korekční předpis.");
 
     let total: number;
     let amountCents = item.amountCents;

@@ -41,8 +41,8 @@ export async function POST(request: Request) {
     };
     await prisma.appSetting.upsert({ where: { id: "global" }, update: data, create: { id: "global", ...data } });
     await audit(user.id, "INBOUND_MAIL_SETTINGS_UPDATED", "AppSetting", "global", { enabled: inboundMailEnabled, host: inboundMailHost, port: inboundMailPort, mailbox: inboundMailMailbox, secure: inboundMailSecure, passwordChanged: Boolean(password), uidReset: mailboxChanged });
-    return goWithMessage(request, "/nastaveni", "ok", mailboxChanged ? "Nastavení sběrného e-mailu bylo uloženo a UID checkpoint resetován." : "Nastavení sběrného e-mailu bylo uloženo.");
+    return goWithMessage(request, "/nastaveni/system", "ok", mailboxChanged ? "Nastavení sběrného e-mailu bylo uloženo a UID checkpoint resetován." : "Nastavení sběrného e-mailu bylo uloženo.");
   } catch (error) {
-    return goWithMessage(request, "/nastaveni", "error", error instanceof Error ? error.message : "Nastavení sběrného e-mailu se nepodařilo uložit.");
+    return goWithMessage(request, "/nastaveni/system", "error", error instanceof Error ? error.message : "Nastavení sběrného e-mailu se nepodařilo uložit.");
   }
 }

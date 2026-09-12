@@ -13,13 +13,15 @@ export default async function EditTenant({ params, searchParams }: { params: Pro
   const { id, tenantId } = await params;
   const [property, tenant, query] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.tenant.findFirst({ where: { id: tenantId, leases: { some: { unit: unitAccessWhere(user, id) } } } }),
+    prisma.tenant.findFirst({ where: { id: tenantId, OR: [{ leases: { some: { unit: unitAccessWhere(user, id) } } }, { leaseParties: { some: { lease: { unit: unitAccessWhere(user, id) } } } }] } }),
     searchParams,
   ]);
   if (!property || !tenant) notFound();
-  const unitId = property.units.find((unit) => unit.leases.some((lease) => lease.tenantId === tenant.id))?.id;
+  const [relationship, propertyLink] = await Promise.all([prisma.lease.findFirst({ where: { unit: unitAccessWhere(user, id), OR: [{ tenantId: tenant.id }, { parties: { some: { tenantId: tenant.id } } }] }, orderBy: { startDate: "desc" }, select: { unitId: true } }), prisma.tenantProperty.findUnique({ where: { tenantId_propertyId: { tenantId: tenant.id, propertyId: id } } })]);
+  if (!relationship && !propertyLink) notFound();
+  const unitId = relationship?.unitId;
   const backHref = unitId ? `/nemovitosti/${id}/jednotky/${unitId}` : `/nemovitosti/${id}/najemnici`;
-  return <Shell user={user}><FormPage title={`Upravit nájemníka: ${tenant.name}`} backHref={backHref}>
+  return <Shell user={user} taskPropertyId={id}><FormPage title={`Upravit nájemníka: ${tenant.name}`} backHref={backHref}>
     <Flash ok={query.ok} error={query.error}/>
     <FormCard action={`/api/properties/${id}/tenants/${tenant.id}`} cancelHref={`/nemovitosti/${id}/najemnici`}>
       <TenantFields typeName="type" noteName="note" defaults={{ type: tenant.type, name: tenant.name, email: tenant.email, phone: tenant.phone, ico: tenant.ico, permanentAddress: tenant.permanentAddress || (tenant.type === "PERSON" ? tenant.address : null), correspondenceAddress: tenant.correspondenceAddress, billingAddress: tenant.billingAddress || (tenant.type === "COMPANY" ? tenant.address : null), billingEmail: tenant.billingEmail, communicationEmail: tenant.communicationEmail, note: tenant.note }}/>

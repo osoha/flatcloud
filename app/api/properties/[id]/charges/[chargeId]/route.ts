@@ -29,9 +29,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const mode = text(form, "mode") || "save";
     const paid = paidCents(existing);
+    if (paid > 0) throw new Error("Uhrazený nebo částečně uhrazený předpis nelze běžně přepisovat. Použijte auditovanou opravu platby nebo nový korekční předpis.");
 
     if (mode === "reset") {
-      if (paid > 0) throw new Error("U předpisu s již přiřazenou úhradou nelze ruční úpravy automaticky resetovat.");
       const start = periodStart(existing.period);
       const monthEnd = endOfMonth(start);
       const templateItems = existing.lease.paymentItems
@@ -58,7 +58,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     if (mode === "waive") {
-      if (paid > 0) throw new Error("Již uhrazený nebo částečně uhrazený předpis nelze vypnout. Použijte korekční položku.");
       const note = text(form, "note") || existing.note || "Předpis byl pro tento měsíc odpuštěn / vypnut.";
       const itemTotal = existing.items.reduce((sum, item) => sum + item.amountCents, 0);
       await prisma.$transaction(async (tx) => {
@@ -74,7 +73,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
 
     const active = boolValue(form, "active");
-    if (!active && paid > 0) throw new Error("Již uhrazený nebo částečně uhrazený předpis nelze vypnout. Použijte korekční položku.");
     const dueDate = dateValue(form, "dueDate", true)!;
     const note = text(form, "note");
     await prisma.charge.update({

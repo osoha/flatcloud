@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, CalendarCheck2, CalendarRange, ClipboardCheck, FileText, LayoutDashboard, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, LayoutDashboard, Library, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
@@ -12,6 +12,9 @@ import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
 import { authorizationScopeLabel } from "@/lib/access-scope-label";
 import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
+import { ScopeAwareLink } from "@/components/ScopeAwareLink";
+import { NativeDetailsEscape } from "@/components/NativeDetailsEscape";
+import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
 
 type ShellUser = {
   id: string;
@@ -62,6 +65,8 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
   return <div className="app-shell v21-shell">
+    <NativeDetailsEscape/>
+    <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
       <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka">
         <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
@@ -70,10 +75,12 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
-        {canSeeQuarterlyReports && <Nav href="/reporty/kvartalni" icon={<CalendarRange size={17}/>} label="Kvartální reporty"/>}
+        {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
+        {canAddProperty && <Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/>}
 
         <div className="nav-label">Provoz</div>
         <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
+        <Nav href="/portfolio/kvalita" icon={<Hammer size={17}/>} label="Kvalita a CAPEX"/>
         <Nav href="/revize" icon={<ClipboardCheck size={17}/>} label="Revize" count={dueRevisions}/>
 
         <div className="nav-label">Finance</div>
@@ -82,15 +89,24 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
         <Nav href="/kauce" icon={<WalletCards size={17}/>} label="Kauce"/>
 
-        <div className="nav-label">Evidence</div>
-        <Nav href="/najemnici" icon={<Users size={17}/>} label="Nájemníci"/>
-        <Nav href="/smlouvy" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
-        <Nav href="/dokumenty" icon={<FileText size={17}/>} label="Dokumenty"/>
-        {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
+        <CollapsibleNavGroup id="evidence" label="Evidence" activeRoots={["/najemnici", "/smlouvy", "/dokumenty", "/vlastnici"]} defaultOpen>
+          <Nav href="/najemnici" icon={<Users size={17}/>} label="Nájemníci"/>
+          <Nav href="/smlouvy" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
+          <Nav href="/dokumenty" icon={<FileText size={17}/>} label="Dokumenty"/>
+          {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
+        </CollapsibleNavGroup>
 
-        <div className="nav-label">Správa</div>
-        {superAdmin && <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>}
-        {superAdmin && <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>}
+        <CollapsibleNavGroup id="support" label="Podpora práce" activeRoots={["/metodika"]}>
+          <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={17}/>} label="Průvodci"/>
+          <Nav href="/metodika?view=chapters" activeQuery={{view:"chapters"}} icon={<BookOpen size={17}/>} label="Metodika"/>
+          <Nav href="/metodika?view=glossary" activeQuery={{view:"glossary"}} icon={<Library size={17}/>} label="Slovník"/>
+          <Nav href="/metodika?view=media" activeQuery={{view:"media"}} icon={<Headphones size={17}/>} label="Znalostní média"/>
+        </CollapsibleNavGroup>
+
+        {superAdmin && <CollapsibleNavGroup id="administration" label="Správa" activeRoots={["/uzivatele", "/nastaveni"]}>
+          <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>
+          <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>
+        </CollapsibleNavGroup>}
       </nav>
       <div className="sidebar-footer">
         <div className="user-card">
@@ -99,15 +115,15 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         </div>
       </div>
     </aside>
-    <main className="main">
+    <main className="main" id="main-content" tabIndex={-1}>
       <header className="topbar v21-topbar">
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
-          {canAddManualPayment && <Link className="secondary top-action" href="/platby/nova"><Plus size={15}/><span>Ruční platba</span></Link>}
+          {canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
           {canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
-          <Link className="account-chip" href="/ucet"><UserRound size={15}/><span>{user.name}</span></Link>
+          <Link className="account-chip" href="/ucet" aria-label="Můj účet"><UserRound size={15}/><span>{user.name}</span></Link>
         </div>
       </header>
       {children}
@@ -115,6 +131,6 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
   </div>;
 }
 
-function Nav({href,icon,label,count=0}:{href:string;icon:React.ReactNode;label:string;count?:number}){
-  return <Link href={href}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</Link>;
+function Nav({href,icon,label,count=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;activeQuery?:Record<string,string>}){
+  return <ScopeAwareLink href={href} activeQuery={activeQuery}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
 }

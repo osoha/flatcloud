@@ -139,7 +139,7 @@ async function main() {
 
   const propertyRoute = read("app/api/properties/[id]/route.ts"), manualRoute = read("app/api/settings/storage/reconcile/route.ts"), service = read("lib/storage/property-drive-reconciliation.ts"), schema = read("prisma/schema.prisma");
   await check("property DB update precedes best-effort Drive reconciliation", () => { assert.match(propertyRoute, /prisma\.\$transaction[\s\S]*reconcilePropertyDriveStructure/); assert.match(propertyRoute, /catch \(error\)[\s\S]*Změna je uložena/); });
-  await check("portfolio reconciliation is server-enforced SUPER_ADMIN only", () => { assert.match(manualRoute, /user\.role !== "SUPER_ADMIN"/); assert.match(read("app/nastaveni/page.tsx"), /Synchronizovat strukturu Google Drive/); });
+  await check("portfolio reconciliation is server-enforced SUPER_ADMIN only", () => { assert.match(manualRoute, /user\.role !== "SUPER_ADMIN"/); assert.match(read("app/nastaveni/system/page.tsx"), /Synchronizovat strukturu Google Drive/); });
   await check("document reconciliation moves originals only", () => { assert.match(service, /moveFile\(asset\.storageKey/); assert.doesNotMatch(service, /moveFile\(asset\.(previewStorageKey|thumbnailStorageKey)/); });
   await check("historical document names are never inferred from title", () => { assert.doesNotMatch(service, /Document\.title|document\.title/); assert.doesNotMatch(service, /renameFile\(asset\.storageKey/); });
   await check("FileAsset sharing is explicitly inspected", () => { assert.match(schema, /documents\s+Document\[\]/); assert.match(service, /destinations\.size !== 1/); });

@@ -4,6 +4,7 @@ import { prisma } from "./db";
 import { allocateAvailableTransactionToLeaseTx, recomputeTransactionStatusTx } from "./matching";
 import { serializableTransaction } from "./serializable";
 import { reconcileCollectionTasksAfterPaymentCorrectionTx } from "./tasks";
+import { paymentReassignmentEligible } from "./payment-lease-options";
 
 type Actor={id:string;role:string;allProperties?:boolean};
 type CorrectionTransaction={id:string;bankAccount:{propertyId:string};suggestedLease?:{unitId:string;variableSymbol:string;tenant:{name:string}}|null;allocations:Array<{charge:{lease:{unitId:string;variableSymbol:string;tenant:{name:string}}}}> ;securityDepositReceipts:Array<{lease:{unitId:string}}>};
@@ -19,7 +20,7 @@ async function requireTransactionCorrectionAccess(tx:Prisma.TransactionClient,ac
 const snapshots=(transaction:any):AllocationSnapshot[]=>transaction.allocations.map((row:any)=>({allocationId:row.id,chargeId:row.chargeId,leaseId:row.charge.leaseId,amountCents:row.amountCents}));
 export function uniqueAssignmentLeaseId(leaseIds:string[]){const unique=[...new Set(leaseIds)];return unique.length===1?unique[0]:null}
 export function manualCancellationError(input:{source:string;status:string;matchNote?:string|null;depositLinked:boolean}){if(input.source!=="manual")return "Stornovat lze pouze ručně evidovanou platbu.";if(input.status===PaymentStatus.IGNORED)return input.matchNote==="Ruční platba stornována správcem."?"Ruční platba již byla stornována.":"Ruční platba je již označena jako ignorovaná a nelze ji tímto způsobem stornovat.";if(input.depositLinked)return "Platbu nelze stornovat, protože její část byla zaúčtována jako kauce. Nejprve je nutné opravit evidenci kauce.";return null}
-export function crossPropertyReassignError(source:string,sourcePropertyId:string,targetPropertyId:string){return sourcePropertyId!==targetPropertyId&&source!=="manual"?"Bankovní transakci nelze přesunout mezi nemovitostmi. Přepárovat ji lze pouze v rámci objektu, na jehož bankovní účet byla přijata.":null}
+export function crossPropertyReassignError(_source:string,sourcePropertyId:string,targetPropertyId:string){return sourcePropertyId!==targetPropertyId?"Bankovní transakci nelze přesunout mezi nemovitostmi. Přepárovat ji lze pouze v rámci objektu, na jehož účet byla přijata nebo ručně evidována.":null}
 export function reassignedManualMetadata(input:{source:string;counterpartyName:string|null;variableSymbol:string|null;previousTenantName?:string;previousLeaseVariableSymbol?:string;targetTenantName:string;targetLeaseVariableSymbol:string}){return {counterpartyName:input.source==="manual"&&input.previousTenantName&&input.counterpartyName===input.previousTenantName?input.targetTenantName:input.counterpartyName,variableSymbol:input.source==="manual"&&input.previousLeaseVariableSymbol&&input.variableSymbol===input.previousLeaseVariableSymbol?input.targetLeaseVariableSymbol:input.variableSymbol}}
 
 const finalAnchorError="Úplné odpárování platby může provést pouze správce celé nemovitosti. Platbu můžete přímo přepárovat na jinou jednotku, ke které máte oprávnění.";
@@ -38,12 +39,13 @@ export async function reassignPayment(actor:Actor,propertyId:string,transactionI
   if(transaction.status===PaymentStatus.IGNORED)throw new Error("Stornovanou nebo ignorovanou platbu nelze přepárovat.");
   if(transaction.securityDepositReceipts.length)throw new Error("Část platby je zaúčtována jako kauce. Lze opravit jednotlivé alokace nájemného, ale celou platbu nelze přepárovat.");
   const sourcePropertyId=transaction.bankAccount.propertyId;
-  const target=await tx.lease.findFirst({where:{id:targetLeaseId,unit:{property:{active:true}}},select:{id:true,unitId:true,variableSymbol:true,tenant:{select:{name:true}},unit:{select:{label:true,propertyId:true,property:{select:{name:true}}}}}});
+  const target=await tx.lease.findFirst({where:{id:targetLeaseId,unit:{propertyId:sourcePropertyId,property:{active:true}}},include:{tenant:{select:{name:true}},unit:{select:{label:true,propertyId:true,property:{select:{name:true}}}},charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true}}}});
   if(!target)throw new Error("Cílový nájemní vztah nebyl nalezen.");
   const targetPropertyId=target.unit.propertyId;
-  if(!await canCorrectTransaction(actor,targetPropertyId,[target.unitId],tx))throw new Error("Nemáte oprávnění přepárovat platbu na cílový nájemní vztah.");
   const crossPropertyBlocked=crossPropertyReassignError(transaction.source,sourcePropertyId,targetPropertyId);
   if(crossPropertyBlocked)throw new Error(crossPropertyBlocked);
+  if(!paymentReassignmentEligible(target))throw new Error("Cílová smlouva není aktivní a nemá otevřený dluh. Vyberte relevantní vztah v této nemovitosti.");
+  if(!await canCorrectTransaction(actor,targetPropertyId,[target.unitId],tx))throw new Error("Nemáte oprávnění přepárovat platbu na cílový nájemní vztah.");
   const previousAllocations=snapshots(transaction);
   const previousLeaseIds=[...new Set(previousAllocations.map(row=>row.leaseId))];
   const uniquePreviousLeaseId=previousLeaseIds.length===1?previousLeaseIds[0]:null;
@@ -53,13 +55,7 @@ export async function reassignPayment(actor:Actor,propertyId:string,transactionI
   const previousVariableSymbol=transaction.variableSymbol;
   const correctedMetadata=reassignedManualMetadata({source:transaction.source,counterpartyName:previousCounterpartyName,variableSymbol:previousVariableSymbol,previousTenantName:previousLease?.tenant.name,previousLeaseVariableSymbol:previousLease?.variableSymbol,targetTenantName:target.tenant.name,targetLeaseVariableSymbol:target.variableSymbol});
   const newCounterpartyName=correctedMetadata.counterpartyName,newVariableSymbol=correctedMetadata.variableSymbol;
-  let targetBankAccountId=transaction.bankAccountId;
-  if(sourcePropertyId!==targetPropertyId){
-    const targetAccount=await tx.bankAccount.upsert({where:{provider_externalAccountId:{provider:"manual",externalAccountId:`manual-${targetPropertyId}`}},update:{},create:{propertyId:targetPropertyId,provider:"manual",bankName:"Ruční evidence",ibanMasked:"RUČNÍ PLATBY",externalAccountId:`manual-${targetPropertyId}`}});
-    targetBankAccountId=targetAccount.id;
-  }
   await tx.paymentAllocation.deleteMany({where:{transactionId}});
-  if(targetBankAccountId!==transaction.bankAccountId)await tx.bankTransaction.update({where:{id:transactionId},data:{bankAccountId:targetBankAccountId}});
   const allocated=await allocateAvailableTransactionToLeaseTx(tx,transactionId,targetLeaseId);
   if(!allocated)throw new Error("Platbu se nepodařilo přepárovat.");
   await tx.bankTransaction.update({where:{id:transactionId},data:{suggestedLeaseId:targetLeaseId,matchedRuleId:null,matchNote:"Ruční platba přepárována správcem.",counterpartyName:newCounterpartyName,variableSymbol:newVariableSymbol}});
@@ -67,7 +63,6 @@ export async function reassignPayment(actor:Actor,propertyId:string,transactionI
   await reconcileCollectionTasksAfterPaymentCorrectionTx(tx,[...previousLeaseIds,targetLeaseId]);
   const details={transactionId,sourcePropertyId,targetPropertyId,previousLeaseIds,targetLeaseId,previousAllocations,newAllocations:allocated.allocations,remainingCents:allocated.remainingCents,previousCounterpartyName,newCounterpartyName,previousVariableSymbol,newVariableSymbol};
   await tx.auditLog.create({data:{userId:actor.id,propertyId:sourcePropertyId,action:"PAYMENT_REASSIGNED",entityType:"BankTransaction",entityId:transactionId,details}});
-  if(sourcePropertyId!==targetPropertyId)await tx.auditLog.create({data:{userId:actor.id,propertyId:targetPropertyId,action:"PAYMENT_REASSIGNED",entityType:"BankTransaction",entityId:transactionId,details}});
   return {previousAllocations,...allocated,targetPropertyId,targetPropertyName:target.unit.property.name,targetUnitLabel:target.unit.label,targetTenantName:target.tenant.name,manual:transaction.source==="manual"};
 })}
 

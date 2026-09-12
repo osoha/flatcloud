@@ -1,0 +1,25 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { CalendarRange, ClipboardCheck, FileClock, LayoutTemplate } from "lucide-react";
+import { Shell } from "@/components/Shell";
+import { requireUser } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { hasReportingBackofficeAccess, listReportingBackofficeGroups } from "@/lib/reporting/backoffice-access";
+
+export const dynamic = "force-dynamic";
+
+export default async function ShareholderReportsPage() {
+  const user = await requireUser();
+  if (!await hasReportingBackofficeAccess(user)) redirect("/reporty");
+  const groups = await listReportingBackofficeGroups(user);
+  const latest = groups.map((group) => group.latestReport).filter((report): report is NonNullable<typeof report> => Boolean(report)).sort((a, b) => (b.year - a.year) || (b.quarter - a.quarter))[0];
+  const latestAnnual = groups.length ? await prisma.annualReport.findFirst({ where: { reportingGroupId: { in: groups.map((group) => group.id) } }, select: { year: true }, orderBy: [{ year: "desc" }, { revision: "desc" }] }) : null;
+  return <Shell user={user}><div className="page shareholder-reports-page">
+    <div className="page-title"><div><h1>Akcionářské reporty</h1><p>Interní příprava, kontrola a publikace pravidelných výstupů pro akcionáře.</p><span className="scope-context-badge">Interní modul · oddělený od provozních reportů</span></div>{user.role === "SUPER_ADMIN" && <Link className="secondary" href="/reporty/sablony"><LayoutTemplate size={15}/> Šablony</Link>}</div>
+    <div className="shareholder-report-grid">
+      <Link className="card shareholder-report-card" href="/reporty/kvartalni"><span className="admin-module-icon"><CalendarRange/></span><div><span className="eyebrow">Aktivní workflow</span><h2>Kvartální reporty</h2><p>Reportovací skupiny, datové snapshoty, redakční kontrola a verzovaná publikace.</p><div className="shareholder-card-meta"><span>{groups.length} {groups.length === 1 ? "skupina" : "skupin"}</span><span>{latest ? `Poslední ${latest.year} Q${latest.quarter}` : "Zatím bez reportu"}</span></div><strong>Otevřít kvartální reporty →</strong></div></Link>
+      <Link className="card shareholder-report-card annual-report-card" href="/reporty/vyrocni"><span className="admin-module-icon"><FileClock/></span><div><span className="eyebrow">Aktivní workflow · R13</span><h2>Výroční reporty</h2><p>Korporátní příběh, vývoj hodnoty portfolia, budoucí a realizované exity a cena akcie.</p><div className="shareholder-card-meta"><span>{groups.length} {groups.length === 1 ? "skupina" : "skupin"}</span><span>{latestAnnual ? `Poslední ${latestAnnual.year}` : "Zatím bez reportu"}</span></div><strong>Otevřít výroční reporty →</strong></div></Link>
+      <Link className="card shareholder-report-card" href="/reporty/rocni-checklist"><span className="admin-module-icon"><ClipboardCheck/></span><div><span className="eyebrow">Kontrolní fronta · R22</span><h2>Roční připravenost</h2><p>Společná read-only kontrola Q4, výroční revize, valuací, rozpočtů a nákladových dokladů.</p><div className="shareholder-card-meta"><span>{groups.length} {groups.length === 1 ? "skupina" : "skupin"}</span><span>Bez automatických změn</span></div><strong>Otevřít roční checklist →</strong></div></Link>
+    </div>
+  </div></Shell>;
+}

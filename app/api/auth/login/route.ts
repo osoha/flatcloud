@@ -8,13 +8,13 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const email = String(form.get("email") || "").trim().toLowerCase();
   const password = String(form.get("password") || "");
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, active: true, passwordHash: true } });
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, active: true, passwordHash: true, sessionVersion: true } });
 
   if (!user || !user.active || !(await bcrypt.compare(password, user.passwordHash))) {
     return NextResponse.redirect(redirectUrl("/login?error=1", request), 303);
   }
 
-  await createSession(user.id);
+  await createSession(user.id, user.sessionVersion);
   await prisma.auditLog.create({
     data: { userId: user.id, action: "LOGIN", entityType: "User", entityId: user.id },
   });

@@ -6,6 +6,7 @@ const fullSections = [
   ["najemnici", "Nájemníci"],
   ["smlouvy", "Smlouvy"],
   ["platby", "Platby"],
+  ["finance", "Náklady a úvěry"],
   ["provoz", "Provoz"],
   ["banka", "Banka a pravidla"],
   ["technicke-udaje", "Technické údaje"],

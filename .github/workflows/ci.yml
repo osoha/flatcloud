@@ -2,10 +2,11 @@ name: FlatCloud CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, sandbox/ux-agent]
   push:
     branches:
       - main
+      - sandbox/ux-agent
       - "v*"
 
 jobs:
@@ -94,6 +95,75 @@ jobs:
       - run: npm run verify:mf-rent-1
       - run: npm run verify:portfolio-deposit-polish
       - run: npm run build
+      - run: npm run verify:ux-remodel-r1
+      - run: npm run verify:ux-remodel-r2
+      - run: npm run verify:ux-remodel-r3
+      - run: npm run verify:ux-remodel-r3b
+      - run: npm run verify:ux-remodel-r3c
+      - run: npm run verify:ux-remodel-r3d
+      - run: npm run verify:ux-remodel-r3e
+      - run: npm run verify:ux-remodel-r3f
+      - run: npm run verify:ux-remodel-r4a
+      - run: npm run verify:ux-remodel-r4b
+      - run: npm run verify:ux-remodel-r4c
+      - run: npm run verify:ux-remodel-r4d
+      - run: npm run verify:ux-remodel-r5a
+      - run: npm run verify:ux-remodel-r5b
+      - run: npm run verify:ux-remodel-r5c
+      - run: npm run verify:ux-remodel-r6a
+      - run: npm run verify:ux-remodel-r6b
+      - run: npm run verify:ux-remodel-r6c
+      - run: npm run verify:ux-remodel-r6d
+      - run: npm run verify:ux-remodel-r2d
+      - run: npm run verify:ux-audit-p0a
+      - run: npm run verify:ux-audit-p0b
+      - run: npm run verify:ux-audit-p0c
+      - run: npm run verify:ux-audit-p0d
+      - run: npm run verify:ux-audit-p1
+      - run: npm run verify:ux-audit-p2
+      - run: npm run verify:ux-deep-repair
+      - run: npm run verify:ux-deep-wave-2
+      - run: npm run verify:ux-wave-3
+      - run: npm run verify:r7-navigation-admin
+      - run: npm run verify:r7c-report-parity
+      - run: npm run verify:r7d-template-fidelity
+      - run: npm run verify:ux-remodel-r8a
+      - run: npm run verify:ux-remodel-r8b
+      - run: npm run verify:ux-remodel-r8c
+      - run: npm run verify:ux-remodel-r8d
+      - run: npm run verify:ux-remodel-r9a
+      - run: npm run verify:ux-remodel-r10a
+      - run: npm run verify:ux-remodel-r10b
+      - run: npm run verify:ux-remodel-r10c
+      - run: npm run verify:ux-remodel-r10d
+      - run: npm run verify:ux-remodel-r10e
+      - run: npm run verify:ux-remodel-r11a
+      - run: npm run verify:ux-remodel-r11b
+      - run: npm run verify:ux-remodel-r11c
+      - run: npm run verify:ux-remodel-r11d
+      - run: npm run verify:ux-remodel-r12a
+      - run: npm run verify:r13a-annual-report
+      - run: npm run verify:r13b-annual-publication
+      - run: npm run verify:r14a-distribution-lifecycle
+      - run: npm run verify:r14b-distribution-history
+      - run: npm run verify:r15a-methodology-guidance
+      - run: npm run verify:r15b-methodology-library
+      - run: npm run verify:r16a-cost-evidence
+      - run: npm run verify:r17a-quarterly-annual-alignment
+      - run: npm run verify:r18a-demo-costs
+      - run: npm run verify:r18b-annual-pdf-design
+      - run: npm run verify:r18c-methodology-formulas
+      - run: npm run verify:r18d-annual-corporate-sections
+      - run: npm run verify:r18e-annual-map-cleanup
+      - run: npm run verify:r18f-annual-map-projection
+      - run: npm run verify:r19a-distribution-welcome-letters
+      - run: npm run verify:r19b-collapsible-navigation
+      - run: npm run verify:r19c-shell-deduplication
+      - run: npm run verify:r21-owner-year-package
+      - run: npm run verify:r22-annual-readiness
+      - run: npm run verify:r23-guided-methodology
+      - run: node --import tsx scripts/verify-r24-password-reset.ts
+      - run: npm run verify:r24-agent-qa
       - run: npm run verify:live-report-periods
 
   browser-smoke:
@@ -122,6 +192,7 @@ jobs:
       INITIAL_ADMIN_NAME: E2E administrátor
       E2E_ADMIN_EMAIL: e2e.admin@flatcloud.test
       E2E_ADMIN_PASSWORD: FlatCloud-E2E-Only-Password-2026
+      E2E_ROLE_PASSWORD: FlatCloud-R24-Role-Only-2026
       CI: "true"
     steps:
       - uses: actions/checkout@v6
@@ -134,6 +205,7 @@ jobs:
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run e2e:seed
+      - run: npm run e2e:seed:r24-roles
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

@@ -11,7 +11,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!access) return go(request, "/login");
   try {
     const form = await request.formData();
-    const action = (text(form, "action") || "IGNORE") as MatchRuleAction;
+    const actionRaw = text(form, "action");
+    if (!actionRaw || !Object.values(MatchRuleAction).includes(actionRaw as MatchRuleAction)) throw new Error("Vyberte, zda má pravidlo platbu ignorovat, navrhnout nebo spárovat.");
+    const action = actionRaw as MatchRuleAction;
     const targetLeaseId = text(form, "targetLeaseId");
     if (action !== "IGNORE" && !targetLeaseId) throw new Error("Pro párovací pravidlo vyberte cílovou smlouvu.");
     if (targetLeaseId) {

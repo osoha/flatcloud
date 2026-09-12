@@ -15,3 +15,39 @@ export async function canEditTask(user: User, task: TaskAuthorizationTarget, cli
   if (!unitId) return false;
   return Boolean(await client.userUnit.findFirst({where:{userId:user.id,unitId,permission:{in:["EDIT","ADMIN"]},unit:{propertyId:task.propertyId}},select:{unitId:true}}));
 }
+
+/** Same authoritative unit precedence as canEditTask, usable in relational filters. */
+export function taskEditWhere(user: User): Prisma.TaskWhereInput {
+  if (hasAllPropertyAccess(user)) return {};
+  const permission = { userId: user.id, permission: { in: ["EDIT", "ADMIN"] as ("EDIT" | "ADMIN")[] } };
+  return { OR: [
+    { property: { memberships: { some: permission } } },
+    { unit: { userAccesses: { some: permission } } },
+    { unitId: null, lease: { unit: { userAccesses: { some: permission } } } },
+  ] };
+}
+
+/** Apply inside an already authorized task/document scope. */
+export function taskEntryVisibilityWhere(user: User): Prisma.TaskEntryWhereInput {
+  return hasAllPropertyAccess(user) ? {} : { OR: [{ visibility: "OWNER_VISIBLE" }, { task: taskEditWhere(user) }] };
+}
+
+export function parseTaskEntryVisibility(form: FormData) {
+  const value = form.get("visibility") || "INTERNAL";
+  if (value !== "INTERNAL" && value !== "OWNER_VISIBLE") throw new Error("Vyberte platnou viditelnost záznamu.");
+  return value;
+}
+
+/** Property activity must not reveal an internal entry through its audit metadata. */
+export async function filterTaskEntryActivity<T extends { entityType: string; entityId: string | null; details: unknown }>(user: User, rows: T[]): Promise<T[]> {
+  if (hasAllPropertyAccess(user)) return rows;
+  const entryId = (row: T) => {
+    if (row.entityType === "TaskEntry") return row.entityId;
+    const details = row.details && typeof row.details === "object" && !Array.isArray(row.details) ? row.details as Record<string, unknown> : {};
+    return typeof details.taskEntryId === "string" ? details.taskEntryId : typeof details.entryId === "string" ? details.entryId : null;
+  };
+  const ids = rows.map(entryId).filter((id): id is string => Boolean(id));
+  if (!ids.length) return rows;
+  const visible = new Set((await prisma.taskEntry.findMany({ where: { id: { in: ids }, ...taskEntryVisibilityWhere(user) }, select: { id: true } })).map(entry => entry.id));
+  return rows.filter(row => { const id = entryId(row); return !id || visible.has(id); });
+}
