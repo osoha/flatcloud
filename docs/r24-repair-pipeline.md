@@ -81,3 +81,10 @@ Externí distribuce / CRM partikule zůstává posledním budoucím vývojovým 
 ## Schválená oprava vlastnictví — R24-014
 
 Uživatel dne 2026-09-12 potvrdil zachování historie včetně archivovaných nemovitostí, odděleného potvrzení plateb a výslovný PR/merge do sandboxu. Implementace používá potvrzená období a úplné auditní snapshoty před/po změně; žádné mazání vlastnických záznamů. Historické doklady a granty se převodem nemění. Opravy období mají vlastní audit, původní hodnoty zůstávají dohledatelné. Podrobnosti, omezení na jednoho 100% vlastníka a čtyři nové E2E scénáře viz audit R24-014. Před označením DONE musí projít kompletní CI, merge, deploy a živý retest. Ostatní otevřené brány R24 tím nejsou uzavřeny.
+
+
+## R24-015 — dostupnost historie v navigaci, 2026-09-12
+
+R24-014: PR #101, merge `224f45e522a60a7a639900ab1bb52587f9c8c169`, celé CI 34686926134 SUCCESS 109/109 bez retry; Render `dep-daii51cs728c73aj4e90` LIVE. Živá příprava syntetického objektu P1015, jednotky a smlouvy je doložena v PR #101. Samotný živý převod ještě nebyl proveden.
+
+Živý průchod odhalil chybějící odkaz na vlastnictví v nastavení objektu. R24-015 přidává odkaz „Vlastnictví a historie“ do nastavení a obecné editace. Obecná editace zobrazuje hlavního vlastníka bez nefunkční možnosti změny; změna vede přes potvrzený převod. E2E nyní vstupuje přes nastavení, včetně archivovaného objektu. Autorizace se nemění. Lokální TypeScript PASS. Finální celé CI, merge, nasazení a živé výsledky budou doplněny do popisu opravného PR. R24 zůstává IN_PROGRESS.
