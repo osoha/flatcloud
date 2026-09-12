@@ -1,5 +1,13 @@
-import { prisma } from "@/lib/db";
-import { text } from "@/lib/forms";
-import { requireManagedProperty, audit } from "@/lib/management";
+import { requireManagedProperty } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
-export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){const{id}=await params;const access=await requireManagedProperty(id);if(!access)return go(request,"/login");try{const form=await request.formData();const ownerId=text(form,"ownerId",true)!;await prisma.$transaction(async tx=>{await tx.property.update({where:{id},data:{ownerId,communicationOwnerId:ownerId}});await tx.propertyOwnership.deleteMany({where:{propertyId:id}});await tx.propertyOwnership.create({data:{propertyId:id,ownerId,shareBasisPoints:10000}})});await audit(access.user.id,"PROPERTY_OWNER_REPLACED","Property",id,{ownerId}, id);return goWithMessage(request,`/nemovitosti/${id}/vlastnici`,"ok","Hlavní vlastník / SVJ byl změněn.")}catch(error){return goWithMessage(request,`/nemovitosti/${id}/vlastnici`,"error",error instanceof Error?error.message:"Vlastníka se nepodařilo změnit.")}}
+import { transferOwnership } from "@/lib/ownership-transfer";
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const access = await requireManagedProperty(id);
+  if (!access) return go(request, "/login");
+  try {
+    const form = await request.formData();
+    await transferOwnership({propertyId:id,actorId:access.user.id,form});
+    return goWithMessage(request, `/nemovitosti/${id}/vlastnici`, "ok", "Změna byla potvrzena a historie zachována.");
+  } catch(error) { return goWithMessage(request, `/nemovitosti/${id}/vlastnici`, "error", error instanceof Error ? error.message : "Změnu se nepodařilo uložit."); }
+}

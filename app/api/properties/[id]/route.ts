@@ -24,8 +24,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const flatcloudConsolidationBasisPoints = consolidationBasisPoints(text(form, "flatcloudConsolidationPercent"));
     if (managerId && !await prisma.user.findFirst({ where: { id: managerId, active: true }, select: { id: true } })) throw new Error("Vybraný správce neexistuje.");
     const technicalData = technicalDataJson(parsePropertyTechnicalForm(form));
-    const previous = await prisma.property.findUnique({ where: { id }, select: { managerId: true, name: true, active: true } });
+    const previous = await prisma.property.findUnique({ where: { id }, select: { managerId: true, name: true, active: true, ownerId: true } });
     const property = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM "Property" WHERE id = ${id} FOR UPDATE`;
+      const current = await tx.property.findUniqueOrThrow({ where: { id }, select: { ownerId: true } });
+      if (ownerId && ownerId !== current.ownerId) throw new Error("Změnu vlastníka proveďte v sekci Vlastníci s potvrzením účinnosti a historie.");
       const updated = await tx.property.update({ where: { id }, data: {
         name: text(form, "name", true)!,
         address: text(form, "address", true)!,

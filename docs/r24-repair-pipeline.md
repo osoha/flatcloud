@@ -77,3 +77,7 @@ Všech osm identit má doložené živé přihlášení. Nově ověřeno uložen
 R24 zůstává IN_PROGRESS: chybí skutečný 200% zoom, současné živé identity, přesný geokód problematické adresy a širší živé administrátorské TEST výběry. Účinný převod vlastnictví je blokován stávajícím deleteMany a absencí časové historie; nebyl proveden. Návrh zachování historie a odděleného potvrzení je v auditu. Pravidla účinnosti, scope a platebních návazností potřebují konkrétní lidské rozhodnutí dle AGENTS.md před implementací změn bezpečnostních/platebních hranic.
 
 Externí distribuce / CRM partikule zůstává posledním budoucím vývojovým blokem s briefem k společnému dopracování.
+
+## Schválená oprava vlastnictví — R24-014
+
+Uživatel dne 2026-09-12 potvrdil zachování historie včetně archivovaných nemovitostí, odděleného potvrzení plateb a výslovný PR/merge do sandboxu. Implementace používá potvrzená období a úplné auditní snapshoty před/po změně; žádné mazání vlastnických záznamů. Historické doklady a granty se převodem nemění. Opravy období mají vlastní audit, původní hodnoty zůstávají dohledatelné. Podrobnosti, omezení na jednoho 100% vlastníka a čtyři nové E2E scénáře viz audit R24-014. Před označením DONE musí projít kompletní CI, merge, deploy a živý retest. Ostatní otevřené brány R24 tím nejsou uzavřeny.
