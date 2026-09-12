@@ -26,7 +26,7 @@ function form(ownerId:string,expectedOwnerId:string,extra:Record<string,string>=
 
 test("R24 ownership: UI transfer retains original row, historical periods and archive visibility",async({page})=>{
  const f=await fixture();const original=await db.propertyOwnership.findFirstOrThrow({where:{propertyId:f.property.id}});
- await login(page,R24_ROLE_USERS.unitManager);await page.goto(`/nemovitosti/${f.property.id}/vlastnici`);
+ await login(page,R24_ROLE_USERS.unitManager);await page.goto(`/nemovitosti/${f.property.id}/nastaveni`);await page.getByRole("link",{name:"Vlastnictví a historie",exact:true}).click();
  const transfer=page.locator(`form[action="/api/properties/${f.property.id}/ownerships"]`);
  await transfer.locator('select[name="ownerId"]').selectOption(f.next.id);
  await transfer.getByLabel("Původní vlastnictví od",{exact:true}).fill("2020-01-01");
@@ -42,7 +42,7 @@ test("R24 ownership: UI transfer retains original row, historical periods and ar
  expect(JSON.stringify(audit.details)).toContain(original.id);expect(JSON.stringify(audit.details)).toContain(original.note!);
  expect((await db.property.findUniqueOrThrow({where:{id:f.property.id}})).communicationOwnerId).toBe(f.old.id);
  await db.property.update({where:{id:f.property.id},data:{active:false}});
- await page.reload();await expect(page.locator('.ownership-history')).toContainText(f.old.name);await expect(page.locator('.ownership-history')).toContainText(f.next.name);
+ await page.goto(`/nemovitosti/${f.property.id}/nastaveni`);await page.getByRole("link",{name:"Vlastnictví a historie",exact:true}).click();await expect(page.locator('.ownership-history')).toContainText(f.old.name);await expect(page.locator('.ownership-history')).toContainText(f.next.name);
  expect(await db.userProperty.count({where:{propertyId:f.property.id}})).toBe(2);
 });
 
