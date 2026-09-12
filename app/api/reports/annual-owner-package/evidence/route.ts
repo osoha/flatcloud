@@ -1,3 +1,4 @@
+import { correctOwnershipPeriod } from "@/lib/ownership-transfer";
 import { ownerVisibleDocumentWhere } from "@/lib/documents/access";
 import { AnnualReviewStatus } from "@prisma/client";
 import { hasAllPropertyAccess, requireUser } from "@/lib/auth";
@@ -36,28 +37,30 @@ export async function POST(request: Request) {
       const sourceNote = text(form, "sourceNote");
       if (validTo && validTo < validFrom)
         throw new Error("Konec účinnosti nesmí být před začátkem.");
-      const property = await prisma.property.findUnique({
+      return await prisma.$transaction(async tx => {
+        await tx.$queryRaw`SELECT id FROM "Property" WHERE id = ${propertyId} FOR UPDATE`;
+      const property = await tx.property.findUnique({
         where: { id: propertyId },
         select: { id: true },
       });
       if (!property) throw new Error("Nemovitost nebyla nalezena.");
       if (
         unitId &&
-        !(await prisma.unit.findFirst({
+        !(await tx.unit.findFirst({
           where: { id: unitId, propertyId },
           select: { id: true },
         }))
       )
         throw new Error("Jednotka nepatří do vybrané nemovitosti.");
       if (
-        !(await prisma.owner.findUnique({
+        !(await tx.owner.findUnique({
           where: { id: periodOwnerId },
           select: { id: true },
         }))
       )
         throw new Error("Vlastník nebyl nalezen.");
       const scopeKey = unitId ? `unit:${unitId}` : `property:${propertyId}`;
-      const overlap = await prisma.ownershipPeriod.findFirst({
+      const overlap = await tx.ownershipPeriod.findFirst({
         where: {
           scopeKey,
           ownerId: periodOwnerId,
@@ -82,7 +85,7 @@ export async function POST(request: Request) {
         throw new Error(
           "Pro tohoto vlastníka už existuje překrývající se období.",
         );
-      const created = await prisma.ownershipPeriod.create({
+      const created = await tx.ownershipPeriod.create({
         data: {
           scopeKey,
           propertyId,
@@ -95,56 +98,23 @@ export async function POST(request: Request) {
           confirmedById: user.id,
         },
       });
-      await audit(
-        user.id,
-        "ANNUAL_OWNERSHIP_PERIOD_CONFIRMED",
-        "OwnershipPeriod",
-        created.id,
-        { scopeKey, periodOwnerId, shareBasisPoints, validFrom, validTo },
-        propertyId,
-      );
+      await tx.auditLog.create({data:{userId:user.id,action:"ANNUAL_OWNERSHIP_PERIOD_CONFIRMED",entityType:"OwnershipPeriod",entityId:created.id,propertyId,details:{scopeKey,periodOwnerId,shareBasisPoints,validFrom:validFrom.toISOString(),validTo:validTo?.toISOString()||null}}});
       return goWithMessage(
         request,
         returnTo,
         "ok",
         "Historicky účinný vlastnický podíl byl uložen.",
       );
+      });
+    }
+    if (mode === "ownership-correct") {
+      await correctOwnershipPeriod(user.id, form);
+      return goWithMessage(request, returnTo, "ok", "Oprava období byla uložena s původním stavem v auditu.");
     }
     if (mode === "ownership-delete") {
-      const periodId = text(form, "periodId", true)!;
-      const period = await prisma.ownershipPeriod.findUnique({
-        where: { id: periodId },
-        select: {
-          id: true,
-          propertyId: true,
-          ownerId: true,
-          scopeKey: true,
-          validFrom: true,
-          validTo: true,
-        },
-      });
-      if (!period) throw new Error("Vlastnické období nebylo nalezeno.");
-      await prisma.ownershipPeriod.delete({ where: { id: period.id } });
-      await audit(
-        user.id,
-        "ANNUAL_OWNERSHIP_PERIOD_REMOVED",
-        "OwnershipPeriod",
-        period.id,
-        {
-          ownerId: period.ownerId,
-          scopeKey: period.scopeKey,
-          validFrom: period.validFrom,
-          validTo: period.validTo,
-        },
-        period.propertyId,
-      );
-      return goWithMessage(
-        request,
-        returnTo,
-        "ok",
-        "Historicky účinný vlastnický podíl byl odebrán.",
-      );
+      throw new Error("Potvrzená vlastnická období se nemažou. Oprava musí zachovat původní záznam a doložit důvod změny.");
     }
+
     if (mode === "loan-interest") {
       const loanId = text(form, "loanId", true)!;
       const evidenceYear = Number(form.get("year"));

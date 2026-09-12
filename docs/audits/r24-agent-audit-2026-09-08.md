@@ -376,3 +376,17 @@ Všechny nové textové zápisy mají marker `R24_AGENT_QA_2026_09`. Nové živ�
 - **Další neuzavřené kontroly:** přesný geokód problematické adresy a širší administrátorské TEST výběry (roční/kvartální defaulty byly nyní kontrolovány kódem, nikoli novým živým průchodem).
 
 H a R24-013 = DONE. Celé R24 = IN_PROGRESS; závěrečné READY je blokováno uvedenými chybějícími důkazy/rozhodnutím. Externí distribuce a příprava partikulí v CRM zůstává poslední budoucí vývojový blok, jehož brief bude upřesněn společně s uživatelem.
+
+## R24-014 — schválené zachování vlastnictví, 2026-09-12
+
+Uživatel výslovně schválil historii bez mazání, transparentnost archivovaných nemovitostí, účinnost od/do a samostatné potvrzení příjemce plateb; PR a merge pouze do sandbox/ux-agent. Tím je konkrétní rozhodnutí pro tento platební a bezpečnostní zásah dle AGENTS.md uděleno.
+
+Implementace převodu jednoho 100% vlastníka používá existující OwnershipPeriod a AuditLog, bez destruktivní migrace. Řádek aktuálního vlastnictví zachovává ID a aktualizuje se; jeho úplný původní obsah včetně poznámky a původního profilu vlastníka se před změnou ukládá do auditního snapshotu. Původní období končí den před novým, data účinnosti musí být doložená. Počátek se nevymýšlí podle vytvoření v aplikaci. Převod nemění uživatelské granty, komunikačního vlastníka, smlouvy, doklady ani jejich platební účty. U jednotky vyprázdní účet pro budoucí zakládání smluv, aby starý účet nebyl vydáván za účet nového vlastníka.
+
+Příjemce plateb je samostatný potvrzený krok k dnešku, pouze aktivní účet aktuálního vlastníka; mění jednotkovou vazbu a dosud neskončené smlouvy. Skončené/zrušené smlouvy, doklady a platební záznamy zůstávají. Audit uchovává předchozí účty dotčených smluv. Převod i příjemce mají potvrzení, důvod, ochranu proti opakování a souběhu. Staré mazací/nekontrolované endpointy vracejí vysvětlení. Obecná editace objektu odmítá změnu ownerId mimo převod.
+
+Potvrzená období v ročních podkladech už nelze smazat. Globální správce může provést explicitní opravu dat období se zachováním původního a nového stavu v auditu; zastaralý formulář a překryv jsou odmítnuty. Historie se zobrazuje i u archivovaného objektu, pod stávajícím property/unit scope; plný auditní snapshot je viditelný pouze globálnímu správci. Žádné nové granty.
+
+Meze: budoucí převod se potvrzuje až v den účinnosti, není zaveden scheduler. Spoluvlastnické převody a změny profilu SVJ se nesmí vydávat za převod jediného 100% vlastníka a jsou v tomto formuláři odmítnuty. Dříve smazaná historie se nedá zpětně rekonstruovat bez podkladů. Archivace nebyla rozšířena na veřejné sdílení.
+
+Čtyři nové izolované E2E regrese: UI převod a archivní čtení; nezměněné účty smluv při převodu + samostatné potvrzení/retry/stale; dva souběžné převody a chybná/budoucí data; VIEW/mazací endpointy/opravné verze. Lokálně TypeScript a dotčené statické verifikace PASS. Úplné CI, merge a nasazení se dokládají v opravné PR; do té doby R24-014 není DONE. Živý převod v sandboxu zatím nebyl proveden. R24 jako celek zůstává IN_PROGRESS.

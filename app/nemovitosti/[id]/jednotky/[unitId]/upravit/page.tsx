@@ -1,3 +1,5 @@
+import { OwnershipTransferFields } from "@/components/OwnershipTransferFields";
+import { OwnershipHistory } from "@/components/OwnershipHistory";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -39,12 +41,14 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
       <Textarea label="Poznámka" name="note" defaultValue={unit.note}/>
     </FormCard>
     <div className="card ownership-simple-card">
-      <div className="card-head"><div><h2>Vlastník jednotky</h2><p className="muted-copy">Vyberte aktuálního vlastníka. Změna nahradí předchozí vazbu; procentní podíly se již neevidují.</p></div></div>
+      <div className="card-head"><div><h2>Vlastník jednotky</h2><p className="muted-copy">Převod zachová historii. Příjemce plateb potvrďte samostatně; dosavadní účty smluv zůstanou při převodu zachovány.</p></div></div>
       <form className="owner-replace-form" action={`/api/properties/${id}/units/${unit.id}/ownerships`} method="post">
-        <UnitOwnerFields owners={ownerOptions} defaultOwnerId={currentOwner} defaultAccountId={currentAccount}/>
+        <label className="field"><span>Nový vlastník</span><select name="ownerId" defaultValue="" required><option value="">Vyberte nového vlastníka</option>{ownerOptions.filter(o=>o.id!==currentOwner).map(o=><option key={o.id} value={o.id}>{o.label}</option>)}</select></label><OwnershipTransferFields currentOwnerId={currentOwner}/>
         <input type="hidden" name="replace" value="true"/>
       </form>
       <Link className="table-link inline-profile-link" href={`/vlastnici/${currentOwner}`}>Otevřít profil vlastníka →</Link>
     </div>
+    <div className="card"><h2>Příjemce plateb</h2><p>Samostatné potvrzení mění účet pro nové smlouvy a dosud neskončené smlouvy jednotky. Již uložené doklady ani platební záznamy se nepřepisují.</p><form className="compact-form" action={`/api/properties/${id}/units/${unit.id}/ownerships`} method="post"><UnitOwnerFields owners={ownerOptions.filter(o=>o.id===currentOwner)} defaultOwnerId={currentOwner} defaultAccountId={currentAccount} showSubmit={false}/><OwnershipTransferFields currentOwnerId={currentOwner} currentAccountId={currentAccount} payment/></form></div>
+    <OwnershipHistory propertyId={id} unitId={unitId}/>
   </FormPage></Shell>;
 }

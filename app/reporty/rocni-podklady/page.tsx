@@ -202,32 +202,7 @@ export default async function AnnualOwnerPackagePage({
                         {date(period.validFrom)} –{" "}
                         {period.validTo ? date(period.validTo) : "dosud"}
                       </small>
-                      {canEditEvidence && (
-                        <form
-                          action="/api/reports/annual-owner-package/evidence"
-                          method="post"
-                        >
-                          <input
-                            type="hidden"
-                            name="mode"
-                            value="ownership-delete"
-                          />
-                          <input
-                            type="hidden"
-                            name="returnOwnerId"
-                            value={selectedOwnerId}
-                          />
-                          <input type="hidden" name="returnYear" value={year} />
-                          <input
-                            type="hidden"
-                            name="periodId"
-                            value={period.id}
-                          />
-                          <button className="text-button danger" type="submit">
-                            Odebrat období
-                          </button>
-                        </form>
-                      )}
+                      <small>Potvrzený historický záznam · zachován</small>
                     </div>
                   ))}
                 </div>

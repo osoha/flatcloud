@@ -495,3 +495,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .notice>strong+span,.notice>div>strong+span{display:block;margin-top:4px}
 
 .compliance-history{grid-column:1/-1;min-width:0}.compliance-history>summary{cursor:pointer;font-weight:700;padding:8px 0}.compliance-history-record{border-top:1px solid var(--line);padding:12px 0;overflow-wrap:anywhere}.compliance-history-record h3{font-size:14px;margin:0 0 8px}.compliance-history-record p{margin:6px 0}.compliance-history-note{white-space:pre-wrap}
+
+.ownership-history { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.ownership-history li { margin-block: 1rem; }
+.ownership-history pre { max-width: 100%; font-size: .8rem; }
