@@ -96,6 +96,6 @@ export function calculateAssetFinanceSummary(
 
 export function confirmedLoanState<T extends { outstandingPrincipalCents: number | bigint; annualInterestRateBps: number; monthlyDebtServiceCents: number | bigint | null; snapshots: Array<{ asOfDate: Date; outstandingPrincipalCents: number | bigint; annualInterestRateBps: number; monthlyDebtServiceCents: number | bigint | null }> }>(loan: T, now = new Date()) {
   const today = businessTodayKey(now);
-  const snapshot = loan.snapshots.find((row) => businessDateKey(row.asOfDate) <= today);
+  const snapshot = [...loan.snapshots].filter((row) => businessDateKey(row.asOfDate) <= today).sort((a, b) => b.asOfDate.getTime() - a.asOfDate.getTime())[0];
   return snapshot ? { ...loan, outstandingPrincipalCents: snapshot.outstandingPrincipalCents, annualInterestRateBps: snapshot.annualInterestRateBps, monthlyDebtServiceCents: snapshot.monthlyDebtServiceCents, confirmedAsOfDate: snapshot.asOfDate } : { ...loan, confirmedAsOfDate: null };
 }
