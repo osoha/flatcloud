@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { FinancialTrendChart } from "./FinancialTrendChart";
 import { money } from "@/lib/format";
 
 type Point = { label: string; expected: number; paid: number };
@@ -8,7 +9,11 @@ type OccupancyPoint = { label: string; occupancyBps: number | null; rentable: nu
 type ForecastPoint = { period: string; contractualCents: number; plannedCents: number; expectedCollectedCents: number };
 type ChartMode = "bar" | "line";
 
-const chartWidth = (length: number) => Math.max(840, length * 64);
+function useChartWidth() {
+  const ref = useRef<HTMLDivElement>(null), [width, setWidth] = useState(720);
+  useEffect(() => { if (!ref.current) return; const observer = new ResizeObserver(([entry]) => setWidth(Math.max(240, entry.contentRect.width))); observer.observe(ref.current); return () => observer.disconnect(); }, []);
+  return { ref, width };
+}
 const shortPeriod = (label: string) => `${label.slice(5)}/${label.slice(2, 4)}`;
 const periodName = (label: string) => new Intl.DateTimeFormat("cs-CZ", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${label}-01T12:00:00Z`));
 const clamp = (value: number, minimum: number, maximum: number) => Math.min(maximum, Math.max(minimum, value));
@@ -39,7 +44,7 @@ export function CollectionChart({ data }: { data: Point[] }) {
   const [mode, setMode] = useState<ChartMode>("bar");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const max = Math.max(1, ...data.flatMap((point) => [point.expected, point.paid]));
-  const width = chartWidth(data.length);
+  const { ref, width } = useChartWidth();
   const height = 280;
   const paddingX = 34;
   const paddingTop = 72;
@@ -50,7 +55,7 @@ export function CollectionChart({ data }: { data: Point[] }) {
   const xAt = (index: number) => paddingX + index * groupWidth + groupWidth / 2;
   const yAt = (value: number) => paddingTop + chartHeight - value / max * chartHeight;
   const active = activeIndex === null ? null : data[activeIndex];
-  return <div className="report-chart-shell">
+  return <div className="report-chart-shell" ref={ref}>
     <ChartModeSwitch value={mode} onChange={setMode} label="Podoba grafu inkasa"/>
     <div className="report-chart-wrap"><svg className="report-chart" data-chart-mode={mode} style={{ minWidth: width }} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Vývoj předpisů a úhrad">
       <line x1={paddingX} x2={width-paddingX} y1={paddingTop+chartHeight} y2={paddingTop+chartHeight} className="chart-axis"/>
@@ -59,7 +64,7 @@ export function CollectionChart({ data }: { data: Point[] }) {
         <path d={linePath(data.map((point) => point.paid), xAt, yAt)} className="chart-line paid"/>
         {data.map((point,index)=><g key={point.label}><circle className="chart-point expected" cx={xAt(index)} cy={yAt(point.expected)} r="4"/><circle className="chart-point paid" cx={xAt(index)} cy={yAt(point.paid)} r="4"/></g>)}
       </>}
-      {data.map((point,index)=><g key={`hit-${point.label}`} className="chart-checkpoint" tabIndex={0} role="button" aria-label={`${periodName(point.label)}: předpis ${money(point.expected)}, uhrazeno ${money(point.paid)}`} onPointerEnter={()=>setActiveIndex(index)} onPointerLeave={()=>setActiveIndex(null)} onFocus={()=>setActiveIndex(index)} onBlur={()=>setActiveIndex(null)}><rect x={paddingX+index*groupWidth} y={paddingTop} width={groupWidth} height={chartHeight} fill="transparent"/><text className="chart-label" x={xAt(index)} y={height-25} textAnchor="middle">{shortPeriod(point.label)}</text></g>)}
+      {data.map((point,index)=><g key={`hit-${point.label}`} className="chart-checkpoint" tabIndex={0} role="button" aria-label={`${periodName(point.label)}: předpis ${money(point.expected)}, uhrazeno ${money(point.paid)}`} onPointerEnter={()=>setActiveIndex(index)} onPointerLeave={()=>setActiveIndex(null)} onFocus={()=>setActiveIndex(index)} onBlur={()=>setActiveIndex(null)}><rect x={paddingX+index*groupWidth} y={paddingTop} width={groupWidth} height={chartHeight} fill="transparent"/><text className="chart-label" x={xAt(index)} y={height-25} textAnchor="middle">{(index % Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(width / 95)))) === 0 || index === data.length - 1) ? shortPeriod(point.label) : ""}</text></g>)}
       {active && <ChartTooltip x={xAt(activeIndex!)} width={width} title={periodName(active.label)} lines={[`Předpis: ${money(active.expected)}`, `Uhrazeno: ${money(active.paid)}`]}/>}
     </svg></div>
     <div className="chart-legend"><span><i className="legend-expected"/>Předpis</span><span><i className="legend-paid"/>Uhrazeno</span></div>
@@ -69,7 +74,7 @@ export function CollectionChart({ data }: { data: Point[] }) {
 export function OccupancyChart({ data }: { data: OccupancyPoint[] }) {
   const [mode, setMode] = useState<ChartMode>("line");
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const width = chartWidth(data.length);
+  const { ref, width } = useChartWidth();
   const height = 300;
   const paddingX = 42;
   const paddingTop = 82;
@@ -88,12 +93,12 @@ export function OccupancyChart({ data }: { data: OccupancyPoint[] }) {
   });
   if (current) segments.push(current);
   const active = activeIndex === null ? null : data[activeIndex];
-  return <div className="report-chart-shell">
+  return <div className="report-chart-shell" ref={ref}>
     <ChartModeSwitch value={mode} onChange={setMode} label="Podoba grafu obsazenosti"/>
     <div className="report-chart-wrap"><svg className="report-chart occupancy-chart" data-chart-mode={mode} style={{ minWidth: width }} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Historický vývoj obsazenosti">
       {[0, 50, 100].map((value) => { const y = yAt(value * 100); return <g key={value}><line x1={paddingX} x2={width-paddingX} y1={y} y2={y} className="chart-grid"/><text x={paddingX-8} y={y+4} textAnchor="end" className="chart-scale">{`${value}%`}</text></g>; })}
       {mode === "line" ? <>{segments.map((path, index) => <path key={index} d={path} className="occupancy-line"/>)}{data.map((point,index)=>{const coordinate=coordinates[index],x=xAt(index);return coordinate?<circle key={point.label} className="occupancy-point" cx={coordinate.x} cy={coordinate.y} r="5"/>:<circle key={point.label} className="occupancy-point missing" cx={x} cy={paddingTop+chartHeight} r="4"/>;})}</> : data.map((point,index)=>{const x=xAt(index);if(point.occupancyBps===null)return <circle key={point.label} className="occupancy-point missing" cx={x} cy={paddingTop+chartHeight} r="4"/>;const barHeight=point.occupancyBps/10_000*chartHeight;return <rect key={point.label} className="occupancy-bar" x={x-12} y={paddingTop+chartHeight-barHeight} width="24" height={barHeight} rx="5"/>;})}
-      {data.map((point,index)=>{const x=xAt(index);return <g key={`hit-${point.label}`} className="chart-checkpoint" tabIndex={0} role="button" aria-label={point.occupancyBps===null?`${periodName(point.label)}: bez průkazných dat`:`${periodName(point.label)}: obsazenost ${(point.occupancyBps/100).toFixed(1)} procent`} onPointerEnter={()=>setActiveIndex(index)} onPointerLeave={()=>setActiveIndex(null)} onFocus={()=>setActiveIndex(index)} onBlur={()=>setActiveIndex(null)}><rect x={data.length===1?paddingX:x-groupWidth/2} y={paddingTop} width={groupWidth} height={chartHeight} fill="transparent"/><text className="chart-label" x={x} y={height-25} textAnchor="middle">{shortPeriod(point.label)}</text></g>;})}
+      {data.map((point,index)=>{const x=xAt(index);return <g key={`hit-${point.label}`} className="chart-checkpoint" tabIndex={0} role="button" aria-label={point.occupancyBps===null?`${periodName(point.label)}: bez průkazných dat`:`${periodName(point.label)}: obsazenost ${(point.occupancyBps/100).toFixed(1)} procent`} onPointerEnter={()=>setActiveIndex(index)} onPointerLeave={()=>setActiveIndex(null)} onFocus={()=>setActiveIndex(index)} onBlur={()=>setActiveIndex(null)}><rect x={data.length===1?paddingX:x-groupWidth/2} y={paddingTop} width={groupWidth} height={chartHeight} fill="transparent"/><text className="chart-label" x={x} y={height-25} textAnchor="middle">{(index % Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(width / 95)))) === 0 || index === data.length - 1) ? shortPeriod(point.label) : ""}</text></g>;})}
       {active && <ChartTooltip x={xAt(activeIndex!)} width={width} title={periodName(active.label)} lines={active.occupancyBps === null ? ["Bez průkazných dat", `Neznámé jednotky: ${active.unknown}`] : [`Obsazenost: ${(active.occupancyBps / 100).toFixed(1)} %`, `Obsazeno: ${active.occupied} / ${active.rentable}`, `Volné: ${active.vacant}`]}/>}
     </svg></div>
     <div className="chart-legend"><span><i className="legend-occupancy"/>Obsazenost</span><span><i className="legend-missing"/>Chybějící historie</span></div>
@@ -101,28 +106,5 @@ export function OccupancyChart({ data }: { data: OccupancyPoint[] }) {
 }
 
 export function RentForecastChart({ data }: { data: ForecastPoint[] }) {
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const width = chartWidth(data.length);
-  const height = 300;
-  const paddingX = 110;
-  const paddingTop = 82;
-  const paddingBottom = 48;
-  const chartHeight = height - paddingTop - paddingBottom;
-  const max = Math.max(1, ...data.flatMap((point) => [point.contractualCents, point.plannedCents, point.expectedCollectedCents]));
-  const step = (width - paddingX * 2) / Math.max(data.length - 1, 1);
-  const groupWidth = (width - paddingX * 2) / Math.max(data.length, 1);
-  const xAt = (index: number) => data.length === 1 ? width / 2 : paddingX + index * step;
-  const yAt = (value: number) => paddingTop + chartHeight - value / max * chartHeight;
-  const active = activeIndex === null ? null : data[activeIndex];
-  return <div className="report-chart-shell rent-forecast-chart">
-    <div className="report-chart-wrap"><svg className="report-chart" style={{ minWidth: width }} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Scénář valorizace a očekávaného inkasa">
-      {[0, .5, 1].map((share) => { const value = Math.round(max * share), y = yAt(value); return <g key={share}><line x1={paddingX} x2={width-paddingX} y1={y} y2={y} className="chart-grid"/><text x={paddingX-8} y={y+4} textAnchor="end" className="chart-scale">{money(value)}</text></g>; })}
-      <path d={linePath(data.map((point) => point.contractualCents), xAt, yAt)} className="chart-line expected"/>
-      <path d={linePath(data.map((point) => point.plannedCents), xAt, yAt)} className="chart-line" style={{ stroke: "#1769e0" }}/>
-      <path d={linePath(data.map((point) => point.expectedCollectedCents), xAt, yAt)} className="chart-line paid"/>
-      {data.map((point,index)=><g key={`forecast-${point.period}`} className="forecast-point chart-checkpoint" tabIndex={0} role="button" aria-label={`${periodName(point.period)}: smluvně ${money(point.contractualCents)}, plán ${money(point.plannedCents)}, očekávané inkaso ${money(point.expectedCollectedCents)}`} onPointerEnter={()=>setActiveIndex(index)} onPointerLeave={()=>setActiveIndex(null)} onFocus={()=>setActiveIndex(index)} onBlur={()=>setActiveIndex(null)}><rect x={data.length===1?paddingX:xAt(index)-groupWidth/2} y={paddingTop} width={groupWidth} height={chartHeight} fill="transparent"/><text className="chart-label" x={xAt(index)} y={height-25} textAnchor="middle">{shortPeriod(point.period)}</text></g>)}
-      {active&&<ChartTooltip x={xAt(activeIndex!)} width={width} title={periodName(active.period)} lines={[`Smluvně: ${money(active.contractualCents)}`,`Plán: ${money(active.plannedCents)}`,`Očekávané inkaso: ${money(active.expectedCollectedCents)}`]}/>}
-    </svg></div>
-    <div className="chart-legend"><span><i style={{background:"#8ba9e2"}}/>Smluvní vývoj</span><span><i style={{background:"#1769e0"}}/>Plán scénáře</span><span><i style={{background:"#2f9f72"}}/>Očekávané inkaso</span></div>
-  </div>;
+  return <div className="rent-forecast-chart"><FinancialTrendChart title="Scénář valorizace a očekávaného inkasa" rows={data.map(point => ({ label: point.period, values: [point.contractualCents, point.plannedCents, point.expectedCollectedCents] }))} series={[{ label: "Smluvní vývoj", color: "#8299b7", dashed: true }, { label: "Plán scénáře", color: "#1769e0" }, { label: "Očekávané inkaso", color: "#2f9f72" }]} percent detail pointClass="forecast-point"/></div>;
 }
