@@ -238,6 +238,7 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
     "Recipient account", "Beneficiary account", "Credited account", "Account credited", "Na",
   ]);
   const counterpartyValue = lineValue(combined, [
+    "Číslo účtu protistrany", "Cislo uctu protistrany", "Účet protistrany", "Ucet protistrany",
     "Protiúčet", "Protiucet", "Účet plátce", "Ucet platce", "Z účtu", "Z uctu",
     "Plátce - účet", "Platce - ucet", "Odesílatel - účet", "Odesilatel - ucet",
     "Sender account", "Payer account", "Counterparty account", "Z",
