@@ -612,6 +612,8 @@ model Property {
 }
 
 model PropertyCost {
+  budgetLineId           String?
+  budgetLine             PropertyBudgetLine?         @relation(fields: [budgetLineId], references: [id], onDelete: Restrict)
   id                     String                      @id @default(cuid())
   propertyId             String
   property               Property                    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -639,6 +641,7 @@ model PropertyCost {
   createdAt              DateTime                    @default(now())
   updatedAt              DateTime                    @updatedAt
 
+  @@index([budgetLineId])
   @@index([propertyId, effectiveAt])
   @@index([propertyId, kind, status])
   @@index([unitId])
@@ -661,6 +664,7 @@ model PropertyCostAllocation {
 }
 
 model PropertyBudgetLine {
+  costs                  PropertyCost[]
   id                     String                      @id @default(cuid())
   propertyId             String
   property               Property                    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
