@@ -1,7 +1,8 @@
 import { assertAssetDateNotFuture, basisPointsFromPercent } from "@/lib/asset-finance";
 import { prisma } from "@/lib/db";
+import { serializableTransaction } from "@/lib/serializable";
 import { dateValue, moneyToCents, text } from "@/lib/forms";
-import { audit, requireManagedProperty } from "@/lib/management";
+import { requireManagedProperty } from "@/lib/management";
 import { goWithMessage } from "@/lib/route-response";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; loanId: string }> }) {
@@ -19,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (outstandingPrincipalCents < 0) throw new Error("Aktuální jistina nesmí být záporná.");
     if (monthlyDebtServiceCents < 0) throw new Error("Měsíční splátka nesmí být záporná.");
     const note = text(form, "note");
-    const snapshot = await prisma.$transaction(async (tx) => {
+    await serializableTransaction(async (tx) => {
       const created = await tx.propertyLoanSnapshot.create({ data: {
         loanId,
         asOfDate,
@@ -28,14 +29,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         monthlyDebtServiceCents: monthlyDebtServiceCents > 0 ? BigInt(monthlyDebtServiceCents) : null,
         note,
       } });
+      // A backdated entry must not replace a newer confirmed state. Future legacy
+      // snapshots remain preserved but cannot populate the current cache.
+      const latest = await tx.propertyLoanSnapshot.findFirstOrThrow({ where: { loanId, asOfDate: { lte: assertAssetDateNotFuture(new Date()) } }, orderBy: [{ asOfDate: "desc" }, { createdAt: "desc" }, { id: "desc" }] });
       await tx.propertyLoan.update({ where: { id: loanId }, data: {
-        outstandingPrincipalCents: BigInt(outstandingPrincipalCents),
-        annualInterestRateBps,
-        monthlyDebtServiceCents: monthlyDebtServiceCents > 0 ? BigInt(monthlyDebtServiceCents) : null,
+        outstandingPrincipalCents: latest.outstandingPrincipalCents,
+        annualInterestRateBps: latest.annualInterestRateBps,
+        monthlyDebtServiceCents: latest.monthlyDebtServiceCents,
       } });
-      return created;
+      await tx.auditLog.create({ data: { userId: access.user.id, action: "PROPERTY_LOAN_SNAPSHOT_CREATED", entityType: "PropertyLoanSnapshot", entityId: created.id, propertyId: id, details: { loanId, asOfDate: asOfDate.toISOString(), outstandingPrincipalCents, annualInterestRateBps, monthlyDebtServiceCents } } });
     });
-    await audit(access.user.id, "PROPERTY_LOAN_SNAPSHOT_CREATED", "PropertyLoanSnapshot", snapshot.id, { loanId, asOfDate: asOfDate.toISOString(), outstandingPrincipalCents, annualInterestRateBps, monthlyDebtServiceCents }, id);
     return goWithMessage(request, `/nemovitosti/${id}/finance`, "ok", "Nový stav úvěru byl uložen do historie.");
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/finance`, "error", error instanceof Error ? error.message : "Stav úvěru se nepodařilo uložit.");

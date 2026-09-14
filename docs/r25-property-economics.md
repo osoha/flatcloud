@@ -52,3 +52,13 @@ Detail rozpočtu zobrazuje přiřazené náklady a jejich aktuální stav, čás
 - Aditivní migrace 20260914130000_property_cost_budget_link přidává nullable budgetLineId, index a FK ON DELETE RESTRICT. Existující data zůstávají bez ručně odvozených vazeb. Návrat k předchozímu kódu může pole ponechat; žádné mazání není nutné.
 
 Regrese `e2e/zzz-r25-budget-cost-links.spec.ts`: skutečný UI formulář, celý lifecycle jednoho ID, haléře, podklady a alokace, nezdvojené souhrny, přesun roku, přeřazení a odpojení s historií na obou položkách, VIEW a jednotkový scope, cizí rozpočet, nesoulad klasifikace, souběh a řízená CAPEX vazba. Konečné CI, merge, deploy a samostatně označené živé ověření se evidují v PR bloku. Produkční pilot zůstává budoucím samostatným krokem.
+
+## R25-D: detail úvěru a chronologie potvrzených stavů
+
+Finance → název úvěru zpřístupňuje datovaný potvrzený stav, původní a zbývající jistinu, samostatnou měsíční dluhovou službu, fixaci a splatnost včetně prošlých termínů. Historie zachovává všechny záznamy, poznámku/zdroj, čas zápisu a autora doloženého auditem; chybějící autor se nevymýšlí. Budoucí historické plány nevstupují do aktuálního stavu. Bez datovaného podkladu detail výslovně uvádí „Nedoloženo“.
+
+Roční úrok se čte ze stávající samostatné roční evidence s účetním stavem a odkazem na roční podklady. Splátka ani rozdíl zůstatků nejsou prohlášeny za zaplacený nebo daňově uznatelný úrok. Oprávnění odpovídá financím celého objektu; jednotkové ani cizí oprávnění detail nezpřístupní. Historie není omezena aktivitou úvěru/nemovitosti.
+
+Zápis zpětně datovaného stavu již nepřepisuje aktuální cache starší hodnotou: vybírá poslední nebudoucí stav. Zápis snapshotu, souhrnu a auditu je jedna serializovatelná transakce. Žádná migrace, mazání ani změna účetních/platebních záznamů.
+
+Regrese: nesetříděná chronologie a budoucí záznam, zpětný zápis přes skutečné API s ověřením cache/auditu, čitelný detail, VIEW bez zápisu a cizí vlastník 404. Lokální pure test a TypeScript; kompletní CI a živá kontrola budou samostatně doloženy v PR. Stav před CI: neuzavřeno.
