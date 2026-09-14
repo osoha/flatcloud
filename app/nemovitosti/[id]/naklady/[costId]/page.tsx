@@ -79,7 +79,7 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
       <p className="muted-copy">Jeden náklad patří nejvýše k jedné položce. Při přechodu z plánu do objednávky a skutečnosti upravujte tento náklad; nevytvářejte jeho kopii. Příloha sama další čerpání nevytváří.</p>
       {canManage && !cost.conditionPlanExecution && <details><summary>Změnit přiřazení k rozpočtu</summary><form action={`/api/properties/${id}/costs/${cost.id}/budget`} method="post" className="form-grid" data-testid="cost-budget-link">
         <input type="hidden" name="expectedUpdatedAt" value={cost.updatedAt.toISOString()}/>
-        <label className="field"><span>Rozpočtová položka</span><select name="budgetLineId" defaultValue={cost.budgetLineId || ""}><option value="">Bez přiřazení</option>{availableBudgets.map(line => <option key={line.id} value={line.id}>{line.title} · {line.year} · {moneyExact(line.amountCents)}</option>)}</select></label>
+        <label className="field"><span>Rozpočtová položka</span><select aria-label="Rozpočtová položka" name="budgetLineId" defaultValue={cost.budgetLineId || ""}><option value="">Bez přiřazení</option>{availableBudgets.map(line => <option key={line.id} value={line.id}>{line.title} · {line.year} · {moneyExact(line.amountCents)}</option>)}</select></label>
         <label className="field"><span>Důvod změny přiřazení *</span><textarea name="reason" required maxLength={2000}/></label>
         <label><input type="checkbox" name="confirmed" required/> Potvrzuji změnu přiřazení a zachování historie.</label>
         <div className="form-actions"><button className="primary" type="submit">Uložit přiřazení k rozpočtu</button></div>
