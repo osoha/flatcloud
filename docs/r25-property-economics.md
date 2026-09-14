@@ -62,3 +62,13 @@ Roční úrok se čte ze stávající samostatné roční evidence s účetním 
 Zápis zpětně datovaného stavu již nepřepisuje aktuální cache starší hodnotou: vybírá poslední nebudoucí stav. Zápis snapshotu, souhrnu a auditu je jedna serializovatelná transakce. Žádná migrace, mazání ani změna účetních/platebních záznamů.
 
 Regrese: nesetříděná chronologie a budoucí záznam, zpětný zápis přes skutečné API s ověřením cache/auditu, čitelný detail, VIEW bez zápisu a cizí vlastník 404. Lokální pure test a TypeScript; kompletní CI a živá kontrola budou samostatně doloženy v PR. Stav před CI: neuzavřeno.
+
+## R25-E: valorizace a pracovní scénáře cashflow
+
+Stávající valorizace nad smlouvami, MF rozdílem, vacancy a inkasem nyní navazuje na měsíční cashflow. Panel je dostupný v živém forecastu i uložené revizi. Příjmy přebírá přesně z očekávaného inkasa daného scénáře, MF ani smluvní referenci nepřičítá podruhé. U uložené revize vždy zůstávají zmrazené příjmové vstupy.
+
+Uživatel explicitně zadá počáteční hotovost, měsíční OPEX, roční růst OPEX (0–20 %), konstantní měsíční dluhovou službu a jednorázový CAPEX s měsícem. Prázdný údaj neznamená nulu; účetní náklady nebo jistina se automaticky nepokládají za peněžní výdaj. OPEX má být bez dluhové služby a CAPEX. Růst se projeví po každých 12 měsících scénáře. Výsledek ukáže inkaso, jednotlivé výdaje, čisté cashflow, konečnou a minimální hotovost a první záporný měsíční zůstatek. Měsíční tabulka zobrazuje smluvní nájem jen jako referenci.
+
+Jde o explicitně označenou pracovní simulaci v prohlížeči, nikoli uloženou nebo schválenou rozpočtovou revizi. Změna vstupu zneplatní výsledek; změna rozsahu nebo příjmových dat resetuje panel. Refresh jej vyprázdní. Ukládání nákladových scénářů, proměnlivý splátkový kalendář, daně či automatické odvozování plateb z účetnictví nejsou součástí tohoto modelu. Nájemní plán, smlouvy, předpisy, úhrady ani oprávnění se nemění. Žádná migrace či mazání.
+
+Regrese: 12/24/36 měsíců, haléře, hranice ročního růstu, CAPEX pouze jednou a jen v horizontu, dluhová služba pouze jednou, záporná hotovost, neplatné a příliš velké vstupy, neměnnost příjmů. UI test uloženého plánu ověřuje VIEW, přepočet, zneplatnění starého výsledku, neměnný snapshot/status/updatedAt, reset a cizího vlastníka 404. Kompletní CI a živé ověření se doplní do PR; před těmito branami blok není uzavřený.
