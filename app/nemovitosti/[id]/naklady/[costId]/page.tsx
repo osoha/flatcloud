@@ -31,7 +31,8 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
     include: {
       unit: true,
       task: true,
-      conditionPlanExecution: true,
+      budgetLine: true,
+      conditionPlanExecution: { include: { budgetLine: true } },
       allocations: { include: { unit: true }, orderBy: { unit: { label: "asc" } } },
       documents: {
         where: documentAccessWhere(user),
@@ -43,6 +44,9 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
   if (!cost) notFound();
   const tasks = canManage ? await prisma.task.findMany({ where: { propertyId: id, ...(cost.unitId ? { OR: [{ unitId: cost.unitId }, { unitId: null, leaseId: null }] } : {}) }, select: { id: true, title: true }, orderBy: { title: "asc" } }) : [];
   const history = await prisma.auditLog.findMany({ where: { entityType: "PropertyCost", entityId: cost.id, propertyId: id, action: "PROPERTY_COST_UPDATED" }, include: { user: { select: { name: true } } }, orderBy: { createdAt: "desc" } });
+  const linkedBudget = cost.budgetLine || cost.conditionPlanExecution?.budgetLine;
+  const availableBudgets = canManage && !cost.conditionPlanExecution ? await prisma.propertyBudgetLine.findMany({ where: { propertyId: id, kind: cost.kind, category: cost.category, conditionPlanExecution: null }, orderBy: [{ year: "desc" }, { title: "asc" }] }) : [];
+  const budgetHistory = await prisma.auditLog.findMany({ where: { propertyId: id, entityType: "PropertyCost", entityId: cost.id, action: "PROPERTY_COST_BUDGET_LINK_CHANGED" }, include: { user: { select: { name: true } } }, orderBy: { createdAt: "asc" } });
   const returnTo = `/nemovitosti/${id}/naklady/${cost.id}`;
   const allocationByUnit = new Map(cost.allocations.map((row) => [row.unitId, row]));
   const allocatedAmountCents = cost.allocations.reduce((sum, row) => sum + row.amountCents, 0);
@@ -69,6 +73,19 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
       <label className="field"><span>Důvod změny *</span><textarea name="reason" required/></label><div className="form-actions"><button className="primary" type="submit">Uložit změnu nákladu</button></div>
     </form></details>}
     {cost.conditionPlanExecution&&<p className="notice">Náklad je řízený přes Kvalitu a CAPEX.</p>}
+    <section className="card" aria-label="Vazba na rozpočet"><h2>Vazba na rozpočet</h2>
+      {linkedBudget ? <p><Link className="entity-link" href={`/nemovitosti/${id}/rozpocet/${linkedBudget.id}`}>{linkedBudget.title} · {linkedBudget.year}</Link> · limit {moneyExact(linkedBudget.amountCents)}</p> : <p>Náklad není přiřazen konkrétní rozpočtové položce. Do souhrnu své kategorie vstupuje i bez této vazby.</p>}
+      {linkedBudget && linkedBudget.year !== cost.effectiveAt.getUTCFullYear() && <p className="notice">Náklad má datum v jiném roce než rozpočet. Vazba zůstává dohledatelná, ale nečerpá limit roku {linkedBudget.year}.</p>}
+      <p className="muted-copy">Jeden náklad patří nejvýše k jedné položce. Při přechodu z plánu do objednávky a skutečnosti upravujte tento náklad; nevytvářejte jeho kopii. Příloha sama další čerpání nevytváří.</p>
+      {canManage && !cost.conditionPlanExecution && <details><summary>Změnit přiřazení k rozpočtu</summary><form action={`/api/properties/${id}/costs/${cost.id}/budget`} method="post" className="form-grid" data-testid="cost-budget-link">
+        <input type="hidden" name="expectedUpdatedAt" value={cost.updatedAt.toISOString()}/>
+        <label className="field"><span>Rozpočtová položka</span><select aria-label="Rozpočtová položka" name="budgetLineId" defaultValue={cost.budgetLineId || ""}><option value="">Bez přiřazení</option>{availableBudgets.map(line => <option key={line.id} value={line.id}>{line.title} · {line.year} · {moneyExact(line.amountCents)}</option>)}</select></label>
+        <label className="field"><span>Důvod změny přiřazení *</span><textarea name="reason" required maxLength={2000}/></label>
+        <label><input type="checkbox" name="confirmed" required/> Potvrzuji změnu přiřazení a zachování historie.</label>
+        <div className="form-actions"><button className="primary" type="submit">Uložit přiřazení k rozpočtu</button></div>
+      </form></details>}
+      {budgetHistory.length > 0 && <div><h3>Historie přiřazení</h3>{budgetHistory.map(event => { const data = event.details as { reason: string; before: {title: string | null; year: number | null}; after: {title: string | null; year: number | null} }; return <article key={event.id}><p>{event.user?.name || "Systém"} · {event.createdAt.toLocaleString("cs-CZ")}</p><p>{data.before.title ? `${data.before.title} · ${data.before.year}` : "Bez přiřazení"} → {data.after.title ? `${data.after.title} · ${data.after.year}` : "Bez přiřazení"}</p><p>{data.reason}</p></article>; })}</div>}
+    </section>
     <div className="detail-grid">
       <div className="card col-5"><h2>Účetní kontext</h2><div className="summary-list"><div><span>Částka</span><strong>{moneyExact(cost.amountCents)}</strong></div><div><span>Kategorie</span><strong>{propertyCostCategories[cost.category]}</strong></div><div><span>Rozsah nákladu</span><strong>{propertyCostScopeLabel(cost)}</strong></div><div><span>Dodavatel</span><strong>{cost.vendor||"Neuveden"}</strong></div><div><span>Číslo dokladu</span><strong>{cost.documentNumber||"Neuvedeno"}</strong></div></div>{cost.note&&<p className="technical-note">{cost.note}</p>}</div>
       <div className="card col-7"><div className="card-head"><div><h2>Účetní podklady</h2><p className="muted-copy">Faktura nebo účetní doklad potvrzuje skutečný výdaj. Nabídka a jiná příloha zůstávají podpůrným zdrojem, ale samy účetní doklad nenahrazují.</p></div></div>{canManage&&<DocumentUploadForm propertyId={id} unitId={cost.unitId||undefined} propertyCostId={cost.id} returnTo={returnTo} categories={[["INVOICE","Faktura / účetní doklad"],["OFFER","Nabídka (podpůrný podklad)"],["OTHER","Jiný podpůrný podklad"]]} title={cost.documentNumber?`${cost.title} · ${cost.documentNumber}`:cost.title}/>}<DocumentAttachments documents={cost.documents} canDelete={canManage} returnTo={returnTo}/></div>

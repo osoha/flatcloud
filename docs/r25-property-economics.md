@@ -38,3 +38,17 @@ Rozsah navazujícího bloku odsouhlasený ve vlákně: změna částky existují
 - Čerpání po kategoriích používá aktuální limit. Náklady, alokace a doklady se touto změnou neupravují. Žádná migrace ani mazání dat.
 
 Automatické regrese `e2e/zzz-r25-budget-revisions.spec.ts`: UI a návrat do stejného roku, zachování podkladu a nákladu, aktualizace zbytku limitu, archivní historie, souběh dvou revizí, opakování původního požadavku po další revizi, neplatný vstup a následná úspěšná revize, VIEW/EDIT/cizí objekt/jednotkový přístup a řízený CAPEX. Výsledky kompletního CI a případné živé ověření se zapisují do PR; implementace sama není důkazem dokončení.
+
+## R25-C: vazba rozpočtu na náklad, realizaci a podklady
+
+Z detailu nákladu lze přiřadit jednu rozpočtovou položku stejného objektu, typu OPEX/CAPEX a kategorie. Samostatný formulář vyžaduje důvod, potvrzení a aktuální verzi nákladu. Přiřazení, přeřazení i zrušení vazby mají atomický audit; náklad, jeho částka, účetní kontrola, alokace a dokumenty se samotnou změnou vazby nemění. Historie je čitelná v nákladu i původní/cílové rozpočtové položce, včetně zrušené vazby. Nemění se oprávnění EDIT/ADMIN/globální správy; VIEW čte. Jednotkový přístup nerozšiřuje přístup na rozpočet domu.
+
+Detail rozpočtu zobrazuje přiřazené náklady a jejich aktuální stav, částku, dostupnost faktury/podkladů a odkaz na související úkol. Dokumenty respektují stávající documentAccessWhere; skrytý nebo odstraněný dokument se nepočítá. Nabídka není označena jako faktura. Čerpání položky zahrnuje jen přiřazené náklady; souhrn kategorie nadále zahrnuje všechny náklady i bez vazby.
+
+- PLANNED → COMMITTED → ACTUAL se provádí změnou stejného nákladu. Přílohy ani alokace nejsou další náklady. Zbývá = aktuální limit − objednáno − skutečnost; plán zbytek nečerpá. Evidence skutečnosti neznamená úhradu.
+- Náklad může zůstat navázaný i při přesunu do jiného roku. Detail jej výslovně označí „Mimo rok rozpočtu“ a neodečte ho z limitu daného roku; historie realizace se neztrácí. Roční souhrn používá rok data nákladu jako dosud.
+- Při navázaném nákladu nelze obecnou editací změnit typ/kategorii v rozporu s položkou; nejprve je nutná explicitní změna vazby.
+- Staré i nové řízené CAPEX realizace se čtou přes existující UnitConditionPlanExecution. Neprovádí se domýšlení vazeb, kopírování nákladů, backfill ani zásah do řízeného CAPEX workflow. Jeho položku nelze ručně přiřadit jinému nákladu ani odpojit.
+- Aditivní migrace 20260914130000_property_cost_budget_link přidává nullable budgetLineId, index a FK ON DELETE RESTRICT. Existující data zůstávají bez ručně odvozených vazeb. Návrat k předchozímu kódu může pole ponechat; žádné mazání není nutné.
+
+Regrese `e2e/zzz-r25-budget-cost-links.spec.ts`: skutečný UI formulář, celý lifecycle jednoho ID, haléře, podklady a alokace, nezdvojené souhrny, přesun roku, přeřazení a odpojení s historií na obou položkách, VIEW a jednotkový scope, cizí rozpočet, nesoulad klasifikace, souběh a řízená CAPEX vazba. Konečné CI, merge, deploy a samostatně označené živé ověření se evidují v PR bloku. Produkční pilot zůstává budoucím samostatným krokem.

@@ -22,9 +22,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > 2147483647) throw new Error("Částka nákladu musí být kladná a v podporovaném rozsahu.");
     const data = { kind, status, category, amountCents, title: text(form, "title", true)!, effectiveAt: dateValue(form, "effectiveAt", true)!, vendor: text(form, "vendor"), documentNumber: text(form, "documentNumber"), note: text(form, "note"), taskId: text(form, "taskId") };
     await serializableTransaction(async tx => {
-      const cost = await tx.propertyCost.findFirst({ where: { id: costId, propertyId: id }, include: { allocations: true, conditionPlanExecution: true } });
+      const cost = await tx.propertyCost.findFirst({ where: { id: costId, propertyId: id }, include: { allocations: true, conditionPlanExecution: true, budgetLine: true } });
       if (!cost) throw new Error("Náklad nebyl nalezen.");
       if (cost.conditionPlanExecution) throw new Error("Náklad řízené CAPEX realizace upravujte v modulu Kvalita a CAPEX.");
+      if (cost.budgetLine && (cost.budgetLine.kind !== kind || cost.budgetLine.category !== category)) throw new Error("Typ a kategorie musí odpovídat přiřazenému rozpočtu. Nejprve upravte vazbu na rozpočet.");
       if (cost.updatedAt.toISOString() !== expectedUpdatedAt) throw new Error("Náklad se mezitím změnil. Obnovte detail a zkontrolujte aktuální údaje.");
       if (data.taskId && !await tx.task.findFirst({ where: { id: data.taskId, propertyId: id, ...(cost.unitId ? { OR: [{ unitId: cost.unitId }, { unitId: null, leaseId: null }] } : {}) }, select: { id: true } })) throw new Error("Vybraný úkol nepatří do rozsahu nákladu.");
       const before = { title: cost.title, kind: cost.kind, status: cost.status, category: cost.category, amountCents: cost.amountCents, effectiveAt: cost.effectiveAt.toISOString(), vendor: cost.vendor, documentNumber: cost.documentNumber, note: cost.note, taskId: cost.taskId, annualReviewStatus: cost.annualReviewStatus, annualReviewNote: cost.annualReviewNote, annualReviewedById: cost.annualReviewedById, annualReviewedAt: cost.annualReviewedAt?.toISOString() || null };
