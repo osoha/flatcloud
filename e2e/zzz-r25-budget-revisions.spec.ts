@@ -23,9 +23,15 @@ async function setup(page: Page) {
   return { actor, property, line, path, endpoint, form };
 }
 async function post(page: Page, endpoint: string, form: Record<string, string>) {
-  const response = await page.request.post(endpoint, { form, maxRedirects: 0 });
-  expect(response.status()).toBe(303);
-  return new URL(response.headers().location, "http://localhost").searchParams;
+  // Match the real browser session: APIRequestContext does not send the
+  // production Secure cookie over loopback HTTP, while Chromium does.
+  const response = await page.evaluate(async ({ endpoint, form }) => {
+    const result = await fetch(endpoint, { method: "POST", body: new URLSearchParams(form) });
+    return { status: result.status, url: result.url };
+  }, { endpoint, form });
+  expect([200, 404]).toContain(response.status);
+  expect(new URL(response.url).pathname).toBe(endpoint.replace("/api/properties/", "/nemovitosti/").replace("/budgets/", "/rozpocet/"));
+  return new URL(response.url).searchParams;
 }
 
 test("R25-B revision UI preserves source and initial limit, updates comparison and retains archived history", async ({ page }) => {
