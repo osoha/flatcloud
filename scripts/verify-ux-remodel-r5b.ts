@@ -22,11 +22,38 @@ async function main(){
   const actor={id:user.id,role:user.role,allProperties:true};
 
   let protocolId="";
-  await check("issuing freezes totals and creates exactly one debit",async()=>{const protocol=await issueServiceSettlementProtocol(actor,lease.id,{from,to,dueDate});protocolId=protocol.id;assert.deepEqual([protocol.advancesCents,protocol.actualCostsCents,protocol.balanceCents],[250_000,300_000,50_000]);assert.ok(protocol.chargeId);assert.equal(protocol.creditId,null);assert.equal(await prisma.charge.count({where:{id:protocol.chargeId!}}),1);});
-  await check("duplicate period is rejected without another financial movement",async()=>{await assert.rejects(()=>issueServiceSettlementProtocol(actor,lease.id,{from,to,dueDate}),/už byl protokol vystaven/);assert.equal(await prisma.serviceSettlementProtocol.count({where:{leaseId:lease.id}}),1);assert.equal(await prisma.charge.count({where:{leaseId:lease.id,period:{startsWith:"SETTLEMENT-"}}}),1);});
+  await check("working paper freezes totals without financial movements",async()=>{const protocol=await issueServiceSettlementProtocol(actor,lease.id,{from,to,dueDate});protocolId=protocol.id;assert.deepEqual([protocol.advancesCents,protocol.actualCostsCents,protocol.balanceCents],[250_000,300_000,50_000]);assert.equal(protocol.chargeId,null);assert.equal(protocol.creditId,null);assert.equal(await prisma.charge.count({where:{leaseId:lease.id}}),1);assert.equal(await prisma.leaseCredit.count({where:{leaseId:lease.id}}),0);});
+  await check("duplicate period is rejected without another financial movement",async()=>{await assert.rejects(()=>issueServiceSettlementProtocol(actor,lease.id,{from,to,dueDate}),/už byl protokol vystaven/);assert.equal(await prisma.serviceSettlementProtocol.count({where:{leaseId:lease.id}}),1);assert.equal(await prisma.charge.count({where:{leaseId:lease.id,period:{startsWith:"SETTLEMENT-"}}}),0);});
+  await check("partial, contained and encompassing overlaps are rejected", async()=>{
+    for (const period of [{from,to:from},{from:to,to},{from:from.slice(0,4)+"-01-01",to}]) {
+      await assert.rejects(()=>issueServiceSettlementProtocol(actor,lease.id,period),/překrývajícím/);
+    }
+    assert.equal(await prisma.serviceSettlementProtocol.count({where:{leaseId:lease.id}}),1);
+  });
+  await check("wrong property and read-only actors cannot issue", async()=>{
+    await assert.rejects(()=>issueServiceSettlementProtocol(actor,lease.id,{from,to,propertyId:"another-property"}),/nepatří/);
+    await assert.rejects(()=>issueServiceSettlementProtocol({id:"unrelated",role:"VIEWER"},lease.id,{from,to}),/přístup|právo/);
+  });
+  await check("snapshot is explicitly incomplete and source changes cannot rewrite it", async()=>{
+    const before=await prisma.serviceSettlementProtocol.findUniqueOrThrow({where:{id:protocolId}});
+    const snap=before.snapshot as {schemaVersion:number;purpose:string;blockers:string[]};
+    assert.equal(snap.schemaVersion,2);assert.equal(snap.purpose,"WORKING_PAPER");assert.ok(snap.blockers.length);
+    await prisma.propertyCost.updateMany({where:{unitId:unit.id},data:{amountCents:400_000}});
+    assert.deepEqual((await prisma.serviceSettlementProtocol.findUniqueOrThrow({where:{id:protocolId}})).snapshot,before.snapshot);
+  });
+  await check("concurrent overlapping submissions yield one paper and no accounting entry", async()=>{
+    const concurrentFrom=from.slice(0,4)+"-01-01",concurrentTo=from.slice(0,4)+"-01-31";
+    // August fixture in September; use a separate lease to keep this independent of today's month.
+    const concurrentLease=await prisma.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date(Date.UTC(periodDate.getUTCFullYear()-1,0,1,12)),variableSymbol:`7${Date.now().toString().slice(-8)}`,rentCents:0,servicesCents:0}});
+    const results=await Promise.allSettled([issueServiceSettlementProtocol(actor,concurrentLease.id,{from:concurrentFrom,to:concurrentTo}),issueServiceSettlementProtocol(actor,concurrentLease.id,{from:concurrentFrom,to:concurrentFrom})]);
+    assert.equal(results.filter(r=>r.status==="fulfilled").length,1);
+    assert.equal(await prisma.serviceSettlementProtocol.count({where:{leaseId:concurrentLease.id}}),1);
+    assert.equal(await prisma.charge.count({where:{leaseId:concurrentLease.id}}),0);
+    assert.equal(await prisma.leaseCredit.count({where:{leaseId:concurrentLease.id}}),0);
+  });
   await check("issued record is protected by database immutability",async()=>{await assert.rejects(()=>prisma.serviceSettlementProtocol.update({where:{id:protocolId},data:{balanceCents:60_000}}),/immutable|mutation/i);});
-  await check("issuance is atomic scoped audited and snapshot based",()=>{const service=read("lib/service-settlement-protocols.ts"),migration=read("prisma/migrations/20260905060000_service_settlement_protocol/migration.sql");for(const marker of ["serializableTransaction","loadServiceSettlementPreviewTx","editableUnitWhere","SERVICE_SETTLEMENT_PROTOCOL_ISSUED","schemaVersion: 1"])assert.match(service,new RegExp(marker));for(const marker of ["ServiceSettlementProtocol_amount_check","ServiceSettlementProtocol_financial_link_check","ServiceSettlementProtocol_immutable","ON DELETE RESTRICT"])assert.match(migration,new RegExp(marker));});
-  await check("UI requires explicit confirmation and exposes immutable history",()=>{const preview=read("app/smlouvy/[leaseId]/vyuctovani/page.tsx"),detail=read("app/smlouvy/[leaseId]/vyuctovani/[protocolId]/page.tsx"),route=read("app/api/properties/[id]/leases/[leaseId]/service-settlements/route.ts");for(const marker of ["Vystavit a zaúčtovat","Zkontroloval/a jsem zdroje","Vystavené protokoly"])assert.match(preview,new RegExp(marker));for(const marker of ["Neměnný protokol","Rozpis skutečných nákladů","Rozpis předepsaných záloh","Vytisknout / uložit PDF"])assert.match(detail,new RegExp(marker));assert.match(route,/boolValue\(form, "confirm"\)/);});
+  await check("issuance is atomic scoped audited and snapshot based",()=>{const service=read("lib/service-settlement-protocols.ts"),migration=read("prisma/migrations/20260905060000_service_settlement_protocol/migration.sql");for(const marker of ["serializableTransaction","loadServiceSettlementPreviewTx","editableUnitWhere","SERVICE_SETTLEMENT_PROTOCOL_ISSUED","schemaVersion: 2"])assert.match(service,new RegExp(marker));for(const marker of ["ServiceSettlementProtocol_amount_check","ServiceSettlementProtocol_financial_link_check","ServiceSettlementProtocol_immutable","ON DELETE RESTRICT"])assert.match(migration,new RegExp(marker));});
+  await check("UI requires explicit confirmation and exposes immutable history",()=>{const preview=read("app/smlouvy/[leaseId]/vyuctovani/page.tsx"),detail=read("app/smlouvy/[leaseId]/vyuctovani/[protocolId]/page.tsx"),route=read("app/api/properties/[id]/leases/[leaseId]/service-settlements/route.ts");for(const marker of ["Uložit bez zaúčtování","Zkontroloval/a jsem zdroje","Uložené protokoly"])assert.match(preview,new RegExp(marker));for(const marker of ["Neměnný protokol","Rozpis skutečných nákladů","Rozpis předepsaných záloh","Vytisknout / uložit PDF"])assert.match(detail,new RegExp(marker));assert.match(route,/boolValue\(form, "confirm"\)/);});
   await check("methodology pipeline and CI cover R5B",()=>{assert.match(read("lib/methodology.ts"),/Vystavení protokolu zmrazí/);assert.match(read("UX-REMODEL-PIPELINE.md"),/R5B implementováno aditivně/);assert.match(read(".github/workflows/ci.yml"),/verify:ux-remodel-r5b/);});
   console.log(`UX remodel R5B ověřen: ${count} kontrol.`);
 }

@@ -802,7 +802,8 @@ test("vyúčtování ukáže read-only zdroje a blokátory před zaúčtováním
   await expect(page.getByRole("heading", { name: "Skutečné náklady a způsob rozdělení", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Předepsané zálohy", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Odečty měřidel", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Nejprve odstraňte blokátory", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Uložit bez zaúčtování", exact: true })).toBeEnabled();
+  await expect(page.getByText("Pracovní podklad není kompletní vyúčtování:", { exact: false })).toBeVisible();
   assertNoBrowserFailures();
 });
 
@@ -1161,4 +1162,37 @@ test("odhlášení ukončí relaci a znovu ochrání portfolio", async ({ page }
   await page.goto("/portfolio");
   await expect(page).toHaveURL(/\/login(?:\?|$)/);
   assertNoBrowserFailures();
+});
+
+
+test("R26A: pracovní protokol uloží chybějící podklady bez finančního pohybu", async ({ page }) => {
+  if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname)) throw new Error("Local/CI database required");
+  const { PrismaClient } = await import("@prisma/client");
+  const db = new PrismaClient();
+  try {
+    const tag = `R24_AGENT_QA_2026_09 · R26A ${crypto.randomUUID().slice(0,8)}`;
+    const owner = await db.owner.create({data:{name:tag}});
+    const property = await db.property.create({data:{name:tag,address:"Syntetická 26",city:"Praha",ownerId:owner.id}});
+    const unit = await db.unit.create({data:{propertyId:property.id,label:"QA 26"}});
+    const tenant = await db.tenant.create({data:{name:tag}});
+    const lease = await db.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date("2020-01-01"),variableSymbol:crypto.randomUUID(),rentCents:0,servicesCents:0}});
+    await login(page);
+    await page.goto(`/smlouvy/${lease.id}/vyuctovani?from=2025-01-01&to=2025-12-31`);
+    await page.getByRole("button",{name:"Uložit bez zaúčtování",exact:true}).click();
+    await expect(page.getByText("Před vystavením potvrďte kontrolu podkladů a výsledku.", {exact:true})).toBeVisible();
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button",{name:"Uložit bez zaúčtování",exact:true}).click();
+    await expect(page.getByRole("heading",{name:"Pracovní protokol služeb",exact:true})).toBeVisible();
+    await expect(page.getByText("Neúplný pracovní podklad – není určen k doručení nájemníkovi.",{exact:true})).toBeVisible();
+    expect(await db.charge.count({where:{leaseId:lease.id}})).toBe(0);
+    expect(await db.leaseCredit.count({where:{leaseId:lease.id}})).toBe(0);
+    const saved = await db.serviceSettlementProtocol.findFirstOrThrow({where:{leaseId:lease.id}});
+    expect(saved.chargeId).toBeNull(); expect(saved.creditId).toBeNull();
+    await page.goto(`/smlouvy/${lease.id}/vyuctovani?from=2025-06-01&to=2025-06-30`);
+    await expect(page.getByRole("link",{name:"Otevřít protokol překrývajícího se období",exact:true})).toBeVisible();
+    await expect(page.getByRole("button",{name:"Uložit bez zaúčtování",exact:true})).toHaveCount(0);
+    await db.property.update({where:{id:property.id},data:{active:false}});
+    await page.goto(`/smlouvy/${lease.id}/vyuctovani/${saved.id}`);
+    await expect(page.getByRole("heading",{name:"Pracovní protokol služeb",exact:true})).toBeVisible();
+  } finally { await db.$disconnect(); }
 });

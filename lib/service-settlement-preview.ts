@@ -30,8 +30,11 @@ export function parseServiceSettlementPeriod(from: string | undefined, to: strin
   if (!validDateKey(fromKey) || !validDateKey(toKey)) throw new Error("Zadejte platné datum začátku a konce zúčtovacího období.");
   if (fromKey > toKey) throw new Error("Začátek zúčtovacího období musí být před jeho koncem.");
   if (toKey > businessTodayKey(now)) throw new Error("Zúčtovací období nelze uzavřít do budoucnosti.");
-  const days = Math.floor((businessDateKeyToInstant(toKey).getTime() - businessDateKeyToInstant(fromKey).getTime()) / 86_400_000) + 1;
-  if (days > 370) throw new Error("Jeden pracovní náhled může pokrýt nejvýše 370 dní.");
+  // Calendar months, not a 370-day approximation; use date-only UTC arithmetic (DST independent).
+  const [year, month, day] = fromKey.split("-").map(Number);
+  const lastDay = new Date(Date.UTC(year + 1, month, 0)).getUTCDate();
+  const anniversary = new Date(Date.UTC(year + 1, month - 1, Math.min(day, lastDay))).toISOString().slice(0, 10);
+  if (toKey >= anniversary) throw new Error("Zúčtovací období může být nejvýše 12 měsíců.");
   return { from: fromKey, to: toKey, fromDate: businessDateKeyToInstant(fromKey), toDate: businessDateEndInstant(toKey) };
 }
 
@@ -67,7 +70,10 @@ async function loadServiceSettlementPreviewFrom(db: Prisma.TransactionClient | t
     return { id: meter.id, label: meter.label || meter.type, unitOfMeasure: meter.unitOfMeasure, opening, closing, consumption: opening && closing && closing.readAt > opening.readAt ? closing.value - opening.value : null };
   });
   const advancesCents = advanceRows.reduce((sum, row) => sum + row.amountCents, 0), actualCostsCents = costRows.reduce((sum, row) => sum + row.allocatedAmountCents, 0);
-  const blockers: string[] = [], warnings: string[] = [];
+  const blockers: string[] = [
+    "Pracovní podklad není kompletní vyúčtování: chybí potvrzené členění nákladů a přijatých záloh po službách.",
+    "Teplo a ohřev vody: ověřte rozsah služeb. Pokud jsou poskytovány, čeká se na externí rozúčtování; ruční odečty je nenahrazují.",
+  ], warnings: string[] = [];
   const end = effectiveLeaseEnd(lease);
   if (period.from < businessDateKey(lease.startDate) || (end && period.to > businessDateKey(end))) blockers.push("Zvolené období přesahuje platnost smlouvy. Pro první nebo poslední rok vyberte pouze skutečnou dobu nájmu.");
   if (!costRows.length) blockers.push("V období chybí skutečné OPEX náklady kategorie Energie a služby přiřazené této jednotce.");
