@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { LiveReportPeriodRange } from "@/lib/reporting/live-period";
 
 type Props = {
-  view: "occupancy" | "collections";
+  view: "occupancy" | "collections" | "deposits";
   range: LiveReportPeriodRange;
   properties: string | null;
 };

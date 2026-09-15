@@ -84,7 +84,7 @@ export default async function PropertyReportingPage({
   const mfMoney = (value: number | null | undefined) =>
     value == null ? "—" : `${number.format(value / 100)} Kč/m²/měsíc`;
   return (
-    <Shell user={user}>
+    <Shell user={user} taskPropertyId={id}>
       <div className="page">
         <div className="breadcrumb">Portfolio › {property.name} › Reporty</div>
         <div className="page-title">

@@ -9,21 +9,22 @@ import { createImageVariants } from "./image-processing";
 import { documentStoragePlacement } from "../storage/locations";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
-export type DocumentContext = { propertyId: string; unitId?: string; leaseId?: string; taskId?: string; taskEntryId?: string; complianceRecordId?: string };
+export type DocumentContext = { propertyId: string; unitId?: string; leaseId?: string; taskId?: string; taskEntryId?: string; complianceRecordId?: string; propertyCostId?: string };
 type ResolvedTask = { id: string; propertyId: string; unitId: string | null; leaseId: string | null; lease: { unitId: string } | null };
-export type ResolvedDocumentContext = { unit?: { propertyId: string } | null; lease?: { unitId: string; unit: { propertyId: string } } | null; task?: ResolvedTask | null; entry?: { taskId: string; task: ResolvedTask } | null; record?: { complianceItem: { propertyId: string } } | null };
+export type ResolvedDocumentContext = { unit?: { propertyId: string } | null; lease?: { unitId: string; unit: { propertyId: string } } | null; task?: ResolvedTask | null; entry?: { taskId: string; task: ResolvedTask } | null; record?: { complianceItem: { propertyId: string } } | null; cost?: { propertyId: string; unitId: string | null } | null };
 export type AuthoritativeDocumentScope = { mode: "PROPERTY"; propertyId: string } | { mode: "UNIT"; propertyId: string; unitId: string };
 
 function taskScope(task: ResolvedTask): AuthoritativeDocumentScope { if (task.unitId && task.lease?.unitId && task.unitId !== task.lease.unitId) throw new Error("Document task has inconsistent unit and lease parents."); const unitId = task.unitId || task.lease?.unitId; return unitId ? { mode: "UNIT", propertyId: task.propertyId, unitId } : { mode: "PROPERTY", propertyId: task.propertyId }; }
 function sameScope(a: AuthoritativeDocumentScope, b: AuthoritativeDocumentScope) { return a.mode === b.mode && a.propertyId === b.propertyId && (a.mode === "PROPERTY" || (b.mode === "UNIT" && a.unitId === b.unitId)); }
 
-/** Parent priority is task entry, task, compliance record, lease, unit, then bare property. Every supplied parent must resolve to that same scope. */
+/** Parent priority is task entry, task, compliance record, property cost, lease, unit, then bare property. Every supplied parent must resolve to that same scope. */
 export function resolveAuthoritativeDocumentScope(context: DocumentContext, resolved: ResolvedDocumentContext): AuthoritativeDocumentScope {
-  if ((context.unitId && !resolved.unit) || (context.leaseId && !resolved.lease) || (context.taskId && !resolved.task) || (context.taskEntryId && !resolved.entry) || (context.complianceRecordId && !resolved.record)) throw new Error("Document context entity was not found.");
+  if ((context.unitId && !resolved.unit) || (context.leaseId && !resolved.lease) || (context.taskId && !resolved.task) || (context.taskEntryId && !resolved.entry) || (context.complianceRecordId && !resolved.record) || (context.propertyCostId && !resolved.cost)) throw new Error("Document context entity was not found.");
   const candidates: AuthoritativeDocumentScope[] = [];
   if (context.taskEntryId && resolved.entry) candidates.push(taskScope(resolved.entry.task));
   if (context.taskId && resolved.task) candidates.push(taskScope(resolved.task));
   if (context.complianceRecordId && resolved.record) candidates.push({ mode: "PROPERTY", propertyId: resolved.record.complianceItem.propertyId });
+  if (context.propertyCostId && resolved.cost) candidates.push(resolved.cost.unitId ? { mode: "UNIT", propertyId: resolved.cost.propertyId, unitId: resolved.cost.unitId } : { mode: "PROPERTY", propertyId: resolved.cost.propertyId });
   if (context.leaseId && resolved.lease) candidates.push({ mode: "UNIT", propertyId: resolved.lease.unit.propertyId, unitId: resolved.lease.unitId });
   if (context.unitId && resolved.unit) candidates.push({ mode: "UNIT", propertyId: resolved.unit.propertyId, unitId: context.unitId });
   if (!candidates.length) candidates.push({ mode: "PROPERTY", propertyId: context.propertyId });
@@ -37,14 +38,15 @@ export function assertDocumentContextConsistency(context: DocumentContext, resol
 
 async function resolveDocumentContext(context: DocumentContext): Promise<ResolvedDocumentContext> {
   const taskSelect = { id: true, propertyId: true, unitId: true, leaseId: true, lease: { select: { unitId: true } } } as const;
-  const [unit, lease, task, entry, record] = await Promise.all([
+  const [unit, lease, task, entry, record, cost] = await Promise.all([
     context.unitId ? prisma.unit.findUnique({ where: { id: context.unitId }, select: { propertyId: true } }) : null,
     context.leaseId ? prisma.lease.findUnique({ where: { id: context.leaseId }, select: { unitId: true, unit: { select: { propertyId: true } } } }) : null,
     context.taskId ? prisma.task.findUnique({ where: { id: context.taskId }, select: taskSelect }) : null,
     context.taskEntryId ? prisma.taskEntry.findUnique({ where: { id: context.taskEntryId }, select: { taskId: true, task: { select: taskSelect } } }) : null,
     context.complianceRecordId ? prisma.complianceRecord.findUnique({ where: { id: context.complianceRecordId }, select: { complianceItem: { select: { propertyId: true } } } }) : null,
+    context.propertyCostId ? prisma.propertyCost.findUnique({ where: { id: context.propertyCostId }, select: { propertyId: true, unitId: true } }) : null,
   ]);
-  return { unit, lease, task, entry, record };
+  return { unit, lease, task, entry, record, cost };
 }
 export async function validateDocumentContext(context: DocumentContext) { const resolved = await resolveDocumentContext(context); resolveAuthoritativeDocumentScope(context, resolved); return context; }
 
@@ -62,7 +64,7 @@ export async function requireDocumentCreateAccess(actor: Actor, scope: Authorita
   throw new Error("Document edit access denied.");
 }
 export async function authorizeDocumentContext(actor: Actor, context: DocumentContext) { const resolved = await resolveDocumentContext(context); const scope = resolveAuthoritativeDocumentScope(context, resolved); await requireDocumentCreateAccess(actor, scope); return scope; }
-function auditDetails(input: DocumentContext & { originalName: string }, document: { id: string; fileAssetId: string; category: DocumentCategory }): Prisma.InputJsonObject { return { propertyId: input.propertyId, documentId: document.id, fileAssetId: document.fileAssetId, category: document.category, originalName: input.originalName, ...(input.unitId ? { unitId: input.unitId } : {}), ...(input.leaseId ? { leaseId: input.leaseId } : {}), ...(input.taskId ? { taskId: input.taskId } : {}), ...(input.taskEntryId ? { taskEntryId: input.taskEntryId } : {}), ...(input.complianceRecordId ? { complianceRecordId: input.complianceRecordId } : {}) }; }
+function auditDetails(input: DocumentContext & { originalName: string }, document: { id: string; fileAssetId: string; category: DocumentCategory }): Prisma.InputJsonObject { return { propertyId: input.propertyId, documentId: document.id, fileAssetId: document.fileAssetId, category: document.category, originalName: input.originalName, ...(input.unitId ? { unitId: input.unitId } : {}), ...(input.leaseId ? { leaseId: input.leaseId } : {}), ...(input.taskId ? { taskId: input.taskId } : {}), ...(input.taskEntryId ? { taskEntryId: input.taskEntryId } : {}), ...(input.complianceRecordId ? { complianceRecordId: input.complianceRecordId } : {}), ...(input.propertyCostId ? { propertyCostId: input.propertyCostId } : {}) }; }
 
 export async function createDocumentFromUpload(input: DocumentContext & { actor: Actor; bytes: Uint8Array; mimeType: string; originalName: string; category: DocumentCategory; photoStage?: DocumentPhotoStage; title: string; description?: string; documentDate?: Date }, storage: FileStorage = createFileStorage()) {
   const resolved = await resolveDocumentContext(input), scope = resolveAuthoritativeDocumentScope(input, resolved);
@@ -76,7 +78,7 @@ export async function createDocumentFromUpload(input: DocumentContext & { actor:
     return await prisma.$transaction(async (tx) => {
       await requireDocumentCreateAccess(input.actor, scope, tx);
       const asset = await tx.fileAsset.create({ data: { storageKey, previewStorageKey, thumbnailStorageKey, uploadedById: input.actor.id, ...metadata } });
-      const document = await tx.document.create({ data: { propertyId: input.propertyId, fileAssetId: asset.id, category: input.category, photoStage: input.photoStage, title: input.title, description: input.description, documentDate: input.documentDate, unitId: input.unitId, leaseId: input.leaseId, taskId: input.taskId, taskEntryId: input.taskEntryId, complianceRecordId: input.complianceRecordId, createdById: input.actor.id } });
+      const document = await tx.document.create({ data: { propertyId: input.propertyId, fileAssetId: asset.id, category: input.category, photoStage: input.photoStage, title: input.title, description: input.description, documentDate: input.documentDate, unitId: input.unitId, leaseId: input.leaseId, taskId: input.taskId, taskEntryId: input.taskEntryId, complianceRecordId: input.complianceRecordId, propertyCostId: input.propertyCostId, createdById: input.actor.id } });
       await tx.auditLog.create({ data: { userId: input.actor.id, propertyId: input.propertyId, action: "DOCUMENT_UPLOADED", entityType: "Document", entityId: document.id, details: auditDetails(input, document) } });
       return document;
     });
@@ -88,7 +90,7 @@ export async function softDeleteDocument(actor: Actor, id: string) {
     const document = await tx.document.findFirst({ where: { id, ...documentEditAccessWhere(actor) }, include: { fileAsset: true } });
     if (!document) throw new Error("Document edit access denied.");
     const deleted = await tx.document.update({ where: { id: document.id }, data: { deletedAt: new Date() } });
-    await tx.auditLog.create({ data: { userId: actor.id, propertyId: document.propertyId, action: "DOCUMENT_DELETED", entityType: "Document", entityId: document.id, details: auditDetails({ propertyId: document.propertyId, unitId: document.unitId || undefined, leaseId: document.leaseId || undefined, taskId: document.taskId || undefined, taskEntryId: document.taskEntryId || undefined, complianceRecordId: document.complianceRecordId || undefined, originalName: document.fileAsset.originalName }, document) } });
+    await tx.auditLog.create({ data: { userId: actor.id, propertyId: document.propertyId, action: "DOCUMENT_DELETED", entityType: "Document", entityId: document.id, details: auditDetails({ propertyId: document.propertyId, unitId: document.unitId || undefined, leaseId: document.leaseId || undefined, taskId: document.taskId || undefined, taskEntryId: document.taskEntryId || undefined, complianceRecordId: document.complianceRecordId || undefined, propertyCostId: document.propertyCostId || undefined, originalName: document.fileAsset.originalName }, document) } });
     return deleted;
   });
 }

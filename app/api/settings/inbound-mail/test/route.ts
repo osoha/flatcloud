@@ -28,8 +28,8 @@ export async function POST(request: Request) {
     const summary = `IMAP připojení ověřeno; přihlášení i složka ${result.mailbox} jsou dostupné.`;
     await prisma.appSetting.update({ where: { id: "global" }, data: { inboundMailLastCheckedAt: checkedAt, inboundMailLastSummary: summary } });
     await audit(user.id, "INBOUND_MAIL_CONNECTION_TEST", "AppSetting", "global", { ok: true, mailbox: result.mailbox });
-    return goWithMessage(request, "/nastaveni", "ok", summary);
+    return goWithMessage(request, "/nastaveni/system", "ok", summary);
   } catch (error) {
-    return goWithMessage(request, "/nastaveni", "error", error instanceof Error ? error.message : "Test IMAP připojení selhal.");
+    return goWithMessage(request, "/nastaveni/system", "error", error instanceof Error ? error.message : "Test IMAP připojení selhal.");
   }
 }

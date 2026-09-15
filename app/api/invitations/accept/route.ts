@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const invitation = await prisma.userInvitation.findUnique({ where: { tokenHash } });
     if (!invitation || invitation.status !== "PENDING") throw new Error("Pozvánka není platná nebo už byla použita.");
     if (invitation.expiresAt.getTime() < Date.now()) { await prisma.userInvitation.updateMany({ where: { id: invitation.id, status: "PENDING" }, data: { status: "EXPIRED" } }); throw new Error("Platnost pozvánky vypršela."); }
-    const existing = await prisma.user.findUnique({ where: { email: invitation.email }, select: { id: true, active: true, passwordHash: true } });
+    const existing = await prisma.user.findUnique({ where: { email: invitation.email }, select: { id: true, active: true, passwordHash: true, sessionVersion: true } });
     if (existing && (!existing.active || !(await bcrypt.compare(password, existing.passwordHash)))) throw new Error("Pro existující účet zadejte správné heslo.");
     const invitedName = invitation.name?.trim() || submittedName;
     if (!existing && !invitedName) throw new Error("Zadejte jméno.");
@@ -29,8 +29,8 @@ export async function POST(request: Request) {
       const scope = canonicalizeAccessScope({ role: currentInvitation.role, permission: currentInvitation.permission, allProperties: currentInvitation.allProperties, propertyIds: currentInvitation.propertyIds.length ? currentInvitation.propertyIds : currentInvitation.unitIds.length ? [] : [currentInvitation.propertyId], unitIds: currentInvitation.unitIds });
       let user;
       if (existing) {
-        const currentUser = await tx.user.findUnique({ where: { id: existing.id }, select: { id: true, role: true, allProperties: true, active: true } });
-        if (!currentUser?.active) throw new Error("Uživatel je deaktivovaný. Nejprve účet znovu aktivujte.");
+        const currentUser = await tx.user.findUnique({ where: { id: existing.id }, select: { id: true, role: true, allProperties: true, active: true, passwordHash: true, sessionVersion: true } });
+        if (!currentUser?.active || currentUser.passwordHash !== existing.passwordHash || currentUser.sessionVersion !== existing.sessionVersion) throw new Error("Uživatel je deaktivovaný. Nejprve účet znovu aktivujte.");
         user = await tx.user.update({ where: { id: currentUser.id }, data: { ...(currentInvitation.name ? { name: currentInvitation.name } : {}), role: strongerRole(currentUser.role, scope.role), allProperties: currentUser.allProperties || scope.allProperties }, select: { id: true } });
       } else {
         if (await tx.user.findUnique({ where: { email: currentInvitation.email }, select: { id: true } })) throw new Error("Účet byl mezitím vytvořen. Přihlaste se a přijměte pozvánku znovu.");
@@ -48,9 +48,9 @@ export async function POST(request: Request) {
       if (claimed.count !== 1) throw new Error("Pozvánka už byla přijata nebo změněna.");
       await tx.auditLog.create({ data: { userId: user.id, action: "INVITATION_ACCEPTED", entityType: "UserInvitation", entityId: currentInvitation.id, details: scope } });
       const firstUnit = scope.unitIds.length ? await tx.unit.findUnique({ where: { id: scope.unitIds[0] }, select: { propertyId: true } }) : null;
-      return { userId: user.id, allProperties: scope.allProperties, propertyId: scope.propertyIds[0] || firstUnit?.propertyId };
+      return { userId: user.id, sessionVersion: existing?.sessionVersion ?? 0, allProperties: scope.allProperties, propertyId: scope.propertyIds[0] || firstUnit?.propertyId };
     });
-    await createSession(accepted.userId);
+    await createSession(accepted.userId, accepted.sessionVersion);
     return goWithMessage(request, accepted.allProperties ? "/portfolio" : `/nemovitosti/${accepted.propertyId}/prehled`, "ok", "Pozvánka byla přijata.");
   } catch (error) { return goWithMessage(request, `/pozvanka/${encodeURIComponent(token)}`, "error", error instanceof Error ? error.message : "Pozvánku se nepodařilo přijmout."); }
 }

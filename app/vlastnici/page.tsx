@@ -5,6 +5,7 @@ import { requireUser, canSeeAll } from "@/lib/auth";
 import { Shell } from "@/components/Shell";
 import { Flash, Field, FormCard, Select, Textarea } from "@/components/FormUi";
 import { ownerTypes } from "@/lib/labels";
+import { ownerAffiliationLabels } from "@/lib/ownership-scope";
 
 export const dynamic = "force-dynamic";
 
@@ -23,18 +24,19 @@ export default async function OwnersPage({ searchParams }: { searchParams: Promi
       <div className="card col-7">
         <div className="card-head"><h2>Seznam vlastníků</h2></div>
         <div className="table-wrap"><table>
-          <thead><tr><th>Název</th><th>Typ</th><th>IČO</th><th>Nemovitosti</th><th>Účty</th><th>Stav</th></tr></thead>
+          <thead><tr><th>Název</th><th>Typ</th><th>Zařazení</th><th>IČO</th><th>Nemovitosti</th><th>Účty</th><th>Stav</th></tr></thead>
           <tbody>{owners.length ? owners.map((owner) => {
             const href = `/vlastnici/${owner.id}`;
             return <tr className="clickable-table-row" key={owner.id}>
               <td><Link className="row-cell-link table-link" href={href}>{owner.name}</Link></td>
               <td><Link className="row-cell-link" href={href}>{ownerTypes[owner.type]}</Link></td>
+              <td><Link className="row-cell-link" href={href}><span className={`status owner-affiliation-${owner.affiliation.toLocaleLowerCase()}`}>{ownerAffiliationLabels[owner.affiliation]}</span></Link></td>
               <td><Link className="row-cell-link" href={href}>{owner.ico || "—"}</Link></td>
               <td><Link className="row-cell-link" href={href}>{owner._count.properties}</Link></td>
               <td><Link className="row-cell-link" href={href}>{owner._count.paymentAccounts}</Link></td>
               <td><Link className="row-cell-link" href={href}><span className={`status ${owner.active ? "ok" : "bad"}`}>{owner.active ? "Aktivní" : "Neaktivní"}</span></Link></td>
             </tr>;
-          }) : <tr><td colSpan={6} className="table-empty">Bez vlastníků</td></tr>}</tbody>
+          }) : <tr><td colSpan={7} className="table-empty">Bez vlastníků</td></tr>}</tbody>
         </table></div>
       </div>
       <div className="col-5">
@@ -42,6 +44,7 @@ export default async function OwnersPage({ searchParams }: { searchParams: Promi
           <h2 className="form-section-title field-full">Nový vlastník / SPV</h2>
           <Field label="Název" name="name" required/>
           <Select label="Typ" name="type" options={Object.entries(ownerTypes)}/>
+          <Select label="Vztah ke skupině FlatCloud" name="affiliation" defaultValue="UNCLASSIFIED" options={Object.entries(ownerAffiliationLabels)}/>
           <Field label="IČO" name="ico"/>
           <Field label="E-mail" name="email" type="email"/>
           <Field label="Telefon" name="phone"/>

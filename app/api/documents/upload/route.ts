@@ -14,7 +14,7 @@ export async function POST(request: Request) {
   const returnTo=safeInternalReturnPath(form.get("returnTo"),"/dokumenty");
   try {
     if(!fileStorageCapabilities().upload)throw new Error("Úložiště souborů není nakonfigurováno.");
-    const context:DocumentContext={propertyId:value(form,"propertyId")||"",unitId:value(form,"unitId"),leaseId:value(form,"leaseId"),taskId:value(form,"taskId"),taskEntryId:value(form,"taskEntryId"),complianceRecordId:value(form,"complianceRecordId")};
+    const context:DocumentContext={propertyId:value(form,"propertyId")||"",unitId:value(form,"unitId"),leaseId:value(form,"leaseId"),taskId:value(form,"taskId"),taskEntryId:value(form,"taskEntryId"),complianceRecordId:value(form,"complianceRecordId"),propertyCostId:value(form,"propertyCostId")};
     if(!context.propertyId)throw new Error("Chybí kontext nemovitosti.");
     const files=await prepareDocumentFiles(form),scope=await authorizeDocumentContext(user,context);
     const prepared=await prepareDocumentBatch(user,files.map(file=>({...context,...file,category:documentCategory(form.get("category"),file),photoStage:documentPhotoStage(form.get("photoStage")),title:value(form,"title")||file.originalName,description:value(form,"description"),documentDate:value(form,"documentDate")?new Date(`${value(form,"documentDate")}T12:00:00`):undefined})),files.map(()=>scope));

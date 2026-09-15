@@ -1,5 +1,5 @@
 import { Prisma, QuarterlyReportStatus, type PropertyReportingStatus } from "@prisma/client";
-import { businessDateKeyToInstant, quarterEndKey } from "../calendar";
+import { businessDateKey, businessDateKeyToInstant, quarterEndKey } from "../calendar";
 import { serializableTransaction } from "../serializable";
 import { reportingGroupPropertiesAt, type ReportingUser } from "./access";
 import { assertQuarterAndRevision, validateQuarterlyReportPeriod } from "./invariants";
@@ -11,6 +11,23 @@ import { SYSTEM_REPORT_DESIGN_TEMPLATE_CODE } from "./design-template-schema";
 export type QuarterlyReportActor = Pick<ReportingUser, "id" | "role">;
 type Tx = Prisma.TransactionClient;
 const CREATE_RETRIES = 3;
+
+export function quarterlyPeriodState(asOfDate: Date, now = new Date()) {
+  const reportDate = businessDateKey(asOfDate);
+  const today = businessDateKey(now);
+  const open = reportDate > today;
+  return { reportDate, dataThrough: open ? today : reportDate, open };
+}
+
+export function assertQuarterlyPeriodClosed(asOfDate: Date, now = new Date()) {
+  const state = quarterlyPeriodState(asOfDate, now);
+  if (state.open) {
+    throw new Error(
+      `Report period is still open. Data is available only through ${state.dataThrough}; review and publication must wait until ${state.reportDate}.`,
+    );
+  }
+  return state;
+}
 
 export function assertReportTransitionAllowed(status: QuarterlyReportStatus | string, target: QuarterlyReportStatus | string, permission: string) {
   if (status === "PUBLISHED") throw new Error("Published report revisions are immutable.");
@@ -209,6 +226,7 @@ async function transition(reportId: string, actor: QuarterlyReportActor, from: Q
     const granted = admin ? await requireAdmin(tx, actor, report.reportingGroupId) : await requireEdit(tx, actor, report.reportingGroupId);
     assertReportTransitionAllowed(report.status, to, granted);
     if (from === "DRAFT" && to === "REVIEW") {
+      assertQuarterlyPeriodClosed(report.asOfDate);
       const properties = await tx.quarterlyPropertyReport.findMany({ where: { quarterlyReportId: reportId }, select: { propertyStatus: true } });
       if (properties.some((property) => property.propertyStatus === null)) throw new Error("Every property report must have a property status before review.");
     }
@@ -291,6 +309,7 @@ export async function publishQuarterlyReport(
 
     const granted = await requireAdmin(tx, actor, report.reportingGroupId);
     assertReportTransitionAllowed(report.status, "PUBLISHED", granted);
+    assertQuarterlyPeriodClosed(report.asOfDate);
 
     const expected = await reportProperties(
       tx,

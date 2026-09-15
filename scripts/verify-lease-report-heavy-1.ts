@@ -169,8 +169,13 @@ async function main() {
     await check("genuinely terminated lease cannot be revived", async () => assert.rejects(() => restoreCancelledLease({ propertyId: property.id, leaseId: terminated.id, actor: admin, restoreReason: "Nesmí projít", now }), (error: Error) => error.message === LEASE_TERMINATED_REACTIVATION_ERROR));
 
     const cardSources = [read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx"), read("app/najemnici/[tenantId]/page.tsx"), read("app/smlouvy/page.tsx"), read("app/nemovitosti/[id]/[section]/page.tsx")];
-    await check("unit tenant contract and property cards use shared lifecycle and stored amounts", () => { assert.ok(cardSources.every((source) => /leaseStatusAt|currentLeaseForUnit/.test(source))); assert.ok(cardSources.every((source) => /rentCents/.test(source))); assert.match(cardSources[0], /rentCents \+ activeLease\.servicesCents/); });
-    await check("edit route always reconciles raw amounts recurring templates and generated charges together", () => { const route = read("app/api/properties/[id]/leases/[leaseId]/route.ts"); for (const token of ["await replaceRecurringAmount(tx, leaseId, \"RENT\", rentCents", "await replaceRecurringAmount(tx, leaseId, \"SERVICES\", servicesCents", "rentCents", "servicesCents", "syncLeaseCharges"]) assert.ok(route.includes(token)); });
+    await check("unit tenant contract and property cards use shared lifecycle and effective amounts", () => { assert.ok(cardSources.every((source) => /leaseStatusAt|currentLeaseForUnit/.test(source))); assert.match(cardSources[0], /rentRollAmountsAt\(activeLease, new Date\(\)\)/); assert.match(cardSources[0], /recurringAmounts\.rent\.amountCents \+ recurringAmounts\.services\.amountCents/); assert.ok(cardSources.slice(1).every((source) => /rentCents/.test(source))); });
+    await check("dedicated financial workflow reconciles raw amounts recurring templates and generated charges together", () => {
+      const generalRoute = read("app/api/properties/[id]/leases/[leaseId]/route.ts");
+      const financialService = read("lib/lease-financial-change.ts");
+      for (const token of ["await replaceRecurringAmount(tx, leaseId, \"RENT\", preview.input.rentCents", "await replaceRecurringAmount(tx, leaseId, \"SERVICES\", preview.input.servicesCents", "rentCents: preview.input.rentCents", "servicesCents: preview.input.servicesCents", "syncLeaseCharges"]) assert.ok(financialService.includes(token));
+      assert.ok(!generalRoute.includes("await replaceRecurringAmount"));
+    });
     await check("report routes link tenancy rows back to tenant unit and contract cards", () => { const page = read("app/reporty/page.tsx"); for (const token of ["/najemnici/${row.tenantId}", "/jednotky/${row.unitId}", "/smlouvy/${row.leaseId}"]) assert.ok(page.includes(token)); });
   } finally {
     await prisma.auditLog.deleteMany({ where: { OR: [{ propertyId: property.id }, { entityId: { in: leaseIds } }] } });

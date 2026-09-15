@@ -19,7 +19,7 @@ async function main() {
   await check("built-in template code is seeded", () => assert.match(migration, /FLATCLOUD_QUARTERLY_2026/));
   await check("built-in version one is ACTIVE", () => assert.match(migration, /system-flatcloud-quarterly-2026-v1[\s\S]*?'ACTIVE'/));
   await check("built-in version has five page roles", () => REPORT_DESIGN_PAGE_ROLES.forEach((role) => assert.match(migration, new RegExp(`'${role}', 'GENERATED'`))));
-  await check("built-in format is A4 landscape", () => assert.deepEqual(flatCloudQuarterly2026Config.page, { format: "A4", orientation: "LANDSCAPE" }));
+  await check("built-in format is source-faithful 13:9 landscape", () => assert.deepEqual(flatCloudQuarterly2026Config.page, { format: "FLATCLOUD_13X9", orientation: "LANDSCAPE" }));
   await check("generated backgrounds allow no FileAsset", () => assert.match(schema, /backgroundAssetId\s+String\?/));
   await check("ASSET activation requires an image FileAsset", () => { assert.match(templates, /backgroundMode === "ASSET"/); assert.match(templates, /mimeType: \{ startsWith: "image\/" \}/); });
   await check("template backgrounds use FileAsset and not Document", () => { assert.match(schema, /backgroundAsset\s+FileAsset\?/); assert.doesNotMatch(schema, /ReportDesignTemplatePage[\s\S]{0,900}Document\?/); });
@@ -55,7 +55,7 @@ async function main() {
   await check("secure template preview exposes no storage key", () => { assert.match(adminPage, /\/image\?variant=thumbnail/); assert.doesNotMatch(adminPage, /storageKey/); });
   await check("same background asset is reusable across content pages", () => assert.match(templates, /role: \{ in: \["OVERVIEW", "TECHNICAL", "VALUATION", "TRENDS"\] \}[\s\S]*backgroundAssetId: source\.backgroundAssetId/));
   await check("apply-to-content does not copy binary bytes", () => assert.doesNotMatch(templates, /applyTemplateBackgroundToContentPages[\s\S]{0,1000}putObject/));
-  await check("default config has FlatCloud brand colors", () => assert.deepEqual(flatCloudQuarterly2026Config.brand, { primary: "#26639F", primaryDark: "#1E4F80", primaryLight: "#DDEAF5", text: "#1F2937", muted: "#7A7A7A", border: "#D7E1EA", white: "#FFFFFF" }));
+  await check("default config has source-deck FlatCloud colors", () => assert.deepEqual(flatCloudQuarterly2026Config.brand, { primary: "#26639F", primaryDark: "#26639F", primaryLight: "#CADDF2", text: "#1F2937", muted: "#7A7A7A", border: "#CADDF2", white: "#FFFFFF" }));
   await check("default config has split cover preset", () => assert.equal(flatCloudQuarterly2026Config.cover.preset, "FLATCLOUD_SPLIT_HERO"));
   await check("default config has diagonal header preset", () => assert.equal(flatCloudQuarterly2026Config.contentHeader.preset, "FLATCLOUD_DIAGONAL_HEADER"));
   await check("no PPTX runtime parser", () => assert.doesNotMatch(`${configSource}${templates}`, /pptx|powerpoint/i));

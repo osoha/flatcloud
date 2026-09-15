@@ -156,10 +156,10 @@ function main() {
       "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b",
     );
   });
-  check("publication and publishedAssetId paths are unchanged", () => {
+  check("publication service includes the approved period confidence gate", () => {
     assert.equal(
       hash("lib/reporting/quarterly-report-service.ts"),
-      "48dee570d4783869cb95211a818d5a9bd95cc51646a9ed776b84d89d02bfc151",
+      "be1224ea1507afdc751460a487a310e3d8fb70e6b8795713bdb4fe4d6ef67eae",
     );
     assert.equal(
       hash(

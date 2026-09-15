@@ -80,6 +80,27 @@ export const paymentStatuses: Record<string, string> = {
   IGNORED: "Ignorováno",
 };
 
+export const documentCategories: Record<string, string> = {
+  CONTRACT: "Nájemní smlouva",
+  CONTRACT_ADDENDUM: "Dodatek ke smlouvě",
+  HANDOVER_PROTOCOL: "Předávací protokol",
+  INSPECTION_PROTOCOL: "Revizní protokol",
+  PHOTO: "Fotografie",
+  TECHNICAL_DOCUMENT: "Technický dokument",
+  INVOICE: "Faktura / účetní doklad",
+  OFFER: "Nabídka",
+  ENERGY_CERTIFICATE: "Energetický průkaz",
+  INSURANCE: "Pojištění",
+  LEGAL: "Právní dokument",
+  OTHER: "Ostatní",
+};
+
+export const documentPhotoStages: Record<string, string> = {
+  BEFORE: "Před realizací",
+  AFTER: "Po realizaci",
+  GENERAL: "Obecná fotografie",
+};
+
 export const matchingRuleActions: Record<string, string> = {
   IGNORE: "Ignorovat",
   MATCH_LEASE: "Automaticky párovat",

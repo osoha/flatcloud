@@ -1,0 +1,93 @@
+import { canSeeAll } from "@/lib/auth";
+import { businessDateEndInstant, businessDateKeyToInstant, type BusinessDateKey } from "@/lib/calendar";
+import { prisma } from "@/lib/db";
+import { distributionOpportunityStages, distributionOptionStatuses } from "@/lib/distribution/crm";
+
+export function parseDistributionReportPeriod(value: string | undefined, now = new Date()) {
+  const fallback = `${now.getUTCFullYear()}-Q${Math.floor(now.getUTCMonth() / 3) + 1}`;
+  const period = value && /^\d{4}(?:-Q[1-4])?$/.test(value) ? value : fallback;
+  const year = Number(period.slice(0, 4));
+  const quarter = period.includes("-Q") ? Number(period.at(-1)) : null;
+  const startMonth = quarter ? (quarter - 1) * 3 + 1 : 1;
+  const endMonth = quarter ? quarter * 3 : 12;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const lastDay = new Date(Date.UTC(year, endMonth, 0)).getUTCDate();
+  const fromKey = `${year}-${pad(startMonth)}-01` as BusinessDateKey;
+  const toKey = `${year}-${pad(endMonth)}-${pad(lastDay)}` as BusinessDateKey;
+  return { key: period, label: quarter ? `Q${quarter} ${year}` : `Rok ${year}`, year, quarter, from: businessDateKeyToInstant(fromKey), to: businessDateEndInstant(toKey) };
+}
+
+export async function loadDistributionReport(actor: { id: string; role: string; allProperties?: boolean }, periodValue?: string) {
+  if (!canSeeAll(actor.role)) throw new Error("Distribuční reporting je dostupný pouze interním správcům FlatCloud.");
+  const period = parseDistributionReportPeriod(periodValue);
+  const properties = await prisma.property.findMany({
+    where: { active: true, flatcloudConsolidationBasisPoints: { gt: 0 } },
+    select: { id: true, name: true, units: { select: {
+      id: true,
+      conditionAssessments: { orderBy: [{ assessedAt: "desc" }, { createdAt: "desc" }], take: 1 },
+      assetAssessments: { orderBy: [{ assessedAt: "desc" }, { createdAt: "desc" }], take: 1 },
+      valuationSnapshots: { orderBy: [{ valuationDate: "desc" }, { createdAt: "desc" }], take: 1 },
+      distributionOpportunities: { select: {
+        id: true, stage: true, optionStatus: true, askingPriceCents: true, offeredPriceCents: true, createdAt: true, updatedAt: true,
+        events: { where: { createdAt: { gte: period.from, lte: period.to } }, select: { fromStage: true, toStage: true, optionStatus: true, createdAt: true } },
+      } },
+    } } },
+    orderBy: { name: "asc" },
+  });
+  const stageEntries = Object.entries(distributionOpportunityStages);
+  const rows = properties.map((property) => {
+    const conditions = property.units.map((unit) => unit.conditionAssessments[0]).filter(Boolean);
+    const readiness = property.units.map((unit) => unit.assetAssessments[0]).filter(Boolean);
+    const valuations = property.units.map((unit) => unit.valuationSnapshots[0]).filter(Boolean);
+    const opportunities = property.units.flatMap((unit) => unit.distributionOpportunities);
+    const activity = opportunities.filter((item) => item.createdAt >= period.from && item.createdAt <= period.to);
+    const funnelEvents = opportunities.flatMap((item) => item.events.map((event) => ({ ...event, opportunityId: item.id })));
+    const stageCounts = Object.fromEntries(stageEntries.map(([stage]) => [stage, opportunities.filter((item) => item.stage === stage).length]));
+    const stageActivityCounts = Object.fromEntries(stageEntries.map(([stage]) => [stage, funnelEvents.filter((item) => item.toStage === stage).length]));
+    const signedOptionCount = new Set(funnelEvents.filter((item) => item.optionStatus === "SIGNED").map((item) => item.opportunityId)).size;
+    const exercisedOptionCount = new Set(funnelEvents.filter((item) => item.optionStatus === "EXERCISED").map((item) => item.opportunityId)).size;
+    return {
+      propertyId: property.id,
+      propertyName: property.name,
+      unitCount: property.units.length,
+      assessedCount: conditions.length,
+      valuedCount: valuations.length,
+      readyCount: readiness.filter((item) => item.distributionReady).length,
+      urgentCount: conditions.filter((item) => item.investmentUrgency === "IMMEDIATE").length,
+      estimatedCapexCents: conditions.reduce((sum, item) => sum + item.estimatedCapexCents, 0),
+      marketValueCents: valuations.reduce((sum, item) => sum + Number(item.marketValueCents), 0),
+      openOpportunityCount: opportunities.filter((item) => !["WON", "LOST"].includes(item.stage)).length,
+      newOpportunityCount: activity.length,
+      funnelEventCount: funnelEvents.length,
+      signedOptionCount,
+      exercisedOptionCount,
+      offeredValueCents: opportunities.filter((item) => item.stage === "OFFER" || item.stage === "RESERVED").reduce((sum, item) => sum + Number(item.offeredPriceCents || 0), 0),
+      stageCounts,
+      stageActivityCounts,
+      issues: property.units.flatMap((unit) => [
+        ...(!unit.conditionAssessments.length ? ["Chybí technické hodnocení"] : []),
+        ...(!unit.valuationSnapshots.length ? ["Chybí valuace"] : []),
+        ...(unit.assetAssessments[0]?.distributionReady && !unit.valuationSnapshots.length ? ["Připraveno bez valuace"] : []),
+      ]),
+    };
+  });
+  const totals = {
+    unitCount: rows.reduce((sum, row) => sum + row.unitCount, 0),
+    assessedCount: rows.reduce((sum, row) => sum + row.assessedCount, 0),
+    valuedCount: rows.reduce((sum, row) => sum + row.valuedCount, 0),
+    readyCount: rows.reduce((sum, row) => sum + row.readyCount, 0),
+    urgentCount: rows.reduce((sum, row) => sum + row.urgentCount, 0),
+    estimatedCapexCents: rows.reduce((sum, row) => sum + row.estimatedCapexCents, 0),
+    marketValueCents: rows.reduce((sum, row) => sum + row.marketValueCents, 0),
+    openOpportunityCount: rows.reduce((sum, row) => sum + row.openOpportunityCount, 0),
+    newOpportunityCount: rows.reduce((sum, row) => sum + row.newOpportunityCount, 0),
+    funnelEventCount: rows.reduce((sum, row) => sum + row.funnelEventCount, 0),
+    signedOptionCount: rows.reduce((sum, row) => sum + row.signedOptionCount, 0),
+    exercisedOptionCount: rows.reduce((sum, row) => sum + row.exercisedOptionCount, 0),
+    offeredValueCents: rows.reduce((sum, row) => sum + row.offeredValueCents, 0),
+    stageCounts: Object.fromEntries(stageEntries.map(([stage]) => [stage, rows.reduce((sum, row) => sum + (row.stageCounts[stage] || 0), 0)])),
+    stageActivityCounts: Object.fromEntries(stageEntries.map(([stage]) => [stage, rows.reduce((sum, row) => sum + (row.stageActivityCounts[stage] || 0), 0)])),
+    issueCount: rows.reduce((sum, row) => sum + row.issues.length, 0),
+  };
+  return { period, rows, totals, generatedAt: new Date(), scopeLabel: "Potvrzená aktiva FlatCloud · LIVE stav", stageLabels: distributionOpportunityStages, optionLabels: distributionOptionStatuses };
+}

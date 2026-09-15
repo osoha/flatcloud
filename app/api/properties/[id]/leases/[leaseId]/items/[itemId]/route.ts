@@ -12,6 +12,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const existing = await prisma.leasePaymentItem.findFirst({ where: { id: itemId, leaseId, lease: { unit: { propertyId: id } } } });
     if (!existing) throw new Error("Položka předpisu nebyla nalezena.");
     const form = await request.formData();
+    const requestedCategory = (text(form, "category") || "OTHER") as ChargeCategory;
+    if (["RENT", "SERVICES"].includes(existing.category) || ["RENT", "SERVICES"].includes(requestedCategory)) throw new Error("Nájemné a služby nelze přepsat v pravidelné položce. Použijte změnu financí smlouvy s datem účinnosti a kontrolou dopadu.");
     const validFrom = dateValue(form, "validFrom", true)!;
     const validTo = dateValue(form, "validTo");
     if (validTo && validTo < validFrom) throw new Error("Konec platnosti nesmí být před začátkem.");
@@ -19,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       where: { id: itemId },
       data: {
         name: text(form, "name", true)!,
-        category: (text(form, "category") || "OTHER") as ChargeCategory,
+        category: requestedCategory,
         amountCents: moneyToCents(form, "amount"),
         validFrom,
         validTo,
