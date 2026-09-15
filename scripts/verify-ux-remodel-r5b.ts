@@ -44,7 +44,7 @@ async function main(){
   await check("concurrent overlapping submissions yield one paper and no accounting entry", async()=>{
     const concurrentFrom=from.slice(0,4)+"-01-01",concurrentTo=from.slice(0,4)+"-01-31";
     // August fixture in September; use a separate lease to keep this independent of today's month.
-    const concurrentLease=await prisma.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date(Date.UTC(periodDate.getUTCFullYear()-1,0,1,12)),variableSymbol:`7${Date.now().toString().slice(-8)}`,rentCents:0,servicesCents:0}});
+    const concurrentLease=await prisma.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date(Date.UTC(periodDate.getUTCFullYear()-1,0,1,12)),financialTrackingFromPeriod:`${periodDate.getUTCFullYear()-1}-01`,variableSymbol:`7${Date.now().toString().slice(-8)}`,rentCents:0,servicesCents:0}});
     const results=await Promise.allSettled([issueServiceSettlementProtocol(actor,concurrentLease.id,{from:concurrentFrom,to:concurrentTo}),issueServiceSettlementProtocol(actor,concurrentLease.id,{from:concurrentFrom,to:concurrentFrom})]);
     assert.equal(results.filter(r=>r.status==="fulfilled").length,1);
     assert.equal(await prisma.serviceSettlementProtocol.count({where:{leaseId:concurrentLease.id}}),1);
