@@ -1178,6 +1178,9 @@ test("R26A: pracovní protokol uloží chybějící podklady bez finančního po
     const lease = await db.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date("2020-01-01"),financialTrackingFromPeriod:"2020-01",variableSymbol:crypto.randomUUID(),rentCents:0,servicesCents:0}});
     await login(page);
     await page.goto(`/smlouvy/${lease.id}/vyuctovani?from=2025-01-01&to=2025-12-31`);
+    await expect(page.getByText("Pracovní rozdíl proti předpisům",{exact:true})).toBeVisible();
+    await expect(page.getByText("Nelze určit",{exact:true})).toBeVisible();
+    await expect(page.getByText("Předběžně vyrovnáno",{exact:true})).toHaveCount(0);
     await page.getByRole("button",{name:"Uložit bez zaúčtování",exact:true}).click();
     await expect(page.getByText("Před vystavením potvrďte kontrolu podkladů a výsledku.", {exact:true})).toBeVisible();
     await page.getByRole("checkbox").check();

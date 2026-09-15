@@ -28,7 +28,7 @@ export default async function ServiceSettlementPreviewPage({ params, searchParam
     prisma.unit.findFirst({ where: { id: preview.lease.unitId, ...editableUnitWhere(user, preview.lease.unit.propertyId) }, select: { id: true } }).then(Boolean),
   ]);
   const existing = protocols.find((protocol) => businessDateKey(protocol.periodFrom) <= preview.period.to && businessDateKey(protocol.periodTo) >= preview.period.from);
-  const resultLabel = preview.balanceCents > 0 ? "Předběžný nedoplatek" : preview.balanceCents < 0 ? "Předběžný přeplatek" : "Předběžně vyrovnáno";
+  const resultLabel = "Pracovní rozdíl proti předpisům";
   return <Shell user={user} taskPropertyId={preview.lease.unit.propertyId} taskLeaseId={preview.lease.id}><div className="page service-settlement-page">
     <div className="breadcrumb"><Link href={`/smlouvy/${leaseId}`}>← Smlouva</Link><span>›</span><span>Vyúčtování služeb</span></div>
     <div className="page-title"><div><span className="eyebrow">Pracovní náhled · bez zaúčtování</span><h1>Vyúčtování služeb</h1><p>{contractingPartyNames(preview.lease).join(" + ")} · {preview.lease.unit.property.name} · {preview.lease.unit.label}</p></div><span className={`status ${preview.ready ? "ok" : "warn"}`}>{preview.ready ? "Podklady připravené" : "Doplnit podklady"}</span></div>
