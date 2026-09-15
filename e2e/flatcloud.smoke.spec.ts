@@ -1184,6 +1184,8 @@ test("R26A: pracovní protokol uloží chybějící podklady bez finančního po
     await page.getByRole("button",{name:"Uložit bez zaúčtování",exact:true}).click();
     await expect(page.getByRole("heading",{name:"Pracovní protokol služeb",exact:true})).toBeVisible();
     await expect(page.getByText("Neúplný pracovní podklad – není určen k doručení nájemníkovi.",{exact:true})).toBeVisible();
+    await expect(page.getByText("Chybí podklady",{exact:true})).toBeVisible();
+    await expect(page.getByText("Nelze určit",{exact:true})).toBeVisible();
     expect(await db.charge.count({where:{leaseId:lease.id}})).toBe(0);
     expect(await db.leaseCredit.count({where:{leaseId:lease.id}})).toBe(0);
     const saved = await db.serviceSettlementProtocol.findFirstOrThrow({where:{leaseId:lease.id}});
