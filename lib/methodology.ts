@@ -145,8 +145,8 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Vyúčtování služeb",
     summary: "Podklady, odečty, pravidla rozúčtování a srozumitelný protokol pro nájemníka.",
     audience: "Správce nájmů",
-    steps: ["Otevřete vyúčtování přímo ze smlouvy a zvolte uzavřené období nejvýše 370 dní.", "Zkontrolujte předepsané zálohy odděleně od nájemného; inkaso celého předpisu není totéž jako výše zálohy.", "Doplňte skutečné OPEX náklady kategorie Energie a služby a u společných dokladů uložte rozdělení na jednotky.", "Ověřte počáteční a koncové odečty aktivních měřidel i platnost smlouvy v celém období.", "Nejprve odstraňte všechny blokátory. Pracovní náhled nic nezaúčtuje; až samostatné vystavení protokolu smí vytvořit nedoplatek nebo přeplatek."],
-    check: "Každá částka má zdroj a uložený způsob rozdělení; pracovní náhled je read-only. Vystavení protokolu zmrazí podklady a atomicky vytvoří právě jeden nedoplatek nebo přeplatek.",
+    steps: ["Otevřete vyúčtování přímo ze smlouvy a zvolte uzavřené období nejvýše 12 měsíců.", "Zkontrolujte předepsané zálohy odděleně od nájemného; inkaso celého předpisu není totéž jako výše zálohy.", "Doplňte skutečné OPEX náklady kategorie Energie a služby a u společných dokladů uložte rozdělení na jednotky.", "Ověřte počáteční a koncové odečty aktivních měřidel i platnost smlouvy v celém období.", "Nejprve odstraňte všechny blokátory. Pracovní náhled nic nezaúčtuje; uložení pracovního protokolu rovněž nemění předpisy, kredity ani platby."],
+    check: "Každá částka má zdroj a uložený způsob rozdělení; pracovní náhled je read-only. Vystavení protokolu zmrazí podklady. Nové pracovní protokoly jsou neúplné a nejsou určeny k doručení; vypořádání bude samostatný schválený krok.",
     href: "/smlouvy",
   },
   {
