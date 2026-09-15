@@ -443,6 +443,8 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  settlementSourcesCreated SettlementSource[] @relation("SourceCreator")
+  settlementSourcesConfirmed SettlementSource[] @relation("SourceConfirmer")
   isTestIdentity                       Boolean                        @default(false)
   id                                   String                         @id @default(cuid())
   email                                String                         @unique
@@ -555,6 +557,8 @@ model OwnerBankAccount {
 }
 
 model Property {
+  settlementSources SettlementSource[]
+
   id                                String                       @id @default(cuid())
   propertyCode                      String                       @unique @default(dbgenerated())
   name                              String
@@ -2155,6 +2159,8 @@ model FileAsset {
 }
 
 model Document {
+  settlementSources SettlementSource[]
+
   id                                   String                                @id @default(cuid())
   propertyId                           String
   property                             Property                              @relation(fields: [propertyId], references: [id], onDelete: Restrict)
@@ -2229,5 +2235,30 @@ model AuditLog {
   createdAt  DateTime  @default(now())
 
   @@index([userId, createdAt])
+  @@index([propertyId, createdAt])
+}
+
+// Source evidence only: never a charge or tenant settlement.
+model SettlementSource {
+  id String @id @default(cuid())
+  propertyId String
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  documentId String?
+  document Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  identityKey String
+  version Int @default(1)
+  previousId String? @unique
+  previous SettlementSource? @relation("SourceRevisions", fields: [previousId], references: [id], onDelete: Restrict)
+  next SettlementSource? @relation("SourceRevisions")
+  payload Json
+  createdById String
+  createdBy User @relation("SourceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  confirmedById String?
+  confirmedBy User? @relation("SourceConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+  confirmedAt DateTime?
+  confirmation Json?
+
+  @@unique([propertyId, identityKey, version])
   @@index([propertyId, createdAt])
 }
