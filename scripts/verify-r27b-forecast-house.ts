@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { forecastTestHouse, requireForecastSeedTarget, FORECAST_QA_TAG } from '../lib/reporting/forecast-test-house';
+import { calculateRentForecast } from '../lib/reporting/rent-forecast';
+const asOf=new Date('2026-09-16T12:00:00Z');
+const fixtures=forecastTestHouse(asOf);
+const rows=fixtures.map(row=>({leaseId:row.id,unitId:row.id,propertyId:'qa',propertyName:'QA',unitLabel:row.label,currentRentCents:row.rentCents,effectiveEnd:row.endDate,indexationEnabled:row.indexationPercentBps!==null,indexationPercentBps:row.indexationPercentBps,nextIndexationAt:row.nextIndexationAt,mfMarketRentCents:null}));
+assert.equal(fixtures.length,12);
+assert.deepEqual([12,24,36,null].map(duration=>fixtures.filter(row=>row.durationMonths===duration).length),[8,1,1,2]);
+for(const row of fixtures.filter(row=>row.endDate)){const end=row.endDate!;assert.equal((end.getUTCFullYear()-row.startDate.getUTCFullYear())*12+end.getUTCMonth()-row.startDate.getUTCMonth()+1,row.durationMonths);assert(row.startDate<=asOf&&end>=asOf);}
+const full=calculateRentForecast(rows,asOf,'base',48);
+assert.equal(full.months[0].contractualCents,15300000);
+assert.equal(full.months[1].contractualCents,14300000);
+assert.equal(full.months[2].contractualCents,13250000);
+assert.equal(full.months[12].contractualCents,5975500);
+assert.equal(full.months[36].contractualCents,3193727);
+assert.equal(calculateRentForecast(rows.filter(row=>row.effectiveEnd),asOf,'base',48).months[36].contractualCents,0);
+assert.deepEqual([12,24,36].map(n=>calculateRentForecast(rows,asOf,'base',n).expiringLeaseCount),[8,9,10]);
+for(const env of [{DATABASE_URL:'postgresql://localhost/qa'},{DATABASE_URL:'postgresql://production/real',FORECAST_QA_CONFIRM:FORECAST_QA_TAG},{DATABASE_URL:'postgresql://db/qa',FORECAST_QA_CONFIRM:FORECAST_QA_TAG,RENDER_SERVICE_ID:'wrong',RENDER_GIT_BRANCH:'sandbox/ux-agent'}])assert.throws(()=>requireForecastSeedTarget(env));
+requireForecastSeedTarget({DATABASE_URL:'postgresql://localhost/qa',FORECAST_QA_CONFIRM:FORECAST_QA_TAG});
+console.log('R27B: composition, dates, exact rent staircase, expiry counts, indefinite residual and target guards passed.');

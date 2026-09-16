@@ -166,6 +166,7 @@ jobs:
       - run: npm run verify:r24-agent-qa
       - run: node --import tsx scripts/verify-r26b-settlement-sources.ts
       - run: node --import tsx scripts/verify-r27a-mf-forecast.ts
+      - run: node --import tsx scripts/verify-r27b-forecast-house.ts
       - run: npm run verify:live-report-periods
 
   browser-smoke:
