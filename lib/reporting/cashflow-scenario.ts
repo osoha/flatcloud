@@ -31,8 +31,9 @@ export function calculateCashflowScenario(income: CashflowIncomeMonth[], assumpt
     const operatingCashflowCents = month.expectedCollectedCents - opexCents;
     const netCashflowCents = operatingCashflowCents - debtServiceCents - capexCents;
     cash += netCashflowCents;
+    if (![opexCents, operatingCashflowCents, netCashflowCents, cash].every(Number.isSafeInteger)) throw new Error("Výsledek dlouhodobého scénáře překročil přesný číselný rozsah. Zkraťte horizont nebo upravte vstupy.");
     return { ...month, opexCents, debtServiceCents, capexCents, operatingCashflowCents, netCashflowCents, cashBalanceCents: cash };
   });
-  const sum = (key: "expectedCollectedCents" | "opexCents" | "debtServiceCents" | "capexCents" | "netCashflowCents") => months.reduce((total, row) => total + row[key], 0);
+  const sum = (key: "expectedCollectedCents" | "opexCents" | "debtServiceCents" | "capexCents" | "netCashflowCents") => { const total = months.reduce((total, row) => total + row[key], 0); if (!Number.isSafeInteger(total)) throw new Error("Součet scénáře překročil přesný číselný rozsah."); return total; };
   return { months, incomeCents: sum("expectedCollectedCents"), opexCents: sum("opexCents"), debtServiceCents: sum("debtServiceCents"), capexCents: sum("capexCents"), netCashflowCents: sum("netCashflowCents"), closingCashCents: cash, minimumCashCents: Math.min(assumptions.openingCashCents, ...months.map(row => row.cashBalanceCents)), firstNegativePeriod: months.find(row => row.cashBalanceCents < 0)?.period ?? null };
 }
