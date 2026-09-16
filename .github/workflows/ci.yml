@@ -92,7 +92,6 @@ jobs:
       - run: npm run verify:report-design-3b4
       - run: npm run verify:report-design-4a
       - run: npm run verify:report-trends-1
-      - run: node --import tsx scripts/verify-mf-streaming.ts
       - run: npm run verify:mf-rent-1
       - run: npm run verify:portfolio-deposit-polish
       - run: npm run build
@@ -169,6 +168,7 @@ jobs:
       - run: node --import tsx scripts/verify-r27a-mf-forecast.ts
       - run: node --import tsx scripts/verify-r27b-forecast-house.ts
       - run: npm run verify:live-report-periods
+      - run: node --import tsx scripts/verify-mf-streaming.ts
 
   browser-smoke:
     needs: build
