@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const access = await requireManagedProperty(id);
   if (!access) return go(request, "/login");
   try {
-    if (!(await prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, select: { id: true } }))) throw new Error("Jednotka nebyla nalezena.");
+    if (!(await prisma.unit.findFirst({ where: { id: unitId, propertyId: id, property: { active: true } }, select: { id: true } }))) throw new Error("Jednotka nebyla nalezena.");
     const form = await request.formData();
     const rawType = text(form, "type", true)! as MeterType;
     if (!Object.values(MeterType).includes(rawType)) throw new Error("Neplatný typ měřidla.");
