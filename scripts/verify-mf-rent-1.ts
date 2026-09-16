@@ -507,6 +507,15 @@ async function main() {
       );
     });
   }
+  if (process.env.DATABASE_URL) {
+    await check("a failed attempt does not suppress a non-forced retry", async () => {
+      const retry = await syncMfRentDatasets({
+        now: new Date(Date.now() + 2_000),
+        fetcher: (async () => { throw new Error("QA retry reached source"); }) as typeof fetch,
+      }).then(() => "skipped", () => "retried");
+      assert.equal(retry, "retried");
+    });
+  }
   await check("bootstrap current plus seven periods", () =>
     assert.match(service, /slice\(0,\s*8\)/),
   );
