@@ -33,5 +33,7 @@ test('R26D: confirmed costs enter a marked working protocol without posting or d
     const protocol=await db.serviceSettlementProtocol.findFirstOrThrow({where:{leaseId:lease.id}});
     expect(protocol.actualCostsCents).toBe(1200037);expect(protocol.chargeId).toBeNull();expect(protocol.creditId).toBeNull();
     expect(await db.charge.count({where:{leaseId:lease.id}})).toBe(0);
+    await page.goto(`/smlouvy/${lease.id}/vyuctovani?from=2025-01-01&to=2025-12-31`);
+    await expect(page.locator('.settlement-protocol-history')).toContainText('2025-01-01 – 2025-12-31');
   } finally { await db.$disconnect(); }
 });
