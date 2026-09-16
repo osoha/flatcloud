@@ -5,7 +5,7 @@ import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { PrintButton } from "@/components/PrintButton";
 import { requireUser } from "@/lib/auth";
-import { date, money } from "@/lib/format";
+import { date, moneyExact as money } from "@/lib/format";
 import { loadServiceSettlementProtocol, parseServiceSettlementSnapshot } from "@/lib/service-settlement-protocols";
 
 export const dynamic = "force-dynamic";
