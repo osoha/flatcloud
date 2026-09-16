@@ -15,11 +15,12 @@ const snapshotRowSchema = z.object({
   indexationPercentBps: z.number().int().nullable(), nextIndexationAt: z.string().datetime().nullable(), mfMarketRentCents: z.number().int().nonnegative().nullable(),
 });
 const inputSnapshotSchema = z.object({
-  schemaVersion: z.literal(1),
+  schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  market: z.object({ annualGrowthBps: z.number().int().min(-2000).max(2000), catchUpMonths: z.number().int().min(1).max(360) }).optional(),
   scope: z.array(z.object({ propertyId: z.string().min(1), propertyName: z.string() })).min(1),
   mfReferencePeriod: z.string(),
   rows: z.array(snapshotRowSchema),
-});
+}).refine(value => value.schemaVersion === 1 || value.market !== undefined, "V2 requires market assumptions");
 
 export type RentForecastPlanSnapshot = z.infer<typeof inputSnapshotSchema>;
 export const rentForecastPlanStatuses = { DRAFT: "Koncept", APPROVED: "Schváleno", ARCHIVED: "Archivováno" } as const;
@@ -63,7 +64,7 @@ export function snapshotForecastRows(snapshot: RentForecastPlanSnapshot): RentFo
 }
 export function calculateSavedRentForecast(plan: { name: string; asOfDate: Date; horizonMonths: number; annualGrowthBps: number; vacancyBps: number; collectionBps: number; marketGapCaptureBps: number; inputSnapshot: Prisma.JsonValue }) {
   const snapshot = parseRentForecastPlanSnapshot(plan.inputSnapshot);
-  return calculateRentForecastWithAssumptions(snapshotForecastRows(snapshot), plan.asOfDate, "saved", { label: plan.name, annualGrowthBps: plan.annualGrowthBps, vacancyBps: plan.vacancyBps, collectionBps: plan.collectionBps, marketGapCaptureBps: plan.marketGapCaptureBps }, plan.horizonMonths);
+  return calculateRentForecastWithAssumptions(snapshotForecastRows(snapshot), plan.asOfDate, "saved", { label: plan.name, annualGrowthBps: plan.annualGrowthBps, vacancyBps: plan.vacancyBps, collectionBps: plan.collectionBps, marketGapCaptureBps: plan.marketGapCaptureBps, marketAnnualGrowthBps: snapshot.market?.annualGrowthBps, marketCatchUpMonths: snapshot.market?.catchUpMonths }, plan.horizonMonths, snapshot.schemaVersion);
 }
 
 const planInclude = { properties: { include: { property: { select: { id: true, name: true } } }, orderBy: { property: { name: "asc" as const } } }, createdBy: { select: { id: true, name: true } }, approvedBy: { select: { id: true, name: true } } } satisfies Prisma.RentForecastPlanInclude;
@@ -85,6 +86,8 @@ export async function canManageRentForecastPlan(actor: Actor, propertyIds: strin
 }
 
 function validateAssumptions(assumptions: RentForecastAssumptions) {
+  if (!Number.isInteger(assumptions.marketAnnualGrowthBps) || Math.abs(assumptions.marketAnnualGrowthBps!) > 2000) throw new Error("Růst trhu musí být mezi −20 a 20 %.");
+  if (!Number.isInteger(assumptions.marketCatchUpMonths) || assumptions.marketCatchUpMonths! < 1 || assumptions.marketCatchUpMonths! > 360) throw new Error("Doba přiblížení musí být 1 až 360 měsíců.");
   const values: Array<[string, number, number]> = [["Roční růst", assumptions.annualGrowthBps, 2_000], ["Vacancy", assumptions.vacancyBps, 10_000], ["Úspěšnost inkasa", assumptions.collectionBps, 10_000], ["Využití MF rozdílu", assumptions.marketGapCaptureBps, 10_000]];
   for (const [label, value, maximum] of values) if (!Number.isInteger(value) || value < 0 || value > maximum) throw new Error(`${label} je mimo povolený rozsah.`);
 }
@@ -92,13 +95,15 @@ function validateAssumptions(assumptions: RentForecastAssumptions) {
 export async function createRentForecastPlan(input: { name: string; note?: string | null; propertyIds: string[]; horizonMonths: number; assumptions: RentForecastAssumptions; expectedSnapshotFingerprint?: string | null }, actor: Actor) {
   const name = input.name.trim();
   if (!name || name.length > 120) throw new Error("Název scénáře musí mít 1 až 120 znaků.");
-  if (![12, 24, 36].includes(input.horizonMonths)) throw new Error("Horizont musí být 12, 24 nebo 36 měsíců.");
+  if (!Number.isInteger(input.horizonMonths) || input.horizonMonths < 1 || input.horizonMonths > 360) throw new Error("Horizont musí být 1 až 360 měsíců.");
   const propertyIds = await requirePropertyScope(actor, input.propertyIds, PropertyPermission.EDIT);
+  input = { ...input, assumptions: { marketAnnualGrowthBps: 0, marketCatchUpMonths: 24, ...input.assumptions } };
   validateAssumptions(input.assumptions);
   const asOfDate = new Date();
   const snapshot = await captureLiveSnapshot(actor, propertyIds, asOfDate);
   if (!input.expectedSnapshotFingerprint || rentForecastSnapshotFingerprint(snapshot, asOfDate) !== input.expectedSnapshotFingerprint) throw new Error("LIVE vstupy se od zobrazeného náhledu změnily. Zkontrolujte přepočítaný scénář a uložení zopakujte.");
-  const plan = await prisma.rentForecastPlan.create({ data: { seriesId: randomUUID(), revision: 1, name, asOfDate, horizonMonths: input.horizonMonths, annualGrowthBps: input.assumptions.annualGrowthBps, vacancyBps: input.assumptions.vacancyBps, collectionBps: input.assumptions.collectionBps, marketGapCaptureBps: input.assumptions.marketGapCaptureBps, inputSnapshot: snapshot as Prisma.InputJsonValue, note: input.note?.trim() || null, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
+  const savedSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: 2, market: { annualGrowthBps: input.assumptions.marketAnnualGrowthBps!, catchUpMonths: input.assumptions.marketCatchUpMonths! } };
+  const plan = await prisma.rentForecastPlan.create({ data: { seriesId: randomUUID(), revision: 1, name, asOfDate, horizonMonths: input.horizonMonths, annualGrowthBps: input.assumptions.annualGrowthBps, vacancyBps: input.assumptions.vacancyBps, collectionBps: input.assumptions.collectionBps, marketGapCaptureBps: input.assumptions.marketGapCaptureBps, inputSnapshot: savedSnapshot as Prisma.InputJsonValue, note: input.note?.trim() || null, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
   await prisma.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision: plan.revision } })) });
   return plan;
 }
@@ -121,12 +126,14 @@ export async function createRentForecastPlanRevision(planId: string, actor: Acto
   if (source.status !== "APPROVED") throw new Error("Novou revizi lze vytvořit pouze ze schváleného scénáře.");
   const asOfDate = new Date();
   const snapshot = await captureLiveSnapshot(actor, propertyIds, asOfDate);
+  const sourceSnapshot = parseRentForecastPlanSnapshot(source.inputSnapshot);
+  const revisionSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: sourceSnapshot.schemaVersion, ...(sourceSnapshot.market ? { market: sourceSnapshot.market } : {}) };
   return serializableTransaction(async (tx) => {
     const existingDraft = await tx.rentForecastPlan.findFirst({ where: { seriesId: source.seriesId, status: "DRAFT" }, select: { id: true } });
     if (existingDraft) throw new Error("Tato řada již má rozpracovanou revizi.");
     const latest = await tx.rentForecastPlan.aggregate({ where: { seriesId: source.seriesId }, _max: { revision: true } });
     const revision = (latest._max.revision || 0) + 1;
-    const plan = await tx.rentForecastPlan.create({ data: { seriesId: source.seriesId, revision, name: source.name, status: "DRAFT", asOfDate, horizonMonths: source.horizonMonths, annualGrowthBps: source.annualGrowthBps, vacancyBps: source.vacancyBps, collectionBps: source.collectionBps, marketGapCaptureBps: source.marketGapCaptureBps, inputSnapshot: snapshot as Prisma.InputJsonValue, note: source.note, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
+    const plan = await tx.rentForecastPlan.create({ data: { seriesId: source.seriesId, revision, name: source.name, status: "DRAFT", asOfDate, horizonMonths: source.horizonMonths, annualGrowthBps: source.annualGrowthBps, vacancyBps: source.vacancyBps, collectionBps: source.collectionBps, marketGapCaptureBps: source.marketGapCaptureBps, inputSnapshot: revisionSnapshot as Prisma.InputJsonValue, note: source.note, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
     await tx.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_REVISION_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision, sourcePlanId: source.id } })) });
     return plan;
   });

@@ -481,7 +481,7 @@ test("metodika je dohledatelná globálně a umí filtrovat životní situace", 
   await page.getByLabel("Hledat v podpoře práce").fill("valorizace");
   await page.getByRole("button", { name: "Hledat", exact: true }).click();
   await expect(page).toHaveURL(/view=chapters&q=valorizace/);
-  await expect(page.getByRole("heading", { name: "Valorizace a plán nájemného", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Valuace, valorizace a plán nájemného", exact: true })).toBeVisible();
   await page.getByLabel("Hledat v podpoře práce").fill("výroční report");
   await page.getByRole("button", { name: "Hledat", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Výroční report pro akcionáře", exact: true })).toBeVisible();

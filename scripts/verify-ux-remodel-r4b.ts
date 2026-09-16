@@ -8,7 +8,7 @@ let count=0;function check(name:string,test:()=>void){test();count+=1;console.lo
 
 check("custom assumptions reproduce a saved plan independently of presets",()=>{
   const row:RentForecastInput={leaseId:"l",propertyId:"p",propertyName:"Dům",unitId:"u",unitLabel:"1",currentRentCents:100_000,effectiveEnd:null,indexationEnabled:false,indexationPercentBps:null,nextIndexationAt:null,mfMarketRentCents:200_000};
-  const result=calculateRentForecastWithAssumptions([row],new Date("2026-01-15T12:00:00Z"),"saved",{label:"Schválený plán",annualGrowthBps:0,vacancyBps:0,collectionBps:10_000,marketGapCaptureBps:10_000},12);
+  const result=calculateRentForecastWithAssumptions([row],new Date("2026-01-15T12:00:00Z"),"saved",{label:"Schválený plán",annualGrowthBps:0,vacancyBps:0,collectionBps:10_000,marketGapCaptureBps:10_000},12,1);
   assert.equal(result.months[11].plannedCents,200_000);assert.equal(result.months[11].expectedCollectedCents,200_000);assert.equal(result.scenario.label,"Schválený plán");
 });
 
@@ -21,7 +21,7 @@ check("schema and additive migration persist revisions, scope and approval",()=>
 
 check("service captures live inputs server-side and enforces whole-property edit access",()=>{
   const service=read("lib/reporting/rent-forecast-plans.ts");
-  for(const marker of ["loadLiveReport(actor", "PropertyPermission.EDIT", "loadedIds.join", "inputSnapshot: snapshot", "permission: minimum === \"VIEW\"", "writesToLeases: false"])assert.match(service,new RegExp(marker.replace(/[?*+.[\]{}()]/g,"\\$&")));
+  for(const marker of ["loadLiveReport(actor", "PropertyPermission.EDIT", "loadedIds.join", "inputSnapshot: savedSnapshot", "permission: minimum === \"VIEW\"", "writesToLeases: false"])assert.match(service,new RegExp(marker.replace(/[?*+.[\]{}()]/g,"\\$&")));
   assert.doesNotMatch(service,/lease\.(update|create)|charge\.(update|create)|paymentItem\.(update|create)/);
 });
 

@@ -27,7 +27,7 @@ check("scenario and horizon inputs fail closed to understandable defaults", () =
   assert.equal(parseRentForecastScenario("conservative"), "conservative");
   assert.equal(parseRentForecastScenario("unknown"), "base");
   assert.equal(parseRentForecastHorizon("12"), 12);
-  assert.equal(parseRentForecastHorizon("48"), 24);
+  assert.equal(parseRentForecastHorizon("48"), 48);
 });
 
 check("contractual curve applies configured fixed indexation at its actual anniversary", () => {
@@ -47,14 +47,14 @@ check("contractual curve stops after expiry while the planning scenario stays ex
 check("positive MF gap is captured gradually and never forces a rent decrease", () => {
   const upward = calculateRentForecast([{ ...base, mfMarketRentCents: 200_000 }], asOf, "base", 12);
   assert(upward.months[0].plannedCents > 100_000 && upward.months[0].plannedCents < 150_000);
-  assert.equal(upward.months[11].plannedCents, 150_000);
+  assert.equal(upward.months[11].plannedCents, 125_000);
   const downward = calculateRentForecast([{ ...base, mfMarketRentCents: 80_000 }], asOf, "base", 12);
   assert.equal(downward.months[11].plannedCents, 100_000);
 });
 
 check("expected collection applies visible vacancy and collection assumptions", () => {
   const result = calculateRentForecast([{ ...base, mfMarketRentCents: 200_000 }], asOf, "base", 12);
-  assert.equal(result.months[11].expectedCollectedCents, 139_650);
+  assert.equal(result.months[11].expectedCollectedCents, 116_375);
   assert.equal(result.mfCoveredCount, 1);
   assert.equal(result.contractualTotalCents, 1_200_000);
 });
@@ -69,7 +69,7 @@ check("forecast source uses current scoped lease and MF data without a write rou
 
 check("UI separates contract, plan, expected collection and MF reference", () => {
   const report = read("app/reporty/page.tsx");
-  for (const marker of ["Valorizace a forecast nájemného", "nic nemění ve smlouvách ani předpisech", "Smluvní příjem · horizont", "Plánovaný příjem · hrubý", "Očekávané inkaso", "MF rozdíl využitý do konce horizontu", "Model · ne schválený plán"]) assert.match(report, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
+  for (const marker of ["Valorizace a forecast nájemného", "nic nemění ve smlouvách ani předpisech", "Smluvní příjem · horizont", "Plánovaný příjem · hrubý", "Očekávané inkaso", "Využití dnešního MF rozdílu", "Model · ne schválený plán"]) assert.match(report, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
   const chart = read("components/ReportChart.tsx");
   for (const marker of ["RentForecastChart", "Smluvní vývoj", "Plán scénáře", "Očekávané inkaso"]) assert.match(chart, new RegExp(marker));
 });

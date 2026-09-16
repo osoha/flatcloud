@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { intValue, text } from "@/lib/forms";
 import { createRentForecastPlan, rentForecastPlanErrorMessage } from "@/lib/reporting/rent-forecast-plans";
-import { rentForecastBasisPointsFromPercent } from "@/lib/reporting/rent-forecast";
+import { marketGrowthBasisPoints, rentForecastBasisPointsFromPercent } from "@/lib/reporting/rent-forecast";
 import { goWithMessage, safeInternalReturnPath } from "@/lib/route-response";
 
 export async function POST(request: Request) {
@@ -14,6 +14,8 @@ export async function POST(request: Request) {
       name: text(form, "name", true)!, note: text(form, "note"), propertyIds: form.getAll("propertyId").map(String), expectedSnapshotFingerprint: text(form, "snapshotFingerprint", true),
       horizonMonths: intValue(form, "horizon", 24), assumptions: {
         label: "Uložený plán",
+        marketAnnualGrowthBps: marketGrowthBasisPoints(String(form.get("marketAnnualGrowthPercent") ?? "0")),
+        marketCatchUpMonths: intValue(form, "marketCatchUpMonths", 24),
         annualGrowthBps: rentForecastBasisPointsFromPercent(String(form.get("annualGrowthPercent") || ""), "Roční růst", 2_000),
         vacancyBps: rentForecastBasisPointsFromPercent(String(form.get("vacancyPercent") || ""), "Vacancy"),
         collectionBps: rentForecastBasisPointsFromPercent(String(form.get("collectionPercent") || ""), "Úspěšnost inkasa"),

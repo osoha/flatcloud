@@ -6,7 +6,7 @@ import { money } from "@/lib/format";
 
 type Point = { label: string; expected: number; paid: number };
 type OccupancyPoint = { label: string; occupancyBps: number | null; rentable: number; occupied: number; vacant: number; unknown: number };
-type ForecastPoint = { period: string; contractualCents: number; plannedCents: number; expectedCollectedCents: number };
+type ForecastPoint = { period: string; contractualCents: number; plannedCents: number; expectedCollectedCents: number; mfProjectedCents?: number | null };
 type ChartMode = "bar" | "line";
 
 function useChartWidth() {
@@ -105,6 +105,17 @@ export function OccupancyChart({ data }: { data: OccupancyPoint[] }) {
   </div>;
 }
 
-export function RentForecastChart({ data }: { data: ForecastPoint[] }) {
-  return <div className="rent-forecast-chart"><FinancialTrendChart title="Scénář valorizace a očekávaného inkasa" rows={data.map(point => ({ label: point.period, values: [point.contractualCents, point.plannedCents, point.expectedCollectedCents] }))} series={[{ label: "Smluvní vývoj", color: "#8299b7", dashed: true }, { label: "Plán scénáře", color: "#1769e0" }, { label: "Očekávané inkaso", color: "#2f9f72" }]} percent detail pointClass="forecast-point"/></div>;
+export function RentForecastChart({ data, mfPeriod }: { data: ForecastPoint[]; mfPeriod?: string }) {
+  const [showMf, setShowMf] = useState(true);
+  const [annual, setAnnual] = useState(true);
+  const long = data.length > 60;
+  // Annual view samples month-end run rates, never annual sums on a Kč/month axis.
+  const points = long && annual ? data.filter((_, index) => index === 0 || (index + 1) % 12 === 0 || index === data.length - 1) : data;
+  const series = [{ label: "Smluvní vývoj", color: "#8299b7", dashed: true }, { label: "Plán scénáře", color: "#1769e0" }, { label: "Očekávané inkaso", color: "#2f9f72" }, ...(showMf ? [{ label: "Tržní nájemné · MF odhad", color: "#9b59b6", dashed: true }] : [])];
+  return <div className="rent-forecast-chart">
+    <div className="financial-chart-controls"><div role="group" aria-label="Ukazatele scénáře"><button type="button" aria-pressed={showMf} onClick={() => setShowMf(!showMf)}>MF</button></div>{long && <div role="group" aria-label="Podrobnost scénáře"><button type="button" aria-pressed={annual} onClick={() => setAnnual(true)}>Po letech</button><button type="button" aria-pressed={!annual} onClick={() => setAnnual(false)}>Po měsících</button></div>}</div>
+    {showMf && <p className="muted-copy">MF reference: {mfPeriod ?? "uložený podklad"}. Budoucí vývoj je vlastní scénář, nikoli prognóza MF. {data.some(row => row.mfProjectedCents == null) && "Pro celý rozsah chybí úplné MF pokrytí; tržní čára se nezobrazuje. Podklady jednotlivých jednotek najdete níže."}</p>}
+    {long && <p className="muted-copy">Dlouhodobá simulace je hrubý odhad s rostoucí nejistotou. {annual && "Body po letech ukazují měsíční nájemné na konci každých 12 měsíců, nikoli roční součet."}</p>}
+    <FinancialTrendChart title="Scénář valorizace a očekávaného inkasa" rows={points.map(point => ({ label: point.period, values: [point.contractualCents, point.plannedCents, point.expectedCollectedCents, ...(showMf ? [point.mfProjectedCents ?? null] : [])] }))} series={series} percent detail pointClass="forecast-point"/>
+  </div>;
 }
