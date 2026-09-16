@@ -1,4 +1,4 @@
-import { money } from '@/lib/format';
+import { moneyExact as money } from '@/lib/format';
 import type { SettlementEvidenceRow } from '@/lib/settlement-cost-projection';
 
 export function SettlementEvidenceTable({ rows }: { rows: SettlementEvidenceRow[] }) {
