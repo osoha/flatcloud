@@ -3,6 +3,7 @@ import { prisma } from "./db";
 import { editableUnitWhere, leaseAccessWhere } from "./access";
 import { businessDateKey } from "./calendar";
 import { serializableTransaction } from "./serializable";
+import type { SettlementEvidenceRow } from "./settlement-cost-projection";
 import { loadServiceSettlementPreviewTx } from "./service-settlement-preview";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
@@ -20,6 +21,8 @@ export type ServiceSettlementSnapshot = {
   advances: Array<{ period: string; amountCents: number }>;
   costs: Array<{ sourceCostId: string; title: string; effectiveAt: string; sourceAmountCents: number; allocatedAmountCents: number; allocationLabel: string; documentCount: number }>;
   meters: Array<{ label: string; unitOfMeasure: string; opening: { date: string; value: number } | null; closing: { date: string; value: number } | null; consumption: number | null }>;
+  confirmedCosts?: SettlementEvidenceRow[];
+  costBasis?: "CONFIRMED_SOURCES" | "LEGACY_OPEX";
   warnings: string[];
 };
 
@@ -62,6 +65,8 @@ export async function issueServiceSettlementProtocol(actor: Actor, leaseId: stri
         advances: preview.advanceRows.map((row) => ({ period: row.period, amountCents: row.amountCents })),
         costs: preview.costRows.map((row) => ({ sourceCostId: row.id, title: row.title, effectiveAt: businessDateKey(row.effectiveAt), sourceAmountCents: row.sourceAmountCents, allocatedAmountCents: row.allocatedAmountCents, allocationLabel: row.allocationLabel, documentCount: row.documentCount })),
         meters: preview.meterRows.map((row) => ({ label: row.label, unitOfMeasure: row.unitOfMeasure, opening: row.opening ? { date: businessDateKey(row.opening.readAt), value: row.opening.value } : null, closing: row.closing ? { date: businessDateKey(row.closing.readAt), value: row.closing.value } : null, consumption: row.consumption })),
+        confirmedCosts: preview.evidenceRows,
+        costBasis: preview.usesConfirmedSources ? "CONFIRMED_SOURCES" : "LEGACY_OPEX",
         warnings: preview.warnings,
       };
       const protocol = await tx.serviceSettlementProtocol.create({ data: { id: protocolId, leaseId, periodFrom: preview.period.fromDate, periodTo: preview.period.toDate, advancesCents: preview.advancesCents, actualCostsCents: preview.actualCostsCents, balanceCents: preview.balanceCents, dueDate: null, snapshot, issuedById: actor.id } });
