@@ -169,6 +169,7 @@ jobs:
       - run: node --import tsx scripts/verify-r27b-forecast-house.ts
       - run: npm run verify:live-report-periods
       - run: node --import tsx scripts/verify-mf-streaming.ts
+      - run: node --import tsx scripts/verify-r26d-confirmed-costs.ts
 
   browser-smoke:
     needs: build
