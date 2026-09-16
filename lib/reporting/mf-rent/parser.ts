@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 import { mfRentTerritoryDataSchema, type MfRentTerritoryData } from "./schema";
 export const MF_RENT_PARSER_VERSION = "mf-rent-1.0.0";
@@ -61,38 +62,40 @@ export async function parseMfRentWorkbook(
 ): Promise<Parsed> {
   if (bytes.byteLength > 10 * 1024 * 1024)
     throw new Error("XLSX MF překročilo povolenou velikost.");
-  const workbook = new ExcelJS.Workbook();
-  const input = bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  ) as ArrayBuffer;
-  await workbook.xlsx.load(input);
-  if (workbook.worksheets.length > MF_MAX_SHEETS)
-    throw new Error("XLSX MF obsahuje příliš mnoho listů.");
-  const candidates = workbook.worksheets
-    .filter((s) => s.rowCount > 1 && s.rowCount <= MF_MAX_ROWS)
-    .map((sheet) => {
-      for (let r = 1; r <= Math.min(sheet.rowCount, 20); r++) {
-        const headers = (sheet.getRow(r).values as unknown[])
-          .slice(1)
-          .map(normalizeMfHeader);
-        if (
-          headers.includes("katastralni uzemi") &&
-          headers.includes("obec") &&
-          headers.filter((h) => h === "vk").length === 4
-        )
-          return { sheet, row: r, headers };
+  // Retain only plain values from the candidate table, never ExcelJS's full
+  // workbook/cell/style graph. The national workbook exceeds a small server's
+  // heap when loaded with workbook.xlsx.load().
+  const workbook = new ExcelJS.stream.xlsx.WorkbookReader(Readable.from([bytes]), {
+    worksheets: "emit", sharedStrings: "cache", styles: "ignore",
+    hyperlinks: "ignore", entries: "ignore",
+  });
+  const candidates: Array<{ name: string; headers: string[]; records: unknown[][] }> = [];
+  let sheets = 0;
+  for await (const sheet of workbook) {
+    if (++sheets > MF_MAX_SHEETS)
+      throw new Error("XLSX MF obsahuje příliš mnoho listů.");
+    let candidate: (typeof candidates)[number] | undefined;
+    for await (const record of sheet) {
+      if (record.number > MF_MAX_ROWS)
+        throw new Error("XLSX MF obsahuje příliš mnoho řádků.");
+      const values = record.values as unknown[];
+      if (candidate) {
+        candidate.records.push(values);
+      } else if (record.number <= 20) {
+        const headers = values.slice(1).map(normalizeMfHeader);
+        if (headers.includes("katastralni uzemi") && headers.includes("obec") &&
+            headers.filter((h) => h === "vk").length === 4) {
+          candidate = { name: (sheet as typeof sheet & { name: string }).name, headers, records: [] };
+          candidates.push(candidate);
+          if (candidates.length > 1)
+            throw new Error("Tabulkový list MF chybí nebo je nejednoznačný.");
+        }
       }
-      return null;
-    })
-    .filter(Boolean) as Array<{
-    sheet: ExcelJS.Worksheet;
-    row: number;
-    headers: string[];
-  }>;
+    }
+  }
   if (candidates.length !== 1)
     throw new Error("Tabulkový list MF chybí nebo je nejednoznačný.");
-  const { sheet, row, headers } = candidates[0];
+  const { name, headers, records } = candidates[0];
   for (const required of ["kraj", "katastralni uzemi", "obec", "kod obce"])
     if (headers.filter((h) => h === required).length !== 1)
       throw new Error(
@@ -121,7 +124,7 @@ export async function parseMfRentWorkbook(
     .update(
       JSON.stringify([
         {
-          sheet: normalizeMfHeader(sheet.name),
+          sheet: normalizeMfHeader(name),
           headers: headers.filter(Boolean),
         },
       ]),
@@ -131,8 +134,8 @@ export async function parseMfRentWorkbook(
   const territories: Parsed["territories"] = [];
   const coverage = { vk1: 0, vk2: 0, vk3: 0, vk4: 0 };
   const col = (name: string) => headers.indexOf(name) + 1;
-  for (let r = row + 1; r <= sheet.rowCount; r++) {
-    const record = sheet.getRow(r);
+  for (const values of records) {
+    const record = { getCell: (column: number) => ({ value: values[column] }) };
     const municipalityName = text(record.getCell(col("obec")).value).trim();
     const territoryName =
       text(record.getCell(col("katastralni uzemi")).value).trim() ||
