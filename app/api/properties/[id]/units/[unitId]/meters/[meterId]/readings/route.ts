@@ -1,24 +1,19 @@
-import { prisma } from "@/lib/db";
-import { dateValue, floatValue, text } from "@/lib/forms";
-import { requireManagedProperty, audit } from "@/lib/management";
-import { go, goWithMessage } from "@/lib/route-response";
+import { floatValue, text } from '@/lib/forms';
+import { requireManagedProperty } from '@/lib/management';
+import { recordMeterReading } from '@/lib/meter-readings';
+import { go, goWithMessage } from '@/lib/route-response';
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string; unitId: string; meterId: string }> }) {
-  const { id, unitId, meterId } = await params;
-  const access = await requireManagedProperty(id);
-  if (!access) return go(request, "/login");
+export async function POST(request:Request,{params}:{params:Promise<{id:string;unitId:string;meterId:string}>}) {
+  const {id,unitId,meterId}=await params;
+  const access=await requireManagedProperty(id);
+  if(!access) return go(request,'/login');
   try {
-    const meter = await prisma.meter.findFirst({ where: { id: meterId, unitId, unit: { propertyId: id } } });
-    if (!meter) throw new Error("Měřidlo nebylo nalezeno.");
-    const form = await request.formData();
-    const value = floatValue(form, "value");
-    if (value === null || value < 0) throw new Error("Stav měřidla musí být nezáporné číslo.");
-    const leaseId = text(form, "leaseId");
-    if (leaseId && !(await prisma.lease.findFirst({ where: { id: leaseId, unitId }, select: { id: true } }))) throw new Error("Vybraný nájemní vztah nepatří k této jednotce.");
-    const reading = await prisma.meterReading.create({ data: { meterId, leaseId, readAt: dateValue(form, "readAt", true)!, value, note: text(form, "note") } });
-    await audit(access.user.id, "METER_READING_CREATED", "MeterReading", reading.id, { propertyId: id, unitId, meterId, value }, id);
-    return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#meridla`, "ok", "Odečet byl uložen.");
-  } catch (error) {
-    return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#meridla`, "error", error instanceof Error ? error.message : "Odečet se nepodařilo uložit.");
+    const form=await request.formData();
+    const value=floatValue(form,'value');
+    if(value===null) throw new Error('Zadejte stav měřidla.');
+    await recordMeterReading(access.user,{propertyId:id,unitId,meterId,value,readAt:text(form,'readAt',true)!,method:text(form,'method',true)!,leaseId:text(form,'leaseId'),note:text(form,'note'),correctsId:text(form,'correctsId'),correctionReason:text(form,'correctionReason'),evidenceDocumentId:text(form,'evidenceDocumentId')});
+    return goWithMessage(request,`/nemovitosti/${id}/jednotky/${unitId}#meridla`,'ok','Odečet byl uložen. Původní historie zůstává zachována.');
+  } catch(error) {
+    return goWithMessage(request,`/nemovitosti/${id}/jednotky/${unitId}#meridla`,'error',error instanceof Error?error.message:'Odečet se nepodařilo uložit.');
   }
 }

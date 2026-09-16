@@ -1,3 +1,4 @@
+import { meterPeriodReadings } from "./meter-reading-rules";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { leaseAccessWhere } from "./access";
@@ -50,8 +51,7 @@ async function loadServiceSettlementPreviewFrom(db: Prisma.TransactionClient | t
     unit: { include: {
       property: true,
       meters: {
-        where: { active: true },
-        include: { readings: { where: { readAt: { lte: period.toDate }, OR: [{ leaseId }, { leaseId: null }] }, orderBy: { readAt: "asc" } } },
+        include: { readings: { where: { OR: [{ leaseId }, { leaseId: null }] }, orderBy: { readAt: "asc" } } },
         orderBy: [{ type: "asc" }, { createdAt: "asc" }],
       },
     } },
@@ -83,11 +83,10 @@ async function loadServiceSettlementPreviewFrom(db: Prisma.TransactionClient | t
     allocationLabel: row.allocationLabel, documentCount: 1,
   })) : legacyCostRows;
   const unallocatedCosts = costs.filter((cost) => !cost.unitId && !cost.allocations.some((row) => row.unitId === lease.unitId));
-  const meterRows = lease.unit.meters.map((meter) => {
-    const opening = meter.readings.filter((reading) => businessDateKey(reading.readAt) <= period.from).at(-1) || null;
-    const closing = meter.readings.filter((reading) => businessDateKey(reading.readAt) <= period.to).at(-1) || null;
-    return { id: meter.id, label: meter.label || meter.type, unitOfMeasure: meter.unitOfMeasure, opening, closing, consumption: opening && closing && closing.readAt > opening.readAt ? closing.value - opening.value : null };
-  });
+  const meterRows = lease.unit.meters.map((meter) => ({
+    id: meter.id, label: `${meter.label || meter.type}${meter.active ? "" : " · vyřazené"}`, unitOfMeasure: meter.unitOfMeasure,
+    ...meterPeriodReadings(meter.readings, period.from, period.to),
+  }));
   const advancesCents = advanceRows.reduce((sum, row) => sum + row.amountCents, 0), actualCostsCents = costRows.reduce((sum, row) => sum + row.allocatedAmountCents, 0);
   const blockers: string[] = [
     "Pracovní podklad není kompletní vyúčtování: chybí potvrzené členění nákladů a přijatých záloh po službách.",
@@ -102,7 +101,8 @@ async function loadServiceSettlementPreviewFrom(db: Prisma.TransactionClient | t
   if (!costRows.length) blockers.push(usesConfirmedSources ? "V období chybí použitelné potvrzené náklady pro tuto smlouvu." : "V období chybí skutečné OPEX náklady kategorie Energie a služby přiřazené této jednotce.");
   if (!usesConfirmedSources && unallocatedCosts.length) blockers.push(`${unallocatedCosts.length} společných nákladů nemá uložené rozdělení na tuto jednotku.`);
   if (!advanceRows.length) warnings.push("V období nejsou dohledatelné žádné předepsané zálohy na služby.");
-  if (meterRows.some((row) => !row.opening || !row.closing || row.consumption == null)) warnings.push("Alespoň jednomu aktivnímu měřidlu chybí použitelný počáteční nebo koncový odečet.");
+  if (meterRows.some((row) => !row.opening || !row.closing || row.consumption == null)) warnings.push("Alespoň jednomu měřidlu chybí přesné odečty na hranicích období nebo nenavazují stavy či měrné jednotky. Spotřeba se neodhaduje automaticky.");
+  if (meterRows.some(row=>[row.opening,row.closing].some(r=>r?.method === "ESTIMATE"))) warnings.push("Spotřeba obsahuje odhadované odečty; nejde o doložené měření.");
   if (monthlyCharges.some((charge) => !charge.items.length)) warnings.push("Některý měsíční předpis nemá položkový rozpad; z jeho celkové částky nelze bezpečně určit zálohu na služby.");
   return { lease, period, advanceRows, costRows, evidenceRows: evidence.rows, usesConfirmedSources, unallocatedCosts, meterRows, advancesCents, actualCostsCents, balanceCents: actualCostsCents - advancesCents, blockers, warnings, ready: blockers.length === 0 };
 }

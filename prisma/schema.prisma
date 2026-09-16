@@ -443,6 +443,7 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  authoredMeterReadings MeterReading[] @relation("ReadingAuthor")
   settlementSourcesCreated SettlementSource[] @relation("SourceCreator")
   settlementSourcesConfirmed SettlementSource[] @relation("SourceConfirmer")
   isTestIdentity                       Boolean                        @default(false)
@@ -1465,6 +1466,18 @@ model Meter {
 }
 
 model MeterReading {
+  method String @default("LEGACY")
+  unitOfMeasure String?
+  createdById String?
+  createdBy User? @relation("ReadingAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  correctsId String? @unique
+  corrects MeterReading? @relation("ReadingCorrection", fields: [correctsId], references: [id], onDelete: Restrict)
+  correction MeterReading? @relation("ReadingCorrection")
+  correctionReason String?
+  evidenceDocumentId String?
+  evidenceDocument Document? @relation("ReadingEvidence", fields: [evidenceDocumentId], references: [id], onDelete: Restrict)
+  evidenceSnapshot Json?
+
   id        String   @id @default(cuid())
   meterId   String
   meter     Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
@@ -2159,6 +2172,7 @@ model FileAsset {
 }
 
 model Document {
+  meterReadingEvidence MeterReading[] @relation("ReadingEvidence")
   settlementSources SettlementSource[]
 
   id                                   String                                @id @default(cuid())
