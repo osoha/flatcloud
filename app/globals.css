@@ -522,3 +522,6 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .financial-comparison figcaption{font-weight:700;margin-bottom:12px}.financial-comparison-row{padding:10px 0;border-bottom:1px solid #e4eaf3}.financial-comparison-row>strong{display:block;overflow-wrap:anywhere;margin-bottom:6px}
 .financial-comparison-value{display:grid;grid-template-columns:110px minmax(30px,1fr) minmax(100px,auto);align-items:center;gap:10px;font-size:12px;margin:5px 0}.financial-bar-track{height:10px;background:#f0f3f8;border-radius:4px}.financial-bar-track i{display:block;height:100%;border-radius:4px}.financial-comparison-value b{text-align:right}
 @media(max-width:500px){.financial-comparison-value{grid-template-columns:80px minmax(24px,1fr) minmax(85px,auto);gap:6px;font-size:11px}}
+
+.forecast-custom-horizon summary { cursor: pointer; padding: 8px 12px; border: 1px solid #d8e2ef; border-radius: 8px; }
+.forecast-custom-horizon form { padding: 12px; max-width: 320px; }

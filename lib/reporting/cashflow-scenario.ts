@@ -17,7 +17,7 @@ export function cashflowCents(value: string, label: string, signed = false) {
   return cents;
 }
 export function calculateCashflowScenario(income: CashflowIncomeMonth[], assumptions: CashflowAssumptions) {
-  if (![12, 24, 36].includes(income.length)) throw new Error("Horizont musí mít 12, 24 nebo 36 měsíců.");
+  if (income.length < 1 || income.length > 360) throw new Error("Horizont musí mít 1 až 360 měsíců.");
   for (const [key, value] of Object.entries(assumptions)) {
     if (!Number.isSafeInteger(value) || Math.abs(value) > LIMIT || (key !== "openingCashCents" && value < 0)) throw new Error("Neplatný vstup cashflow.");
   }
