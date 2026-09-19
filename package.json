@@ -14,6 +14,7 @@
     "e2e:prepare": "node scripts/prepare-e2e-standalone.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "verify:tab-navigation-v2": "node --import tsx scripts/verify-tab-navigation-v2.ts",
     "verify:r26c2-meter-hierarchy": "node --import tsx scripts/verify-r26c2-meter-hierarchy.ts",
     "verify:r26d2-allocation": "node --import tsx scripts/verify-r26d2-allocation.ts && node --import tsx scripts/verify-r26d2-allocation-service.ts",
     "verify:r26ef-workflow": "node --import tsx scripts/verify-r26ef-workflow.ts",
