@@ -2309,6 +2309,7 @@ model SettlementSource {
   confirmedBy User? @relation("SourceConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
   confirmedAt DateTime?
   confirmation Json?
+  allocationBatches SettlementAllocationBatch[]
 
   @@unique([propertyId, identityKey, version])
   @@index([propertyId, createdAt])
@@ -2329,6 +2330,7 @@ model SettlementAllocationRule {
   createdById String
   createdBy   User                       @relation(fields: [createdById], references: [id], onDelete: Restrict)
   createdAt   DateTime                   @default(now())
+  batches     SettlementAllocationBatch[]
 
   @@index([propertyId, service, validFrom])
 }
