@@ -201,6 +201,42 @@ test("kvalita jednotky a distribuční připravenost mají oddělený průchod",
   assertNoBrowserFailures();
 });
 
+test("snapshot dialog zůstane celý ve viewportu a scrolluje uvnitř", async ({ page }) => {
+  await page.setViewportSize({ width: 1365, height: 768 });
+  await login(page);
+  await page.goto("/portfolio/kvalita");
+  const trigger = page.locator(".condition-assessment").last();
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.getByText("Nový snapshot", { exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Nové hodnocení kvality" });
+  await expect(dialog).toBeVisible();
+  const box = await dialog.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.y).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(1365);
+  expect(box!.y + box!.height).toBeLessThanOrEqual(768);
+  expect(await page.evaluate(() => document.body.style.overflow)).toBe("hidden");
+  const content = dialog.locator(".dismissible-details-content");
+  await content.evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  await expect(dialog.getByLabel("Poznámka / rozsah")).toBeVisible();
+  await dialog.getByRole("button", { name: "Zavřít", exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.style.overflow)).not.toBe("hidden");
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.getByText("Nový snapshot", { exact: true }).click();
+  const mobileDialog = page.getByRole("dialog", { name: "Nové hodnocení kvality" });
+  const mobileBox = await mobileDialog.boundingBox();
+  expect(mobileBox).not.toBeNull();
+  expect(mobileBox!.x).toBeGreaterThanOrEqual(0);
+  expect(mobileBox!.x + mobileBox!.width).toBeLessThanOrEqual(390);
+  expect(mobileBox!.y + mobileBox!.height).toBeLessThanOrEqual(844);
+  await page.keyboard.press("Escape");
+  await expect(mobileDialog).toHaveCount(0);
+});
+
 test("schválený CAPEX plán se právě jednou převede do realizace", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);

@@ -31,6 +31,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const paid = paidCents(existing);
     if (paid > 0) throw new Error("Uhrazený nebo částečně uhrazený předpis nelze běžně přepisovat. Použijte auditovanou opravu platby nebo nový korekční předpis.");
 
+    if (mode === "debt-treatment") {
+      const treatment = text(form, "debtTreatment") || "CURRENT";
+      if (!["CURRENT", "HISTORICAL", "EXCLUDED"].includes(treatment)) throw new Error("Neplatné zařazení pohledávky.");
+      const reason = text(form, "debtTreatmentReason");
+      if (treatment !== "CURRENT" && (!reason || reason.trim().length < 5)) throw new Error("U historické nebo skryté pohledávky uveďte důvod.");
+      await prisma.charge.update({ where: { id: chargeId }, data: { debtTreatment: treatment as "CURRENT" | "HISTORICAL" | "EXCLUDED", debtTreatmentAt: treatment === "CURRENT" ? null : new Date(), debtTreatmentReason: treatment === "CURRENT" ? null : reason } });
+      await audit(access.user.id, "CHARGE_DEBT_TREATMENT_CHANGED", "Charge", chargeId, { propertyId: id, period: existing.period, from: existing.debtTreatment, to: treatment, reason }, id);
+      return goWithMessage(request, redirectTo, "ok", treatment === "CURRENT" ? "Pohledávka se znovu započítává do aktuálního dluhu." : treatment === "HISTORICAL" ? "Pohledávka byla přesunuta mezi historické pohledávky." : "Pohledávka byla vyřazena z dluhových KPI; historie zůstala zachována.");
+    }
+
     if (mode === "reset") {
       const start = periodStart(existing.period);
       const monthEnd = endOfMonth(start);

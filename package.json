@@ -14,6 +14,7 @@
     "e2e:prepare": "node scripts/prepare-e2e-standalone.mjs",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "verify:debt-treatment": "node --import tsx scripts/verify-debt-treatment.ts",
     "verify:tab-navigation-v2": "node --import tsx scripts/verify-tab-navigation-v2.ts",
     "verify:v23-a": "node --import tsx scripts/verify-v23-a.ts",
     "verify:v23-b": "node --import tsx scripts/verify-v23-b.ts",

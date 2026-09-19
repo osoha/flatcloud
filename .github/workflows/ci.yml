@@ -38,6 +38,7 @@ jobs:
       - run: npm ci
       - run: npm run verify:tab-navigation-v2
       - run: npx prisma generate
+      - run: npm run verify:debt-treatment
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run verify:v20
