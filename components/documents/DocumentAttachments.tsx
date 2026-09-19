@@ -19,7 +19,7 @@ export function DocumentAttachments({ documents, empty = "Zatím nejsou přilož
     const stage = document.photoStage ? documentPhotoStages[document.photoStage] || document.photoStage : null;
     return <article className="document-card" key={document.id}>
       {document.fileAsset.mimeType.startsWith("image/") ? <DocumentImagePreview documentId={document.id} title={document.title}/> : <FileText size={32} aria-hidden="true"/>}
-      <div><strong>{document.title}</strong><span>{document.fileAsset.originalName} · {(document.fileAsset.sizeBytes / 1024).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} kB</span><span>{stage ? `${stage} · ` : ""}{category}</span>{showContext && <DocumentContext document={document}/>}<div className="document-actions"><Link href={`/api/documents/${document.id}/download`}>Stáhnout</Link>{canDelete && <form action={`/api/documents/${document.id}`} method="post"><input type="hidden" name="returnTo" value={returnTo}/><button className="link-button" type="submit">Odstranit</button></form>}</div></div>
+      <div><strong>{document.title}</strong><span>{document.fileAsset.originalName} · {(document.fileAsset.sizeBytes / 1024).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} kB</span><span>{stage ? `${stage} · ` : ""}{category}</span>{showContext && <DocumentContext document={document}/>}<div className="document-actions"><a href={`/api/documents/${document.id}/download`}>Stáhnout</a>{canDelete && <form action={`/api/documents/${document.id}`} method="post"><input type="hidden" name="returnTo" value={returnTo}/><button className="link-button" type="submit">Odstranit</button></form>}</div></div>
     </article>;
   })}</div>;
 }
