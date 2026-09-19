@@ -172,6 +172,7 @@ jobs:
       - run: node --import tsx scripts/verify-r26d-confirmed-costs.ts
       - run: node --import tsx scripts/verify-r26c-readings.ts
       - run: npm run verify:r26c2-meter-hierarchy
+      - run: npm run verify:r26d2-allocation
 
   browser-smoke:
     needs: build
