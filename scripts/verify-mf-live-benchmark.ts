@@ -189,7 +189,8 @@ check("live report is read-only and shows period, coverage and source provenance
   for (const token of ["MF benchmark", "Pokrytí", "Datové období MF", "pouze ke čtení"])
     assert.ok(page.includes(token), token);
   assert.ok(service.includes("PROPERTY_CADASTRAL_DATA"));
-  assert.ok(propertyReportPage.includes("pouze ke čtení"));
+  assert.ok(propertyReportPage.includes("Read-only benchmark objektu"));
+  assert.ok(propertyReportPage.includes("Ruční přiřazení a korekce jsou v Nastavení reportů"));
   assert.ok(propertyReportSettings.includes("Údaje nemovitosti"));
   assert.ok(propertyReportSettings.includes("Plzeň Černice nebo 620106"));
   assert.ok(read("app/nemovitosti/[id]/upravit/page.tsx").includes("Černice [620106]"));
