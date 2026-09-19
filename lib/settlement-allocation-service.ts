@@ -1,13 +1,13 @@
 import { Prisma, SettlementAllocationMethod } from "@prisma/client";
 import { prisma } from "./db";
-import { businessDateKeyToInstant } from "./calendar";
+import { businessDateEndInstant, businessDateKeyToInstant } from "./calendar";
 import { meterPeriodReadings } from "./meter-reading-rules";
 import { allocateCents, meterLoss, overlapDays, personDays, weightedAreaDays } from "./settlement-allocation";
 import { sourceMoney, type SourcePayload } from "./settlement-source-rules";
 import { serializableTransaction } from "./serializable";
 
 type Actor={id:string;role:string;allProperties?:boolean};
-const endInstant=(key:string)=>new Date(key+"T23:59:59.999Z");
+const endInstant=(key:string)=>businessDateEndInstant(key as any);
 const startInstant=(key:string)=>businessDateKeyToInstant(key as any);
 
 export async function confirmSettlementAllocation(actor:Actor,propertyId:string,sourceId:string,lineKey:string,ruleId:string){
