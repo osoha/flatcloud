@@ -1,0 +1,122 @@
+/* Final pre-sandbox UI polish: unified tabs, collapsible desktop sidebar, quieter guidance. */
+
+/* One visual grammar for second-level navigation across properties, units, reports,
+   registries, administration and CAPEX. Long sets scroll horizontally instead of wrapping
+   into visually unrelated rows. */
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){
+  display:flex;
+  align-items:center;
+  gap:4px;
+  max-width:100%;
+  overflow-x:auto;
+  overflow-y:hidden;
+  scrollbar-width:thin;
+  overscroll-behavior-inline:contain;
+  padding:5px;
+  margin:0 0 16px;
+  border:1px solid var(--line);
+  border-radius:11px;
+  background:#f7f9fc;
+  box-shadow:none;
+}
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{
+  flex:0 0 auto;
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:7px 11px;
+  border:0;
+  border-radius:7px;
+  background:transparent;
+  color:#667085;
+  font-size:11px;
+  font-weight:750;
+  line-height:1.2;
+  white-space:nowrap;
+  text-decoration:none;
+}
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:hover{
+  background:#edf2f8;
+  color:var(--navy);
+}
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a.active,
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a[aria-current="page"]{
+  background:#fff;
+  color:var(--blue);
+  box-shadow:0 1px 4px rgba(16,38,76,.12);
+}
+.v21-shell .unit-tabs{position:sticky;top:74px;z-index:10}
+
+/* Desktop sidebar can collapse to an icon rail. The preference is stored client-side. */
+.sidebar-collapse-toggle{
+  margin:0 10px 8px;
+  min-height:32px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:8px;
+  background:rgba(255,255,255,.05);
+  color:#c7d3e7;
+  font:inherit;
+  font-size:10px;
+  cursor:pointer;
+}
+.sidebar-collapse-toggle:hover{background:rgba(255,255,255,.1);color:#fff}
+.v21-shell .sidebar,.v21-shell .main{transition:width .18s ease,margin-left .18s ease}
+html.fc-sidebar-collapsed .v21-shell .sidebar{width:76px}
+html.fc-sidebar-collapsed .v21-shell .main{margin-left:76px;width:calc(100% - 76px)}
+html.fc-sidebar-collapsed .v21-shell .brand img{display:none}
+html.fc-sidebar-collapsed .v21-shell .brand{height:54px;display:grid;place-items:center}
+html.fc-sidebar-collapsed .v21-shell .brand::after{content:"FC";font-size:16px;font-weight:900;letter-spacing:.6px;color:#fff}
+html.fc-sidebar-collapsed .v21-shell .sidebar-collapse-toggle{margin-inline:12px}
+html.fc-sidebar-collapsed .v21-shell .sidebar-collapse-toggle span,
+html.fc-sidebar-collapsed .v21-shell .nav-label,
+html.fc-sidebar-collapsed .v21-shell .v21-nav>a>span:not(.ico),
+html.fc-sidebar-collapsed .v21-shell .nav-group-toggle span,
+html.fc-sidebar-collapsed .v21-shell .nav-group-toggle svg,
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile>div,
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .logout-form{display:none}
+html.fc-sidebar-collapsed .v21-shell .v21-nav>a,
+html.fc-sidebar-collapsed .v21-shell .nav-group-items>a{justify-content:center;padding-inline:0}
+html.fc-sidebar-collapsed .v21-shell .nav-collapsible-section{display:grid}
+html.fc-sidebar-collapsed .v21-shell .nav-group-toggle{height:8px;min-height:8px;padding:0;margin:3px 14px;border-top:1px solid rgba(255,255,255,.1);border-radius:0}
+html.fc-sidebar-collapsed .v21-shell .nav-group-items{display:grid!important}
+html.fc-sidebar-collapsed .v21-shell .nav-count{position:absolute;right:7px;min-width:16px;padding-inline:4px}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card{min-height:58px;padding:10px;justify-content:center}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile{justify-content:center}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{width:34px;height:34px;flex-basis:34px}
+
+/* Guidance remains available, but ordinary informational copy no longer competes with
+   primary content. Warning/error/success treatments keep their existing emphasis. */
+.v21-shell .methodology-callout.compact{
+  grid-template-columns:auto minmax(0,1fr) auto;
+  padding:8px 11px;
+  border-color:#e1e7ef;
+  background:#fbfcfe;
+}
+.v21-shell .methodology-callout.compact .methodology-callout-icon{width:28px;height:28px;background:#f0f4f9;color:#617089}
+.v21-shell .methodology-callout.compact p{display:none}
+.v21-shell .methodology-callout.compact strong{font-size:11px;color:#52647c}
+.v21-shell .methodology-callout.compact>a{font-size:10px}
+.v21-shell .notice:not(.error):not(.warn):not(.bad):not(.success-notice):not(.legal-warning){
+  border-left:3px solid #d6dfeb;
+  background:#f8fafc;
+  color:#52647c;
+}
+
+@media(max-width:900px){
+  .sidebar-collapse-toggle{display:none}
+  html.fc-sidebar-collapsed .v21-shell .sidebar{width:196px}
+  html.fc-sidebar-collapsed .v21-shell .main{margin-left:196px;width:calc(100% - 196px)}
+}
+@media(max-width:700px){
+  html.fc-sidebar-collapsed .v21-shell .sidebar{display:none}
+  html.fc-sidebar-collapsed .v21-shell .main{margin-left:0;width:100%}
+  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){
+    margin-inline:-4px;
+    border-radius:9px;
+  }
+}
