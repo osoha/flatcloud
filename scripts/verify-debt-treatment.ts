@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { historicalDebtCents, overdueDebtCents } from "../lib/charges";
+import { overdueDebtCentsAsOf } from "../lib/reporting/finance";
+const before=new Date("2026-08-01T12:00:00Z"),classified=new Date("2026-09-19T12:00:00Z"),after=new Date("2026-09-20T12:00:00Z");
+const base={active:true,amountCents:170000,dueDate:new Date("2026-07-10T12:00:00Z"),allocations:[{amountCents:0}],securityDepositOffsets:[],creditApplications:[]};
+assert.equal(overdueDebtCents({...base,debtTreatment:"CURRENT"},after),170000);
+assert.equal(overdueDebtCents({...base,debtTreatment:"HISTORICAL"},after),0);
+assert.equal(historicalDebtCents({...base,debtTreatment:"HISTORICAL"},after),170000);
+assert.equal(overdueDebtCents({...base,debtTreatment:"EXCLUDED"},after),0);
+const historical={...base,allocations:[],debtTreatment:"HISTORICAL" as const,debtTreatmentAt:classified};
+assert.equal(overdueDebtCentsAsOf(historical,before),170000);
+assert.equal(overdueDebtCentsAsOf(historical,after),0);
+const tenant=readFileSync("app/najemnici/[tenantId]/page.tsx","utf8"),detail=readFileSync("app/nemovitosti/[id]/predpisy/mesicni/[chargeId]/page.tsx","utf8");
+assert.match(tenant,/Historické pohledávky/);assert.match(tenant,/Aktuální dluh po splatnosti/);
+assert.match(detail,/Nezobrazovat v dluhových KPI/);assert.match(detail,/Zařazení pohledávky/);
+console.log("Debt treatment verification passed.");
