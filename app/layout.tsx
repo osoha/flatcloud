@@ -1,6 +1,7 @@
 import "./globals.css";
 import "./documents.css";
 import "./audit-polish.css";
+import "./final-ui-polish.css";
 
 export const metadata = {
   title: "FlatCloud Rent",
