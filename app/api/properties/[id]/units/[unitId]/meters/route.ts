@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const rawType = text(form, "type", true)! as MeterType;
     if (!Object.values(MeterType).includes(rawType)) throw new Error("Neplatný typ měřidla.");
-    const meter = await prisma.meter.create({ data: { unitId, type: rawType, label: text(form, "label"), serialNumber: text(form, "serialNumber"), unitOfMeasure: text(form, "unitOfMeasure") || defaultUnits[rawType] } });
+    const meter = await prisma.meter.create({ data: { propertyId: id, unitId, scope: "UNIT", type: rawType, label: text(form, "label"), serialNumber: text(form, "serialNumber"), location: text(form, "location"), installedAt: new Date(), unitOfMeasure: text(form, "unitOfMeasure") || defaultUnits[rawType] } });
     await audit(access.user.id, "METER_CREATED", "Meter", meter.id, { propertyId: id, unitId, type: rawType }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#meridla`, "ok", "Měřidlo bylo přidáno.");
   } catch (error) {

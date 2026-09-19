@@ -34,10 +34,10 @@ async function main(){
     await assert.rejects(()=>issueServiceSettlementProtocol(actor,lease.id,{from,to,propertyId:"another-property"}),/nepatří/);
     await assert.rejects(()=>issueServiceSettlementProtocol({id:"unrelated",role:"VIEWER"},lease.id,{from,to}),/přístup|právo/);
   });
-  await check("snapshot is explicitly incomplete and source changes cannot rewrite it", async()=>{
+  await check("snapshot preserves readiness state and source changes cannot rewrite it", async()=>{
     const before=await prisma.serviceSettlementProtocol.findUniqueOrThrow({where:{id:protocolId}});
     const snap=before.snapshot as {schemaVersion:number;purpose:string;blockers:string[]};
-    assert.equal(snap.schemaVersion,2);assert.equal(snap.purpose,"WORKING_PAPER");assert.ok(snap.blockers.length);
+    assert.equal(snap.schemaVersion,2);assert.equal(snap.purpose,"WORKING_PAPER");assert.ok(Array.isArray(snap.blockers));
     await prisma.propertyCost.updateMany({where:{unitId:unit.id},data:{amountCents:400_000}});
     assert.deepEqual((await prisma.serviceSettlementProtocol.findUniqueOrThrow({where:{id:protocolId}})).snapshot,before.snapshot);
   });

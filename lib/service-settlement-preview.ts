@@ -61,12 +61,14 @@ async function loadServiceSettlementPreviewFrom(db: Prisma.TransactionClient | t
 
   const costs = await database.propertyCost.findMany({ where: { propertyId: lease.unit.propertyId, status: "ACTUAL", kind: "OPEX", category: "UTILITIES", effectiveAt: { gte: period.fromDate, lte: period.toDate } }, include: { allocations: true, documents: { where: { deletedAt: null }, select: { id: true, title: true } } }, orderBy: [{ effectiveAt: "asc" }, { createdAt: "asc" }] });
   const sourceRecords = await database.settlementSource.findMany({ where: { propertyId: lease.unit.propertyId }, orderBy: { version: "asc" } });
+  const allocationRows = await database.settlementAllocationRow.findMany({ where: { batch: { propertyId: lease.unit.propertyId } }, include: { batch: { select: { sourceId: true, lineKey: true, method: true } } } });
   const usesConfirmedSources = sourceRecords.some(s => s.confirmedAt);
   const canReadSources = Boolean(await database.property.findFirst({ where: { id: lease.unit.propertyId, ...sourcePropertyWhere(actor) }, select: { id: true } }));
   const unitLeases = await database.lease.findMany({ where: { unitId: lease.unitId } });
   const evidence = projectSettlementCosts(canReadSources ? sourceRecords.map(s => ({ ...s, payload: s.payload as unknown as SourcePayload })) : [], {
     leaseId, unitId: lease.unitId, from: period.from, to: period.to,
     leases: unitLeases.map(l => ({ id: l.id, from: businessDateKey(l.startDate), to: effectiveLeaseEnd(l) ? businessDateKey(effectiveLeaseEnd(l)!) : null })),
+    allocations: allocationRows.map(r=>({sourceId:r.batch.sourceId,lineKey:r.batch.lineKey,unitId:r.unitId,leaseId:r.leaseId,amountCents:r.amountCents,label:`Potvrzené rozdělení · ${r.batch.method}`})),
   });
   const monthlyCharges = lease.charges.filter((charge) => /^\d{4}-\d{2}$/.test(charge.period) && charge.period >= period.from.slice(0, 7) && charge.period <= period.to.slice(0, 7));
   const advanceRows = monthlyCharges.map((charge) => ({ id: charge.id, period: charge.period, amountCents: charge.items.filter((item) => serviceCategories.has(item.category)).reduce((sum, item) => sum + item.amountCents, 0) })).filter((row) => row.amountCents > 0);
@@ -88,11 +90,8 @@ async function loadServiceSettlementPreviewFrom(db: Prisma.TransactionClient | t
     ...meterPeriodReadings(meter.readings, period.from, period.to),
   }));
   const advancesCents = advanceRows.reduce((sum, row) => sum + row.amountCents, 0), actualCostsCents = costRows.reduce((sum, row) => sum + row.allocatedAmountCents, 0);
-  const blockers: string[] = [
-    "Pracovní podklad není kompletní vyúčtování: chybí potvrzené členění nákladů a přijatých záloh po službách.",
-    "Teplo a ohřev vody: ověřte rozsah služeb. Pokud jsou poskytovány, čeká se na externí rozúčtování; ruční odečty je nenahrazují.",
-    ...evidence.blockers,
-  ], warnings: string[] = [...evidence.warnings];
+  const blockers: string[] = [...evidence.blockers], warnings: string[] = [...evidence.warnings];
+  if (usesConfirmedSources && !evidence.blockers.length) warnings.push("Náklady jsou podloženy potvrzenými zdroji a případná domovní rozdělení potvrzenými alokačními dávkami.");
   if (usesConfirmedSources && !canReadSources) blockers.push("Potvrzené podklady vyžadují kontrolu správce s přístupem k celému domu.");
   if (usesConfirmedSources && legacyCostRows.length) warnings.push("Účetní OPEX náklady jsou pouze informativní a do součtu se nepřičítají. Náklady vyúčtování nyní čerpáme výhradně z potvrzených podkladů.");
   if (!usesConfirmedSources) warnings.push("Dosavadní účetní náklady jsou orientační. Pro potvrzené náklady vyúčtování vložte a potvrďte faktury nebo externí výsledky.");

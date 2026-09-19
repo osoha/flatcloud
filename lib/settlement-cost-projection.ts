@@ -19,6 +19,7 @@ const overlaps = (a: string, b: string, c: string, d: string) => a <= d && c <= 
  */
 export function projectSettlementCosts(sources: ConfirmedSourceInput[], input: {
   leaseId: string; unitId: string; from: string; to: string; leases: LeaseInterval[];
+  allocations?: Array<{sourceId:string;lineKey:string;unitId:string;leaseId:string|null;amountCents:number;label:string}>;
 }) {
   const rows: SettlementEvidenceRow[] = [], blockers: string[] = [], warnings: string[] = [];
   const replacedCostIds = new Set<string>();
@@ -47,7 +48,11 @@ export function projectSettlementCosts(sources: ConfirmedSourceInput[], input: {
         blockers.push(`${service[1]}: čeká na externí rozúčtování; faktura ani ruční odečet nejsou výsledkem rozúčtování.`); continue;
       }
       if (!line.unitId) {
-        blockers.push(`${service[1]}: domovní náklad nemá potvrzené rozdělení na jednotky a nájemní vztahy.`); continue;
+        const overlappingLeases=input.leases.filter(l=>overlaps(l.from,l.to??"9999-12-31",line.from,line.to));
+        const allocation=input.allocations?.find(a=>a.sourceId===source.id&&a.lineKey===line.key&&a.unitId===input.unitId&&(a.leaseId===input.leaseId||(!a.leaseId&&overlappingLeases.length===1&&overlappingLeases[0].id===input.leaseId)));
+        if(!allocation){blockers.push(`${service[1]}: domovní náklad nemá potvrzené rozdělení na jednotky a nájemní vztahy.`);continue;}
+        rows.push({id:`${source.id}:${line.key}:allocation`,sourceId:source.id,version:source.version,lineKey:line.key,service:line.service,title:`${service[1]} · ${p.reference}`,from:line.from,to:line.to,amountCents:allocation.amountCents,confirmedAt:source.confirmedAt!.toISOString(),allocationLabel:allocation.label,components:{base:'',consumption:'',correction:'',rounding:'',complete:false}});
+        continue;
       }
       if (line.from < input.from || line.to > input.to) {
         blockers.push(`${service[1]}: řádek přesahuje vybrané období; vyžaduje doložené rozdělení.`); continue;
