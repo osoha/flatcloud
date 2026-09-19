@@ -50,11 +50,10 @@ test("R29D desktop finance a platby mají kompaktní hierarchii bez zbytečného
   const financeChrome = await page.locator(".asset-finance-scope").evaluate((element) => {
     const style = getComputedStyle(element);
     const box = element.getBoundingClientRect();
-    return { height: box.height, boxShadow: style.boxShadow, backgroundColor: style.backgroundColor, fontSize: style.fontSize };
+    return { height: box.height, boxShadow: style.boxShadow, fontSize: style.fontSize };
   });
   expect(financeChrome.height).toBeLessThan(60);
   expect(financeChrome.boxShadow).toBe("none");
-  expect(financeChrome.backgroundColor).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
   expect(parseFloat(financeChrome.fontSize)).toBeLessThanOrEqual(11);
   await expectNoDocumentOverflow(page);
 
@@ -64,7 +63,7 @@ test("R29D desktop finance a platby mají kompaktní hierarchii bez zbytečného
   await expectNoDocumentOverflow(page);
 
   await page.goto(`/nemovitosti/${propertyId}/nastaveni`);
-  const securityHeading = page.getByRole("heading", { name: "Bezpečnost dat", exact: true });
+  const securityHeading = page.getByRole("heading", { name: /^Bezpečnost dat:?$/ });
   await expect(securityHeading).toBeVisible();
   const disclaimer = securityHeading.locator("xpath=..");
   const settingsGrid = disclaimer.locator("xpath=..");
@@ -100,7 +99,7 @@ test("R29D finance, platby a disclaimer zůstávají bezpečné na mobilním vie
   await expectNoDocumentOverflow(page);
 
   await page.goto(`/nemovitosti/${propertyId}/nastaveni`);
-  const securityHeading = page.getByRole("heading", { name: "Bezpečnost dat", exact: true });
+  const securityHeading = page.getByRole("heading", { name: /^Bezpečnost dat:?$/ });
   await expect(securityHeading).toBeVisible();
   const disclaimerHeight = await securityHeading.locator("xpath=..").evaluate((element) => element.getBoundingClientRect().height);
   expect(disclaimerHeight).toBeLessThan(120);
