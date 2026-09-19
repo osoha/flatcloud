@@ -166,3 +166,57 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{
     border-top:4px solid var(--fc-tab-blue);
   }
 }
+
+
+/* Sidebar v2: compact ChatGPT-inspired layout, FlatCloud visual language. */
+.v21-shell .sidebar-brand-row{
+  height:66px;display:flex;align-items:center;gap:8px;padding:0 12px 0 19px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.v21-shell .sidebar-brand-row .brand{
+  flex:1 1 auto;height:66px;min-width:0;padding:0;border:0;background:transparent;
+}
+.v21-shell .sidebar-brand-row .brand img{width:132px;height:auto;max-width:none}
+.v21-shell .sidebar-brand-row .sidebar-collapse-toggle{
+  flex:0 0 32px;width:32px;height:32px;min-height:32px;margin:0;padding:0;
+  border:0;border-radius:8px;background:transparent;color:#b9c7df;
+}
+.v21-shell .sidebar-brand-row .sidebar-collapse-toggle:hover,
+.v21-shell .sidebar-brand-row .sidebar-collapse-toggle:focus-visible{background:rgba(255,255,255,.08);color:#fff}
+.v21-shell .sidebar-footer{padding:8px 10px 10px}
+.v21-shell .sidebar-footer .user-card{
+  min-height:54px;padding:7px 6px;gap:7px;border-radius:9px;background:transparent;
+}
+.v21-shell .sidebar-footer .user-card:hover{background:rgba(255,255,255,.045)}
+.v21-shell .sidebar-footer .user-card-profile{gap:9px;padding:2px}
+.v21-shell .sidebar-footer .user-card-profile .avatar{width:30px;height:30px;flex:0 0 30px}
+.v21-shell .sidebar-footer .user-card strong{font-size:11px;font-weight:700;color:#fff}
+.v21-shell .sidebar-footer .user-card-meta{font-size:9px;font-weight:400;color:#93a6c6;margin-top:3px}
+.v21-shell .sidebar-footer .logout-form button{
+  width:30px;height:30px;padding:0;display:grid;place-items:center;border-radius:8px;color:#b9c7df;
+}
+.v21-shell .sidebar-footer .logout-form button:hover,
+.v21-shell .sidebar-footer .logout-form button:focus-visible{background:rgba(255,255,255,.08);color:#fff}
+
+/* Collapsed rail: real FlatCloud mark, icons, avatar and logout only. Native title
+   tooltips on every navigation/control icon expose its label on hover. */
+html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row{padding:0 10px;gap:2px}
+html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .brand{
+  display:block;width:36px;flex:0 0 36px;height:42px;padding:0;overflow:hidden;
+}
+html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .brand img{
+  display:block;width:132px;height:auto;max-width:none;margin-top:4px;
+}
+html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .brand::after{content:none}
+html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .sidebar-collapse-toggle{
+  display:grid;flex:0 0 28px;width:28px;height:30px;margin:0;
+}
+html.fc-sidebar-collapsed .v21-shell .sidebar-collapse-toggle span{display:none}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card{
+  display:grid;grid-template-columns:1fr;justify-items:center;gap:5px;min-height:82px;padding:8px 4px;
+}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile{justify-content:center}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile>div{display:none}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{width:30px;height:30px;flex-basis:30px}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .logout-form{display:block;padding:0}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .logout-form button{width:30px;height:30px}
