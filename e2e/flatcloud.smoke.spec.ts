@@ -58,6 +58,24 @@ test("administrátor se přihlásí a vidí deterministické portfolio", async (
   assertNoBrowserFailures();
 });
 
+test("levé menu má ikonové sbalení, hover popisky a kompaktní profil", async ({ page }) => {
+  await login(page);
+  const sidebar = page.locator(".sidebar");
+  const footer = sidebar.locator(".sidebar-footer");
+  await expect(sidebar.getByTitle("Portfolio")).toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "Sbalit levé menu" })).toHaveAttribute("title", "Sbalit menu");
+  await expect(footer.getByText(adminEmail, { exact: true })).toHaveCount(0);
+  await expect(footer.locator(".user-card-meta")).toBeVisible();
+  await expect(footer.getByRole("button", { name: "Odhlásit" })).toHaveAttribute("title", "Odhlásit");
+  await sidebar.getByRole("button", { name: "Sbalit levé menu" }).click();
+  await expect(page.locator("html")).toHaveClass(/fc-sidebar-collapsed/);
+  await expect(sidebar.getByTitle("Portfolio")).toHaveAttribute("aria-label", "Portfolio");
+  await expect(sidebar.getByRole("button", { name: "Rozbalit levé menu" })).toHaveAttribute("title", "Rozbalit menu");
+  expect(await page.evaluate(() => localStorage.getItem("flatcloud:sidebar-collapsed"))).toBe("1");
+  await sidebar.getByRole("button", { name: "Rozbalit levé menu" }).click();
+  await expect(page.locator("html")).not.toHaveClass(/fc-sidebar-collapsed/);
+});
+
 test("průvodce nemovitostí ověří zadanou adresu mapovým PINem", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await page.route("https://www.google.com/maps**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Map preview</title>" }));
