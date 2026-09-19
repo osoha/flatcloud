@@ -25,7 +25,7 @@ const unitSections = [
   ["platby", "Platby"],
   ["dluznici", "Saldo"],
   ["reporting", "Reporty"],
-  ["banka", "Bankovní účet"],
+  ["banka","Bankovní účet"],
   ["dokumenty", "Dokumenty"],
 ];
 
