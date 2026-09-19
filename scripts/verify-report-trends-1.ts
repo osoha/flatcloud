@@ -202,9 +202,10 @@ async function main() {
   await check("property section", () =>
     assert.match(read("components/PropertySubnav.tsx"), /reporting.*Reporty/),
   );
-  await check("unit limited blocked", () =>
-    assert.match(page, /!hasAllPropertyAccess\(user\)\s*&&\s*!membership/),
-  );
+  await check("unit-limited reports stay scoped instead of being blocked", () => {
+    assert.match(page, /const unitLimited = !propertyWide/);
+    assert.match(page, /unitId/);
+  });
   await check("property view reads", () => assert.match(page, /membership/));
   await check("edit admin writes", () => assert.match(page, /EDIT[\s\S]*ADMIN/));
   await check("unauthorized write", () => assert.match(route, /status:403/));

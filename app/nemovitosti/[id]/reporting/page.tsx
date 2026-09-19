@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { requirePropertyAccess } from "@/lib/access";
@@ -7,394 +8,125 @@ import { PropertySubnav } from "@/components/PropertySubnav";
 import { Flash } from "@/components/FormUi";
 import { manualBaselineSnapshotDataSchema } from "@/lib/reporting/snapshot-schema";
 import { resolvePropertyMfRentBenchmarks } from "@/lib/reporting/mf-rent/service";
-import { searchMfRentTerritories } from "@/lib/reporting/mf-rent/location-service";
+import { currentLeaseForUnit, effectiveLeaseEnd } from "@/lib/lease-lifecycle-core";
+import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
+import { overdueDebtCents } from "@/lib/charges";
+import { date, money } from "@/lib/format";
 
-const czk = new Intl.NumberFormat("cs-CZ", {
-  style: "currency",
-  currency: "CZK",
-  maximumFractionDigits: 2,
-});
+export const dynamic = "force-dynamic";
+
+const czk = new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK", maximumFractionDigits: 2 });
 const number = new Intl.NumberFormat("cs-CZ", { maximumFractionDigits: 2 });
-function inputMoney(value: number | null | undefined) {
-  return value == null ? "" : String(value / 100).replace(".", ",");
-}
-function inputPercent(value: number | null | undefined) {
-  return value == null ? "" : String(value / 100).replace(".", ",");
-}
+
 export default async function PropertyReportingPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{
-    ok?: string;
-    error?: string;
-    edit?: string;
-    mfSearch?: string;
-  }>;
+  searchParams: Promise<{ unitId?: string; ok?: string; error?: string }>;
 }) {
   const user = await requireUser();
   const { id } = await params;
   const query = await searchParams;
   const property = await requirePropertyAccess(user, id);
   if (!property) notFound();
+
   const membership = property.memberships.find((row) => row.userId === user.id);
-  if (!hasAllPropertyAccess(user) && !membership) notFound();
-  const canWrite =
-    hasAllPropertyAccess(user) ||
-    membership?.permission === "EDIT" ||
-    membership?.permission === "ADMIN";
-  const snapshots = await prisma.quarterSnapshot.findMany({
-    where: { propertyId: id, source: "MANUAL_BASELINE" },
-    include: { createdBy: { select: { name: true } } },
-    orderBy: [{ year: "desc" }, { quarter: "desc" }, { revision: "desc" }],
-  });
+  const propertyWide = hasAllPropertyAccess(user) || Boolean(membership);
+  const unitLimited = !propertyWide;
+  const canWrite = hasAllPropertyAccess(user) || membership?.permission === "EDIT" || membership?.permission === "ADMIN";
+  const selectedUnit = query.unitId ? property.units.find((unit) => unit.id === query.unitId) : property.units.length === 1 ? property.units[0] : null;
+  if (query.unitId && !selectedUnit) notFound();
+
+  const snapshots = propertyWide
+    ? await prisma.quarterSnapshot.findMany({
+        where: { propertyId: id, source: "MANUAL_BASELINE" },
+        include: { createdBy: { select: { name: true } } },
+        orderBy: [{ year: "desc" }, { quarter: "desc" }, { revision: "desc" }],
+      })
+    : [];
   const latest = new Map<string, (typeof snapshots)[number]>();
   for (const row of snapshots) {
     const key = `${row.year}-${row.quarter}`;
     if (!latest.has(key)) latest.set(key, row);
   }
-  const rows = [...latest.values()];
-  const editing = query.edit ? latest.get(query.edit) : undefined;
-  const editData = editing
-    ? manualBaselineSnapshotDataSchema.safeParse(editing.data)
-    : null;
-  const d = editData?.success ? editData.data : null;
-  const explicit =
-    d?.source === "MANUAL_BASELINE" && d.schemaVersion === 2
-      ? d.units?.occupancyBps
-      : undefined;
-  const derived =
-    explicit ??
-    (typeof d?.units?.occupied === "number" &&
-    typeof d.units.rentable === "number" &&
-    d.units.rentable > 0
-      ? Math.round((d.units.occupied / d.units.rentable) * 10000)
-      : undefined);
+  const historicalRows = [...latest.values()];
+
   const now = new Date();
-  const mf = await resolvePropertyMfRentBenchmarks({
-    propertyId: id,
-    targetYear: now.getUTCFullYear(),
-    targetQuarter: Math.floor(now.getUTCMonth() / 3) + 1,
-    cutoff: now,
+  const mf = propertyWide
+    ? await resolvePropertyMfRentBenchmarks({
+        propertyId: id,
+        targetYear: now.getUTCFullYear(),
+        targetQuarter: Math.floor(now.getUTCMonth() / 3) + 1,
+        cutoff: now,
+      })
+    : null;
+  const mfMoney = (value: number | null | undefined) => value == null ? "—" : `${number.format(value / 100)} Kč/m²/měsíc`;
+
+  const unitRows = property.units.map((unit) => {
+    const activeLease = currentLeaseForUnit(unit.leases);
+    const recurring = activeLease ? rentRollAmountsAt(activeLease, now) : null;
+    const allCharges = unit.leases.flatMap((lease) => lease.charges);
+    return {
+      unit,
+      activeLease,
+      rentCents: recurring?.rent.amountCents ?? null,
+      servicesCents: recurring?.services.amountCents ?? null,
+      overdueDebtCents: allCharges.reduce((sum, charge) => sum + overdueDebtCents(charge), 0),
+      effectiveEnd: activeLease ? effectiveLeaseEnd(activeLease) : null,
+    };
   });
-  const mfCandidates = query.mfSearch
-    ? await searchMfRentTerritories(query.mfSearch, property.city, 25)
-    : [];
-  const mfMoney = (value: number | null | undefined) =>
-    value == null ? "—" : `${number.format(value / 100)} Kč/m²/měsíc`;
-  return (
-    <Shell user={user} taskPropertyId={id}>
-      <div className="page">
-        <div className="breadcrumb">Portfolio › {property.name} › Reporty</div>
-        <div className="page-title">
-          <div>
-            <h1>Reporty</h1>
-            <p>{property.name}</p>
-          </div>
-        </div>
-        <PropertySubnav propertyId={id} active="reporting" />
-        <Flash ok={query.ok} error={query.error} />
-        <div className="card">
-          <h2>Cenová mapa nájemného MF</h2>
-          {mf.mapping ? (
-            <div className="summary-list">
-              <div>
-                <span>Katastrální území</span>
-                <strong>{mf.mapping.territoryName}</strong>
-              </div>
-              <div>
-                <span>Kód</span>
-                <strong>{mf.mapping.territoryCode}</strong>
-              </div>
-              <div>
-                <span>Zdroj přiřazení</span>
-                <strong>
-                  {mf.locationSource === "PROPERTY_CADASTRAL_DATA"
-                    ? "Údaje nemovitosti"
-                    : "Ruční korekce"}
-                </strong>
-              </div>
-              <div>
-                <span>Datové období MF</span>
-                <strong>
-                  {mf.release
-                    ? `Q${mf.release.marketQuarter} ${mf.release.marketYear}`
-                    : "—"}
-                </strong>
-              </div>
-              <div>
-                <span>Publikováno</span>
-                <strong>
-                  {mf.release?.publishedOn.toLocaleDateString("cs-CZ") || "—"}
-                </strong>
-              </div>
-            </div>
-          ) : (
-            <p>{mf.release ? "Nemovitost zatím není přiřazena ke katastrálnímu území MF." : "Pro toto období nejsou dostupná data MF. Správce může zkontrolovat import v Administraci → Data a importy."}</p>
-          )}
-          {mf.release && (
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Kategorie</th>
-                    <th>Referenční nájem</th>
-                    <th>Novostavba</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(["vk1", "vk2", "vk3", "vk4"] as const).map((key) => (
-                    <tr key={key}>
-                      <td>{key.toUpperCase()}</td>
-                      <td>{mfMoney(mf[key]?.referenceRentCentsPerM2)}</td>
-                      <td>
-                        {mfMoney(mf[key]?.newBuildReferenceRentCentsPerM2)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-          {canWrite && (
-            <details className="create-panel" open={!mf.mapping || Boolean(query.mfSearch)}>
-              <summary>Ruční korekce přiřazení MF</summary>
-              {mf.cadastralArea && !mf.mapping && !mf.release && <p className="muted-copy">Katastrální území „{mf.cadastralArea}“ je uložené. Přiřazení k cenové mapě lze ověřit až po načtení dat MF.</p>}
-              {mf.cadastralArea && !mf.mapping && mf.release && (
-                <p className="muted-copy">
-                  Katastrální území „{mf.cadastralArea}“ z údajů nemovitosti
-                  nebylo možné jednoznačně spojit s aktuálními daty MF. Vyberte
-                  ruční korekci níže.
-                </p>
-              )}
-              <form method="get" className="compact-form">
-                <label className="field">
-                  <span>Hledat území, obec nebo kód</span>
-                  <input
-                    name="mfSearch"
-                    defaultValue={query.mfSearch || ""}
-                    placeholder="např. Černice, Plzeň Černice nebo 620106"
-                  />
-                </label>
-                <button className="secondary" type="submit">
-                  Vyhledat
-                </button>
-              </form>
-              {mfCandidates.map((candidate) => (
-                <form
-                  key={candidate.territoryCode}
-                  action={`/api/properties/${id}/mf-rent/location`}
-                  method="post"
-                  className="stack-actions"
-                >
-                  <input
-                    type="hidden"
-                    name="territoryCode"
-                    value={candidate.territoryCode}
-                  />
-                  <span>
-                    {candidate.territoryName} · {candidate.municipalityName} ·{" "}
-                    {candidate.territoryCode}
-                  </span>
-                  <button className="secondary" type="submit">
-                    Přiřadit k nemovitosti
-                  </button>
-                </form>
-              ))}
-            </details>
-          )}
-        </div>
-        <div className="card">
-          <h2>Historická kvartální data</h2>
-          <p className="muted-copy">
-            Ruční historická data slouží pro období před plným provozem
-            FlatCloudu. Prázdné hodnoty zůstávají neznámé. Uložení vytváří novou
-            neměnnou revizi.
-          </p>
-          {canWrite && (
-            <form
-              className="compact-form"
-              action={`/api/properties/${id}/reporting/historical-quarter`}
-              method="post"
-            >
-              <label className="field">
-                <span>Rok</span>
-                <input
-                  name="year"
-                  type="number"
-                  min="1900"
-                  max="2200"
-                  required
-                  defaultValue={editing?.year}
-                />
-              </label>
-              <label className="field">
-                <span>Čtvrtletí</span>
-                <select
-                  name="quarter"
-                  required
-                  defaultValue={editing?.quarter || 1}
-                >
-                  {[1, 2, 3, 4].map((q) => (
-                    <option key={q} value={q}>
-                      Q{q}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Obsazenost (%)</span>
-                <input
-                  name="occupancyPercent"
-                  inputMode="decimal"
-                  defaultValue={inputPercent(derived)}
-                />
-              </label>
-              <label className="field">
-                <span>Měsíční čisté nájemné (Kč)</span>
-                <input
-                  name="monthlyNetRentCzk"
-                  inputMode="decimal"
-                  defaultValue={inputMoney(d?.rentRoll?.monthlyNetRentCents)}
-                />
-              </label>
-              <label className="field">
-                <span>Čisté nájemné / m² / měsíc (Kč)</span>
-                <input
-                  name="weightedNetRentPerM2Czk"
-                  inputMode="decimal"
-                  defaultValue={inputMoney(
-                    d?.rentRoll?.weightedNetRentPerM2Cents,
-                  )}
-                />
-              </label>
-              <label className="field">
-                <span>Úspěšnost inkasa (%)</span>
-                <input
-                  name="collectionRatePercent"
-                  inputMode="decimal"
-                  defaultValue={inputPercent(d?.collections?.collectionRateBps)}
-                />
-              </label>
-              <label className="field">
-                <span>Dluh po splatnosti (Kč)</span>
-                <input
-                  name="overdueDebtCzk"
-                  inputMode="decimal"
-                  defaultValue={inputMoney(d?.collections?.overdueDebtCents)}
-                />
-              </label>
-              <label className="field field-full">
-                <span>Zdroj / poznámka</span>
-                <input
-                  name="sourceNote"
-                  maxLength={500}
-                  required
-                  defaultValue={editing?.sourceNote || ""}
-                />
-              </label>
-              <button className="primary" type="submit">
-                {editing ? "Uložit novou revizi" : "Uložit období"}
-              </button>
-            </form>
-          )}
-        </div>
-        <div className="card">
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Období</th>
-                  <th>Obsazenost</th>
-                  <th>Čisté nájemné / měsíc</th>
-                  <th>Čisté nájemné / m²</th>
-                  <th>Inkaso</th>
-                  <th>Dluh po splatnosti</th>
-                  <th>Zdroj</th>
-                  <th>Revize</th>
-                  <th>Uložil / datum</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.length ? (
-                  rows.map((row) => {
-                    const parsed = manualBaselineSnapshotDataSchema.safeParse(
-                      row.data,
-                    );
-                    const data = parsed.success ? parsed.data : null;
-                    const occupancy =
-                      data?.schemaVersion === 2 &&
-                      data.units?.occupancyBps !== undefined
-                        ? data.units.occupancyBps
-                        : typeof data?.units?.occupied === "number" &&
-                            typeof data.units.rentable === "number" &&
-                            data.units.rentable > 0
-                          ? (data.units.occupied / data.units.rentable) * 10000
-                          : null;
-                    return (
-                      <tr key={row.id}>
-                        <td>
-                          Q{row.quarter} {row.year}
-                        </td>
-                        <td>
-                          {occupancy == null
-                            ? "—"
-                            : `${number.format(occupancy / 100)} %`}
-                        </td>
-                        <td>
-                          {data?.rentRoll?.monthlyNetRentCents == null
-                            ? "—"
-                            : czk.format(
-                                data.rentRoll.monthlyNetRentCents / 100,
-                              )}
-                        </td>
-                        <td>
-                          {data?.rentRoll?.weightedNetRentPerM2Cents == null
-                            ? "—"
-                            : `${czk.format(data.rentRoll.weightedNetRentPerM2Cents / 100)}/m²`}
-                        </td>
-                        <td>
-                          {data?.collections?.collectionRateBps == null
-                            ? "—"
-                            : `${number.format(data.collections.collectionRateBps / 100)} %`}
-                        </td>
-                        <td>
-                          {data?.collections?.overdueDebtCents == null
-                            ? "—"
-                            : czk.format(
-                                data.collections.overdueDebtCents / 100,
-                              )}
-                        </td>
-                        <td>{row.sourceNote || "—"}</td>
-                        <td>r{row.revision}</td>
-                        <td>
-                          {row.createdBy?.name || "—"} ·{" "}
-                          {row.createdAt.toLocaleDateString("cs-CZ")}
-                        </td>
-                        <td>
-                          {canWrite && (
-                            <a
-                              href={`/nemovitosti/${id}/reporting?edit=${row.year}-${row.quarter}`}
-                            >
-                              Nová revize
-                            </a>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={10}>Zatím bez historických dat.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+  const selectedRow = selectedUnit ? unitRows.find((row) => row.unit.id === selectedUnit.id) : null;
+
+  return <Shell user={user} taskPropertyId={id} taskLeaseId={selectedRow?.activeLease?.id}>
+    <div className="page">
+      <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><span>Reporty</span></div>
+      <div className="page-title">
+        <div><h1>{unitLimited ? "Reporty jednotek" : "Reporty"}</h1><p>{property.name}{unitLimited ? " · pouze vaše jednotky" : ""}</p></div>
+        {canWrite && <Link className="secondary" href={`/nemovitosti/${id}/nastaveni/reporting`}>Nastavení reportů</Link>}
       </div>
-    </Shell>
-  );
+      <PropertySubnav propertyId={id} active="reporting" unitLimited={unitLimited}/>
+      <Flash ok={query.ok} error={query.error}/>
+
+      {selectedRow && <section className="card">
+        <div className="card-head"><div><span className="eyebrow">Report jednotky</span><h2>{selectedRow.unit.label}</h2><p className="muted-copy">Aktuální provozní a finanční stav jednotky.</p></div><div className="mini-actions">{property.units.length > 1 && <Link className="secondary" href={`/nemovitosti/${id}/reporting`}>Všechny jednotky</Link>}<Link className="secondary" href={`/nemovitosti/${id}/jednotky/${selectedRow.unit.id}`}>Detail jednotky</Link></div></div>
+        <div className="summary-list">
+          <div><span>Obsazenost</span><strong>{selectedRow.activeLease ? "Obsazená" : "Volná"}</strong></div>
+          <div><span>Nájemník</span><strong>{selectedRow.activeLease?.tenant.name || "—"}</strong></div>
+          <div><span>Čisté nájemné / měsíc</span><strong>{selectedRow.rentCents == null ? "—" : money(selectedRow.rentCents)}</strong></div>
+          <div><span>Služby / měsíc</span><strong>{selectedRow.servicesCents == null ? "—" : money(selectedRow.servicesCents)}</strong></div>
+          <div><span>Dluh po splatnosti</span><strong className={selectedRow.overdueDebtCents ? "negative" : "positive"}>{money(selectedRow.overdueDebtCents)}</strong></div>
+          <div><span>Konec aktivní smlouvy</span><strong>{selectedRow.effectiveEnd ? date(selectedRow.effectiveEnd) : selectedRow.activeLease ? "Doba neurčitá" : "—"}</strong></div>
+        </div>
+        {selectedRow.activeLease && <div className="mini-actions" style={{marginTop:16}}><Link className="secondary" href={`/smlouvy/${selectedRow.activeLease.id}`}>Smlouva</Link><Link className="secondary" href={`/smlouvy/${selectedRow.activeLease.id}/vyuctovani`}>Vyúčtování služeb</Link></div>}
+      </section>}
+
+      <section className="card">
+        <div className="card-head"><div><h2>{unitLimited ? "Moje jednotky" : "Reporty jednotek"}</h2><p className="muted-copy">Reporty vedou na konkrétní jednotku a nikdy nerozšiřují přístup mimo přidělený rozsah.</p></div></div>
+        <div className="table-wrap"><table><thead><tr><th>Jednotka</th><th>Stav</th><th>Nájemník</th><th>Nájemné</th><th>Služby</th><th>Dluh po splatnosti</th><th></th></tr></thead><tbody>
+          {unitRows.length ? unitRows.map((row) => <tr key={row.unit.id}><td><strong>{row.unit.label}</strong></td><td>{row.activeLease ? "Obsazená" : "Volná"}</td><td>{row.activeLease?.tenant.name || "—"}</td><td>{row.rentCents == null ? "—" : money(row.rentCents)}</td><td>{row.servicesCents == null ? "—" : money(row.servicesCents)}</td><td className={row.overdueDebtCents ? "negative" : "positive"}>{money(row.overdueDebtCents)}</td><td><Link href={`/nemovitosti/${id}/reporting?unitId=${row.unit.id}`}>Otevřít report</Link></td></tr>) : <tr><td colSpan={7} className="table-empty">V tomto rozsahu nejsou dostupné jednotky.</td></tr>}
+        </tbody></table></div>
+      </section>
+
+      {propertyWide && <>
+        <section className="card">
+          <div className="card-head"><div><h2>Cenová mapa nájemného MF</h2><p className="muted-copy">Read-only benchmark objektu. Ruční přiřazení a korekce jsou v Nastavení reportů.</p></div>{canWrite && <Link className="secondary" href={`/nemovitosti/${id}/nastaveni/reporting#mf`}>Upravit přiřazení</Link>}</div>
+          {mf?.mapping ? <div className="summary-list"><div><span>Katastrální území</span><strong>{mf.mapping.territoryName}</strong></div><div><span>Kód</span><strong>{mf.mapping.territoryCode}</strong></div><div><span>Zdroj přiřazení</span><strong>{mf.locationSource === "PROPERTY_CADASTRAL_DATA" ? "Údaje nemovitosti" : "Ruční korekce"}</strong></div><div><span>Datové období MF</span><strong>{mf.release ? `Q${mf.release.marketQuarter} ${mf.release.marketYear}` : "—"}</strong></div></div> : <p>{mf?.release ? "Nemovitost zatím není přiřazena ke katastrálnímu území MF." : "Pro toto období nejsou dostupná data MF."}</p>}
+          {mf?.release && <div className="table-wrap"><table><thead><tr><th>Kategorie</th><th>Referenční nájem</th><th>Novostavba</th></tr></thead><tbody>{(["vk1","vk2","vk3","vk4"] as const).map((key)=><tr key={key}><td>{key.toUpperCase()}</td><td>{mfMoney(mf[key]?.referenceRentCentsPerM2)}</td><td>{mfMoney(mf[key]?.newBuildReferenceRentCentsPerM2)}</td></tr>)}</tbody></table></div>}
+        </section>
+
+        <section className="card">
+          <div className="card-head"><div><h2>Historická kvartální data</h2><p className="muted-copy">Publikovaný read-only pohled. Nové revize se připravují pouze v Nastavení reportů.</p></div>{canWrite && <Link className="secondary" href={`/nemovitosti/${id}/nastaveni/reporting#historie`}>Spravovat historii</Link>}</div>
+          <div className="table-wrap"><table><thead><tr><th>Období</th><th>Obsazenost</th><th>Čisté nájemné / měsíc</th><th>Čisté nájemné / m²</th><th>Inkaso</th><th>Dluh po splatnosti</th><th>Zdroj</th><th>Revize</th></tr></thead><tbody>
+            {historicalRows.length ? historicalRows.map((row) => {
+              const parsed = manualBaselineSnapshotDataSchema.safeParse(row.data);
+              const data = parsed.success ? parsed.data : null;
+              const occupancy = data?.schemaVersion === 2 && data.units?.occupancyBps !== undefined ? data.units.occupancyBps : typeof data?.units?.occupied === "number" && typeof data.units.rentable === "number" && data.units.rentable > 0 ? (data.units.occupied / data.units.rentable) * 10000 : null;
+              return <tr key={row.id}><td>Q{row.quarter} {row.year}</td><td>{occupancy == null ? "—" : `${number.format(occupancy / 100)} %`}</td><td>{data?.rentRoll?.monthlyNetRentCents == null ? "—" : czk.format(data.rentRoll.monthlyNetRentCents / 100)}</td><td>{data?.rentRoll?.weightedNetRentPerM2Cents == null ? "—" : `${czk.format(data.rentRoll.weightedNetRentPerM2Cents / 100)}/m²`}</td><td>{data?.collections?.collectionRateBps == null ? "—" : `${number.format(data.collections.collectionRateBps / 100)} %`}</td><td>{data?.collections?.overdueDebtCents == null ? "—" : czk.format(data.collections.overdueDebtCents / 100)}</td><td>{row.sourceNote || "—"}</td><td>r{row.revision}</td></tr>;
+            }) : <tr><td colSpan={8} className="table-empty">Zatím bez historických dat.</td></tr>}
+          </tbody></table></div>
+        </section>
+      </>}
+    </div>
+  </Shell>;
 }
