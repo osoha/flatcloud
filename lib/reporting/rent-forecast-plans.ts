@@ -11,12 +11,12 @@ type Actor = { id: string; role: string; allProperties?: boolean };
 
 const snapshotRowSchema = z.object({
   leaseId: z.string().min(1), propertyId: z.string().min(1), propertyName: z.string(), unitId: z.string().min(1), unitLabel: z.string(),
-  currentRentCents: z.number().int().nonnegative(), effectiveEnd: z.string().datetime().nullable(), indexationEnabled: z.boolean(),
+  currentRentCents: z.number().int().nonnegative(), startDate: z.string().datetime().nullable().optional(), effectiveEnd: z.string().datetime().nullable(), indexationEnabled: z.boolean(),
   indexationPercentBps: z.number().int().nullable(), nextIndexationAt: z.string().datetime().nullable(), mfMarketRentCents: z.number().int().nonnegative().nullable(),
 });
 const inputSnapshotSchema = z.object({
-  schemaVersion: z.union([z.literal(1), z.literal(2)]),
-  market: z.object({ annualGrowthBps: z.number().int().min(-2000).max(2000), catchUpMonths: z.number().int().min(1).max(360) }).optional(),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  market: z.object({ annualGrowthBps: z.number().int().min(-2000).max(2000), catchUpMonths: z.number().int().min(1).max(360), expiryStrategy: z.enum(["RENEW","RELET"]).optional(), relettingTargetBps: z.number().int().min(0).max(15000).optional(), relettingVacancyMonths: z.number().int().min(0).max(24).optional() }).optional(),
   scope: z.array(z.object({ propertyId: z.string().min(1), propertyName: z.string() })).min(1),
   mfReferencePeriod: z.string(),
   rows: z.array(snapshotRowSchema),
@@ -41,11 +41,11 @@ async function requirePropertyScope(actor: Actor, rawPropertyIds: string[], mini
   return propertyIds;
 }
 function serializedRows(rows: RentForecastInput[]) {
-  return rows.map((row) => ({ ...row, effectiveEnd: row.effectiveEnd?.toISOString() ?? null, nextIndexationAt: row.nextIndexationAt?.toISOString() ?? null }));
+  return rows.map((row) => ({ ...row, startDate: row.startDate?.toISOString() ?? null, effectiveEnd: row.effectiveEnd?.toISOString() ?? null, nextIndexationAt: row.nextIndexationAt?.toISOString() ?? null }));
 }
 export function rentForecastSnapshotFromLiveReport(report: Awaited<ReturnType<typeof loadLiveReport>>) {
   const mfByUnit = new Map(report.mfBenchmark.rows.map((row) => [row.unitId, row.marketComparableRentCents]));
-  const rows: RentForecastInput[] = report.tenancyRows.map((row) => ({ leaseId: row.leaseId, propertyId: row.propertyId, propertyName: row.propertyName, unitId: row.unitId, unitLabel: row.unitLabel, currentRentCents: row.netRentCents, effectiveEnd: row.endDate, indexationEnabled: row.indexationEnabled, indexationPercentBps: row.indexationPercentBps, nextIndexationAt: row.nextIndexationAt, mfMarketRentCents: mfByUnit.get(row.unitId) ?? null }));
+  const rows: RentForecastInput[] = report.tenancyRows.map((row) => ({ leaseId: row.leaseId, propertyId: row.propertyId, propertyName: row.propertyName, unitId: row.unitId, unitLabel: row.unitLabel, currentRentCents: row.netRentCents, startDate: row.startDate, effectiveEnd: row.endDate, indexationEnabled: row.indexationEnabled, indexationPercentBps: row.indexationPercentBps, nextIndexationAt: row.nextIndexationAt, mfMarketRentCents: mfByUnit.get(row.unitId) ?? null }));
   return { schemaVersion: 1, scope: report.properties.map((property) => ({ propertyId: property.id, propertyName: property.name })), mfReferencePeriod: report.mfBenchmark.release ? `Q${report.mfBenchmark.release.marketQuarter} ${report.mfBenchmark.release.marketYear}` : "Nedostupná", rows: serializedRows(rows) } satisfies RentForecastPlanSnapshot;
 }
 export function rentForecastSnapshotFingerprint(snapshot: RentForecastPlanSnapshot, asOfDate: Date) {
@@ -60,11 +60,11 @@ async function captureLiveSnapshot(actor: Actor, propertyIds: string[], asOfDate
 }
 export function parseRentForecastPlanSnapshot(value: Prisma.JsonValue): RentForecastPlanSnapshot { return inputSnapshotSchema.parse(value); }
 export function snapshotForecastRows(snapshot: RentForecastPlanSnapshot): RentForecastInput[] {
-  return snapshot.rows.map((row) => ({ ...row, effectiveEnd: row.effectiveEnd ? new Date(row.effectiveEnd) : null, nextIndexationAt: row.nextIndexationAt ? new Date(row.nextIndexationAt) : null }));
+  return snapshot.rows.map((row) => ({ ...row, startDate: row.startDate ? new Date(row.startDate) : null, effectiveEnd: row.effectiveEnd ? new Date(row.effectiveEnd) : null, nextIndexationAt: row.nextIndexationAt ? new Date(row.nextIndexationAt) : null }));
 }
 export function calculateSavedRentForecast(plan: { name: string; asOfDate: Date; horizonMonths: number; annualGrowthBps: number; vacancyBps: number; collectionBps: number; marketGapCaptureBps: number; inputSnapshot: Prisma.JsonValue }) {
   const snapshot = parseRentForecastPlanSnapshot(plan.inputSnapshot);
-  return calculateRentForecastWithAssumptions(snapshotForecastRows(snapshot), plan.asOfDate, "saved", { label: plan.name, annualGrowthBps: plan.annualGrowthBps, vacancyBps: plan.vacancyBps, collectionBps: plan.collectionBps, marketGapCaptureBps: plan.marketGapCaptureBps, marketAnnualGrowthBps: snapshot.market?.annualGrowthBps, marketCatchUpMonths: snapshot.market?.catchUpMonths }, plan.horizonMonths, snapshot.schemaVersion);
+  return calculateRentForecastWithAssumptions(snapshotForecastRows(snapshot), plan.asOfDate, "saved", { label: plan.name, annualGrowthBps: plan.annualGrowthBps, vacancyBps: plan.vacancyBps, collectionBps: plan.collectionBps, marketGapCaptureBps: plan.marketGapCaptureBps, marketAnnualGrowthBps: snapshot.market?.annualGrowthBps, marketCatchUpMonths: snapshot.market?.catchUpMonths, expiryStrategy:snapshot.market?.expiryStrategy, relettingTargetBps:snapshot.market?.relettingTargetBps, relettingVacancyMonths:snapshot.market?.relettingVacancyMonths }, plan.horizonMonths, snapshot.schemaVersion);
 }
 
 const planInclude = { properties: { include: { property: { select: { id: true, name: true } } }, orderBy: { property: { name: "asc" as const } } }, createdBy: { select: { id: true, name: true } }, approvedBy: { select: { id: true, name: true } } } satisfies Prisma.RentForecastPlanInclude;
@@ -88,6 +88,9 @@ export async function canManageRentForecastPlan(actor: Actor, propertyIds: strin
 function validateAssumptions(assumptions: RentForecastAssumptions) {
   if (!Number.isInteger(assumptions.marketAnnualGrowthBps) || Math.abs(assumptions.marketAnnualGrowthBps!) > 2000) throw new Error("Růst trhu musí být mezi −20 a 20 %.");
   if (!Number.isInteger(assumptions.marketCatchUpMonths) || assumptions.marketCatchUpMonths! < 1 || assumptions.marketCatchUpMonths! > 360) throw new Error("Doba přiblížení musí být 1 až 360 měsíců.");
+  if(!["RENEW","RELET"].includes(assumptions.expiryStrategy??"RENEW"))throw new Error("Neplatná strategie při expiraci.");
+  if(!Number.isInteger(assumptions.relettingTargetBps)||assumptions.relettingTargetBps!<0||assumptions.relettingTargetBps!>15000)throw new Error("Headline rent při přeobsazení musí být 0 až 150 % MF.");
+  if(!Number.isInteger(assumptions.relettingVacancyMonths)||assumptions.relettingVacancyMonths!<0||assumptions.relettingVacancyMonths!>24)throw new Error("Vacancy při přeobsazení musí být 0 až 24 měsíců.");
   const values: Array<[string, number, number]> = [["Roční růst", assumptions.annualGrowthBps, 2_000], ["Vacancy", assumptions.vacancyBps, 10_000], ["Úspěšnost inkasa", assumptions.collectionBps, 10_000], ["Využití MF rozdílu", assumptions.marketGapCaptureBps, 10_000]];
   for (const [label, value, maximum] of values) if (!Number.isInteger(value) || value < 0 || value > maximum) throw new Error(`${label} je mimo povolený rozsah.`);
 }
@@ -97,12 +100,12 @@ export async function createRentForecastPlan(input: { name: string; note?: strin
   if (!name || name.length > 120) throw new Error("Název scénáře musí mít 1 až 120 znaků.");
   if (!Number.isInteger(input.horizonMonths) || input.horizonMonths < 1 || input.horizonMonths > 360) throw new Error("Horizont musí být 1 až 360 měsíců.");
   const propertyIds = await requirePropertyScope(actor, input.propertyIds, PropertyPermission.EDIT);
-  input = { ...input, assumptions: { marketAnnualGrowthBps: 0, marketCatchUpMonths: 24, ...input.assumptions } };
+  input = { ...input, assumptions: { marketAnnualGrowthBps: 0, marketCatchUpMonths: 24, expiryStrategy:"RENEW", relettingTargetBps:10_000, relettingVacancyMonths:1, ...input.assumptions } };
   validateAssumptions(input.assumptions);
   const asOfDate = new Date();
   const snapshot = await captureLiveSnapshot(actor, propertyIds, asOfDate);
   if (!input.expectedSnapshotFingerprint || rentForecastSnapshotFingerprint(snapshot, asOfDate) !== input.expectedSnapshotFingerprint) throw new Error("LIVE vstupy se od zobrazeného náhledu změnily. Zkontrolujte přepočítaný scénář a uložení zopakujte.");
-  const savedSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: 2, market: { annualGrowthBps: input.assumptions.marketAnnualGrowthBps!, catchUpMonths: input.assumptions.marketCatchUpMonths! } };
+  const savedSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: 3, market: { annualGrowthBps: input.assumptions.marketAnnualGrowthBps!, catchUpMonths: input.assumptions.marketCatchUpMonths!, expiryStrategy:input.assumptions.expiryStrategy, relettingTargetBps:input.assumptions.relettingTargetBps, relettingVacancyMonths:input.assumptions.relettingVacancyMonths } };
   const plan = await prisma.rentForecastPlan.create({ data: { seriesId: randomUUID(), revision: 1, name, asOfDate, horizonMonths: input.horizonMonths, annualGrowthBps: input.assumptions.annualGrowthBps, vacancyBps: input.assumptions.vacancyBps, collectionBps: input.assumptions.collectionBps, marketGapCaptureBps: input.assumptions.marketGapCaptureBps, inputSnapshot: savedSnapshot as Prisma.InputJsonValue, note: input.note?.trim() || null, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
   await prisma.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision: plan.revision } })) });
   return plan;
