@@ -803,7 +803,7 @@ test("vyúčtování ukáže read-only zdroje a blokátory před zaúčtováním
   await expect(page.getByRole("heading", { name: "Předepsané zálohy", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Odečty měřidel", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Uložit bez zaúčtování", exact: true })).toBeEnabled();
-  await expect(page.getByText("Pracovní podklad není kompletní vyúčtování:", { exact: false })).toBeVisible();
+  await expect(page.getByText("Doplnit podklady", { exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
 
