@@ -1726,9 +1726,9 @@ model LeaseCredit {
   createdAt                 DateTime                   @default(now())
   applications              LeaseCreditApplication[]
   serviceSettlementProtocol ServiceSettlementProtocol?
+  settlementWorkflowCredit ServiceSettlementWorkflow? @relation("SettlementWorkflowCredit")
 
   @@index([leaseId, effectiveAt])
-  settlementWorkflowCredit ServiceSettlementWorkflow? @relation("SettlementWorkflowCredit")
 }
 
 model ServiceSettlementProtocol {
