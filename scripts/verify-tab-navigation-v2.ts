@@ -8,6 +8,6 @@ check("first tab keeps approved slanted outer edge",()=>assert.match(css,/a:firs
 check("last tab keeps approved slanted outer edge",()=>assert.match(css,/a:last-child[\s\S]*clip-path:polygon\(0 0,100% 0,calc\(100% - 10px\) 100%,0 100%\)/));
 check("desktop property tabs attach to identity card without extra separator",()=>assert.match(css,/property-header \+ :is\(\.section-nav,\.v21-section-nav\)[\s\S]*border-top:0/));
 check("mobile property navigation returns to separator variant",()=>assert.match(css,/@media\(max-width:700px\)[\s\S]*property-header \+ :is\(\.section-nav,\.v21-section-nav\)[\s\S]*border-top:4px solid var\(--fc-tab-blue\)/));
-check("desktop tabs share width instead of scrolling",()=>assert.match(css,/@media\(min-width:901px\)[\s\S]*flex:1 1 0;[\s\S]*overflow-x:hidden/));
+check("desktop tabs share width instead of scrolling",()=>assert.match(css,/@media\(min-width:901px\)[\s\S]*overflow-x:hidden;[\s\S]*flex:1 1 0;/));
 check("mobile restores natural tab width and horizontal scrolling",()=>assert.match(css,/@media\(max-width:700px\)[\s\S]*flex:0 0 auto;[\s\S]*min-width:max-content/));
 console.log(`TAB-NAV-V2.1 verified: ${n} checks.`);
