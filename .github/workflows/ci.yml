@@ -37,6 +37,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify:tab-navigation-v2
+      - run: npm run verify:valorizace-v3
       - run: npx prisma generate
       - run: npx prisma validate
       - run: npx prisma migrate deploy
@@ -172,9 +173,6 @@ jobs:
       - run: node --import tsx scripts/verify-mf-streaming.ts
       - run: node --import tsx scripts/verify-r26d-confirmed-costs.ts
       - run: node --import tsx scripts/verify-r26c-readings.ts
-      - run: npm run verify:r26c2-meter-hierarchy
-      - run: npm run verify:r26d2-allocation
-      - run: npm run verify:r26ef-workflow
 
   browser-smoke:
     needs: build

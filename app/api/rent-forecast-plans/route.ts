@@ -20,6 +20,9 @@ export async function POST(request: Request) {
         vacancyBps: rentForecastBasisPointsFromPercent(String(form.get("vacancyPercent") || ""), "Vacancy"),
         collectionBps: rentForecastBasisPointsFromPercent(String(form.get("collectionPercent") || ""), "Úspěšnost inkasa"),
         marketGapCaptureBps: rentForecastBasisPointsFromPercent(String(form.get("marketGapCapturePercent") || ""), "Využití MF rozdílu"),
+        expiryStrategy: text(form,"expiryStrategy")==="RELET"?"RELET":"RENEW",
+        relettingTargetBps: rentForecastBasisPointsFromPercent(String(form.get("relettingTargetPercent")||"100"),"Headline rent při přeobsazení",15_000),
+        relettingVacancyMonths: intValue(form,"relettingVacancyMonths",1),
       },
     }, user);
     return goWithMessage(request, `/reporty/valorizace/${plan.id}`, "ok", "Scénář byl uložen jako koncept.");

@@ -58,6 +58,86 @@ test("administrátor se přihlásí a vidí deterministické portfolio", async (
   assertNoBrowserFailures();
 });
 
+test("levé menu má ikonové sbalení, hover popisky a kompaktní profil", async ({ page }) => {
+  await login(page);
+  const sidebar = page.locator(".sidebar");
+  const footer = sidebar.locator(".sidebar-footer");
+  await expect(sidebar.getByTitle("Portfolio")).toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "Sbalit levé menu" })).toHaveAttribute("title", "Sbalit menu");
+  await expect(footer.getByText(adminEmail, { exact: true })).toHaveCount(0);
+  await expect(footer.locator(".user-card-meta")).toBeVisible();
+  await expect(footer.getByRole("button", { name: "Odhlásit" })).toHaveAttribute("title", "Odhlásit");
+  await sidebar.getByRole("button", { name: "Sbalit levé menu" }).click();
+  await expect(page.locator("html")).toHaveClass(/fc-sidebar-collapsed/);
+  await expect(sidebar.getByTitle("Portfolio")).toHaveAttribute("aria-label", "Portfolio");
+  await expect(sidebar.getByRole("button", { name: "Rozbalit levé menu" })).toHaveAttribute("title", "Rozbalit menu");
+  await expect(footer.getByRole("button", { name: "Odhlásit" })).toBeHidden();
+  await expect(footer.getByTitle("Můj účet")).toBeVisible();
+  const collapsedLayout = await sidebar.evaluate((element) => {
+    const brand = element.querySelector<HTMLElement>(".brand")!;
+    const avatar = element.querySelector<HTMLElement>(".sidebar-footer .avatar")!;
+    const avatarBox = avatar.getBoundingClientRect();
+    return {
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+      brandBackground: getComputedStyle(brand).backgroundImage,
+      brandImageDisplay: getComputedStyle(brand.querySelector("img")!).display,
+      avatarDisplay: getComputedStyle(avatar).display,
+      avatarWidth: avatarBox.width,
+      avatarHeight: avatarBox.height,
+    };
+  });
+  expect(collapsedLayout.scrollWidth).toBeLessThanOrEqual(collapsedLayout.clientWidth);
+  expect(collapsedLayout.brandBackground).toContain("flatcloud-logo-white.png");
+  expect(collapsedLayout.brandImageDisplay).toBe("none");
+  expect(collapsedLayout.avatarDisplay).not.toBe("none");
+  expect(collapsedLayout.avatarWidth).toBe(34);
+  expect(collapsedLayout.avatarHeight).toBe(34);
+  expect(await page.evaluate(() => localStorage.getItem("flatcloud:sidebar-collapsed"))).toBe("1");
+  await footer.getByTitle("Můj účet").click();
+  await expect(page).toHaveURL(/\/ucet(?:\?|$)/);
+});
+
+test("záložky nemovitosti navazují na záhlaví a jejich texty se nepřekrývají", async ({ page }) => {
+  await login(page);
+  const propertyHref = await page.locator('a[href^="/nemovitosti/"][href$="/prehled"]').first().getAttribute("href");
+  expect(propertyHref).toBeTruthy();
+  await page.goto(propertyHref!);
+  const header = page.locator(".property-header");
+  const navigation = page.locator(".property-subnav");
+  await expect(navigation).toBeVisible();
+  const layout = await page.evaluate(() => {
+    const headerElement = document.querySelector<HTMLElement>(".property-header")!;
+    const navigationElement = document.querySelector<HTMLElement>(".property-subnav")!;
+    const links = [...navigationElement.querySelectorAll<HTMLElement>(":scope > a")];
+    const boxes = links.map((link) => {
+      const box = link.getBoundingClientRect();
+      const text = link.querySelector<HTMLElement>("span")!.getBoundingClientRect();
+      return { left: box.left, right: box.right, textLeft: text.left, textRight: text.right };
+    });
+    return {
+      headerBottom: headerElement.getBoundingClientRect().bottom,
+      navigationTop: navigationElement.getBoundingClientRect().top,
+      clientWidth: navigationElement.clientWidth,
+      scrollWidth: navigationElement.scrollWidth,
+      boxes,
+      firstBevel: getComputedStyle(links[0], "::before").transform,
+      lastBevel: getComputedStyle(links.at(-1)!, "::after").transform,
+    };
+  });
+  expect(Math.abs(layout.navigationTop - layout.headerBottom)).toBeLessThanOrEqual(1);
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1);
+  expect(layout.firstBevel).not.toBe("none");
+  expect(layout.lastBevel).not.toBe("none");
+  for (let index = 0; index < layout.boxes.length; index += 1) {
+    const box = layout.boxes[index];
+    expect(box.textLeft).toBeGreaterThanOrEqual(box.left - 1);
+    expect(box.textRight).toBeLessThanOrEqual(box.right + 1);
+    if (index < layout.boxes.length - 1) expect(box.right).toBeLessThanOrEqual(layout.boxes[index + 1].left + 1);
+  }
+  await expect(header).toBeVisible();
+});
+
 test("průvodce nemovitostí ověří zadanou adresu mapovým PINem", async ({ page }) => {
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await page.route("https://www.google.com/maps**", (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Map preview</title>" }));
@@ -803,7 +883,7 @@ test("vyúčtování ukáže read-only zdroje a blokátory před zaúčtováním
   await expect(page.getByRole("heading", { name: "Předepsané zálohy", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Odečty měřidel", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Uložit bez zaúčtování", exact: true })).toBeEnabled();
-  await expect(page.getByText("Doplnit podklady", { exact: true })).toBeVisible();
+  await expect(page.getByText("Pracovní podklad není kompletní vyúčtování:", { exact: false })).toBeVisible();
   assertNoBrowserFailures();
 });
 
