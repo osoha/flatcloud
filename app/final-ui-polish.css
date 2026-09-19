@@ -63,25 +63,23 @@
   position:absolute;
   top:0;
   bottom:0;
-  width:18px;
+  width:20px;
   z-index:-1;
   background:inherit;
-  border-color:inherit;
-  border-style:solid;
-  border-width:1px 0 1px 1px;
+  border:0;
+  box-shadow:none;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child::before{
   left:-10px;
-  transform:skewX(9deg);
+  transform:skewX(8deg);
   transform-origin:top right;
-  border-radius:6px 0 0 10px;
+  border-radius:8px 0 0 12px;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child::after{
   right:-10px;
-  transform:skewX(-9deg);
+  transform:skewX(-8deg);
   transform-origin:top left;
-  border-width:1px 1px 1px 0;
-  border-radius:0 6px 10px 0;
+  border-radius:0 8px 12px 0;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:hover{
   background:#f4f7fc;
