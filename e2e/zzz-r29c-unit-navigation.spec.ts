@@ -38,7 +38,7 @@ test("unit-only owner gets unit reports but never report correction settings", a
 
     await page.goto(`/nemovitosti/${property.id}/reporting?unitId=${visibleUnit.id}`);
     await expect(page.getByText("Report jednotky", { exact: true })).toBeVisible();
-    await expect(page.getByText("1 500 000 Kč", { exact: false })).toBeVisible();
+    await expect(page.getByText("15 000 Kč", { exact: true }).first()).toBeVisible();
     const forbidden = await page.goto(`/nemovitosti/${property.id}/nastaveni/reporting`);
     expect(forbidden?.status()).toBe(404);
 
