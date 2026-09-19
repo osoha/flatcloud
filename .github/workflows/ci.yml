@@ -36,6 +36,7 @@ jobs:
           node-version: "22.23.1"
           cache: npm
       - run: npm ci
+      - run: npm run verify:tab-navigation-v2
       - run: npx prisma generate
       - run: npx prisma validate
       - run: npx prisma migrate deploy
