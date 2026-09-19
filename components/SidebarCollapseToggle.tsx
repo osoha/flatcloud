@@ -30,7 +30,6 @@ export function SidebarCollapseToggle() {
     aria-pressed={collapsed}
     onClick={toggle}
   >
-    {collapsed ? <PanelLeftOpen size={17}/> : <PanelLeftClose size={17}/>}
-    <span>{collapsed ? "Rozbalit" : "Sbalit"}</span>
+    {collapsed ? <PanelLeftOpen size={19}/> : <PanelLeftClose size={19}/>}
   </button>;
 }
