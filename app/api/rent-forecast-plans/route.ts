@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { intValue, text } from "@/lib/forms";
+import { intValue, moneyToCents, text } from "@/lib/forms";
 import { createRentForecastPlan, rentForecastPlanErrorMessage } from "@/lib/reporting/rent-forecast-plans";
 import { marketGrowthBasisPoints, rentForecastBasisPointsFromPercent } from "@/lib/reporting/rent-forecast";
 import { goWithMessage, safeInternalReturnPath } from "@/lib/route-response";
@@ -21,6 +21,9 @@ export async function POST(request: Request) {
         collectionBps: rentForecastBasisPointsFromPercent(String(form.get("collectionPercent") || ""), "Úspěšnost inkasa"),
         marketGapCaptureBps: rentForecastBasisPointsFromPercent(String(form.get("marketGapCapturePercent") || ""), "Využití MF rozdílu"),
         expiryStrategy: text(form,"expiryStrategy")==="RELET"?"RELET":"RENEW",
+        renewalMode: text(form,"renewalMode")==="TARGET_MF"?"TARGET_MF":text(form,"renewalMode")==="CUSTOM"?"CUSTOM":"AUTO",
+        renewalTargetBps: rentForecastBasisPointsFromPercent(String(form.get("renewalTargetPercent")||"100"),"Cíl při prodloužení",15_000),
+        renewalCustomRentCents: moneyToCents(form,"renewalCustomRent"),
         relettingTargetBps: rentForecastBasisPointsFromPercent(String(form.get("relettingTargetPercent")||"100"),"Headline rent při přeobsazení",15_000),
         relettingVacancyMonths: intValue(form,"relettingVacancyMonths",1),
       },
