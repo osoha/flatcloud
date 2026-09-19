@@ -8,7 +8,7 @@ test('R26C1: reading evidence, estimate and correction preserve the original',as
  const tag=`R24_AGENT_QA_2026_09 R26C ${crypto.randomUUID().slice(0,8)}`;
  const email=process.env.E2E_ADMIN_EMAIL||'e2e.admin@flatcloud.test',admin=await db.user.findUniqueOrThrow({where:{email}});
  const owner=await db.owner.create({data:{name:tag}}),property=await db.property.create({data:{ownerId:owner.id,name:tag,address:'Syntetická 26',city:'Praha'}}),unit=await db.unit.create({data:{propertyId:property.id,label:'QA'}});
- const meter=await db.meter.create({data:{unitId:unit.id,type:'COLD_WATER',unitOfMeasure:'m³',label:tag}});
+ const meter=await db.meter.create({data:{propertyId:property.id,unitId:unit.id,type:'COLD_WATER',unitOfMeasure:'m³',label:tag}});
  const asset=await db.fileAsset.create({data:{storageKey:tag,originalName:'qa.pdf',mimeType:'application/pdf',sizeBytes:10,sha256:tag,uploadedById:admin.id}});
  const doc=await db.document.create({data:{propertyId:property.id,unitId:unit.id,fileAssetId:asset.id,title:tag,category:'OTHER',createdById:admin.id}});
  await db.meterReading.create({data:{meterId:meter.id,readAt:new Date('2025-01-01T12:00:00Z'),value:100,method:'PERSONAL',createdById:admin.id,unitOfMeasure:'m³'}});
