@@ -130,14 +130,15 @@ export async function createRentForecastPlanRevision(planId: string, actor: Acto
   const asOfDate = new Date();
   const snapshot = await captureLiveSnapshot(actor, propertyIds, asOfDate);
   const sourceSnapshot = parseRentForecastPlanSnapshot(source.inputSnapshot);
-  const revisionSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: sourceSnapshot.schemaVersion, ...(sourceSnapshot.market ? { market: sourceSnapshot.market } : {}) };
+  const inheritedMarket = sourceSnapshot.market ?? { annualGrowthBps: 0, catchUpMonths: 24 };
+  const revisionSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: 3, market: { annualGrowthBps: inheritedMarket.annualGrowthBps, catchUpMonths: inheritedMarket.catchUpMonths, expiryStrategy: inheritedMarket.expiryStrategy ?? "RENEW", relettingTargetBps: inheritedMarket.relettingTargetBps ?? 10_000, relettingVacancyMonths: inheritedMarket.relettingVacancyMonths ?? 1 } };
   return serializableTransaction(async (tx) => {
     const existingDraft = await tx.rentForecastPlan.findFirst({ where: { seriesId: source.seriesId, status: "DRAFT" }, select: { id: true } });
     if (existingDraft) throw new Error("Tato řada již má rozpracovanou revizi.");
     const latest = await tx.rentForecastPlan.aggregate({ where: { seriesId: source.seriesId }, _max: { revision: true } });
     const revision = (latest._max.revision || 0) + 1;
     const plan = await tx.rentForecastPlan.create({ data: { seriesId: source.seriesId, revision, name: source.name, status: "DRAFT", asOfDate, horizonMonths: source.horizonMonths, annualGrowthBps: source.annualGrowthBps, vacancyBps: source.vacancyBps, collectionBps: source.collectionBps, marketGapCaptureBps: source.marketGapCaptureBps, inputSnapshot: revisionSnapshot as Prisma.InputJsonValue, note: source.note, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
-    await tx.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_REVISION_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision, sourcePlanId: source.id } })) });
+    await tx.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_REVISION_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision, sourcePlanId: source.id, sourceSnapshotVersion: sourceSnapshot.schemaVersion, snapshotVersion: 3 } })) });
     return plan;
   });
 }
