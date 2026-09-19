@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "verify:tab-navigation-v2": "node --import tsx scripts/verify-tab-navigation-v2.ts",
+    "verify:valorizace-v3": "node --import tsx scripts/verify-valorizace-v3.ts",
     "verify:v23-a": "node --import tsx scripts/verify-v23-a.ts",
     "verify:v23-b": "node --import tsx scripts/verify-v23-b.ts",
     "verify:v23-c": "node --import tsx scripts/verify-v23-c.ts",
