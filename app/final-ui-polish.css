@@ -43,15 +43,45 @@
   white-space:nowrap;
   text-decoration:none;
   box-shadow:0 4px 12px rgba(23,37,84,.035);
+  position:relative;
+  isolation:isolate;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child{
-  border-left:1px solid var(--fc-tab-border);
-  clip-path:polygon(0 0,100% 0,100% 100%,10px 100%);
+  margin-left:10px;
+  border-left:0;
+  border-bottom-left-radius:9px;
   padding-left:22px;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child{
-  clip-path:polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%);
+  margin-right:10px;
+  border-bottom-right-radius:9px;
   padding-right:22px;
+}
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child::before,
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child::after{
+  content:"";
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:18px;
+  z-index:-1;
+  background:inherit;
+  border-color:inherit;
+  border-style:solid;
+  border-width:1px 0 1px 1px;
+}
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child::before{
+  left:-10px;
+  transform:skewX(9deg);
+  transform-origin:top right;
+  border-radius:6px 0 0 10px;
+}
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child::after{
+  right:-10px;
+  transform:skewX(-9deg);
+  transform-origin:top left;
+  border-width:1px 1px 1px 0;
+  border-radius:0 6px 10px 0;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:hover{
   background:#f4f7fc;
@@ -66,18 +96,18 @@
 }
 
 /* Desktop: the complete tab row must fit the content width without a horizontal scrollbar. */
-@media(min-width:901px){
+@media(min-width:1200px){
   .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){
     overflow-x:hidden;
   }
   .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{
-    flex:1 1 0;
-    min-width:0;
-    padding-inline:10px;
-    font-size:11px;
+    flex:1 1 auto;
+    min-width:max-content;
+    padding-inline:5px;
+    font-size:10px;
   }
-  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child{padding-left:14px}
-  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child{padding-right:14px}
+  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child{padding-left:12px}
+  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child{padding-right:12px}
 }
 
 /* The property tabs form the lower edge of the identity card. On desktop the
@@ -122,8 +152,8 @@
 }
 .sidebar-collapse-toggle:hover{background:rgba(255,255,255,.1);color:#fff}
 .v21-shell .sidebar,.v21-shell .main{transition:width .18s ease,margin-left .18s ease}
-html.fc-sidebar-collapsed .v21-shell .sidebar{width:76px}
-html.fc-sidebar-collapsed .v21-shell .main{margin-left:76px;width:calc(100% - 76px)}
+html.fc-sidebar-collapsed .v21-shell .sidebar{width:88px;overflow-x:hidden}
+html.fc-sidebar-collapsed .v21-shell .main{margin-left:88px;width:calc(100% - 88px)}
 html.fc-sidebar-collapsed .v21-shell .brand img{display:none}
 html.fc-sidebar-collapsed .v21-shell .brand{height:54px;display:grid;place-items:center}
 html.fc-sidebar-collapsed .v21-shell .brand::after{content:"FC";font-size:16px;font-weight:900;letter-spacing:.6px;color:#fff}
@@ -141,7 +171,7 @@ html.fc-sidebar-collapsed .v21-shell .nav-group-items>a{justify-content:center;p
 html.fc-sidebar-collapsed .v21-shell .nav-collapsible-section{display:grid}
 html.fc-sidebar-collapsed .v21-shell .nav-group-toggle{height:8px;min-height:8px;padding:0;margin:3px 14px;border-top:1px solid rgba(255,255,255,.1);border-radius:0}
 html.fc-sidebar-collapsed .v21-shell .nav-group-items{display:grid!important}
-html.fc-sidebar-collapsed .v21-shell .nav-count{position:absolute;right:7px;min-width:16px;padding-inline:4px}
+html.fc-sidebar-collapsed .v21-shell .nav-count{position:absolute;right:3px;min-width:16px;padding-inline:4px}
 html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card{min-height:58px;padding:10px;justify-content:center}
 html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile{justify-content:center}
 html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{width:34px;height:34px;flex-basis:34px}
@@ -202,6 +232,8 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{
 }
 
 /* Sidebar v2: compact ChatGPT-inspired layout, FlatCloud visual language. */
+.v21-shell .sidebar{overflow-x:hidden}
+.v21-shell .v21-nav{overflow-x:hidden;overflow-y:auto}
 .v21-shell .sidebar-brand-row{
   height:66px;display:flex;align-items:center;gap:8px;padding:0 12px 0 19px;
   border-bottom:1px solid rgba(255,255,255,.08);
@@ -233,12 +265,16 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{
 
 /* Collapsed rail: real FlatCloud mark, icons, avatar and logout only. Native title
    tooltips on every navigation/control icon expose its label on hover. */
-html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row{padding:0 10px;gap:2px}
+html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row{padding:0 8px;gap:4px}
 html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .brand{
   display:block;width:36px;flex:0 0 36px;height:42px;padding:0;overflow:hidden;
+  background-image:url('/flatcloud-logo-white.png');
+  background-repeat:no-repeat;
+  background-position:left center;
+  background-size:124px auto;
 }
 html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .brand img{
-  display:block;width:132px;height:auto;max-width:none;margin-top:4px;
+  display:none;
 }
 html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .brand::after{content:none}
 html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .sidebar-collapse-toggle{
@@ -246,10 +282,14 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-brand-row .sidebar-collapse-toggle
 }
 html.fc-sidebar-collapsed .v21-shell .sidebar-collapse-toggle span{display:none}
 html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card{
-  display:grid;grid-template-columns:1fr;justify-items:center;gap:5px;min-height:82px;padding:8px 4px;
+  display:grid;place-items:center;min-height:54px;padding:6px 0;background:transparent;border-radius:0;
 }
-html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile{justify-content:center}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer{padding:8px 0 12px}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile{
+  width:42px;height:42px;padding:4px;justify-content:center;border-radius:12px;
+}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile:hover,
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile:focus-visible{background:rgba(255,255,255,.09)}
 html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile>div{display:none}
-html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{width:30px;height:30px;flex-basis:30px}
-html.fc-sidebar-collapsed .v21-shell .sidebar-footer .logout-form{display:block;padding:0}
-html.fc-sidebar-collapsed .v21-shell .sidebar-footer .logout-form button{width:30px;height:30px}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{width:34px;height:34px;flex-basis:34px}
+html.fc-sidebar-collapsed .v21-shell .sidebar-footer .logout-form{display:none}
