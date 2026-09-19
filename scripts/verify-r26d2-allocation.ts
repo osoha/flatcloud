@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {allocateCents,meterLoss,personDays,weightedAreaDays} from "../lib/settlement-allocation";
 let n=0;const check=(name:string,fn:()=>void)=>{fn();console.log(`✓ ${++n}. ${name}`)};
 check("haléře se vždy přesně sečtou",()=>{const r=allocateCents(10001,[{id:"a",basis:1},{id:"b",basis:1},{id:"c",basis:1}]);assert.equal(r.reduce((s,x)=>s+x.amountCents,0),10001)});
-check("záporný dobropis se přesně sečte",()=>assert.equal(allocateCents(-10001,[{id:"a",basis:1},{id:"b",basis:2}]).reduce((s,x)=>s+x.amountCents,0),-10001));
+check("50 jednotek zachová přesný součet i při haléřovém zbytku",()=>{const rows=Array.from({length:50},(_,i)=>({id:String(i),basis:i+1}));assert.equal(allocateCents(1234567,rows).reduce((s,x)=>s+x.amountCents,0),1234567)});\ncheck("záporný dobropis se přesně sečte",()=>assert.equal(allocateCents(-10001,[{id:"a",basis:1},{id:"b",basis:2}]).reduce((s,x)=>s+x.amountCents,0),-10001));
 check("nulový základ je blokátor",()=>assert.throws(()=>allocateCents(100,[{id:"a",basis:0}]),/kladný/));
 check("osobodny respektují střídání",()=>assert.equal(personDays(new Date("2026-01-01"),new Date("2026-01-10"),[{validFrom:new Date("2026-01-01"),validTo:new Date("2026-01-05"),personCount:2},{validFrom:new Date("2026-01-06"),validTo:new Date("2026-01-10"),personCount:1}]),15));
 check("plocha je časově vážená",()=>assert.equal(weightedAreaDays(new Date("2026-01-01"),new Date("2026-01-10"),[{validFrom:new Date("2026-01-01"),validTo:new Date("2026-01-05"),areaM2:50},{validFrom:new Date("2026-01-06"),validTo:new Date("2026-01-10"),areaM2:60}]),550));
