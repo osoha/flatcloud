@@ -36,7 +36,7 @@ export default async function ServiceSettlementPreviewPage({ params, searchParam
   return <Shell user={user} taskPropertyId={preview.lease.unit.propertyId} taskLeaseId={preview.lease.id}><div className="page service-settlement-page">
     <div className="breadcrumb"><Link href={`/smlouvy/${leaseId}`}>← Smlouva</Link><span>›</span><span>Vyúčtování služeb</span></div>
     <div className="page-title"><div><span className="eyebrow">Pracovní náhled · bez zaúčtování</span><h1>Vyúčtování služeb</h1><p>{contractingPartyNames(preview.lease).join(" + ")} · {preview.lease.unit.property.name} · {preview.lease.unit.label}</p></div><span className={`status ${preview.ready ? "ok" : "warn"}`}>{preview.ready ? "Podklady připravené" : "Doplnit podklady"}</span></div>
-    {canReadSources&&<Link className="secondary" href={`/nemovitosti/${preview.lease.unit.propertyId}/vyuctovani/podklady`}>Faktury a externí podklady vyúčtování</Link>}
+    {canReadSources&&<Link className="secondary" href={`/nemovitosti/${preview.lease.unit.propertyId}/vyuctovani/podklady?unitId=${encodeURIComponent(preview.lease.unitId)}&leaseId=${encodeURIComponent(preview.lease.id)}`}>Faktury a externí podklady vyúčtování</Link>}
     <Flash ok={query.ok} error={query.error}/>
     {periodError&&<p className="form-error">{periodError} Zobrazuji poslední uzavřený kalendářní rok.</p>}
     <form className="card settlement-period-form" method="get"><label className="field"><span>Období od</span><input name="from" type="date" defaultValue={preview.period.from || defaults.from} required/></label><label className="field"><span>Období do</span><input name="to" type="date" defaultValue={preview.period.to || defaults.to} required/></label><button className="primary">Přepočítat náhled</button></form>
