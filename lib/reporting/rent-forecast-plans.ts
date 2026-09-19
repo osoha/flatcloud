@@ -15,8 +15,8 @@ const snapshotRowSchema = z.object({
   indexationPercentBps: z.number().int().nullable(), nextIndexationAt: z.string().datetime().nullable(), mfMarketRentCents: z.number().int().nonnegative().nullable(),
 });
 const inputSnapshotSchema = z.object({
-  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-  market: z.object({ annualGrowthBps: z.number().int().min(-2000).max(2000), catchUpMonths: z.number().int().min(1).max(360), expiryStrategy: z.enum(["RENEW","RELET"]).optional(), relettingTargetBps: z.number().int().min(0).max(15000).optional(), relettingVacancyMonths: z.number().int().min(0).max(24).optional() }).optional(),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
+  market: z.object({ annualGrowthBps: z.number().int().min(-2000).max(2000), catchUpMonths: z.number().int().min(1).max(360), expiryStrategy: z.enum(["RENEW","RELET"]).optional(), renewalMode: z.enum(["AUTO","TARGET_MF","CUSTOM"]).optional(), renewalTargetBps: z.number().int().min(0).max(15000).optional(), renewalCustomRentCents: z.number().int().nonnegative().optional(), relettingTargetBps: z.number().int().min(0).max(15000).optional(), relettingVacancyMonths: z.number().int().min(0).max(24).optional() }).optional(),
   scope: z.array(z.object({ propertyId: z.string().min(1), propertyName: z.string() })).min(1),
   mfReferencePeriod: z.string(),
   rows: z.array(snapshotRowSchema),
@@ -64,7 +64,7 @@ export function snapshotForecastRows(snapshot: RentForecastPlanSnapshot): RentFo
 }
 export function calculateSavedRentForecast(plan: { name: string; asOfDate: Date; horizonMonths: number; annualGrowthBps: number; vacancyBps: number; collectionBps: number; marketGapCaptureBps: number; inputSnapshot: Prisma.JsonValue }) {
   const snapshot = parseRentForecastPlanSnapshot(plan.inputSnapshot);
-  return calculateRentForecastWithAssumptions(snapshotForecastRows(snapshot), plan.asOfDate, "saved", { label: plan.name, annualGrowthBps: plan.annualGrowthBps, vacancyBps: plan.vacancyBps, collectionBps: plan.collectionBps, marketGapCaptureBps: plan.marketGapCaptureBps, marketAnnualGrowthBps: snapshot.market?.annualGrowthBps, marketCatchUpMonths: snapshot.market?.catchUpMonths, expiryStrategy:snapshot.market?.expiryStrategy, relettingTargetBps:snapshot.market?.relettingTargetBps, relettingVacancyMonths:snapshot.market?.relettingVacancyMonths }, plan.horizonMonths, snapshot.schemaVersion);
+  return calculateRentForecastWithAssumptions(snapshotForecastRows(snapshot), plan.asOfDate, "saved", { label: plan.name, annualGrowthBps: plan.annualGrowthBps, vacancyBps: plan.vacancyBps, collectionBps: plan.collectionBps, marketGapCaptureBps: plan.marketGapCaptureBps, marketAnnualGrowthBps: snapshot.market?.annualGrowthBps, marketCatchUpMonths: snapshot.market?.catchUpMonths, expiryStrategy:snapshot.market?.expiryStrategy, renewalMode:snapshot.market?.renewalMode, renewalTargetBps:snapshot.market?.renewalTargetBps, renewalCustomRentCents:snapshot.market?.renewalCustomRentCents, relettingTargetBps:snapshot.market?.relettingTargetBps, relettingVacancyMonths:snapshot.market?.relettingVacancyMonths }, plan.horizonMonths, snapshot.schemaVersion);
 }
 
 const planInclude = { properties: { include: { property: { select: { id: true, name: true } } }, orderBy: { property: { name: "asc" as const } } }, createdBy: { select: { id: true, name: true } }, approvedBy: { select: { id: true, name: true } } } satisfies Prisma.RentForecastPlanInclude;
@@ -89,6 +89,9 @@ function validateAssumptions(assumptions: RentForecastAssumptions) {
   if (!Number.isInteger(assumptions.marketAnnualGrowthBps) || Math.abs(assumptions.marketAnnualGrowthBps!) > 2000) throw new Error("Růst trhu musí být mezi −20 a 20 %.");
   if (!Number.isInteger(assumptions.marketCatchUpMonths) || assumptions.marketCatchUpMonths! < 1 || assumptions.marketCatchUpMonths! > 360) throw new Error("Doba přiblížení musí být 1 až 360 měsíců.");
   if(!["RENEW","RELET"].includes(assumptions.expiryStrategy??"RENEW"))throw new Error("Neplatná strategie při expiraci.");
+  if(!["AUTO","TARGET_MF","CUSTOM"].includes(assumptions.renewalMode??"AUTO"))throw new Error("Neplatný režim přecenění při prodloužení.");
+  if(!Number.isInteger(assumptions.renewalTargetBps)||assumptions.renewalTargetBps!<0||assumptions.renewalTargetBps!>15000)throw new Error("Cíl při prodloužení musí být 0 až 150 % MF.");
+  if(assumptions.renewalMode==="CUSTOM"&&(!Number.isInteger(assumptions.renewalCustomRentCents)||assumptions.renewalCustomRentCents!<0))throw new Error("Vlastní nové nájemné musí být platná nezáporná částka.");
   if(!Number.isInteger(assumptions.relettingTargetBps)||assumptions.relettingTargetBps!<0||assumptions.relettingTargetBps!>15000)throw new Error("Headline rent při přeobsazení musí být 0 až 150 % MF.");
   if(!Number.isInteger(assumptions.relettingVacancyMonths)||assumptions.relettingVacancyMonths!<0||assumptions.relettingVacancyMonths!>24)throw new Error("Vacancy při přeobsazení musí být 0 až 24 měsíců.");
   const values: Array<[string, number, number]> = [["Roční růst", assumptions.annualGrowthBps, 2_000], ["Vacancy", assumptions.vacancyBps, 10_000], ["Úspěšnost inkasa", assumptions.collectionBps, 10_000], ["Využití MF rozdílu", assumptions.marketGapCaptureBps, 10_000]];
@@ -100,12 +103,12 @@ export async function createRentForecastPlan(input: { name: string; note?: strin
   if (!name || name.length > 120) throw new Error("Název scénáře musí mít 1 až 120 znaků.");
   if (!Number.isInteger(input.horizonMonths) || input.horizonMonths < 1 || input.horizonMonths > 360) throw new Error("Horizont musí být 1 až 360 měsíců.");
   const propertyIds = await requirePropertyScope(actor, input.propertyIds, PropertyPermission.EDIT);
-  input = { ...input, assumptions: { marketAnnualGrowthBps: 0, marketCatchUpMonths: 24, expiryStrategy:"RENEW", relettingTargetBps:10_000, relettingVacancyMonths:1, ...input.assumptions } };
+  input = { ...input, assumptions: { marketAnnualGrowthBps: 0, marketCatchUpMonths: 24, expiryStrategy:"RENEW", renewalMode:"AUTO", renewalTargetBps:10_000, relettingTargetBps:10_000, relettingVacancyMonths:1, ...input.assumptions } };
   validateAssumptions(input.assumptions);
   const asOfDate = new Date();
   const snapshot = await captureLiveSnapshot(actor, propertyIds, asOfDate);
   if (!input.expectedSnapshotFingerprint || rentForecastSnapshotFingerprint(snapshot, asOfDate) !== input.expectedSnapshotFingerprint) throw new Error("LIVE vstupy se od zobrazeného náhledu změnily. Zkontrolujte přepočítaný scénář a uložení zopakujte.");
-  const savedSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: 3, market: { annualGrowthBps: input.assumptions.marketAnnualGrowthBps!, catchUpMonths: input.assumptions.marketCatchUpMonths!, expiryStrategy:input.assumptions.expiryStrategy, relettingTargetBps:input.assumptions.relettingTargetBps, relettingVacancyMonths:input.assumptions.relettingVacancyMonths } };
+  const savedSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: 4, market: { annualGrowthBps: input.assumptions.marketAnnualGrowthBps!, catchUpMonths: input.assumptions.marketCatchUpMonths!, expiryStrategy:input.assumptions.expiryStrategy, renewalMode:input.assumptions.renewalMode, renewalTargetBps:input.assumptions.renewalTargetBps, renewalCustomRentCents:input.assumptions.renewalCustomRentCents, relettingTargetBps:input.assumptions.relettingTargetBps, relettingVacancyMonths:input.assumptions.relettingVacancyMonths } };
   const plan = await prisma.rentForecastPlan.create({ data: { seriesId: randomUUID(), revision: 1, name, asOfDate, horizonMonths: input.horizonMonths, annualGrowthBps: input.assumptions.annualGrowthBps, vacancyBps: input.assumptions.vacancyBps, collectionBps: input.assumptions.collectionBps, marketGapCaptureBps: input.assumptions.marketGapCaptureBps, inputSnapshot: savedSnapshot as Prisma.InputJsonValue, note: input.note?.trim() || null, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
   await prisma.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision: plan.revision } })) });
   return plan;
@@ -131,14 +134,14 @@ export async function createRentForecastPlanRevision(planId: string, actor: Acto
   const snapshot = await captureLiveSnapshot(actor, propertyIds, asOfDate);
   const sourceSnapshot = parseRentForecastPlanSnapshot(source.inputSnapshot);
   const inheritedMarket = sourceSnapshot.market ?? { annualGrowthBps: 0, catchUpMonths: 24 };
-  const revisionSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: 3, market: { annualGrowthBps: inheritedMarket.annualGrowthBps, catchUpMonths: inheritedMarket.catchUpMonths, expiryStrategy: inheritedMarket.expiryStrategy ?? "RENEW", relettingTargetBps: inheritedMarket.relettingTargetBps ?? 10_000, relettingVacancyMonths: inheritedMarket.relettingVacancyMonths ?? 1 } };
+  const revisionSnapshot: RentForecastPlanSnapshot = { ...snapshot, schemaVersion: 4, market: { annualGrowthBps: inheritedMarket.annualGrowthBps, catchUpMonths: inheritedMarket.catchUpMonths, expiryStrategy: inheritedMarket.expiryStrategy ?? "RENEW", renewalMode: inheritedMarket.renewalMode ?? "AUTO", renewalTargetBps: inheritedMarket.renewalTargetBps ?? 10_000, renewalCustomRentCents: inheritedMarket.renewalCustomRentCents, relettingTargetBps: inheritedMarket.relettingTargetBps ?? 10_000, relettingVacancyMonths: inheritedMarket.relettingVacancyMonths ?? 1 } };
   return serializableTransaction(async (tx) => {
     const existingDraft = await tx.rentForecastPlan.findFirst({ where: { seriesId: source.seriesId, status: "DRAFT" }, select: { id: true } });
     if (existingDraft) throw new Error("Tato řada již má rozpracovanou revizi.");
     const latest = await tx.rentForecastPlan.aggregate({ where: { seriesId: source.seriesId }, _max: { revision: true } });
     const revision = (latest._max.revision || 0) + 1;
     const plan = await tx.rentForecastPlan.create({ data: { seriesId: source.seriesId, revision, name: source.name, status: "DRAFT", asOfDate, horizonMonths: source.horizonMonths, annualGrowthBps: source.annualGrowthBps, vacancyBps: source.vacancyBps, collectionBps: source.collectionBps, marketGapCaptureBps: source.marketGapCaptureBps, inputSnapshot: revisionSnapshot as Prisma.InputJsonValue, note: source.note, createdById: actor.id, properties: { create: propertyIds.map((propertyId) => ({ propertyId })) } } });
-    await tx.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_REVISION_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision, sourcePlanId: source.id, sourceSnapshotVersion: sourceSnapshot.schemaVersion, snapshotVersion: 3 } })) });
+    await tx.auditLog.createMany({ data: propertyIds.map((propertyId) => ({ userId: actor.id, propertyId, action: "RENT_FORECAST_PLAN_REVISION_CREATED", entityType: "RentForecastPlan", entityId: plan.id, details: { seriesId: plan.seriesId, revision, sourcePlanId: source.id, sourceSnapshotVersion: sourceSnapshot.schemaVersion, snapshotVersion: 4 } })) });
     return plan;
   });
 }
