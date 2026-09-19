@@ -402,6 +402,7 @@ export default async function DistributionCrmPage({
                         </td>
                         <td>
                           <DismissibleDetails
+                            viewportModal
                             className="crm-opportunity-edit"
                             summary="Upravit"
                             dialogLabel={`Upravit příležitost ${item.prospect.name}`}

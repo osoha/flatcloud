@@ -3,10 +3,11 @@
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-export function DismissibleDetails({ className = "", summary, dialogLabel, children }: { className?: string; summary: React.ReactNode; dialogLabel: string; children: React.ReactNode }) {
+export function DismissibleDetails({ className = "", summary, dialogLabel, children, viewportModal = false }: { className?: string; summary: React.ReactNode; dialogLabel: string; children: React.ReactNode; viewportModal?: boolean }) {
   const detailsRef = useRef<HTMLDetailsElement>(null);
   const summaryRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousOverflowRef = useRef("");
 
   function close(restoreFocus = true) {
     const details = detailsRef.current;
@@ -31,13 +32,19 @@ export function DismissibleDetails({ className = "", summary, dialogLabel, child
     return () => {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
+      if (viewportModal) document.body.style.overflow = previousOverflowRef.current;
     };
-  }, []);
+  }, [viewportModal]);
 
-  return <details ref={detailsRef} className={`${className} dismissible-details`.trim()} onToggle={(event) => {
+  return <details ref={detailsRef} className={`${className} dismissible-details${viewportModal ? " viewport-modal" : ""}`.trim()} onToggle={(event) => {
+    if (viewportModal) {
+      if (event.currentTarget.open) { previousOverflowRef.current = document.body.style.overflow; document.body.style.overflow = "hidden"; }
+      else document.body.style.overflow = previousOverflowRef.current;
+    }
     if (event.currentTarget.open) requestAnimationFrame(() => closeButtonRef.current?.focus());
   }}>
     <summary ref={summaryRef}>{summary}</summary>
+    {viewportModal && <button className="dismissible-details-backdrop" type="button" aria-label={`Zavřít ${dialogLabel}`} onClick={() => close()}/>}
     <div className="dismissible-details-panel" role="dialog" aria-label={dialogLabel}>
       <div className="dismissible-details-head"><strong>{dialogLabel}</strong><button ref={closeButtonRef} className="dismissible-details-close" type="button" onClick={() => close()}><X size={14}/> Zavřít</button></div>
       <div className="dismissible-details-content">{children}</div>
