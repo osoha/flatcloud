@@ -437,6 +437,12 @@ enum ReportDesignPageRole {
   TRENDS
 }
 
+enum DebtTreatment {
+  CURRENT
+  HISTORICAL
+  EXCLUDED
+}
+
 enum ReportDesignBackgroundMode {
   GENERATED
   ASSET
@@ -1519,6 +1525,9 @@ model Charge {
   note                      String?
   active                    Boolean                    @default(true)
   manualOverride            Boolean                    @default(false)
+  debtTreatment             DebtTreatment              @default(CURRENT)
+  debtTreatmentAt           DateTime?
+  debtTreatmentReason       String?
   items                     ChargeItem[]
   allocations               PaymentAllocation[]
   securityDepositOffsets    SecurityDepositMovement[]  @relation("SecurityDepositOffsetCharge")
