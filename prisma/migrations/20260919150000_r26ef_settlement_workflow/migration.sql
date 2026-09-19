@@ -3,7 +3,7 @@ CREATE TABLE "ServiceSettlementWorkflow" (
  "id" TEXT NOT NULL,"protocolId" TEXT NOT NULL,"status" "ServiceSettlementWorkflowStatus" NOT NULL DEFAULT 'WORKING',
  "paymentSnapshot" JSONB,"paymentClosedById" TEXT,"paymentClosedAt" TIMESTAMP(3),
  "approvedById" TEXT,"approvedAt" TIMESTAMP(3),"deliveredById" TEXT,"deliveredAt" TIMESTAMP(3),
- "deliveryMethod" TEXT,"deliveryReference" TEXT,"objectionUntil" TIMESTAMP(3),"objectionNote" TEXT,
+ "deliveryMethod" TEXT,"deliveryReference" TEXT,"objectionUntil" TIMESTAMP(3),"objectionNote" TEXT,"objectionRaisedAt" TIMESTAMP(3),"objectionResolvedAt" TIMESTAMP(3),"objectionResolution" TEXT,
  "chargeId" TEXT,"creditId" TEXT,"settledById" TEXT,"settledAt" TIMESTAMP(3),
  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMP(3) NOT NULL,
  CONSTRAINT "ServiceSettlementWorkflow_pkey" PRIMARY KEY ("id")
