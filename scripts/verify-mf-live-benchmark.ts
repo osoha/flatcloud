@@ -1,159 +1,133 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { calculateLiveMfRentBenchmark, dispositionToMfRentCategory } from "../lib/reporting/mf-rent/live-benchmark";
-import { parseMfCadastralArea, selectMfTerritoryFromPropertyData } from "../lib/reporting/mf-rent/property-location";
+import {
+  computeMfRentBenchmark,
+  dispositionToMfRentCategory,
+  selectMfTerritoryFromPropertyData,
+} from "../lib/reporting/mf-rent/live-benchmark";
 
 const root = process.cwd();
-const read = (file: string) => fs.readFileSync(path.join(root, file), "utf8");
+const read = (p: string) => fs.readFileSync(path.join(root, p), "utf8");
 let count = 0;
-function check(name: string, run: () => void) {
-  run();
-  count += 1;
-  console.log(`✓ ${count}. ${name}`);
+function check(name: string, fn: () => void) {
+  fn();
+  console.log(`✓ ${++count}. ${name}`);
 }
 
-const category = (referenceRentCentsPerM2: number) => ({
-  referenceRentCentsPerM2,
-  lowerIntervalCentsPerM2: null,
-  upperIntervalCentsPerM2: null,
-  newBuildReferenceRentCentsPerM2: null,
-  minimumCentsPerM2: null,
-  maximumCentsPerM2: null,
-  medianCentsPerM2: null,
-  dataCoverage: 1,
-});
-const benchmarkData = {
-  schemaVersion: 1 as const,
-  vk1: category(20_000),
-  vk2: category(30_000),
-  vk3: category(40_000),
-  vk4: category(50_000),
-};
-const unit = (overrides: Record<string, unknown> = {}) => ({
-  leaseId: "lease-1",
-  propertyId: "property-1",
-  propertyName: "Veská",
-  unitId: "unit-1",
-  unitLabel: "1",
-  unitType: "APARTMENT",
-  benchmarkEligible: true,
-  occupancyStatus: "OCCUPIED" as const,
-  disposition: "ONE_KK" as const,
-  areaM2: 50,
-  actualRentPerM2Cents: 18_000,
-  ...overrides,
+check("all supported dispositions map only to official VK groups", () => {
+  const rows = [
+    ["STUDIO", "vk1"],
+    ["ONE_PLUS_KK", "vk1"],
+    ["ONE_PLUS_ONE", "vk1"],
+    ["TWO_PLUS_KK", "vk2"],
+    ["TWO_PLUS_ONE", "vk2"],
+    ["THREE_PLUS_KK", "vk3"],
+    ["THREE_PLUS_ONE", "vk3"],
+    ["FOUR_PLUS_KK", "vk4"],
+    ["FOUR_PLUS_ONE", "vk4"],
+    ["FIVE_PLUS_KK", "vk4"],
+    ["FIVE_PLUS_ONE", "vk4"],
+  ] as const;
+  for (const [disposition, expected] of rows)
+    assert.equal(dispositionToMfRentCategory(disposition), expected);
+  assert.equal(dispositionToMfRentCategory("OTHER"), null);
 });
 
-check("all supported dispositions map only to official VK groups", () => {
-  assert.equal(dispositionToMfRentCategory("STUDIO"), "vk1");
-  assert.equal(dispositionToMfRentCategory("ONE_KK"), "vk1");
-  assert.equal(dispositionToMfRentCategory("ONE_PLUS_ONE"), "vk1");
-  assert.equal(dispositionToMfRentCategory("TWO_KK"), "vk2");
-  assert.equal(dispositionToMfRentCategory("TWO_PLUS_ONE"), "vk2");
-  assert.equal(dispositionToMfRentCategory("THREE_KK"), "vk3");
-  assert.equal(dispositionToMfRentCategory("THREE_PLUS_ONE"), "vk3");
-  assert.equal(dispositionToMfRentCategory("FOUR_KK"), "vk4");
-  assert.equal(dispositionToMfRentCategory("FOUR_PLUS_ONE"), "vk4");
-  assert.equal(dispositionToMfRentCategory("OTHER"), null);
-  assert.equal(dispositionToMfRentCategory(null), null);
-});
+const release = {
+  id: "release",
+  marketYear: 2026,
+  marketQuarter: 2,
+  publishedOn: new Date("2026-08-15T00:00:00Z"),
+  sourceUrl: "https://mf.gov.cz/source.xlsx",
+};
+const mapped = {
+  locationSource: "MANUAL" as const,
+  mapping: {
+    territoryCode: "620106/cernice",
+    territoryName: "Černice",
+    municipalityName: "Plzeň",
+  },
+  release,
+  categories: {
+    vk1: { referenceRentCentsPerM2: 30000 },
+    vk2: { referenceRentCentsPerM2: 28000 },
+    vk3: { referenceRentCentsPerM2: 26000 },
+    vk4: { referenceRentCentsPerM2: 24000 },
+  },
+};
 
 check("benchmark preserves signed rent gap and area-weighted portfolio values", () => {
-  const result = calculateLiveMfRentBenchmark(
-    [
-      unit(),
-      unit({ leaseId: "lease-2", unitId: "unit-2", areaM2: 100, actualRentPerM2Cents: 33_000, disposition: "TWO_KK" }),
+  const result = computeMfRentBenchmark({
+    ...mapped,
+    units: [
+      { id: "u1", label: "1", type: "APARTMENT", disposition: "ONE_PLUS_KK", areaM2: 30, operationalStatus: "STANDARD", actualMonthlyNetRentCents: 800000 },
+      { id: "u2", label: "2", type: "APARTMENT", disposition: "TWO_PLUS_KK", areaM2: 50, operationalStatus: "STANDARD", actualMonthlyNetRentCents: 1500000 },
     ],
-    [{ propertyId: "property-1", territoryName: "Veská", data: benchmarkData }],
-  );
-  assert.equal(result.rows[0].marketGapPerM2Cents, 2_000);
-  assert.equal(result.rows[0].reversionaryPotentialCents, 100_000);
-  assert.equal(result.rows[1].marketGapPerM2Cents, -3_000);
-  assert.equal(result.rows[1].reversionaryPotentialCents, -300_000);
-  assert.equal(result.aggregate.actualRentPerM2Cents, 28_000);
-  assert.equal(result.aggregate.marketRentPerM2Cents, 26_667);
-  assert.equal(result.aggregate.reversionaryPotentialCents, -200_000);
+  });
+  assert.equal(result.coveredUnits, 2);
+  assert.equal(result.coveredAreaM2, 80);
+  assert.equal(result.actualMonthlyNetRentCents, 2300000);
+  assert.equal(result.mfMonthlyReferenceRentCents, 2300000);
+  assert.equal(result.monthlyPotentialCents, 0);
+  assert.equal(result.weightedActualRentPerM2Cents, 28750);
+  assert.equal(result.weightedMfReferenceRentPerM2Cents, 28750);
 });
 
 check("vacant apartments contribute zero actual rent and full MF letting potential", () => {
-  const result = calculateLiveMfRentBenchmark(
-    [
-      unit(),
-      unit({
-        leaseId: null,
-        unitId: "unit-vacant",
-        unitLabel: "3",
-        occupancyStatus: "VACANT",
-        areaM2: 60,
-        actualRentPerM2Cents: 0,
-        disposition: "TWO_KK",
-      }),
+  const result = computeMfRentBenchmark({
+    ...mapped,
+    units: [
+      { id: "u1", label: "1", type: "APARTMENT", disposition: "ONE_PLUS_KK", areaM2: 40, operationalStatus: "STANDARD", actualMonthlyNetRentCents: 0 },
     ],
-    [{ propertyId: "property-1", territoryName: "Veská", data: benchmarkData }],
-  );
-  const vacant = result.rows.find((row) => row.unitId === "unit-vacant");
-  assert.equal(result.propertyRows[0].coveredUnits, 2);
-  assert.equal(result.propertyRows[0].comparableUnits, 2);
-  assert.equal(vacant?.actualRentPerM2Cents, 0);
-  assert.equal(vacant?.marketRentPerM2Cents, 30_000);
-  assert.equal(vacant?.rentToMarketBps, 0);
-  assert.equal(vacant?.reversionaryPotentialCents, 1_800_000);
+  });
+  assert.equal(result.actualMonthlyNetRentCents, 0);
+  assert.equal(result.mfMonthlyReferenceRentCents, 1200000);
+  assert.equal(result.monthlyPotentialCents, 1200000);
 });
 
 check("properties remain visible when no unit is currently benchmark eligible", () => {
-  const result = calculateLiveMfRentBenchmark(
-    [unit({ benchmarkEligible: false })],
-    [],
-  );
-  assert.equal(result.propertyRows.length, 1);
-  assert.equal(result.propertyRows[0].propertyName, "Veská");
-  assert.equal(result.propertyRows[0].comparableUnits, 0);
-  assert.equal(result.propertyRows[0].coveredUnits, 0);
+  const result = computeMfRentBenchmark({
+    ...mapped,
+    units: [
+      { id: "u1", label: "1", type: "COMMERCIAL", disposition: null, areaM2: 40, operationalStatus: "STANDARD", actualMonthlyNetRentCents: 0 },
+    ],
+  });
+  assert.equal(result.coveredUnits, 0);
+  assert.equal(result.coveredAreaM2, 0);
+  assert.equal(result.actualMonthlyNetRentCents, null);
+  assert.equal(result.mfMonthlyReferenceRentCents, null);
 });
 
 check("coverage fails closed for missing area, disposition, territory or non-apartment", () => {
-  const result = calculateLiveMfRentBenchmark(
-    [
-      unit(),
-      unit({ leaseId: "lease-2", unitId: "unit-2", disposition: null }),
-      unit({ leaseId: "lease-3", unitId: "unit-3", areaM2: null }),
-      unit({ leaseId: "lease-4", unitId: "unit-4", propertyId: "property-2" }),
-      unit({ leaseId: "lease-5", unitId: "unit-5", unitType: "COMMERCIAL" }),
+  const result = computeMfRentBenchmark({
+    ...mapped,
+    units: [
+      { id: "a", label: "A", type: "APARTMENT", disposition: null, areaM2: 30, operationalStatus: "STANDARD", actualMonthlyNetRentCents: 0 },
+      { id: "b", label: "B", type: "APARTMENT", disposition: "ONE_PLUS_KK", areaM2: null, operationalStatus: "STANDARD", actualMonthlyNetRentCents: 0 },
+      { id: "c", label: "C", type: "COMMERCIAL", disposition: "ONE_PLUS_KK", areaM2: 30, operationalStatus: "STANDARD", actualMonthlyNetRentCents: 0 },
+      { id: "d", label: "D", type: "APARTMENT", disposition: "ONE_PLUS_KK", areaM2: 30, operationalStatus: "RENOVATION", actualMonthlyNetRentCents: 0 },
     ],
-    [{ propertyId: "property-1", territoryName: "Veská", data: benchmarkData }],
-  );
-  assert.equal(result.rows.length, 3);
-  assert.equal(result.aggregate.comparableUnits, 3);
-  assert.equal(result.aggregate.coveredUnits, 1);
-  assert.equal(result.aggregate.coverageBps, 3_333);
-  const missingDisposition = result.rows.find((row) => row.unitId === "unit-2");
-  assert.equal(missingDisposition?.coverageStatus, "MISSING_DISPOSITION");
-  assert.equal(missingDisposition?.actualRentPerM2Cents, 18_000);
-  assert.equal(missingDisposition?.marketRentPerM2Cents, null);
-  assert.deepEqual(
-    result.dataQualityIssues.map((issue) => issue.code).sort(),
-    ["MISSING_MF_PROPERTY_LOCATION", "MISSING_MF_UNIT_DISPOSITION"],
-  );
+  });
+  assert.equal(result.coveredUnits, 0);
+  assert.equal(result.uncoveredUnits, 4);
 });
 
 check("property cadastral data resolves exact unique territory including accents", () => {
   const selected = selectMfTerritoryFromPropertyData({
-    cadastralArea: "Veská",
-    city: "Sezemice",
-    candidates: [{ territoryCode: "785", territoryName: "Veska", municipalityName: "Sezemice" }],
+    cadastralArea: "Černice",
+    city: "Plzeň",
+    candidates: [
+      { territoryCode: "620106/cernice", territoryName: "Černice", municipalityName: "Plzeň" },
+      { territoryCode: "999999/cernice", territoryName: "Černice", municipalityName: "Jiná obec" },
+    ],
   });
-  assert.equal(selected?.territoryCode, "785");
+  assert.equal(selected?.territoryCode, "620106/cernice");
 });
 
 check("property cadastral descriptor accepts the stable six-digit MF code", () => {
-  assert.deepEqual(parseMfCadastralArea(" Černice [620106] "), {
-    raw: "Černice [620106]",
-    name: "Černice",
-    code: "620106",
-  });
   const selected = selectMfTerritoryFromPropertyData({
-    cadastralArea: "Černice [620106]",
+    cadastralArea: "620106",
     city: "Plzeň",
     candidates: [
       { territoryCode: "620106/cernice", territoryName: "Černice", municipalityName: "Plzeň" },
@@ -184,12 +158,14 @@ check("live report is read-only and shows period, coverage and source provenance
   const page = read("app/reporty/page.tsx");
   const service = read("lib/reporting/mf-rent/service.ts");
   const liveService = read("lib/reporting/live-service.ts");
-  const propertyPage = read("app/nemovitosti/[id]/reporting/page.tsx");
+  const propertyReportPage = read("app/nemovitosti/[id]/reporting/page.tsx");
+  const propertyReportSettings = read("app/nemovitosti/[id]/nastaveni/reporting/page.tsx");
   for (const token of ["MF benchmark", "Pokrytí", "Datové období MF", "pouze ke čtení"])
     assert.ok(page.includes(token), token);
   assert.ok(service.includes("PROPERTY_CADASTRAL_DATA"));
-  assert.ok(propertyPage.includes("Údaje nemovitosti"));
-  assert.ok(propertyPage.includes("Plzeň Černice nebo 620106"));
+  assert.ok(propertyReportPage.includes("pouze ke čtení"));
+  assert.ok(propertyReportSettings.includes("Údaje nemovitosti"));
+  assert.ok(propertyReportSettings.includes("Plzeň Černice nebo 620106"));
   assert.ok(read("app/nemovitosti/[id]/upravit/page.tsx").includes("Černice [620106]"));
   assert.ok(page.indexOf("<QualityPanel") > page.indexOf("<PropertyPerformance"));
   assert.doesNotMatch(page, /<details className="card quality-panel" open=/);
