@@ -28,7 +28,7 @@ import { listAccessibleRentForecastPlans, rentForecastPlanStatuses, rentForecast
 export const dynamic = "force-dynamic";
 const views = { overview: "Přehled", asset: "FlatCloud Asset", forecast: "Valorizace", occupancy: "Obsazenost", collections: "Inkaso", tenancy: "Tenancy", benchmark: "MF benchmark", deposits: "Kauce", contracts: "Smlouvy" } as const;
 type View = keyof typeof views;
-export default async function ReportCenter({ searchParams }: { searchParams: Promise<{ view?: string; properties?: string; propertyId?: string; range?: string; from?: string; to?: string; scenario?: string; horizon?: string; annualGrowthPercent?: string; vacancyPercent?: string; collectionPercent?: string; marketGapCapturePercent?: string; marketAnnualGrowthPercent?: string; marketCatchUpMonths?: string; ok?: string; error?: string }> }) {
+export default async function ReportCenter({ searchParams }: { searchParams: Promise<{ view?: string; properties?: string; propertyId?: string; range?: string; from?: string; to?: string; scenario?: string; horizon?: string; annualGrowthPercent?: string; vacancyPercent?: string; collectionPercent?: string; marketGapCapturePercent?: string; marketAnnualGrowthPercent?: string; marketCatchUpMonths?: string; expiryStrategy?: string; relettingTargetPercent?: string; relettingVacancyMonths?: string; ok?: string; error?: string }> }) {
   const [user, query] = await Promise.all([requireUser(), searchParams]);
   const asOf = new Date(), range = parseLiveReportPeriodRange(query, asOf);
   const requestedSelection = parsePortfolioSelection(query), data = await loadLiveReport(user, requestedSelection, asOf, range.periods);
