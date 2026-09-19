@@ -28,3 +28,25 @@ ALTER TABLE "SettlementAllocationRule" ADD CONSTRAINT "SettlementAllocationRule_
 ALTER TABLE "SettlementAllocationRule" ADD CONSTRAINT "SettlementAllocationRule_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 ALTER TABLE "LeaseOccupancyPeriod" ADD CONSTRAINT "LeaseOccupancyPeriod_leaseId_fkey" FOREIGN KEY ("leaseId") REFERENCES "Lease"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "UnitAreaPeriod" ADD CONSTRAINT "UnitAreaPeriod_unitId_fkey" FOREIGN KEY ("unitId") REFERENCES "Unit"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+CREATE TABLE "SettlementAllocationBatch" (
+  "id" TEXT NOT NULL, "propertyId" TEXT NOT NULL, "sourceId" TEXT NOT NULL, "lineKey" TEXT NOT NULL,
+  "ruleId" TEXT, "method" "SettlementAllocationMethod" NOT NULL, "totalCents" INTEGER NOT NULL,
+  "basisSnapshot" JSONB NOT NULL, "confirmedById" TEXT NOT NULL, "confirmedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "SettlementAllocationBatch_pkey" PRIMARY KEY ("id")
+);
+CREATE TABLE "SettlementAllocationRow" (
+  "id" TEXT NOT NULL, "batchId" TEXT NOT NULL, "unitId" TEXT NOT NULL, "leaseId" TEXT,
+  "basis" DOUBLE PRECISION NOT NULL, "shareBasisPoints" INTEGER NOT NULL, "amountCents" INTEGER NOT NULL, "label" TEXT NOT NULL,
+  CONSTRAINT "SettlementAllocationRow_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX "SettlementAllocationBatch_sourceId_lineKey_key" ON "SettlementAllocationBatch"("sourceId","lineKey");
+CREATE INDEX "SettlementAllocationBatch_propertyId_confirmedAt_idx" ON "SettlementAllocationBatch"("propertyId","confirmedAt");
+CREATE INDEX "SettlementAllocationRow_unitId_leaseId_idx" ON "SettlementAllocationRow"("unitId","leaseId");
+ALTER TABLE "SettlementAllocationBatch" ADD CONSTRAINT "SettlementAllocationBatch_propertyId_fkey" FOREIGN KEY ("propertyId") REFERENCES "Property"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SettlementAllocationBatch" ADD CONSTRAINT "SettlementAllocationBatch_sourceId_fkey" FOREIGN KEY ("sourceId") REFERENCES "SettlementSource"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SettlementAllocationBatch" ADD CONSTRAINT "SettlementAllocationBatch_ruleId_fkey" FOREIGN KEY ("ruleId") REFERENCES "SettlementAllocationRule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SettlementAllocationBatch" ADD CONSTRAINT "SettlementAllocationBatch_confirmedById_fkey" FOREIGN KEY ("confirmedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SettlementAllocationRow" ADD CONSTRAINT "SettlementAllocationRow_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "SettlementAllocationBatch"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SettlementAllocationRow" ADD CONSTRAINT "SettlementAllocationRow_unitId_fkey" FOREIGN KEY ("unitId") REFERENCES "Unit"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "SettlementAllocationRow" ADD CONSTRAINT "SettlementAllocationRow_leaseId_fkey" FOREIGN KEY ("leaseId") REFERENCES "Lease"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
