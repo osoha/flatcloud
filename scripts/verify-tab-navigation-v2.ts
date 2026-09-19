@@ -1,0 +1,11 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+const css=readFileSync("app/final-ui-polish.css","utf8");
+let n=0;const check=(name:string,fn:()=>void)=>{fn();console.log(`✓ ${++n}. ${name}`)};
+check("category tabs use strong blue separator",()=>{assert.match(css,/border-top:4px solid var\(--fc-tab-blue\)/);assert.match(css,/--fc-tab-blue:#2563eb/)});
+check("active tab is full blue with white text",()=>{assert.match(css,/background:var\(--fc-tab-blue\);\s*color:#fff/)});
+check("first tab keeps approved slanted outer edge",()=>assert.match(css,/a:first-child[\s\S]*clip-path:polygon\(10px 0,100% 0,100% 100%,0 100%\)/));
+check("last tab keeps approved slanted outer edge",()=>assert.match(css,/a:last-child[\s\S]*clip-path:polygon\(0 0,calc\(100% - 10px\) 0,100% 100%,0 100%\)/));
+check("desktop property tabs attach to identity card without extra separator",()=>assert.match(css,/property-header \+ :is\(\.section-nav,\.v21-section-nav\)[\s\S]*border-top:0/));
+check("mobile property navigation returns to separator variant",()=>assert.match(css,/@media\(max-width:700px\)[\s\S]*property-header \+ :is\(\.section-nav,\.v21-section-nav\)[\s\S]*border-top:4px solid var\(--fc-tab-blue\)/));
+console.log(`TAB-NAV-V2 verified: ${n} checks.`);
