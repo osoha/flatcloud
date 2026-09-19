@@ -168,7 +168,7 @@ export function parseRentForecastAssumptions(input: { annualGrowthPercent?: stri
 }
 
 export function calculateRentForecast(rows: RentForecastInput[], asOf: Date, scenarioKey: RentForecastScenario, horizonMonths: number) {
-  return calculateRentForecastWithAssumptions(rows, asOf, scenarioKey, rentForecastScenarios[scenarioKey], horizonMonths, 3);
+  return calculateRentForecastWithAssumptions(rows, asOf, scenarioKey, rentForecastScenarios[scenarioKey], horizonMonths, 2);
 }
 
 export function calculateRentForecastWithAssumptions(rows: RentForecastInput[], asOf: Date, scenarioKey: string, scenario: RentForecastAssumptions, horizonMonths: number, version: 1 | 2 | 3 = 2) {
