@@ -75,6 +75,7 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-collapse-toggle{margin-inline:12px
 html.fc-sidebar-collapsed .v21-shell .sidebar-collapse-toggle span,
 html.fc-sidebar-collapsed .v21-shell .nav-label,
 html.fc-sidebar-collapsed .v21-shell .v21-nav>a>span:not(.ico),
+html.fc-sidebar-collapsed .v21-shell .nav-group-items>a>span:not(.ico),
 html.fc-sidebar-collapsed .v21-shell .nav-group-toggle span,
 html.fc-sidebar-collapsed .v21-shell .nav-group-toggle svg,
 html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile>div,
