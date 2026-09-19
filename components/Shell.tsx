@@ -10,7 +10,6 @@ import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { leaseAccessWhere } from "@/lib/access";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
-import { authorizationScopeLabel } from "@/lib/access-scope-label";
 import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
 import { ScopeAwareLink } from "@/components/ScopeAwareLink";
 import { NativeDetailsEscape } from "@/components/NativeDetailsEscape";
@@ -58,21 +57,18 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
     where: { id: user.id },
     select: { _count: { select: { memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } }, unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } } } } },
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
-  const accessPropertyIds=fullAccess?[]:(await Promise.all([
-    prisma.userProperty.findMany({where:{userId:user.id},select:{propertyId:true}}),
-    prisma.userUnit.findMany({where:{userId:user.id},select:{unit:{select:{propertyId:true}}}}),
-  ])).flatMap((rows,index)=>index===0?(rows as Array<{propertyId:string}>).map(row=>row.propertyId):(rows as Array<{unit:{propertyId:string}}>).map(row=>row.unit.propertyId));
-  const accessLabel=authorizationScopeLabel(fullAccess,accessPropertyIds);
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
   return <div className="app-shell v21-shell">
     <NativeDetailsEscape/>
     <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
-      <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka">
-        <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
-      </Link>
-      <SidebarCollapseToggle/>
+      <div className="sidebar-brand-row">
+        <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka" title="FlatCloud – domovská stránka">
+          <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
+        </Link>
+        <SidebarCollapseToggle/>
+      </div>
       <nav className="nav v21-nav">
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
@@ -112,8 +108,8 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
       </nav>
       <div className="sidebar-footer">
         <div className="user-card">
-          <Link className="user-card-profile" href="/ucet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small className="user-card-email">{user.email}</small><small className="user-card-meta">{userRoles[user.role]||user.role} · {accessLabel}</small></div></Link>
-          <form className="logout-form" action="/api/auth/logout" method="post"><button aria-label="Odhlásit"><LogOut size={13}/></button></form>
+          <Link className="user-card-profile" href="/ucet" title="Můj účet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small className="user-card-meta">{userRoles[user.role]||user.role}</small></div></Link>
+          <form className="logout-form" action="/api/auth/logout" method="post"><button aria-label="Odhlásit" title="Odhlásit"><LogOut size={16}/></button></form>
         </div>
       </div>
     </aside>
@@ -134,5 +130,5 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
 }
 
 function Nav({href,icon,label,count=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;activeQuery?:Record<string,string>}){
-  return <ScopeAwareLink href={href} activeQuery={activeQuery}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
+  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
 }
