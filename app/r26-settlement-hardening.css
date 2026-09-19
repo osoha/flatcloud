@@ -1,0 +1,44 @@
+/* R26E/F mobile hardening: keep protocol content inside the viewport while wide tables scroll locally. */
+.service-protocol-page,
+.service-protocol-page > *,
+.service-protocol-page .settlement-source-card,
+.service-protocol-page .settlement-workflow-card,
+.service-protocol-page .protocol-result,
+.service-protocol-page .table-wrap {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.service-protocol-page .table-wrap {
+  width: 100%;
+}
+
+.service-protocol-page input,
+.service-protocol-page select,
+.service-protocol-page textarea {
+  max-width: 100%;
+}
+
+@media (max-width: 800px) {
+  .service-protocol-page .protocol-identity {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .service-protocol-page .protocol-identity > div {
+    min-width: 0;
+    padding-right: 0;
+    border-right: 0;
+  }
+
+  .service-protocol-page .page-title,
+  .service-protocol-page .page-title .action-row,
+  .service-protocol-page .protocol-footer {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .service-protocol-page .page-title .action-row,
+  .service-protocol-page .protocol-footer {
+    flex-wrap: wrap;
+  }
+}
