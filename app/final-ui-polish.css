@@ -46,12 +46,12 @@
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child{
   border-left:1px solid var(--fc-tab-border);
-  clip-path:polygon(10px 0,100% 0,100% 100%,0 100%);
-  padding-left:26px;
+  clip-path:polygon(0 0,100% 0,100% 100%,10px 100%);
+  padding-left:22px;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child{
-  clip-path:polygon(0 0,calc(100% - 10px) 0,100% 100%,0 100%);
-  padding-right:26px;
+  clip-path:polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%);
+  padding-right:22px;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:hover{
   background:#f4f7fc;
@@ -63,6 +63,21 @@
   background:var(--fc-tab-blue);
   color:#fff;
   box-shadow:0 7px 16px rgba(37,99,235,.22);
+}
+
+/* Desktop: the complete tab row must fit the content width without a horizontal scrollbar. */
+@media(min-width:901px){
+  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){
+    overflow-x:hidden;
+  }
+  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{
+    flex:1 1 0;
+    min-width:0;
+    padding-inline:10px;
+    font-size:11px;
+  }
+  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child{padding-left:14px}
+  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child{padding-right:14px}
 }
 
 /* The large property identity card already forms the separator: tabs sit directly under it. */
@@ -157,6 +172,8 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{
     scroll-snap-type:x proximity;
   }
   .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{
+    flex:0 0 auto;
+    min-width:max-content;
     min-height:42px;
     padding-inline:18px;
     scroll-snap-align:start;
@@ -166,7 +183,6 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{
     border-top:4px solid var(--fc-tab-blue);
   }
 }
-
 
 /* Sidebar v2: compact ChatGPT-inspired layout, FlatCloud visual language. */
 .v21-shell .sidebar-brand-row{
