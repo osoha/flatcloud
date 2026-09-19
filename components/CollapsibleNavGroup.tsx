@@ -10,11 +10,12 @@ type CollapsibleNavGroupProps = {
   activeRoots: string[];
   children: React.ReactNode;
   defaultOpen?: boolean;
+  forceOpen?: boolean;
 };
 
 const storageKey = (id: string) => `flatcloud:nav-group:${id}`;
 
-export function CollapsibleNavGroup({ id, label, activeRoots, children, defaultOpen = false }: CollapsibleNavGroupProps) {
+export function CollapsibleNavGroup({ id, label, activeRoots, children, defaultOpen = false, forceOpen = false }: CollapsibleNavGroupProps) {
   const pathname = usePathname();
   const panelId = useId();
   const routeActive = activeRoots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
@@ -25,15 +26,15 @@ export function CollapsibleNavGroup({ id, label, activeRoots, children, defaultO
     if (stored !== null) setUserOpen(stored === "open");
   }, [id]);
 
-  const expanded = routeActive || userOpen;
+  const expanded = routeActive || forceOpen || userOpen;
   const toggle = () => {
-    if (routeActive) return;
+    if (routeActive || forceOpen) return;
     const next = !userOpen;
     setUserOpen(next);
     window.localStorage.setItem(storageKey(id), next ? "open" : "closed");
   };
 
-  return <section className={`nav-collapsible-section${routeActive ? " route-active" : ""}`}>
+  return <section className={`nav-collapsible-section${routeActive ? " route-active" : ""}${forceOpen ? " attention-open" : ""}`}>
     <button
       type="button"
       className="nav-group-toggle"

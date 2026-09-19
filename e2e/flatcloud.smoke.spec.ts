@@ -98,6 +98,21 @@ test("levé menu má ikonové sbalení, hover popisky a kompaktní profil", asyn
   await expect(page).toHaveURL(/\/ucet(?:\?|$)/);
 });
 
+test("R28 sidebar skupiny a kompaktní rail nemají mrtvé ovládací prvky", async ({ page }) => {
+  await login(page);
+  const sidebar=page.locator(".sidebar");
+  const operations=sidebar.locator(".nav-collapsible-section").filter({hasText:"Provoz"}).first();
+  const finance=sidebar.locator(".nav-collapsible-section").filter({hasText:"Finance"}).first();
+  await expect(operations.getByRole("button",{name:"Provoz"})).toBeVisible();
+  await expect(finance.getByRole("button",{name:"Finance"})).toBeVisible();
+  await sidebar.getByRole("button",{name:"Sbalit levé menu"}).click();
+  await expect(page.locator("html")).toHaveClass(/fc-sidebar-collapsed/);
+  await expect(operations.locator(".nav-group-toggle")).toBeHidden();
+  await expect(finance.locator(".nav-group-toggle")).toBeHidden();
+  await expect(sidebar.getByTitle("Úkoly")).toBeVisible();
+  await expect(sidebar.getByTitle("Předpisy")).toBeVisible();
+});
+
 test("záložky nemovitosti navazují na záhlaví a jejich texty se nepřekrývají", async ({ page }) => {
   await login(page);
   const propertyHref = await page.locator('a[href^="/nemovitosti/"][href$="/prehled"]').first().getAttribute("href");

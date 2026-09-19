@@ -114,10 +114,11 @@ async function main() {
 
   await check("navigation keeps quality in Operations and removes the dashboard shortcut", () => {
     const shell = read("components/Shell.tsx");
+    const operations = shell.indexOf('id="operations"');
     const tasks = shell.indexOf('href="/ukoly"');
     const quality = shell.indexOf('href="/portfolio/kvalita"');
-    const finance = shell.indexOf('<div className="nav-label">Finance</div>');
-    assert.ok(tasks >= 0 && quality > tasks && finance > quality, "Kvalita a CAPEX must sit after Tasks in Operations");
+    const finance = shell.indexOf('id="finance"');
+    assert.ok(operations >= 0 && tasks > operations && quality > tasks && finance > quality, "Kvalita a CAPEX must sit after Tasks in Operations and before Finance");
     const portfolio = read("app/portfolio/page.tsx");
     assert.doesNotMatch(portfolio, /href="\/portfolio\/kvalita"/);
   });
