@@ -3,6 +3,7 @@ import "./documents.css";
 import "./audit-polish.css";
 import "./final-ui-polish.css";
 import "./r26-settlement-hardening.css";
+import "./r29d-costs-payments-polish.css";
 
 export const metadata = {
   title: "FlatCloud Rent",
