@@ -8,6 +8,7 @@ const fullSections = [
   ["platby", "Platby"],
   ["finance", "Náklady a úvěry"],
   ["vyuctovani/podklady", "Podklady vyúčtování"],
+  ["meridla", "Měřidla"],
   ["provoz", "Provoz"],
   ["banka", "Banka a pravidla"],
   ["technicke-udaje", "Technické údaje"],
