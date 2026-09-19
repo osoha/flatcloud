@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { PrismaClient } from "@prisma/client";
+import { emptySourceLine, validateSource } from "../lib/settlement-source-rules";
 import {
   approveSettlement,
   closeSettlementPayments,
@@ -27,7 +28,7 @@ const snapshot = (property: any, unit: any, lease: any) => ({
   lease: { id: lease.id, contractNumber: null, tenantNames: ["QA"] },
   totals: { advancesCents: 1000000, actualCostsCents: 1200000, balanceCents: 200000 },
   advances: [{ period: "2025-01", amountCents: 1000000 }],
-  costs: [{ sourceCostId: "x", title: "Voda", effectiveAt: "2025-12-31", sourceAmountCents: 1200000, allocatedAmountCents: 1200000, allocationLabel: "QA", documentCount: 1 }],
+  costs: [{ sourceCostId: "x", title: "Teplo", effectiveAt: "2025-12-31", sourceAmountCents: 1200000, allocatedAmountCents: 1200000, allocationLabel: "QA", documentCount: 1 }],
   meters: [],
   warnings: [],
 });
@@ -45,7 +46,22 @@ async function main() {
     const account = await db.bankAccount.create({ data: { propertyId: property.id, provider: "QA", bankName: "QA", ibanMasked: "QA", externalAccountId: tag } });
     const tx = await db.bankTransaction.create({ data: { bankAccountId: account.id, externalId: tag, bookedAt: new Date("2025-01-05"), amountCents: 1100000, status: "MATCHED" } });
     await db.paymentAllocation.create({ data: { transactionId: tx.id, chargeId: charge.id, amountCents: 1100000 } });
-    await db.settlementSource.create({ data: { propertyId: property.id, identityKey: tag, version: 1, payload: { schemaVersion: 1, mode: "EXTERNAL_UNIT", kind: "EXTERNAL", vendor: "QA", reference: tag, from: "2025-01-01", to: "2025-12-31", supplyAmount: "12000", supplierAdvances: "0", unitId: unit.id, creditForId: "", propertyCostId: "", revisionReason: "", lines: [{ key: "water", service: "WATER", role: "COST", from: "2025-01-01", to: "2025-12-31", amount: "12000", unitId: unit.id, leaseId: lease.id, base: "", consumptionComponent: "", correction: "", rounding: "", quantity: "", measure: "", explanation: "", componentsComplete: false, ownerOverride: false, ownerReason: "" }] }, createdById: user.id, confirmedById: user.id, confirmedAt: new Date(), confirmation: { qa: true } } });
+
+    const asset = await db.fileAsset.create({ data: { storageKey: tag, originalName: "synthetic.pdf", mimeType: "application/pdf", sizeBytes: 10, sha256: tag, uploadedById: user.id } });
+    const document = await db.document.create({ data: { propertyId: property.id, fileAssetId: asset.id, title: tag, category: "OTHER", createdById: user.id } });
+    const sourcePayload = validateSource({
+      mode: "EXTERNAL_UNIT",
+      kind: "EXTERNAL",
+      vendor: "QA",
+      reference: tag,
+      from: "2025-01-01",
+      to: "2025-12-31",
+      supplyAmount: "12000",
+      unitId: unit.id,
+      lines: [{ ...emptySourceLine("2025-01-01", "2025-12-31"), amount: "12000", unitId: unit.id, leaseId: lease.id, service: "HEATING", base: "4000", consumptionComponent: "8000", componentsComplete: true }],
+    });
+    await db.settlementSource.create({ data: { propertyId: property.id, documentId: document.id, identityKey: tag, version: 1, payload: sourcePayload, createdById: user.id, confirmedById: user.id, confirmedAt: new Date(), confirmation: { documentId: document.id, sha256: tag } } });
+
     const protocol = await db.serviceSettlementProtocol.create({ data: { leaseId: lease.id, periodFrom: new Date("2025-01-01"), periodTo: new Date("2025-12-31"), advancesCents: 1000000, actualCostsCents: 1200000, balanceCents: 200000, snapshot: snapshot(property, unit, lease), issuedById: user.id } });
 
     await check("payment close uses confirmed bank payment, not prescribed amount alone", async () => {
