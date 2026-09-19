@@ -576,6 +576,7 @@ model OwnerBankAccount {
 model Property {
   settlementSources SettlementSource[]
   settlementAllocationRules SettlementAllocationRule[]
+  settlementAllocationBatches SettlementAllocationBatch[]
 
   id                                String                       @id @default(cuid())
   propertyCode                      String                       @unique @default(dbgenerated())
@@ -1073,6 +1074,7 @@ model Unit {
   assetCostAllocations      PropertyCostAllocation[]
   assetAssessments          UnitAssetAssessment[]
   areaPeriods               UnitAreaPeriod[]
+  settlementAllocationRows  SettlementAllocationRow[]
   conditionAssessments      UnitConditionAssessment[]
   valuationSnapshots        UnitValuationSnapshot[]
   distributionOpportunities DistributionOpportunity[]
@@ -1424,6 +1426,7 @@ model Lease {
   rentChangeProposals         RentChangeProposal[]
   serviceSettlementProtocols  ServiceSettlementProtocol[]
   occupancyPeriods            LeaseOccupancyPeriod[]
+  settlementAllocationRows     SettlementAllocationRow[]
   documents                   Document[]
   createdAt                   DateTime                    @default(now())
   updatedAt                   DateTime                    @updatedAt
@@ -2354,4 +2357,42 @@ model UnitAreaPeriod {
   createdAt DateTime @default(now())
 
   @@index([unitId, validFrom])
+}
+
+
+model SettlementAllocationBatch {
+  id            String                   @id @default(cuid())
+  propertyId    String
+  property      Property                 @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  sourceId      String
+  source        SettlementSource         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  lineKey       String
+  ruleId        String?
+  rule          SettlementAllocationRule? @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  method        SettlementAllocationMethod
+  totalCents    Int
+  basisSnapshot Json
+  rows          SettlementAllocationRow[]
+  confirmedById String
+  confirmedBy   User                     @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
+  confirmedAt   DateTime                 @default(now())
+
+  @@unique([sourceId, lineKey])
+  @@index([propertyId, confirmedAt])
+}
+
+model SettlementAllocationRow {
+  id               String                    @id @default(cuid())
+  batchId          String
+  batch            SettlementAllocationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  unitId           String
+  unit             Unit                      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  leaseId          String?
+  lease             Lease?                   @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  basis             Float
+  shareBasisPoints Int
+  amountCents      Int
+  label             String
+
+  @@index([unitId, leaseId])
 }
