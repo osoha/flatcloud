@@ -5,10 +5,19 @@ const read = (path: string) => readFileSync(path, "utf8");
 let checks = 0;
 function check(name: string, run: () => void) { run(); checks++; console.log(`✓ ${checks}. ${name}`); }
 
-check("operational navigation remains permanently visible", () => {
+check("overview navigation remains permanently visible", () => {
   const shell = read("components/Shell.tsx");
-  for (const marker of ['label="Portfolio"', 'label="Úkoly"', 'label="Nespárované platby"', 'label="Předpisy"']) assert.match(shell, new RegExp(marker));
-  assert.ok(shell.indexOf('label="Portfolio"') < shell.indexOf("<CollapsibleNavGroup"));
+  for (const marker of ['label="Portfolio"', 'label="Reporty"']) assert.match(shell, new RegExp(marker));
+  assert.ok(shell.indexOf('label="Portfolio"') < shell.indexOf('id="operations"'));
+});
+
+check("operations and finance are intentional contextual collapsible groups", () => {
+  const shell = read("components/Shell.tsx");
+  assert.match(shell, /id="operations" label="Provoz"[^\n]+forceOpen=\{openTasks > 0 \|\| dueRevisions > 0\}/);
+  assert.match(shell, /id="finance" label="Finance"[^\n]+forceOpen=\{unmatchedCount > 0\}/);
+  for (const marker of ['label="Úkoly"', 'label="Nespárované platby"', 'label="Předpisy"']) assert.match(shell, new RegExp(marker));
+  assert.ok(shell.indexOf('id="operations"') < shell.indexOf('label="Úkoly"'));
+  assert.ok(shell.indexOf('id="finance"') < shell.indexOf('label="Předpisy"'));
 });
 
 check("secondary navigation is split into intentional collapsible groups", () => {
@@ -25,10 +34,10 @@ check("group control is keyboard-accessible and exposes state", () => {
   assert.match(component, /<ChevronDown aria-hidden="true"/);
 });
 
-check("active route cannot remain hidden and user preference persists", () => {
+check("active route and attention state cannot remain hidden and user preference persists", () => {
   const component = read("components/CollapsibleNavGroup.tsx");
-  assert.match(component, /const expanded = routeActive \|\| userOpen/);
-  assert.match(component, /if \(routeActive\) return/);
+  assert.match(component, /const expanded = routeActive \|\| forceOpen \|\| userOpen/);
+  assert.match(component, /if \(routeActive \|\| forceOpen\) return/);
   assert.match(component, /window\.localStorage\.getItem/);
   assert.match(component, /window\.localStorage\.setItem/);
 });
@@ -46,6 +55,7 @@ check("browser regression covers collapsed, persisted and active-route states", 
   assert.match(smoke, /toHaveAttribute\("aria-expanded", "false"\)/);
   assert.match(smoke, /keyboard\.press\("Enter"\)/);
   assert.match(smoke, /page\.goto\("\/metodika"\)/);
+  assert.match(smoke, /R28 sidebar skupiny a kompaktní rail nemají mrtvé ovládací prvky/);
 });
 
 check("R19B verifier is part of the release gate", () => {
@@ -53,4 +63,4 @@ check("R19B verifier is part of the release gate", () => {
   assert.match(read(".github/workflows/ci.yml"), /verify:r19b-collapsible-navigation/);
 });
 
-console.log(`R19B sbalovací navigace ověřena: ${checks} kontrol.`);
+console.log(`R19B/R28 sbalovací navigace ověřena: ${checks} kontrol.`);
