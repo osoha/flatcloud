@@ -5,7 +5,7 @@ const propertySubnav=readFileSync("components/PropertySubnav.tsx","utf8");
 let n=0;const check=(name:string,fn:()=>void)=>{fn();console.log(`✓ ${++n}. ${name}`)};
 check("category tabs use strong blue separator",()=>{assert.match(css,/border-top:4px solid var\(--fc-tab-blue\)/);assert.match(css,/--fc-tab-blue:#2563eb/)});
 check("active tab is full blue with white text",()=>{assert.match(css,/background:var\(--fc-tab-blue\);\s*color:#fff/)});
-check("tabs use softened pseudo-element bevels instead of sharp polygon clipping",()=>{assert.doesNotMatch(css,/clip-path:polygon/);assert.match(css,/a:first-child::before[\s\S]*transform:skewX\(9deg\)/);assert.match(css,/a:last-child::after[\s\S]*transform:skewX\(-9deg\)/)});
+check("tabs use clean borderless softened bevels instead of sharp polygon clipping",()=>{assert.doesNotMatch(css,/clip-path:polygon/);assert.match(css,/width:20px;[\s\S]*border:0;[\s\S]*box-shadow:none/);assert.match(css,/a:first-child::before[\s\S]*transform:skewX\(8deg\)[\s\S]*border-radius:8px 0 0 12px/);assert.match(css,/a:last-child::after[\s\S]*transform:skewX\(-8deg\)[\s\S]*border-radius:0 8px 12px 0/)});
 check("property navigation has a dedicated styling hook",()=>assert.match(propertySubnav,/section-nav v21-section-nav property-subnav/));
 check("desktop property tabs attach directly below the identity card",()=>{assert.match(css,/property-header:has\(\+ \.property-subnav\)[\s\S]*margin-bottom:0/);assert.match(css,/property-header \+ \.property-subnav\{[\s\S]*margin:-1px 24px 18px;[\s\S]*border-top:0/)});
 check("desktop property navigation is inset and scrollbar-free",()=>assert.match(css,/property-header \+ \.property-subnav\{[\s\S]*width:calc\(100% - 48px\)[\s\S]*overflow-x:hidden/));
