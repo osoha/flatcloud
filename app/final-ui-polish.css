@@ -80,12 +80,19 @@
   .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child{padding-right:14px}
 }
 
-/* The large property identity card already forms the separator: tabs sit directly under it. */
-.v21-shell .property-header + :is(.section-nav,.v21-section-nav){
-  margin-top:-1px;
-  border-top:0;
+/* The property tabs form the lower edge of the identity card. On desktop the
+   complete menu stays inset within the card width. */
+.v21-shell .property-header:has(+ .property-subnav){
+  margin-bottom:0;
 }
-.v21-shell .property-header + :is(.section-nav,.v21-section-nav)>a{
+.v21-shell .property-header + .property-subnav{
+  width:calc(100% - 48px);
+  max-width:calc(100% - 48px);
+  margin:-1px 24px 18px;
+  border-top:0;
+  overflow-x:hidden;
+}
+.v21-shell .property-header + .property-subnav>a{
   min-height:46px;
   border-top:1px solid var(--fc-tab-border);
 }
@@ -178,9 +185,19 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{
     padding-inline:18px;
     scroll-snap-align:start;
   }
-  .v21-shell .property-header + :is(.section-nav,.v21-section-nav){
+  .v21-shell .property-header + .property-subnav{
+    width:100%;
+    max-width:100%;
+    margin-inline:0;
     margin-top:0;
     border-top:4px solid var(--fc-tab-blue);
+    overflow-x:auto;
+  }
+  .v21-shell .property-header + .property-subnav>a{
+    flex:0 0 auto;
+    min-width:max-content;
+    padding-inline:18px;
+    font-size:12px;
   }
 }
 
