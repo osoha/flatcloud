@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "verify:r26c2-meter-hierarchy": "node --import tsx scripts/verify-r26c2-meter-hierarchy.ts",
+    "verify:r26d2-allocation": "node --import tsx scripts/verify-r26d2-allocation.ts",
     "verify:v23-a": "node --import tsx scripts/verify-v23-a.ts",
     "verify:v23-b": "node --import tsx scripts/verify-v23-b.ts",
     "verify:v23-c": "node --import tsx scripts/verify-v23-c.ts",
