@@ -259,6 +259,13 @@ enum MeterType {
   GAS
 }
 
+
+enum MeterScope {
+  UNIT
+  HOUSE_MAIN
+  HOUSE_SUBMETER
+}
+
 enum NotificationType {
   PAYMENT_NOTICE
   FIRST_REMINDER
@@ -581,6 +588,7 @@ model Property {
   flatcloudConsolidationBasisPoints Int?
   ownerships                        PropertyOwnership[]
   units                             Unit[]
+  meters                            Meter[]
   bankAccounts                      BankAccount[]
   matchingRules                     BankMatchingRule[]
   memberships                       UserProperty[]
@@ -1450,19 +1458,33 @@ model Occupant {
 }
 
 model Meter {
-  id            String         @id @default(cuid())
-  unitId        String
-  unit          Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  type          MeterType
-  label         String?
-  serialNumber  String?
-  unitOfMeasure String
-  active        Boolean        @default(true)
-  readings      MeterReading[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id              String       @id @default(cuid())
+  propertyId      String
+  property        Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId          String?
+  unit            Unit?        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  scope           MeterScope   @default(UNIT)
+  parentId        String?
+  parent          Meter?       @relation("MeterHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children        Meter[]      @relation("MeterHierarchy")
+  replacementOfId String?      @unique
+  replacementOf   Meter?       @relation("MeterReplacement", fields: [replacementOfId], references: [id], onDelete: Restrict)
+  replacedBy      Meter?       @relation("MeterReplacement")
+  type            MeterType
+  label           String?
+  serialNumber    String?
+  location        String?
+  unitOfMeasure   String
+  installedAt     DateTime?
+  removedAt       DateTime?
+  active          Boolean      @default(true)
+  readings        MeterReading[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
+  @@index([propertyId, scope, type])
   @@index([unitId, type])
+  @@index([parentId])
 }
 
 model MeterReading {
