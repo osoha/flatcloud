@@ -15,6 +15,7 @@ import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access"
 import { ScopeAwareLink } from "@/components/ScopeAwareLink";
 import { NativeDetailsEscape } from "@/components/NativeDetailsEscape";
 import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
+import { SidebarCollapseToggle } from "@/components/SidebarCollapseToggle";
 
 type ShellUser = {
   id: string;
@@ -71,6 +72,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
       <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka">
         <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
       </Link>
+      <SidebarCollapseToggle/>
       <nav className="nav v21-nav">
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
