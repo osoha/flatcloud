@@ -48,7 +48,8 @@ export function projectSettlementCosts(sources: ConfirmedSourceInput[], input: {
         blockers.push(`${service[1]}: čeká na externí rozúčtování; faktura ani ruční odečet nejsou výsledkem rozúčtování.`); continue;
       }
       if (!line.unitId) {
-        const allocation=input.allocations?.find(a=>a.sourceId===source.id&&a.lineKey===line.key&&a.unitId===input.unitId&&(!a.leaseId||a.leaseId===input.leaseId));
+        const overlappingLeases=input.leases.filter(l=>overlaps(l.from,l.to??"9999-12-31",line.from,line.to));
+        const allocation=input.allocations?.find(a=>a.sourceId===source.id&&a.lineKey===line.key&&a.unitId===input.unitId&&(a.leaseId===input.leaseId||(!a.leaseId&&overlappingLeases.length===1&&overlappingLeases[0].id===input.leaseId)));
         if(!allocation){blockers.push(`${service[1]}: domovní náklad nemá potvrzené rozdělení na jednotky a nájemní vztahy.`);continue;}
         rows.push({id:`${source.id}:${line.key}:allocation`,sourceId:source.id,version:source.version,lineKey:line.key,service:line.service,title:`${service[1]} · ${p.reference}`,from:line.from,to:line.to,amountCents:allocation.amountCents,confirmedAt:source.confirmedAt!.toISOString(),allocationLabel:allocation.label,components:{base:'',consumption:'',correction:'',rounding:'',complete:false}});
         continue;
