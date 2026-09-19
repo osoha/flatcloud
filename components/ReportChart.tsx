@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { FinancialTrendChart } from "./FinancialTrendChart";
 import { money } from "@/lib/format";
+import type { RentForecastExpiryEvent } from "@/lib/reporting/rent-forecast";
 
 type Point = { label: string; expected: number; paid: number };
 type OccupancyPoint = { label: string; occupancyBps: number | null; rentable: number; occupied: number; vacant: number; unknown: number };
@@ -105,17 +106,34 @@ export function OccupancyChart({ data }: { data: OccupancyPoint[] }) {
   </div>;
 }
 
-export function RentForecastChart({ data, mfPeriod }: { data: ForecastPoint[]; mfPeriod?: string }) {
+const expiryStrategyLabel = (event: RentForecastExpiryEvent) => event.strategy === "RELET" ? `Přeobsadit${event.vacancyMonths ? ` · vacancy ${event.vacancyMonths} m` : ""}` : event.strategy === "RENEW_TARGET_MF" ? "Prodloužit · cíl dle MF" : event.strategy === "RENEW_CUSTOM" ? "Prodloužit · vlastní nájem" : "Prodloužit · automaticky";
+const expiryDateLabel = (value: string) => new Intl.DateTimeFormat("cs-CZ", { day: "numeric", month: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(value));
+
+export function RentForecastChart({ data, mfPeriod, expiryEvents = [] }: { data: ForecastPoint[]; mfPeriod?: string; expiryEvents?: RentForecastExpiryEvent[] }) {
   const [showMf, setShowMf] = useState(true);
   const [annual, setAnnual] = useState(true);
   const long = data.length > 60;
   // Annual view samples month-end run rates, never annual sums on a Kč/month axis.
   const points = long && annual ? data.filter((_, index) => index === 0 || (index + 1) % 12 === 0 || index === data.length - 1) : data;
   const series = [{ label: "Smluvní vývoj", color: "#8299b7", dashed: true }, { label: "Plán scénáře", color: "#1769e0" }, { label: "Očekávané inkaso", color: "#2f9f72" }, ...(showMf ? [{ label: "Tržní nájemné · MF odhad", color: "#9b59b6", dashed: true }] : [])];
+  const groupedMarkers = new Map<string, RentForecastExpiryEvent[]>();
+  for (const event of expiryEvents) {
+    const point = points.find(item => item.period >= event.period) ?? points.at(-1);
+    if (!point) continue;
+    groupedMarkers.set(point.period, [...(groupedMarkers.get(point.period) ?? []), event]);
+  }
+  const markers = [...groupedMarkers].map(([period,events]) => {
+    const point = points.find(item => item.period === period)!;
+    const impact = events.reduce((sum,event)=>sum+event.impactCents,0);
+    const relets = events.filter(event=>event.strategy==="RELET").length;
+    const lines = [`Dopad headline rentu: ${impact>=0?"+":""}${money(impact)} / měsíc${relets?` · přeobsazení ${relets}`:""}`];
+    for (const event of events) lines.push(`${expiryDateLabel(event.expiryDate)} · ${event.propertyName} · ${event.unitLabel} — ${expiryStrategyLabel(event)}`, `${money(event.previousRentCents)} → ${money(event.newRentCents)} · MF ${event.marketRentCents==null?"bez podkladu":money(event.marketRentCents)}`);
+    return { period, title: events.length===1?`Expirace · ${expiryDateLabel(events[0].expiryDate)}`:`${period} · ${events.length} expirace`, count: events.length, value: point.plannedCents, lines };
+  });
   return <div className="rent-forecast-chart">
     <div className="financial-chart-controls"><div role="group" aria-label="Ukazatele scénáře"><button type="button" aria-pressed={showMf} onClick={() => setShowMf(!showMf)}>MF</button></div>{long && <div role="group" aria-label="Podrobnost scénáře"><button type="button" aria-pressed={annual} onClick={() => setAnnual(true)}>Po letech</button><button type="button" aria-pressed={!annual} onClick={() => setAnnual(false)}>Po měsících</button></div>}</div>
     {showMf && <p className="muted-copy">MF reference: {mfPeriod ?? "uložený podklad"}. Budoucí vývoj je vlastní scénář, nikoli prognóza MF. {data.some(row => row.mfProjectedCents == null) && "Pro celý rozsah chybí úplné MF pokrytí; tržní čára se nezobrazuje. Podklady jednotlivých jednotek najdete níže."}</p>}
     {long && <p className="muted-copy">Dlouhodobá simulace je hrubý odhad s rostoucí nejistotou. {annual && "Body po letech ukazují měsíční nájemné na konci každých 12 měsíců, nikoli roční součet."}</p>}
-    <FinancialTrendChart title="Scénář valorizace a očekávaného inkasa" rows={points.map(point => ({ label: point.period, values: [point.contractualCents, point.plannedCents, point.expectedCollectedCents, ...(showMf ? [point.mfProjectedCents ?? null] : [])] }))} series={series} percent detail pointClass="forecast-point"/>
+    <FinancialTrendChart title="Scénář valorizace a očekávaného inkasa" rows={points.map(point => ({ label: point.period, values: [point.contractualCents, point.plannedCents, point.expectedCollectedCents, ...(showMf ? [point.mfProjectedCents ?? null] : [])] }))} series={series} markers={markers} percent detail pointClass="forecast-point"/>
   </div>;
 }

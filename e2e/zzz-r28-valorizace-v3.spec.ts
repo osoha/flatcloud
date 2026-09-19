@@ -29,6 +29,10 @@ test("Valorizace v3 renders event-driven saved scenario on mobile without mutati
     await expect(page.getByText("Růst trhu 2 % ročně · doba přiblížení 24 měsíců.", { exact: false })).toBeVisible();
     const chart = page.locator(".rent-forecast-chart");
     await expect(chart.locator(".forecast-point")).toHaveCount(8);
+    await expect(chart.locator(".financial-event-marker")).toHaveCount(3);
+    await chart.locator(".financial-event-marker").first().hover();
+    await expect(chart.locator(".financial-event-tooltip")).toContainText("R28 Valorizace property · 3M-01");
+    await expect(chart.locator(".financial-event-tooltip")).toContainText("Přeobsadit · vacancy 1 m");
     const box = await chart.locator("svg").boundingBox(); expect(box).not.toBeNull(); expect(box!.width).toBeLessThanOrEqual(390);
     await chart.getByText("Datová tabulka grafu", { exact: true }).click();
     await expect(chart.getByRole("table").getByRole("row")).toHaveCount(9);

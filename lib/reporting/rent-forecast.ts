@@ -14,8 +14,27 @@ export type RentForecastAssumptions = {
   collectionBps: number;
   marketGapCaptureBps: number;
   expiryStrategy?: "RENEW" | "RELET";
+  renewalMode?: "AUTO" | "TARGET_MF" | "CUSTOM";
+  renewalTargetBps?: number;
+  renewalCustomRentCents?: number;
   relettingTargetBps?: number;
   relettingVacancyMonths?: number;
+};
+
+export type RentForecastExpiryEvent = {
+  period: string;
+  expiryDate: string;
+  leaseId: string;
+  propertyId: string;
+  propertyName: string;
+  unitId: string;
+  unitLabel: string;
+  strategy: "RENEW_AUTO" | "RENEW_TARGET_MF" | "RENEW_CUSTOM" | "RELET";
+  previousRentCents: number;
+  marketRentCents: number | null;
+  newRentCents: number;
+  impactCents: number;
+  vacancyMonths: number;
 };
 
 export type RentForecastInput = {
@@ -39,7 +58,7 @@ const endOfMonth = (value: Date) => new Date(Date.UTC(value.getUTCFullYear(), va
 const periodKey = (value: Date) => value.toISOString().slice(0, 7);
 const applyRate = (cents: number, basisPoints: number) => Math.round(cents * (10_000 + basisPoints) / 10_000);
 
-function contractualRentAt(row: RentForecastInput, month: Date, version: 1 | 2 | 3) {
+function contractualRentAt(row: RentForecastInput, month: Date, version: 1 | 2 | 3 | 4) {
   if (row.effectiveEnd && month > row.effectiveEnd) return 0;
   if (!row.indexationEnabled || !row.indexationPercentBps || !row.nextIndexationAt) return row.currentRentCents;
   let rent = row.currentRentCents;
@@ -74,6 +93,7 @@ function eventDrivenPlanAt(row: RentForecastInput, month: Date, asOf: Date, scen
   let lastEvent = firstMonth;
   let vacancyStart: Date | null = null;
   let vacancyUntil: Date | null = null;
+  const expiryEvents: RentForecastExpiryEvent[] = [];
   const events: Array<{ date: Date; kind: "INDEXATION" | "EXPIRY" }> = [];
 
   if (row.indexationEnabled && row.nextIndexationAt) {
@@ -95,10 +115,32 @@ function eventDrivenPlanAt(row: RentForecastInput, month: Date, asOf: Date, scen
     if (event.date < firstMonth) continue;
     const market = marketRentAt(row, event.date, asOf, scenario);
     if (event.kind === "EXPIRY" && (scenario.expiryStrategy ?? "RENEW") === "RELET") {
+      const previousRentCents = rent;
       if (market != null) rent = Math.round(market * (scenario.relettingTargetBps ?? 10_000) / 10_000);
       const vacancyMonths = Math.max(0, scenario.relettingVacancyMonths ?? 1);
       vacancyStart = new Date(Date.UTC(event.date.getUTCFullYear(), event.date.getUTCMonth(), 1));
       vacancyUntil = vacancyMonths ? addMonths(vacancyStart, vacancyMonths) : vacancyStart;
+      const expiryDate = new Date(event.date.getTime() - 1);
+      expiryEvents.push({ period: periodKey(expiryDate), expiryDate: expiryDate.toISOString(), leaseId: row.leaseId, propertyId: row.propertyId, propertyName: row.propertyName, unitId: row.unitId, unitLabel: row.unitLabel, strategy: "RELET", previousRentCents, marketRentCents: market, newRentCents: rent, impactCents: rent - previousRentCents, vacancyMonths });
+    } else if (event.kind === "EXPIRY") {
+      const previousRentCents = rent;
+      const mode = scenario.renewalMode ?? "AUTO";
+      if (mode === "TARGET_MF") {
+        if (market != null) rent = Math.round(market * (scenario.renewalTargetBps ?? 10_000) / 10_000);
+      } else if (mode === "CUSTOM") {
+        if (Number.isInteger(scenario.renewalCustomRentCents) && scenario.renewalCustomRentCents! >= 0) rent = scenario.renewalCustomRentCents!;
+      } else {
+        const elapsed = Math.max(1, monthDistance(lastEvent, event.date));
+        const annualFactor = (1 + scenario.annualGrowthBps / 10_000) ** (elapsed / 12);
+        const growthTarget = Math.round(rent * annualFactor);
+        const totalElapsed = monthDistance(firstMonth, event.date) + 1;
+        const captureProgress = Math.min(1, totalElapsed / Math.max(1, scenario.marketCatchUpMonths ?? 24));
+        const marketGap = market == null ? 0 : Math.max(0, market - row.currentRentCents);
+        const gapTarget = row.currentRentCents + Math.round(marketGap * (scenario.marketGapCaptureBps / 10_000) * captureProgress);
+        rent = Math.max(rent, growthTarget, gapTarget);
+      }
+      const expiryDate = new Date(event.date.getTime() - 1);
+      expiryEvents.push({ period: periodKey(expiryDate), expiryDate: expiryDate.toISOString(), leaseId: row.leaseId, propertyId: row.propertyId, propertyName: row.propertyName, unitId: row.unitId, unitLabel: row.unitLabel, strategy: mode === "TARGET_MF" ? "RENEW_TARGET_MF" : mode === "CUSTOM" ? "RENEW_CUSTOM" : "RENEW_AUTO", previousRentCents, marketRentCents: market, newRentCents: rent, impactCents: rent - previousRentCents, vacancyMonths: 0 });
     } else {
       const elapsed = Math.max(1, monthDistance(lastEvent, event.date));
       const annualFactor = (1 + scenario.annualGrowthBps / 10_000) ** (elapsed / 12);
@@ -113,16 +155,16 @@ function eventDrivenPlanAt(row: RentForecastInput, month: Date, asOf: Date, scen
   }
 
   const vacant = Boolean(vacancyStart && vacancyUntil && month >= vacancyStart && month < vacancyUntil);
-  return { rent, vacant };
+  return { rent, vacant, expiryEvents };
 }
 
-function plannedRentAt(row: RentForecastInput, monthIndex: number, horizonMonths: number, scenario: RentForecastAssumptions, version: 1 | 2 | 3, month?: Date, asOf?: Date) {
-  if (version === 3 && month && asOf) return eventDrivenPlanAt(row, month, asOf, scenario);
+function plannedRentAt(row: RentForecastInput, monthIndex: number, horizonMonths: number, scenario: RentForecastAssumptions, version: 1 | 2 | 3 | 4, month?: Date, asOf?: Date) {
+  if (version >= 3 && month && asOf) return eventDrivenPlanAt(row, month, asOf, scenario);
   const positiveMarketGap = Math.max(0, (row.mfMarketRentCents ?? row.currentRentCents) - row.currentRentCents);
   const captureProgress = Math.min(1, (monthIndex + 1) / Math.max(1, version === 1 ? horizonMonths : scenario.marketCatchUpMonths ?? 24));
   let rent = row.currentRentCents + Math.round(positiveMarketGap * scenario.marketGapCaptureBps / 10_000 * captureProgress);
   for (let year = 0; year < Math.floor(monthIndex / 12); year += 1) rent = applyRate(rent, scenario.annualGrowthBps);
-  return { rent, vacant: false };
+  return { rent, vacant: false, expiryEvents: [] as RentForecastExpiryEvent[] };
 }
 
 export function parseRentForecastScenario(value?: string): RentForecastScenario {
@@ -147,7 +189,7 @@ function percentQueryToBasisPoints(value: string | undefined, fallback: number, 
   try { return rentForecastBasisPointsFromPercent(value, label, maximum); } catch { return fallback; }
 }
 
-export function parseRentForecastAssumptions(input: { annualGrowthPercent?: string; vacancyPercent?: string; collectionPercent?: string; marketGapCapturePercent?: string; marketAnnualGrowthPercent?: string; marketCatchUpMonths?: string; expiryStrategy?: string; relettingTargetPercent?: string; relettingVacancyMonths?: string }, scenarioKey: RentForecastScenario) {
+export function parseRentForecastAssumptions(input: { annualGrowthPercent?: string; vacancyPercent?: string; collectionPercent?: string; marketGapCapturePercent?: string; marketAnnualGrowthPercent?: string; marketCatchUpMonths?: string; expiryStrategy?: string; renewalMode?: string; renewalTargetPercent?: string; renewalCustomRent?: string; relettingTargetPercent?: string; relettingVacancyMonths?: string }, scenarioKey: RentForecastScenario) {
   const preset = rentForecastScenarios[scenarioKey];
   const customized = Object.values(input).some((value) => value !== undefined);
   return {
@@ -161,6 +203,9 @@ export function parseRentForecastAssumptions(input: { annualGrowthPercent?: stri
       marketCatchUpMonths: input.marketCatchUpMonths === undefined ? preset.marketCatchUpMonths : parseRentForecastHorizon(input.marketCatchUpMonths),
       marketGapCaptureBps: percentQueryToBasisPoints(input.marketGapCapturePercent, preset.marketGapCaptureBps, 10_000, "Využití MF rozdílu"),
       expiryStrategy: input.expiryStrategy === "RELET" ? "RELET" : input.expiryStrategy === "RENEW" ? "RENEW" : preset.expiryStrategy,
+      renewalMode: input.renewalMode === "TARGET_MF" ? "TARGET_MF" : input.renewalMode === "CUSTOM" ? "CUSTOM" : "AUTO",
+      renewalTargetBps: percentQueryToBasisPoints(input.renewalTargetPercent, 10_000, 15_000, "Cíl při prodloužení"),
+      renewalCustomRentCents: input.renewalCustomRent === undefined ? undefined : Math.max(0, Math.round((Number(input.renewalCustomRent.replace(/\s/g, "").replace(",", ".")) || 0) * 100)),
       relettingTargetBps: percentQueryToBasisPoints(input.relettingTargetPercent, preset.relettingTargetBps, 15_000, "Headline rent při přeobsazení"),
       relettingVacancyMonths: input.relettingVacancyMonths === undefined ? preset.relettingVacancyMonths : Math.max(0, Math.min(24, Math.trunc(Number(input.relettingVacancyMonths) || 0))),
     } satisfies RentForecastAssumptions,
@@ -171,7 +216,7 @@ export function calculateRentForecast(rows: RentForecastInput[], asOf: Date, sce
   return calculateRentForecastWithAssumptions(rows, asOf, scenarioKey, rentForecastScenarios[scenarioKey], horizonMonths, 2);
 }
 
-export function calculateRentForecastWithAssumptions(rows: RentForecastInput[], asOf: Date, scenarioKey: string, scenario: RentForecastAssumptions, horizonMonths: number, version: 1 | 2 | 3 = 2) {
+export function calculateRentForecastWithAssumptions(rows: RentForecastInput[], asOf: Date, scenarioKey: string, scenario: RentForecastAssumptions, horizonMonths: number, version: 1 | 2 | 3 | 4 = 2) {
   if (!Number.isInteger(horizonMonths) || horizonMonths < 1 || horizonMonths > 360) throw new Error("Horizont musí mít 1 až 360 měsíců.");
   const firstMonth = new Date(Date.UTC(asOf.getUTCFullYear(), asOf.getUTCMonth(), 1));
   const months = Array.from({ length: horizonMonths }, (_, index) => {
@@ -182,7 +227,7 @@ export function calculateRentForecastWithAssumptions(rows: RentForecastInput[], 
     const expectedCollectedCents = Math.round(plannedStates.reduce((sum, state) => sum + (state.vacant ? 0 : state.rent), 0) * (10_000 - scenario.vacancyBps) / 10_000 * scenario.collectionBps / 10_000);
     const mfReferenceCents = rows.reduce((sum, row) => sum + (row.mfMarketRentCents ?? row.currentRentCents), 0);
     const mfProjectedCents = rows.length && rows.every((row) => row.mfMarketRentCents != null)
-      ? rows.reduce((sum, row) => sum + (version === 3 ? marketRentAt(row, month, asOf, scenario)! : Math.round(row.mfMarketRentCents! * (1 + (version === 1 ? 0 : scenario.marketAnnualGrowthBps ?? 0) / 10_000) ** Math.floor(index / 12))), 0)
+      ? rows.reduce((sum, row) => sum + (version >= 3 ? marketRentAt(row, month, asOf, scenario)! : Math.round(row.mfMarketRentCents! * (1 + (version === 1 ? 0 : scenario.marketAnnualGrowthBps ?? 0) / 10_000) ** Math.floor(index / 12))), 0)
       : null;
     return { period: periodKey(month), contractualCents, plannedCents, expectedCollectedCents, mfReferenceCents, mfProjectedCents };
   });
@@ -195,11 +240,16 @@ export function calculateRentForecastWithAssumptions(rows: RentForecastInput[], 
   const sum = (select: (month: typeof months[number]) => number) => months.reduce((total, month) => total + select(month), 0);
   const contractualTotalCents = sum((month) => month.contractualCents);
   const plannedTotalCents = sum((month) => month.plannedCents);
+  const finalMonth = months.length ? addMonths(firstMonth, months.length - 1) : firstMonth;
+  const expiryEvents = version >= 3
+    ? rows.flatMap((row) => eventDrivenPlanAt(row, addMonths(finalMonth, 1), asOf, scenario).expiryEvents).filter((event) => event.period <= periodKey(finalMonth))
+    : [];
   return {
     scenarioKey,
     scenario,
     horizonMonths,
     months,
+    expiryEvents,
     unitRows,
     leaseCount: rows.length,
     expiringLeaseCount: rows.filter((row) => row.effectiveEnd && row.effectiveEnd <= endOfMonth(addMonths(firstMonth, horizonMonths - 1))).length,

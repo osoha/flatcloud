@@ -444,14 +444,17 @@ test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ 
   await expect(workspace).toContainText("Pracovní scénář · nic nemění ve smlouvách ani předpisech");
   await expect(workspace.getByText("Model · ne schválený plán", { exact: true })).toBeVisible();
   await expect(workspace.getByRole("img", { name: "Scénář valorizace a očekávaného inkasa" })).toBeVisible();
+  await expect(workspace.locator(".expiry-strategy-card").getByText("Strategie při expiraci", { exact: true })).toBeVisible();
+  await expect(workspace.getByText("Změny se přepočítají automaticky", { exact: true })).toBeVisible();
+  await expect(workspace.getByText("Automaticky dle scénáře", { exact: true })).toBeVisible();
   await expect(workspace.locator(".forecast-point")).toHaveCount(24);
   await expect(workspace.getByText("Uložit tuto variantu", { exact: true })).toBeVisible();
   await workspace.getByRole("link", { name: "Konzervativní", exact: true }).click();
   await expect(page).toHaveURL(/view=forecast&scenario=conservative&horizon=24/);
   await expect(page.locator(".rent-forecast-workspace")).toContainText("1,0 % ročně");
+  await expect(page.getByRole("button", { name: "Přepočítat vlastní scénář", exact: true })).toBeVisible();
   await page.getByLabel("Roční růst nájmu", { exact: true }).fill("4.25");
   await page.getByLabel("Vacancy", { exact: true }).fill("6.5");
-  await page.getByRole("button", { name: "Přepočítat vlastní scénář", exact: true }).click();
   await expect(page).toHaveURL(/annualGrowthPercent=4.25/);
   await expect(page).toHaveURL(/vacancyPercent=6.5/);
   await expect(page.getByText("Vlastní model · ne schválený plán", { exact: true })).toBeVisible();

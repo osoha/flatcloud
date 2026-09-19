@@ -36,7 +36,7 @@ test('R27A: custom market, 20-year horizon, chart toggle and immutable saved rev
     await expect(page).toHaveURL(/\/reporty\/valorizace\//);
     const plan = await db.rentForecastPlan.findFirstOrThrow({ where: { name } });
     expect(plan.horizonMonths).toBe(240);
-    expect(plan.inputSnapshot).toMatchObject({ schemaVersion: 3, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
+    expect(plan.inputSnapshot).toMatchObject({ schemaVersion: 4, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
     await expect(page.getByText(/Růst trhu −?\-?1,25 % ročně/)).toBeVisible();
     await page.getByText('Schválit tuto revizi', { exact: true }).click();
     await page.getByRole('button', { name: 'Potvrdit schválení plánu', exact: true }).click();
@@ -44,7 +44,7 @@ test('R27A: custom market, 20-year horizon, chart toggle and immutable saved rev
     await page.getByRole('button', { name: /Nová revize z LIVE dat/ }).click();
     await expect(page).not.toHaveURL(new RegExp(`${plan.id}$`));
     const revision = await db.rentForecastPlan.findFirstOrThrow({ where: { seriesId: plan.seriesId, revision: 2 } });
-    expect(revision.inputSnapshot).toMatchObject({ schemaVersion: 3, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
+    expect(revision.inputSnapshot).toMatchObject({ schemaVersion: 4, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
     expect((await db.rentForecastPlan.findUniqueOrThrow({ where: { id: plan.id } })).inputSnapshot).toEqual(plan.inputSnapshot);
     await page.goto('/metodika?view=chapters&q=valorizace');
     await expect(page.getByText('Valuace, valorizace a plán nájemného', { exact: true })).toBeVisible();
