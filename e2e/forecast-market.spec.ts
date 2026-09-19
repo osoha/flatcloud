@@ -36,7 +36,7 @@ test('R27A: custom market, 20-year horizon, chart toggle and immutable saved rev
     await expect(page).toHaveURL(/\/reporty\/valorizace\//);
     const plan = await db.rentForecastPlan.findFirstOrThrow({ where: { name } });
     expect(plan.horizonMonths).toBe(240);
-    expect(plan.inputSnapshot).toMatchObject({ schemaVersion: 3, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
+    expect(plan.inputSnapshot).toMatchObject({ schemaVersion: 4, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
     await expect(page.getByText(/Růst trhu −?\-?1,25 % ročně/)).toBeVisible();
     await page.getByText('Schválit tuto revizi', { exact: true }).click();
     await page.getByRole('button', { name: 'Potvrdit schválení plánu', exact: true }).click();

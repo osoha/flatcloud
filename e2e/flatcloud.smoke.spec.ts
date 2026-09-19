@@ -444,7 +444,7 @@ test("valorizace odděluje read-only scénář od smluv a předpisů", async ({ 
   await expect(workspace).toContainText("Pracovní scénář · nic nemění ve smlouvách ani předpisech");
   await expect(workspace.getByText("Model · ne schválený plán", { exact: true })).toBeVisible();
   await expect(workspace.getByRole("img", { name: "Scénář valorizace a očekávaného inkasa" })).toBeVisible();
-  await expect(workspace.getByText("Strategie při expiraci", { exact: true })).toBeVisible();
+  await expect(workspace.locator(".expiry-strategy-card").getByText("Strategie při expiraci", { exact: true })).toBeVisible();
   await expect(workspace.getByText("Změny se přepočítají automaticky", { exact: true })).toBeVisible();
   await expect(workspace.getByText("Automaticky dle scénáře", { exact: true })).toBeVisible();
   await expect(workspace.locator(".forecast-point")).toHaveCount(24);
