@@ -76,13 +76,13 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
         {canAddProperty && <Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/>}
 
-        <CollapsibleNavGroup id="operations" label="Provoz" activeRoots={["/ukoly","/portfolio/kvalita","/revize"]} defaultOpen={openTasks > 0 || dueRevisions > 0}>
+        <CollapsibleNavGroup id="operations" label="Provoz" activeRoots={["/ukoly","/portfolio/kvalita","/revize"]} forceOpen={openTasks > 0 || dueRevisions > 0}>
           <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
           <Nav href="/portfolio/kvalita" icon={<Hammer size={17}/>} label="Kvalita a CAPEX"/>
           <Nav href="/revize" icon={<ClipboardCheck size={17}/>} label="Revize" count={dueRevisions}/>
         </CollapsibleNavGroup>
 
-        <CollapsibleNavGroup id="finance" label="Finance" activeRoots={["/platby","/reporty/predpisy","/reporty/saldo","/kauce"]} defaultOpen={unmatchedCount > 0}>
+        <CollapsibleNavGroup id="finance" label="Finance" activeRoots={["/platby","/reporty/predpisy","/reporty/saldo","/kauce"]} forceOpen={unmatchedCount > 0}>
           {superAdmin && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/reporty/predpisy" icon={<ReceiptText size={17}/>} label="Předpisy"/>
           <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
