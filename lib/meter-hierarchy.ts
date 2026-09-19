@@ -9,7 +9,7 @@ export function validateMeterHierarchy(candidate: MeterHierarchyNode, existing: 
   if (candidate.scope !== "UNIT" && candidate.unitId) throw new Error("Domovní měřidlo nesmí být přiřazeno bytové jednotce.");
   if (candidate.scope === "HOUSE_MAIN" && candidate.parentId) throw new Error("Hlavní domovní měřidlo nemůže mít nadřazené měřidlo.");
   if (candidate.parentId === candidate.id) throw new Error("Měřidlo nemůže být nadřazené samo sobě.");
-  const byId = new Map(existing.map((meter) => [meter.id, meter]));
+  const byId = new Map([...existing, candidate].map((meter) => [meter.id, meter]));
   if (candidate.parentId) {
     const parent = byId.get(candidate.parentId);
     if (!parent) throw new Error("Nadřazené měřidlo nebylo nalezeno.");
