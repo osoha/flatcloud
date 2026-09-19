@@ -152,6 +152,17 @@ html.fc-sidebar-collapsed .v21-shell .sidebar-footer .user-card-profile .avatar{
   html.fc-sidebar-collapsed .v21-shell .main{margin-left:0;width:100%}
   .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){
     margin-inline:0;
-    border-radius:9px;
+    border-radius:0;
+    border-top:4px solid var(--fc-tab-blue);
+    scroll-snap-type:x proximity;
+  }
+  .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{
+    min-height:42px;
+    padding-inline:18px;
+    scroll-snap-align:start;
+  }
+  .v21-shell .property-header + :is(.section-nav,.v21-section-nav){
+    margin-top:0;
+    border-top:4px solid var(--fc-tab-blue);
   }
 }
