@@ -1,55 +1,87 @@
-/* Final pre-sandbox UI polish: unified tabs, collapsible desktop sidebar, quieter guidance. */
-
-/* One visual grammar for second-level navigation across properties, units, reports,
-   registries, administration and CAPEX. Long sets scroll horizontally instead of wrapping
-   into visually unrelated rows. */
+/* Final production tab language.
+   Property detail uses tabs attached to the large identity header.
+   Category pages use the same tabs under a strong blue separator. */
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){
+  --fc-tab-blue:#2563eb;
+  --fc-tab-border:#dfe6f1;
   display:flex;
-  align-items:center;
-  gap:4px;
+  align-items:stretch;
+  gap:0;
   width:100%;
   max-width:100%;
+  min-width:0;
   box-sizing:border-box;
   overflow-x:auto;
   overflow-y:hidden;
   scrollbar-width:thin;
   overscroll-behavior-inline:contain;
-  padding:5px;
-  margin:0 0 16px;
-  border:1px solid var(--line);
-  border-radius:11px;
-  background:#f7f9fc;
+  padding:0;
+  margin:0 0 18px;
+  border:0;
+  border-top:4px solid var(--fc-tab-blue);
+  border-radius:0;
+  background:transparent;
   box-shadow:none;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{
   flex:0 0 auto;
-  min-height:34px;
+  min-height:44px;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:7px 11px;
-  border:0;
-  border-radius:7px;
-  background:transparent;
-  color:#667085;
-  font-size:11px;
-  font-weight:750;
+  padding:9px 22px;
+  margin:0;
+  border:1px solid var(--fc-tab-border);
+  border-top:0;
+  border-left:0;
+  border-radius:0;
+  background:#fff;
+  color:#172554;
+  font-size:12px;
+  font-weight:700;
   line-height:1.2;
   white-space:nowrap;
   text-decoration:none;
+  box-shadow:0 4px 12px rgba(23,37,84,.035);
+}
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child{
+  border-left:1px solid var(--fc-tab-border);
+  clip-path:polygon(10px 0,100% 0,100% 100%,0 100%);
+  padding-left:26px;
+}
+.v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child{
+  clip-path:polygon(0 0,calc(100% - 10px) 0,100% 100%,0 100%);
+  padding-right:26px;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:hover{
-  background:#edf2f8;
-  color:var(--navy);
+  background:#f4f7fc;
+  color:#102a67;
 }
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a.active,
 .v21-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a[aria-current="page"]{
-  background:#fff;
-  color:var(--blue);
-  box-shadow:0 1px 4px rgba(16,38,76,.12);
+  border-color:var(--fc-tab-blue);
+  background:var(--fc-tab-blue);
+  color:#fff;
+  box-shadow:0 7px 16px rgba(37,99,235,.22);
 }
+
+/* The large property identity card already forms the separator: tabs sit directly under it. */
+.v21-shell .property-header + :is(.section-nav,.v21-section-nav){
+  margin-top:-1px;
+  border-top:0;
+}
+.v21-shell .property-header + :is(.section-nav,.v21-section-nav)>a{
+  min-height:46px;
+  border-top:1px solid var(--fc-tab-border);
+}
+
+/* Keep the compact unit navigation visible while scrolling. */
 .v21-shell .unit-tabs{position:sticky;top:74px;z-index:10}
 
+/* Category heading + blue separator reads as one navigation block. */
+.v21-shell .page-title:has(+ :is(.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav,.unit-tabs)){
+  margin-bottom:0;
+}
 /* Desktop sidebar can collapse to an icon rail. The preference is stored client-side. */
 .sidebar-collapse-toggle{
   margin:0 10px 8px;
