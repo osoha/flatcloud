@@ -42,3 +42,27 @@
     flex-wrap: wrap;
   }
 }
+
+/* The shell already intends to remove the desktop rail below 700 px. Keep the
+   final imported stylesheet authoritative as well, including when a persisted
+   collapsed-sidebar preference is present before/while the viewport is resized. */
+@media (max-width: 700px) {
+  .v21-shell .sidebar,
+  html.fc-sidebar-collapsed .v21-shell .sidebar {
+    display: none !important;
+  }
+
+  .v21-shell .main,
+  html.fc-sidebar-collapsed .v21-shell .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100vw;
+    min-width: 0;
+  }
+
+  .v21-shell .topbar,
+  .v21-shell .page {
+    max-width: 100vw;
+    min-width: 0;
+  }
+}
