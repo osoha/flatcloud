@@ -64,7 +64,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
     <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
       <div className="sidebar-brand-row">
-        <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka" title="Portfolio">
+        <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka" title="FlatCloud – domovská stránka">
           <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
         </Link>
         <SidebarCollapseToggle/>
