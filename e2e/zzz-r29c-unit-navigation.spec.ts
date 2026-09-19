@@ -31,7 +31,7 @@ test("unit-only owner gets unit reports but never report correction settings", a
     await login(page, user.email, password);
     await page.goto(`/nemovitosti/${property.id}/reporting`);
     await expect(page.getByRole("heading", { name: "Reporty jednotek", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Reporty", exact: true })).toBeVisible();
+    await expect(page.locator(".property-subnav").getByRole("link", { name: "Reporty", exact: true })).toBeVisible();
     await expect(page.getByText(visibleUnit.label, { exact: true }).first()).toBeVisible();
     await expect(page.getByText(foreignUnit.label, { exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Nastavení reportů", exact: true })).toHaveCount(0);
