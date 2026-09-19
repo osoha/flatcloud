@@ -22,6 +22,9 @@ const users = read("app/uzivatele/page.tsx");
 const propertyUsers = read("app/nemovitosti/[id]/[section]/page.tsx");
 const portfolio = read("app/portfolio/page.tsx");
 const propertyDetail = read("app/nemovitosti/[id]/[section]/page.tsx");
+const userEdit = read("app/uzivatele/[id]/page.tsx");
+const permissionLevelSelect = read("app/uzivatele/[id]/PermissionLevelSelect.tsx");
+const userAccessStyles = read("app/uzivatele/[id]/user-access.module.css");
 
 checks.push(["sidebar contracts link to catalog", shell.includes('href="/smlouvy"') && !shell.includes('href="/smlouvy/upozorneni" icon={<CalendarCheck2')]);
 checks.push(["sidebar lease badge uses shared scope", shell.includes("leaseAccessWhere(user)")]);
@@ -55,6 +58,11 @@ checks.push(["single V21.7 migration", read("prisma/migrations/20260828170000_v2
 checks.push(["same-day deposit guard retained", read("lib/security-deposit.ts").includes("securityDepositDateAsOf")]);
 checks.push(["advanced account creation de-emphasized", users.includes("Pokročilé: vytvořit účet bez pozvánky")]);
 checks.push(["property add-member wording", propertyUsers.includes("Přidat člena")]);
+checks.push(["existing-user editor explains clear permission levels", ["Čtení", "Zápis", "Plná správa"].every((label) => userEdit.includes(label)) && userEdit.includes("Aktuální přístup")]);
+checks.push(["permission selector gives live level meaning", ["Bez přístupu", "Čtení", "Zápis", "Plná správa"].every((label) => permissionLevelSelect.includes(label)) && permissionLevelSelect.includes("onChange" )]);
+checks.push(["existing-user editor keeps explicit access confirmation", userEdit.includes('name="confirmAccessChange"') && userEdit.includes("Bez tohoto potvrzení server změnu oprávnění neuloží")]);
+checks.push(["locked final admin remains editable without dropping hidden access fields", userEdit.includes('name="role" value={edited.role}') && userEdit.includes('name="active" value="on"') && userEdit.includes('name="allProperties" value="on"')]);
+checks.push(["user access editor has responsive object and unit rows", userEdit.includes("PermissionLevelSelect") && userAccessStyles.includes(".permissionRow") && userAccessStyles.includes("@media(max-width:700px)" )]);
 
 const localA = { email: "jan@example.cz", propertyId: "A", propertyIds: ["A"], unitIds: [], allProperties: false, role: UserRole.OWNER_VIEWER };
 const localB = { ...localA, propertyId: "B", propertyIds: ["B"] };

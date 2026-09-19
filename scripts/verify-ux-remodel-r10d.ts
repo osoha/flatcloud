@@ -42,7 +42,11 @@ check("user mutation reconfirms access impact inside the transaction", () => {
   assert.match(transaction, /editableUserAccessChanged/);
   assert.match(transaction, /confirmAccessChange/);
   assert.match(route, /unitMemberships, avatarChanged/);
-  assert.match(read("app/uzivatele/[id]/page.tsx"), /Efektivní rozsah přístupu/);
+  const userPage = read("app/uzivatele/[id]/page.tsx");
+  assert.match(userPage, /Aktuální přístup/);
+  assert.match(userPage, /Čtení/);
+  assert.match(userPage, /Zápis/);
+  assert.match(userPage, /Plná správa/);
 });
 
 check("mail retention is previewed and confirmed on UI and server", () => {
