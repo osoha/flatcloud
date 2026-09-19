@@ -19,6 +19,7 @@ export async function confirmSettlementAllocation(actor:Actor,propertyId:string,
   if(!line||line.unitId)throw new Error("Rozdělit lze pouze domovní nákladový řádek.");
   const rule=await tx.settlementAllocationRule.findFirst({where:{id:ruleId,propertyId,active:true}});
   if(!rule||rule.service!==line.service)throw new Error("Pravidlo neodpovídá službě.");
+  const lineFrom=startInstant(line.from),lineTo=endInstant(line.to);if(rule.validFrom>lineTo||(rule.validTo&&rule.validTo<lineFrom))throw new Error("Pravidlo není platné pro období řádku.");
   if(rule.method==="EXTERNAL_RESULT")throw new Error("Externí výsledek musí být vložen jako podklad konkrétní jednotky, nikoli dopočítán.");
   if(rule.method==="MANUAL")throw new Error("Ruční rozdělení vyžaduje samostatně doložené řádky; automatické potvrzení není povoleno.");
   const from=startInstant(line.from),to=endInstant(line.to),periodDays=overlapDays(from,to,from,to);
