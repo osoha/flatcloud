@@ -1,12 +1,14 @@
 import { test, expect } from '@playwright/test';
 test('R27A: custom market, 20-year horizon, chart toggle and immutable saved revision', async ({ page }) => {
   if (!process.env.DATABASE_URL || !['localhost','127.0.0.1','postgres'].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error('Isolated CI database required');
+  const password = process.env.E2E_ADMIN_PASSWORD;
+  if (!password) throw new Error('E2E_ADMIN_PASSWORD is required');
   const { PrismaClient } = await import('@prisma/client'); const db = new PrismaClient();
   try {
     const property = await db.property.findFirstOrThrow({ where: { active: true } });
     await page.goto('/login');
     await page.getByLabel('E-mail').fill(process.env.E2E_ADMIN_EMAIL || 'e2e.admin@flatcloud.test');
-    await page.getByLabel('Heslo').fill(process.env.E2E_ADMIN_PASSWORD || 'FlatCloud-E2E-Only-Password-2026');
+    await page.getByLabel('Heslo').fill(password);
     await page.getByRole('button', { name: 'Přihlásit se', exact: true }).click();
     await expect(page).toHaveURL(/\/portfolio/);
     await page.goto(`/reporty?view=forecast&properties=${property.id}`);
@@ -34,7 +36,7 @@ test('R27A: custom market, 20-year horizon, chart toggle and immutable saved rev
     await expect(page).toHaveURL(/\/reporty\/valorizace\//);
     const plan = await db.rentForecastPlan.findFirstOrThrow({ where: { name } });
     expect(plan.horizonMonths).toBe(240);
-    expect(plan.inputSnapshot).toMatchObject({ schemaVersion: 2, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
+    expect(plan.inputSnapshot).toMatchObject({ schemaVersion: 3, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
     await expect(page.getByText(/Růst trhu −?\-?1,25 % ročně/)).toBeVisible();
     await page.getByText('Schválit tuto revizi', { exact: true }).click();
     await page.getByRole('button', { name: 'Potvrdit schválení plánu', exact: true }).click();
@@ -42,7 +44,7 @@ test('R27A: custom market, 20-year horizon, chart toggle and immutable saved rev
     await page.getByRole('button', { name: /Nová revize z LIVE dat/ }).click();
     await expect(page).not.toHaveURL(new RegExp(`${plan.id}$`));
     const revision = await db.rentForecastPlan.findFirstOrThrow({ where: { seriesId: plan.seriesId, revision: 2 } });
-    expect(revision.inputSnapshot).toMatchObject({ schemaVersion: 2, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
+    expect(revision.inputSnapshot).toMatchObject({ schemaVersion: 3, market: { annualGrowthBps: -125, catchUpMonths: 60 } });
     expect((await db.rentForecastPlan.findUniqueOrThrow({ where: { id: plan.id } })).inputSnapshot).toEqual(plan.inputSnapshot);
     await page.goto('/metodika?view=chapters&q=valorizace');
     await expect(page.getByText('Valuace, valorizace a plán nájemného', { exact: true })).toBeVisible();
