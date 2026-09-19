@@ -173,6 +173,7 @@ jobs:
       - run: node --import tsx scripts/verify-r26c-readings.ts
       - run: npm run verify:r26c2-meter-hierarchy
       - run: npm run verify:r26d2-allocation
+      - run: npm run verify:r26ef-workflow
 
   browser-smoke:
     needs: build
