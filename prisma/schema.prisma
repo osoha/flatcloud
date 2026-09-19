@@ -275,6 +275,16 @@ enum SettlementAllocationMethod {
   MANUAL
 }
 
+
+enum ServiceSettlementWorkflowStatus {
+  WORKING
+  PAYMENT_CLOSED
+  APPROVED
+  DELIVERED
+  OBJECTION_OPEN
+  SETTLED
+}
+
 enum NotificationType {
   PAYMENT_NOTICE
   FIRST_REMINDER
@@ -462,6 +472,12 @@ model User {
   authoredMeterReadings MeterReading[] @relation("ReadingAuthor")
   settlementSourcesCreated SettlementSource[] @relation("SourceCreator")
   settlementSourcesConfirmed SettlementSource[] @relation("SourceConfirmer")
+  settlementAllocationRulesCreated SettlementAllocationRule[]
+  settlementAllocationBatchesConfirmed SettlementAllocationBatch[]
+  settlementWorkflowsClosed ServiceSettlementWorkflow[] @relation("SettlementWorkflowCloser")
+  settlementWorkflowsApproved ServiceSettlementWorkflow[] @relation("SettlementWorkflowApprover")
+  settlementWorkflowsDelivered ServiceSettlementWorkflow[] @relation("SettlementWorkflowDeliverer")
+  settlementWorkflowsSettled ServiceSettlementWorkflow[] @relation("SettlementWorkflowSettler")
   isTestIdentity                       Boolean                        @default(false)
   id                                   String                         @id @default(cuid())
   email                                String                         @unique
@@ -1564,6 +1580,7 @@ model Charge {
   updatedAt                 DateTime                   @updatedAt
   notifications             RentNotification[]
   serviceSettlementProtocol ServiceSettlementProtocol?
+  settlementWorkflowDebit ServiceSettlementWorkflow? @relation("SettlementWorkflowCharge")
 
   @@unique([leaseId, period])
   @@index([leaseId, dueDate])
@@ -1711,6 +1728,7 @@ model LeaseCredit {
   serviceSettlementProtocol ServiceSettlementProtocol?
 
   @@index([leaseId, effectiveAt])
+  settlementWorkflowCredit ServiceSettlementWorkflow? @relation("SettlementWorkflowCredit")
 }
 
 model ServiceSettlementProtocol {
@@ -1731,6 +1749,7 @@ model ServiceSettlementProtocol {
   issuedById       String
   issuedBy         User         @relation("ServiceSettlementProtocolIssuer", fields: [issuedById], references: [id], onDelete: Restrict)
   issuedAt         DateTime     @default(now())
+  workflow         ServiceSettlementWorkflow?
 
   @@unique([leaseId, periodFrom, periodTo])
   @@index([leaseId, issuedAt])
@@ -2397,4 +2416,35 @@ model SettlementAllocationRow {
   label             String
 
   @@index([unitId, leaseId])
+}
+
+
+model ServiceSettlementWorkflow {
+  id                String                          @id @default(cuid())
+  protocolId        String                          @unique
+  protocol          ServiceSettlementProtocol       @relation(fields: [protocolId], references: [id], onDelete: Restrict)
+  status            ServiceSettlementWorkflowStatus @default(WORKING)
+  paymentSnapshot   Json?
+  paymentClosedById String?
+  paymentClosedBy   User?                           @relation("SettlementWorkflowCloser", fields: [paymentClosedById], references: [id], onDelete: Restrict)
+  paymentClosedAt   DateTime?
+  approvedById      String?
+  approvedBy        User?                           @relation("SettlementWorkflowApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  approvedAt        DateTime?
+  deliveredById     String?
+  deliveredBy       User?                           @relation("SettlementWorkflowDeliverer", fields: [deliveredById], references: [id], onDelete: Restrict)
+  deliveredAt       DateTime?
+  deliveryMethod    String?
+  deliveryReference String?
+  objectionUntil    DateTime?
+  objectionNote     String?
+  chargeId          String?                         @unique
+  charge            Charge?                         @relation("SettlementWorkflowCharge", fields: [chargeId], references: [id], onDelete: Restrict)
+  creditId          String?                         @unique
+  credit            LeaseCredit?                    @relation("SettlementWorkflowCredit", fields: [creditId], references: [id], onDelete: Restrict)
+  settledById       String?
+  settledBy         User?                           @relation("SettlementWorkflowSettler", fields: [settledById], references: [id], onDelete: Restrict)
+  settledAt         DateTime?
+  createdAt         DateTime                        @default(now())
+  updatedAt         DateTime                        @updatedAt
 }
