@@ -34,7 +34,7 @@ export function DismissibleDetails({ className = "", summary, dialogLabel, child
       document.removeEventListener("keydown", onKeyDown);
       if (viewportModal) document.body.style.overflow = previousOverflowRef.current;
     };
-  }, []);
+  }, [viewportModal]);
 
   return <details ref={detailsRef} className={`${className} dismissible-details${viewportModal ? " viewport-modal" : ""}`.trim()} onToggle={(event) => {
     if (viewportModal) {
@@ -42,7 +42,7 @@ export function DismissibleDetails({ className = "", summary, dialogLabel, child
       else document.body.style.overflow = previousOverflowRef.current;
     }
     if (event.currentTarget.open) requestAnimationFrame(() => closeButtonRef.current?.focus());
-  }>
+  }}>
     <summary ref={summaryRef}>{summary}</summary>
     {viewportModal && <button className="dismissible-details-backdrop" type="button" aria-label={`Zavřít ${dialogLabel}`} onClick={() => close()}/>}
     <div className="dismissible-details-panel" role="dialog" aria-label={dialogLabel}>
