@@ -17,7 +17,10 @@ export default async function PropertyMeters({params,searchParams}:{params:Promi
   const canManage=hasAllPropertyAccess(user)||property.memberships.some(m=>m.userId===user.id&&(m.permission==="EDIT"||m.permission==="ADMIN"));
   const unitLimited=!hasAllPropertyAccess(user)&&!property.memberships.some(m=>m.userId===user.id);
   if(unitLimited) notFound();
-  const meters=await prisma.meter.findMany({where:{propertyId:id},orderBy:[{scope:"asc"},{createdAt:"asc"}],include:{unit:{select:{label:true}},parent:{select:{id:true,label:true,serialNumber:true}},readings:{orderBy:{readAt:"asc"},include:{createdBy:{select:{name:true}},evidenceDocument:{select:{id:true,title:true}}}}}});
+  const [meters,documents]=await Promise.all([
+    prisma.meter.findMany({where:{propertyId:id},orderBy:[{scope:"asc"},{createdAt:"asc"}],include:{unit:{select:{label:true}},parent:{select:{id:true,label:true,serialNumber:true}},readings:{orderBy:{readAt:"asc"},include:{createdBy:{select:{name:true}},evidenceDocument:{select:{id:true,title:true}}}}}}),
+    prisma.document.findMany({where:{propertyId:id,unitId:null,leaseId:null,fileAsset:{mimeType:{in:["application/pdf","image/jpeg","image/png","image/webp"]}}},include:{fileAsset:true},orderBy:{createdAt:"desc"}})
+  ]);
   const houseMeters=meters.filter(m=>m.scope!=="UNIT");
   const parentOptions=houseMeters.filter(m=>m.active&&m.scope==="HOUSE_MAIN");
   return <Shell user={user} taskPropertyId={id}><div className="page">
@@ -28,7 +31,7 @@ export default async function PropertyMeters({params,searchParams}:{params:Promi
     <div className="notice"><strong>Princip evidence</strong><span>Hlavní domovní měřidlo je kořen. Podružné měřidlo lze navázat jen na stejné médium a měrnou jednotku. Bytová měřidla zůstávají na kartách jednotek. Výměna staré měřidlo nemaže.</span></div>
     <div className="meter-grid">{houseMeters.length?houseMeters.map(m=><div className={`meter-card ${m.active?"":"inactive"}`} key={m.id}>
       <div className="meter-card-head"><div><span className="eyebrow">{m.scope==="HOUSE_MAIN"?"Hlavní domovní":"Podružné"} · {m.active?"Aktivní":"Vyřazené"}</span><h3>{m.label||meterTypes[m.type]}</h3><small>{meterTypes[m.type]} · {m.serialNumber||"bez sériového čísla"}{m.location?` · ${m.location}`:""}</small>{m.parent&&<small>Nadřazené: {m.parent.label||m.parent.serialNumber||m.parent.id}</small>}</div><Gauge size={18}/></div>
-      <MeterReadingHistory readings={m.readings} unitOfMeasure={m.unitOfMeasure} action={`/api/properties/${id}/meters/${m.id}/readings`} canManage={false} documents={[]}/>
+      <MeterReadingHistory readings={m.readings} unitOfMeasure={m.unitOfMeasure} action={`/api/properties/${id}/meters/${m.id}/readings`} canManage={canManage} documents={documents}/>
     </div>):<div className="card empty-state compact-empty"><Gauge size={24}/><p>Objekt zatím nemá domovní měřidla.</p></div>}</div>
     {canManage&&<details className="card module-add"><summary><Plus size={15}/> Přidat domovní měřidlo</summary><form className="compact-form module-form" action={`/api/properties/${id}/meters`} method="post">
       <label className="field"><span>Úroveň</span><select name="scope" defaultValue="HOUSE_MAIN"><option value="HOUSE_MAIN">Hlavní domovní</option><option value="HOUSE_SUBMETER">Podružné</option></select></label>
