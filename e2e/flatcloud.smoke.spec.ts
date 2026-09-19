@@ -75,16 +75,24 @@ test("levé menu má ikonové sbalení, hover popisky a kompaktní profil", asyn
   await expect(footer.getByTitle("Můj účet")).toBeVisible();
   const collapsedLayout = await sidebar.evaluate((element) => {
     const brand = element.querySelector<HTMLElement>(".brand")!;
+    const avatar = element.querySelector<HTMLElement>(".sidebar-footer .avatar")!;
+    const avatarBox = avatar.getBoundingClientRect();
     return {
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
       brandBackground: getComputedStyle(brand).backgroundImage,
       brandImageDisplay: getComputedStyle(brand.querySelector("img")!).display,
+      avatarDisplay: getComputedStyle(avatar).display,
+      avatarWidth: avatarBox.width,
+      avatarHeight: avatarBox.height,
     };
   });
   expect(collapsedLayout.scrollWidth).toBeLessThanOrEqual(collapsedLayout.clientWidth);
   expect(collapsedLayout.brandBackground).toContain("flatcloud-logo-white.png");
   expect(collapsedLayout.brandImageDisplay).toBe("none");
+  expect(collapsedLayout.avatarDisplay).not.toBe("none");
+  expect(collapsedLayout.avatarWidth).toBe(34);
+  expect(collapsedLayout.avatarHeight).toBe(34);
   expect(await page.evaluate(() => localStorage.getItem("flatcloud:sidebar-collapsed"))).toBe("1");
   await footer.getByTitle("Můj účet").click();
   await expect(page).toHaveURL(/\/ucet(?:\?|$)/);
