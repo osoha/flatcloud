@@ -266,6 +266,15 @@ enum MeterScope {
   HOUSE_SUBMETER
 }
 
+
+enum SettlementAllocationMethod {
+  METER_CONSUMPTION
+  AREA
+  PERSON_DAYS
+  EXTERNAL_RESULT
+  MANUAL
+}
+
 enum NotificationType {
   PAYMENT_NOTICE
   FIRST_REMINDER
@@ -566,6 +575,7 @@ model OwnerBankAccount {
 
 model Property {
   settlementSources SettlementSource[]
+  settlementAllocationRules SettlementAllocationRule[]
 
   id                                String                       @id @default(cuid())
   propertyCode                      String                       @unique @default(dbgenerated())
@@ -1062,6 +1072,7 @@ model Unit {
   assetCosts                PropertyCost[]
   assetCostAllocations      PropertyCostAllocation[]
   assetAssessments          UnitAssetAssessment[]
+  areaPeriods               UnitAreaPeriod[]
   conditionAssessments      UnitConditionAssessment[]
   valuationSnapshots        UnitValuationSnapshot[]
   distributionOpportunities DistributionOpportunity[]
@@ -1412,6 +1423,7 @@ model Lease {
   credits                     LeaseCredit[]
   rentChangeProposals         RentChangeProposal[]
   serviceSettlementProtocols  ServiceSettlementProtocol[]
+  occupancyPeriods            LeaseOccupancyPeriod[]
   documents                   Document[]
   createdAt                   DateTime                    @default(now())
   updatedAt                   DateTime                    @updatedAt
@@ -2297,4 +2309,49 @@ model SettlementSource {
 
   @@unique([propertyId, identityKey, version])
   @@index([propertyId, createdAt])
+}
+
+
+model SettlementAllocationRule {
+  id          String                     @id @default(cuid())
+  propertyId  String
+  property    Property                   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  service     String
+  method      SettlementAllocationMethod
+  validFrom   DateTime
+  validTo     DateTime?
+  meterType   MeterType?
+  note        String?
+  active      Boolean                    @default(true)
+  createdById String
+  createdBy   User                       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime                   @default(now())
+
+  @@index([propertyId, service, validFrom])
+}
+
+model LeaseOccupancyPeriod {
+  id          String   @id @default(cuid())
+  leaseId     String
+  lease       Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  validFrom   DateTime
+  validTo     DateTime?
+  personCount Int
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([leaseId, validFrom])
+}
+
+model UnitAreaPeriod {
+  id        String   @id @default(cuid())
+  unitId    String
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  validFrom DateTime
+  validTo   DateTime?
+  areaM2    Float
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([unitId, validFrom])
 }
