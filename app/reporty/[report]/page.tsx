@@ -10,6 +10,7 @@ import { leaseStatuses } from "@/lib/labels";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { Shell } from "@/components/Shell";
 import { CollectionChart } from "@/components/ReportChart";
+import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 
 export const dynamic = "force-dynamic";
 
@@ -31,16 +32,19 @@ function recentPeriods(count = 12) {
   });
 }
 
-export default async function ReportPage({ params, searchParams }: { params: Promise<{ report: string }>; searchParams: Promise<{ propertyId?: string }> }) {
+export default async function ReportPage({ params, searchParams }: { params: Promise<{ report: string }>; searchParams: Promise<{ properties?: string; propertyId?: string }> }) {
   const [{ report }, query] = await Promise.all([params, searchParams]);
   if (!(report in reportTitles)) notFound();
   const reportKey = report as ReportKey;
-  if (["inkaso","nemovitosti","vlastnici"].includes(reportKey)) redirect(`/reporty?view=${reportKey==="inkaso"?"collections":"overview"}${query.propertyId?`&properties=${encodeURIComponent(query.propertyId)}`:""}`);
+  const requestedSelection = parsePortfolioSelection(query);
+  const requestedValue = serializePortfolioSelection(requestedSelection);
+  if (["inkaso","nemovitosti","vlastnici"].includes(reportKey)) redirect(`/reporty?view=${reportKey==="inkaso"?"collections":"overview"}${requestedValue!==null?`&properties=${encodeURIComponent(requestedValue)}`:""}`);
   const user = await requireUser();
   const allProperties = await accessibleProperties(user);
-  const propertyScope = query.propertyId ? allProperties.find((property) => property.id === query.propertyId) : undefined;
-  if (query.propertyId && !propertyScope) notFound();
-  const properties = propertyScope ? [propertyScope] : allProperties;
+  const allowedIds = selectedPropertyIds(requestedSelection, allProperties.map((property)=>property.id));
+  if (requestedSelection.mode === "SELECTED" && requestedSelection.propertyIds.length !== allowedIds.length) notFound();
+  const properties = allProperties.filter((property)=>allowedIds.includes(property.id));
+  const propertyScope = properties.length === 1 ? properties[0] : undefined;
   const period = currentPeriod();
   const periods = recentPeriods();
   const allChargeRows = properties.flatMap((property) => property.units.flatMap((unit) => unit.leases.flatMap((lease) => lease.charges.map((charge) => ({ property, unit, lease, charge, paid: paidCents(charge) })))));
@@ -57,7 +61,7 @@ export default async function ReportPage({ params, searchParams }: { params: Pro
   const debtTotal = debtRows.reduce((sum, row) => sum + overdueDebtCents(row.charge), 0);
   const [baseTitle, baseDescription] = reportTitles[reportKey];
   const title = propertyScope ? `${baseTitle} – ${propertyScope.name}` : baseTitle;
-  const description = propertyScope ? `${baseDescription} Report je omezen pouze na tento objekt.` : baseDescription;
+  const description = requestedSelection.mode === "SELECTED" ? `${baseDescription} Report respektuje zvolený rozsah ${properties.length} objektů.` : baseDescription;
   const backHref = propertyScope ? `/nemovitosti/${propertyScope.id}/prehled` : "/portfolio";
   const backLabel = propertyScope ? "Zpět na objekt" : "Zpět na portfolio";
 

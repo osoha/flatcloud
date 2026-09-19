@@ -9,8 +9,8 @@ export async function POST(request: Request) {
   try {
     const result = await syncInboundMailbox();
     await audit(user.id, "INBOUND_MAIL_MANUAL_SYNC", "AppSetting", "global", result);
-    return goWithMessage(request, "/nastaveni", "ok", result.enabled ? result.summary || "Sběrný e-mail byl zkontrolován." : "Sběrný e-mail je vypnutý.");
+    return goWithMessage(request, "/nastaveni/system", "ok", result.enabled ? result.summary || "Sběrný e-mail byl zkontrolován." : "Sběrný e-mail je vypnutý.");
   } catch (error) {
-    return goWithMessage(request, "/nastaveni", "error", error instanceof Error ? error.message : "Kontrola sběrného e-mailu selhala.");
+    return goWithMessage(request, "/nastaveni/system", "error", error instanceof Error ? error.message : "Kontrola sběrného e-mailu selhala.");
   }
 }

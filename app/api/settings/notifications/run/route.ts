@@ -6,9 +6,11 @@ export async function POST(request: Request) {
   const user = await currentUser();
   if (!user || user.role !== "SUPER_ADMIN") return go(request, "/login");
   try {
+    const form = await request.formData();
+    if (form.get("confirmScheduledRun") !== "on") return goWithMessage(request, "/nastaveni/system", "error", "Ruční odeslání naplánované komunikace je nutné výslovně potvrdit.");
     const result = await runRentNotifications(new Date(), "manual");
-    return goWithMessage(request, "/nastaveni", "ok", result.summary);
+    return goWithMessage(request, "/nastaveni/system", "ok", result.summary);
   } catch (error) {
-    return goWithMessage(request, "/nastaveni", "error", error instanceof Error ? error.message : "Kontrolu se nepodařilo spustit.");
+    return goWithMessage(request, "/nastaveni/system", "error", error instanceof Error ? error.message : "Kontrolu se nepodařilo spustit.");
   }
 }

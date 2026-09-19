@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
-import { currentUser } from "@/lib/auth";
+import { currentUser, createSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { redirectUrl } from "@/lib/redirect-url";
 
@@ -27,12 +27,14 @@ export async function POST(request: Request) {
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 12);
-  await prisma.$transaction([
-    prisma.user.update({ where: { id: user.id }, data: { passwordHash } }),
-    prisma.auditLog.create({
-      data: { userId: user.id, action: "PASSWORD_CHANGED", entityType: "User", entityId: user.id },
-    }),
-  ]);
+  const changed = await prisma.$transaction(async tx => {
+    const result = await tx.user.updateMany({ where: { id: user.id, active: true, passwordHash: user.passwordHash, sessionVersion: user.sessionVersion }, data: { passwordHash, sessionVersion: { increment: 1 } } });
+    if (result.count !== 1) return false;
+    await tx.auditLog.create({ data: { userId: user.id, action: "PASSWORD_CHANGED", entityType: "User", entityId: user.id } });
+    return true;
+  });
+  if (!changed) return NextResponse.redirect(redirectUrl("/login", request), 303);
+  await createSession(user.id, user.sessionVersion + 1);
 
   return NextResponse.redirect(redirectUrl("/ucet?changed=1", request), 303);
 }

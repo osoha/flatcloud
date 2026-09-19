@@ -20,7 +20,7 @@ export default async function ForceReminderPage({ searchParams }: { searchParams
   const result = stored?.result;
 
   return <Shell user={user}><div className="page form-page">
-    <div className="breadcrumb"><Link href="/nastaveni">← Zpět do administrace</Link></div>
+    <div className="breadcrumb"><Link href="/nastaveni/system">← Zpět do automatizace</Link></div>
     <div className="page-title"><div><h1>Vynucené rozeslání upomínek</h1><p>Ruční zásah mimo běžný kalendář. Již úspěšně odeslaný stupeň se znovu nepošle.</p></div></div>
     <Flash ok={query.ok} error={query.error}/>
 

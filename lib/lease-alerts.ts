@@ -38,7 +38,8 @@ export function addCalendarMonths(date: Date, months: number) {
 
 export function nextLeaseAnniversary(startDate: Date, now = new Date()) {
   const today = startOfDay(now);
-  let anniversary = dayInYear(today.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const firstAnniversaryYear = startDate.getFullYear() + 1;
+  let anniversary = dayInYear(Math.max(today.getFullYear(), firstAnniversaryYear), startDate.getMonth(), startDate.getDate());
   if (anniversary < today) anniversary = dayInYear(today.getFullYear() + 1, startDate.getMonth(), startDate.getDate());
   return anniversary;
 }

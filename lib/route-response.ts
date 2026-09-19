@@ -6,8 +6,11 @@ export function go(request: Request, path: string) {
 }
 
 export function goWithMessage(request: Request, path: string, kind: "ok" | "error", message: string) {
-  const separator = path.includes("?") ? "&" : "?";
-  return go(request, `${path}${separator}${kind}=${encodeURIComponent(message)}`);
+  const hashIndex = path.indexOf("#");
+  const base = hashIndex === -1 ? path : path.slice(0, hashIndex);
+  const hash = hashIndex === -1 ? "" : path.slice(hashIndex);
+  const separator = base.includes("?") ? "&" : "?";
+  return go(request, `${base}${separator}${kind}=${encodeURIComponent(message)}${hash}`);
 }
 
 export function safeInternalReturnPath(value: FormDataEntryValue | string | null | undefined, fallback: string) {

@@ -32,7 +32,7 @@ export default async function NewUnit({ params, searchParams }: { params: Promis
       <Field label="Plocha v m²" name="areaM2" type="number" step="0.01" min={0}/>
       <Textarea label="Poznámka" name="note"/>
       <h2 className="form-section-title field-full">Vlastnictví a účet pro nájemné</h2>
-      <UnitOwnerFields owners={ownerOptions} defaultOwnerId={defaultOwner?.id || ""} defaultAccountId={defaultOwner?.paymentAccounts[0]?.id} showSubmit={false}/>
+      <UnitOwnerFields owners={ownerOptions} defaultOwnerId={defaultOwner?.id || ""} accountRequired={false} showSubmit={false}/>
     </FormCard>
   </FormPage></Shell>;
 }

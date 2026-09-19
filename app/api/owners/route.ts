@@ -4,6 +4,7 @@ import { text } from "@/lib/forms";
 import { validateOwnerBankAccount } from "@/lib/owner-bank-account";
 import { requirePortfolioManager, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { safeOwnerAffiliation } from "@/lib/ownership-scope";
 
 export async function POST(request: Request) {
   const user = await requirePortfolioManager();
@@ -22,6 +23,7 @@ export async function POST(request: Request) {
       data: {
         name: text(form, "name", true)!,
         type: (text(form, "type") || "COMPANY") as OwnerType,
+        affiliation: safeOwnerAffiliation(text(form, "affiliation")),
         ico: text(form, "ico"),
         email: text(form, "email"),
         phone: text(form, "phone"),
@@ -30,7 +32,7 @@ export async function POST(request: Request) {
         ...(paymentAccount ? { paymentAccounts: { create: { ...paymentAccount, active: true } } } : {}),
       },
     });
-    await audit(user.id, "OWNER_CREATED", "Owner", owner.id, { name: owner.name, paymentAccountCreated: Boolean(paymentAccount) });
+    await audit(user.id, "OWNER_CREATED", "Owner", owner.id, { name: owner.name, affiliation: owner.affiliation, paymentAccountCreated: Boolean(paymentAccount) });
     return goWithMessage(request, `/vlastnici/${owner.id}`, "ok", "Vlastník byl vytvořen.");
   } catch (error) {
     return goWithMessage(request, "/vlastnici", "error", error instanceof Error ? error.message : "Vlastníka se nepodařilo vytvořit.");

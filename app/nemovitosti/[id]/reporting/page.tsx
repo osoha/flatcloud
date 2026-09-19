@@ -84,7 +84,7 @@ export default async function PropertyReportingPage({
   const mfMoney = (value: number | null | undefined) =>
     value == null ? "—" : `${number.format(value / 100)} Kč/m²/měsíc`;
   return (
-    <Shell user={user}>
+    <Shell user={user} taskPropertyId={id}>
       <div className="page">
         <div className="breadcrumb">Portfolio › {property.name} › Reporty</div>
         <div className="page-title">
@@ -131,7 +131,7 @@ export default async function PropertyReportingPage({
               </div>
             </div>
           ) : (
-            <p>Nemovitost zatím není přiřazena ke katastrálnímu území MF.</p>
+            <p>{mf.release ? "Nemovitost zatím není přiřazena ke katastrálnímu území MF." : "Pro toto období nejsou dostupná data MF. Správce může zkontrolovat import v Administraci → Data a importy."}</p>
           )}
           {mf.release && (
             <div className="table-wrap">
@@ -160,7 +160,8 @@ export default async function PropertyReportingPage({
           {canWrite && (
             <details className="create-panel" open={!mf.mapping || Boolean(query.mfSearch)}>
               <summary>Ruční korekce přiřazení MF</summary>
-              {mf.cadastralArea && !mf.mapping && (
+              {mf.cadastralArea && !mf.mapping && !mf.release && <p className="muted-copy">Katastrální území „{mf.cadastralArea}“ je uložené. Přiřazení k cenové mapě lze ověřit až po načtení dat MF.</p>}
+              {mf.cadastralArea && !mf.mapping && mf.release && (
                 <p className="muted-copy">
                   Katastrální území „{mf.cadastralArea}“ z údajů nemovitosti
                   nebylo možné jednoznačně spojit s aktuálními daty MF. Vyberte

@@ -1,0 +1,7 @@
+.history { margin-top: 12px; border-top: 1px solid var(--line); }
+.reading { display: grid; gap: 7px; padding: 14px 0; border-bottom: 1px solid var(--line); font-size: 12px; min-width: 0; overflow-wrap: anywhere; }
+.reading p { margin: 0; }
+.reading small { font-size: 11px; line-height: 1.5; }
+.reading summary { cursor: pointer; color: var(--blue); font-weight: 600; }
+.reading form { min-width: 0; }
+.reading select { width: 100%; min-width: 0; }

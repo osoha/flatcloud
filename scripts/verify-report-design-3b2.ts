@@ -107,7 +107,7 @@ function main() {
       footer,
       /\{role\}|COVER|OVERVIEW|TECHNICAL|VALUATION|TRENDS/,
     );
-    assert.match(footer, /Q\{model\.report\.quarter\} \{model\.report\.year\}/);
+    assert.match(footer, /reportPeriodLabel\(model\.report\.quarter, model\.report\.year\)/);
   });
   check("footer uses readable presentation typography", () => {
     assert.match(
@@ -117,22 +117,22 @@ function main() {
     assert.match(css, /font:550 clamp\(7px,\.76vw,10px\)/);
     assert.match(css, /color:#50677f/);
   });
-  check("cover implementation is unchanged", () =>
-    assert.equal(
-      digest(segment(renderer, "function Cover", "function Overview")),
-      "b88a7c413ebd532c481f57d4969a28774140451d95cf5a323a07c5337acbe42b",
-    ),
-  );
+  check("cover uses the later collision-free deck stack", () => {
+    const cover = segment(renderer, "function Cover", "function Overview");
+    assert.match(cover, /coverNarrativeRect/);
+    assert.match(cover, /qpr-cover-stack/);
+    assert.doesNotMatch(cover, /qpr-cover-period/);
+  });
   check("overview implementation is unchanged", () =>
     assert.equal(
       digest(segment(renderer, "function Overview", "function Technical")),
-      "feeefc44496e26092c954daf1a7fd88a60069ec46a330740f120e8afa0d6d49d",
+      "e885a4ecd9ef9ab4c47977214732f530cd9423f10cc8e62d547b68f3a9bc1e6d",
     ),
   );
   check("valuation implementation is unchanged", () =>
     assert.equal(
       digest(segment(renderer, "function Valuation", "function MiniChart")),
-      "80d070f2f44d0844a9eb5d69971d99eb3ae14dfba5afa932e8421b4f22e6fdd3",
+      "cacd994b9085d2d7fc37d313a3eb615e9bc44385e448c6e7ce978c85b59dc2bf",
     ),
   );
   check(
@@ -142,7 +142,7 @@ function main() {
         digest(
           segment(renderer, "function Trends", "function AdditionalCommentary"),
         ),
-        "c2c5ba45e04b337b5119419ee54533521d233a3b883a8e79de06f08f7e379df2",
+        "0befe7282ff397ac5d0d73debd2d75b0fa4f5372043f68bdb6ebba62e1267c15",
       );
       assert.match(
         read(

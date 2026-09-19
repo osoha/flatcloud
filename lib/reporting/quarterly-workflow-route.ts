@@ -18,6 +18,7 @@ const friendlyMessages = new Map([
   ["Editorial content can only change in DRAFT.", "Obsah reportu lze upravovat pouze v konceptu."],
   ["Every property report must have a property status before review.", "U všech nemovitostí musí být před odesláním ke kontrole vyplněn stav projektu."],
   ["Report has blocking data quality issues.", "Report obsahuje blokující chyby kvality dat. Před publikací je nutné je odstranit."],
+  ["Report period is still open.", "Reportovací období ještě není uzavřené. Odeslání ke kontrole a publikace budou dostupné po rozhodném datu."],
   ["Report warnings must be acknowledged before publication.", "Report obsahuje warningy kvality dat. Před publikací je musí administrátor výslovně potvrdit."],
   ["Warnings can only be acknowledged in REVIEW.", "Warningy lze potvrdit pouze ve stavu Ke kontrole."],
   ["Report has no warnings to acknowledge.", "Report neobsahuje žádné warningy k potvrzení."],
@@ -45,6 +46,7 @@ export function quarterlyWorkflowErrorMessage(error: unknown) {
   if (error instanceof StorageDisabledError || (error instanceof Error && error.message === "Úložiště souborů není nakonfigurováno.")) return "Úložiště souborů není nakonfigurováno.";
   if (error instanceof StorageTimeoutError || error instanceof StorageUnavailableError) return error.message;
   if (error instanceof Error) {
+    if (error.message.startsWith("Report period is still open.")) return friendlyMessages.get("Report period is still open.")!;
     const friendly = friendlyMessages.get(error.message);
     if (friendly) return friendly;
     if (/File size must be between/.test(error.message)) return "Fotografie je prázdná nebo překračuje povolenou velikost.";

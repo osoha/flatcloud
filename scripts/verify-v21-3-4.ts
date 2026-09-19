@@ -46,7 +46,7 @@ const shell = readFileSync("components/Shell.tsx", "utf8");
 assert.match(shell, /flatcloud-logo-white\.png/);
 assert.ok(existsSync("public/flatcloud-logo-white.png"));
 
-const settingsPage = readFileSync("app/nastaveni/page.tsx", "utf8");
+const settingsPage = readFileSync("app/nastaveni/system/page.tsx", "utf8");
 assert.match(settingsPage, /\/api\/settings\/inbound-mail\/test/);
 assert.match(settingsPage, /Otestovat IMAP připojení/);
 const imap = readFileSync("lib/inbound-bank/imap.ts", "utf8");

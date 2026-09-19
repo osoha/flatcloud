@@ -141,6 +141,8 @@ export async function syncMfRentDatasets(
   if (
     !options.force &&
     settings.mfRentLastCheckedAt &&
+    settings.mfRentLastSuccessAt &&
+    settings.mfRentLastSuccessAt.getTime() >= settings.mfRentLastCheckedAt.getTime() &&
     now.getTime() - settings.mfRentLastCheckedAt.getTime() < FRESH_MS
   )
     return {
@@ -155,7 +157,7 @@ export async function syncMfRentDatasets(
     };
   await prisma.appSetting.update({
     where: { id: "global" },
-    data: { mfRentLastCheckedAt: now },
+    data: { mfRentLastCheckedAt: now, mfRentLastSummary: "Kontrola MF byla zahájena; úspěšné dokončení zatím není potvrzeno." },
   });
   try {
     const discovered = await discoverOfficialMfReleases(options.fetcher);

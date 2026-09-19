@@ -175,7 +175,7 @@ async function main() {
     service = read("lib/reporting/mf-rent/service.ts"),
     location = read("lib/reporting/mf-rent/location-service.ts"),
     scheduler = read("scripts/scheduler-cron.ts"),
-    settings = read("app/nastaveni/page.tsx"),
+    settings = read("app/nastaveni/system/page.tsx"),
     doc = read("REPORTING-V22.md"),
     ci = read(".github/workflows/ci.yml"),
     pkg = JSON.parse(read("package.json"));
@@ -505,6 +505,15 @@ async function main() {
           where: { sourceSha256: workbookSha },
         }),
       );
+    });
+  }
+  if (process.env.DATABASE_URL) {
+    await check("a failed attempt does not suppress a non-forced retry", async () => {
+      const retry = await syncMfRentDatasets({
+        now: new Date(Date.now() + 2_000),
+        fetcher: (async () => { throw new Error("QA retry reached source"); }) as typeof fetch,
+      }).then(() => "skipped", () => "retried");
+      assert.equal(retry, "retried");
     });
   }
   await check("bootstrap current plus seven periods", () =>
