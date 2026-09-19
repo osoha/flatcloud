@@ -2438,6 +2438,9 @@ model ServiceSettlementWorkflow {
   deliveryReference String?
   objectionUntil    DateTime?
   objectionNote     String?
+  objectionRaisedAt DateTime?
+  objectionResolvedAt DateTime?
+  objectionResolution String?
   chargeId          String?                         @unique
   charge            Charge?                         @relation("SettlementWorkflowCharge", fields: [chargeId], references: [id], onDelete: Restrict)
   creditId          String?                         @unique
