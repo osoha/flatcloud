@@ -53,6 +53,9 @@ test("R32B: target content, actual sidebar, blocked writes, no target heartbeat,
     await page.goto(`/uzivatele/${target.id}`);
     await page.getByRole("button",{name:"Pohled uživatele",exact:true}).click();
     await expect(page.getByRole("region",{name:"Pohled uživatele",exact:true})).toContainText(target.name);
+    const administration = page.locator(".sidebar").getByRole("button",{name:"Správa",exact:true});
+    await expect(administration).toBeVisible();
+    if (await administration.getAttribute("aria-expanded") === "false") await administration.click();
     await expect(page.locator(".sidebar").getByRole("link",{name:"Administrace",exact:true})).toBeVisible();
     await expect(page.locator("main")).not.toContainText("KPI FlatCloud");
     await expect(page.locator("main")).toContainText("Zatím nejsou evidované nemovitosti");
@@ -129,7 +132,11 @@ test("R32D: private encrypted map key persists, isolates accounts, forgets, and 
     const record=await prisma.userPrivateToolSettings.findUniqueOrThrow({where:{userId:admin.id}});
     expect(record.mapsKeyEncrypted).not.toContain(key);expect(record.mapsKeyEncrypted).toMatch(/^v1\./);
     const html=await page.request.get("/dovednosti/avatary-domu/nastroj",{headers:await headers(page)});
-    expect(html.headers()["x-frame-options"]).toBe("SAMEORIGIN");expect(await html.text()).not.toContain(key);
+    expect(html.headers()["x-frame-options"]).toBe("SAMEORIGIN");
+    expect(html.headers()["content-security-policy"]).toContain("frame-ancestors 'self'");
+    expect(await html.text()).not.toContain(key);
+    const usersPage=await page.request.get("/uzivatele",{headers:await headers(page)});
+    expect(usersPage.headers()["x-frame-options"]).toBe("DENY");
     await page.request.post("/api/auth/logout",{headers:await headers(page)});
     await login(page,other.email);
     const settings=await page.request.get("/api/admin/skills/maps-key?use=sdk",{headers:await headers(page)});

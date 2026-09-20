@@ -12,7 +12,14 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: { cpus: 2 },
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      // Only this authenticated tool may be embedded by the same-origin app shell.
+      { source: "/dovednosti/avatary-domu/nastroj", headers: [
+        { key: "X-Frame-Options", value: "SAMEORIGIN" },
+        { key: "Content-Security-Policy", value: "frame-ancestors 'self'; object-src 'none'; base-uri 'none'" },
+      ] },
+    ];
   },
 };
 
