@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { Prisma, QuarterlyReportStatus, type PropertyReportingStatus } from "@prisma/client";
 import { businessDateKey, businessDateKeyToInstant, quarterEndKey } from "../calendar";
 import { serializableTransaction } from "../serializable";
@@ -52,10 +53,10 @@ export function correctionPropertyData(row: { propertyId: string; propertyNameSn
 
 async function permission(tx: Tx, actor: QuarterlyReportActor, reportingGroupId: string) {
   const [user, membership] = await Promise.all([
-    tx.user.findUnique({ where: { id: actor.id }, select: { role: true, active: true } }),
+    tx.user.findUnique({ where: { id: actor.id }, select: { role: true, flatcloudMember: true, active: true } }),
     tx.reportingGroupMember.findUnique({ where: { reportingGroupId_userId: { reportingGroupId, userId: actor.id } }, select: { permission: true } }),
   ]);
-  if (!user?.active) return "NONE";
+  if (!user?.active || !isFlatcloudMember(user)) return "NONE";
   if (user.role === "SUPER_ADMIN") return "SUPER_ADMIN";
   return membership?.permission || "NONE";
 }

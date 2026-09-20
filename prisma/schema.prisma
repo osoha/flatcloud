@@ -475,6 +475,8 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  flatcloudMember Boolean @default(false)
+  privateToolSettings UserPrivateToolSettings?
   activity UserActivity?
   entityAppearances UserEntityAppearance[]
   authoredMeterReadings MeterReading[] @relation("ReadingAuthor")
@@ -2482,4 +2484,11 @@ model UserActivity {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   lastSeenAt DateTime
   @@index([lastSeenAt])
+}
+
+model UserPrivateToolSettings {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mapsKeyEncrypted String?
+  updatedAt DateTime @updatedAt
 }

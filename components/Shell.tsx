@@ -1,7 +1,9 @@
+import { ReadOnlyPreview } from "@/components/admin/ReadOnlyPreview";
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { ActiveTabVisibility } from "@/components/ActiveTabVisibility";
 import Link from "next/link";
 import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, LayoutDashboard, Library, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
-import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
+import { canSeeAll, hasAllPropertyAccess, previewContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
 import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
@@ -25,11 +27,15 @@ type ShellUser = {
   email: string;
   role: string;
   allProperties?: boolean;
+  flatcloudMember?: boolean;
   avatarMimeType?: string | null;
   updatedAt?: Date | string;
 };
 
-export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string }) {
+export async function Shell({ user: contentUser, children, taskPropertyId, taskLeaseId }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string }) {
+  const context = await previewContext();
+  const preview = context.requested && context.actor?.role === "SUPER_ADMIN";
+  const user = preview ? context.actor! : contentUser;
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role);
@@ -75,7 +81,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
         {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
-        {canAddProperty && <Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/>}
+        {canAddProperty && isFlatcloudMember(user) && <Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/>}
 
         <CollapsibleNavGroup id="operations" label="Provoz" activeRoots={["/ukoly","/portfolio/kvalita","/revize"]} forceOpen={openTasks > 0 || dueRevisions > 0}>
           <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
@@ -104,9 +110,10 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
           <Nav href="/metodika?view=media" activeQuery={{view:"media"}} icon={<Headphones size={17}/>} label="Znalostní média"/>
         </CollapsibleNavGroup>
 
-        {superAdmin && <CollapsibleNavGroup id="administration" label="Správa" activeRoots={["/uzivatele", "/nastaveni"]}>
+        {superAdmin && <CollapsibleNavGroup id="administration" label="Správa" activeRoots={["/uzivatele", "/nastaveni", "/dovednosti"]}>
           <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>
           <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>
+          <Nav href="/dovednosti" icon={<Compass size={17}/>} label="Dovednosti"/>
           {operations && <AdminOperationsPanel initial={operations}/>}
         </CollapsibleNavGroup>}
       </nav>
@@ -117,14 +124,16 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         </div>
       </div>
     </aside>
-    <main className="main" id="main-content" tabIndex={-1}>
+    <main className={`main${preview ? " user-preview-main" : ""}`} id="main-content" tabIndex={-1}>
+      {preview && <ReadOnlyPreview/>}
+      {preview && <div className="user-preview-banner" role="region" aria-label="Pohled uživatele"><div><strong>{context.target ? `Pohled uživatele: ${context.target.name}` : "Náhled již není platný"}</strong><span>{context.target?.email} · pouze pro čtení · levé menu je administrátorské</span></div><form action="/api/admin/user-preview/exit" method="post"><button className="primary">Ukončit náhled</button></form></div>}
       <header className="topbar v21-topbar">
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
-          {canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
-          {canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
-          {canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
+          {!preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
+          {!preview && canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
+          {!preview && canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
           <Link className="account-chip" href="/ucet" aria-label="Můj účet"><UserRound size={15}/><span>{user.name}</span></Link>
         </div>
       </header>

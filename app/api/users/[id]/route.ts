@@ -47,24 +47,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       return Object.values(PropertyPermission).includes(value) ? [{ unitId: unit.id, permission: value }] : [];
     });
 
+    let savedMembership = false;
     await prisma.$transaction(async (tx) => {
-      const current = await tx.user.findUnique({ where: { id }, select: { active: true, role: true, allProperties: true, memberships: { select: { propertyId: true, permission: true } }, unitMemberships: { select: { unitId: true, permission: true } } } });
+      const current = await tx.user.findUnique({ where: { id }, select: { active: true, role: true, allProperties: true, flatcloudMember: true, memberships: { select: { propertyId: true, permission: true } }, unitMemberships: { select: { unitId: true, permission: true } } } });
       if (!current) throw new Error("Uživatel nebyl nalezen.");
       if (current.active && current.role === UserRole.SUPER_ADMIN && (!active || role !== UserRole.SUPER_ADMIN)) {
         const activeSuperAdmins = await tx.user.count({ where: { active: true, role: UserRole.SUPER_ADMIN } });
         if (activeSuperAdmins <= 1) throw new Error("Posledního aktivního hlavního administrátora nelze deaktivovat ani změnit jeho roli.");
       }
-      if (editableUserAccessChanged(current, { role, active, allProperties, memberships, unitMemberships }) && form.get("confirmAccessChange") !== "on") {
+      const flatcloudMember = role === UserRole.SUPER_ADMIN || (form.get("membershipFieldPresent") === "1" ? form.get("flatcloudMember") === "on" : current.flatcloudMember);
+      if ((flatcloudMember !== current.flatcloudMember || editableUserAccessChanged(current, { role, active, allProperties, memberships, unitMemberships })) && form.get("confirmAccessChange") !== "on") {
         throw new Error("Změnu efektivního přístupu je nutné výslovně potvrdit.");
       }
-      await tx.user.update({ where: { id }, data: { name, email, phone, title, role, active, allProperties, ...avatarUpdate } });
+      savedMembership = flatcloudMember;
+      await tx.user.update({ where: { id }, data: { name, email, phone, title, role, active, allProperties, flatcloudMember, ...avatarUpdate } });
       await tx.userProperty.deleteMany({ where: { userId: id } });
       await tx.userUnit.deleteMany({ where: { userId: id } });
       if (memberships.length) await tx.userProperty.createMany({ data: memberships.map((membership) => ({ userId: id, ...membership })) });
       if (unitMemberships.length) await tx.userUnit.createMany({ data: unitMemberships.map((membership) => ({ userId: id, ...membership })) });
     }, { isolationLevel: "Serializable" });
 
-    await audit(admin.id, "USER_UPDATED", "User", id, { email, role, active, allProperties, memberships, unitMemberships, avatarChanged: Object.keys(avatarUpdate).length > 0 });
+    await audit(admin.id, "USER_UPDATED", "User", id, { email, role, active, allProperties, memberships, unitMemberships, flatcloudMember: savedMembership, avatarChanged: Object.keys(avatarUpdate).length > 0 });
     return goWithMessage(request, `/uzivatele/${id}`, "ok", "Uživatel a jeho oprávnění byli uloženi.");
   } catch (error) {
     return goWithMessage(request, `/uzivatele/${id}`, "error", error instanceof Error ? error.message : "Uživatele se nepodařilo uložit.");

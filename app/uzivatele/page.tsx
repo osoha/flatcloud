@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -27,6 +28,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         role: true,
         active: true,
         allProperties: true,
+        flatcloudMember: true,
         avatarMimeType: true,
         updatedAt: true,
         activity: { select: { lastSeenAt: true } },
@@ -110,11 +112,11 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                 : "Bez přístupu";
           return <tr className="clickable-table-row" key={row.id}>
             <td><Link className="row-cell-link" href={href}><div className="user-table-cell"><UserAvatar user={row} className={row.online ? "user-online" : ""}/><div><strong>{row.name}</strong><span className="owner-sub">{row.email}</span>{row.online && <span className="user-activity-online">Online</span>}</div></div></Link></td>
-            <td><Link className="row-cell-link" href={href}>{userRoles[row.role]}</Link></td>
+            <td><Link className="row-cell-link" href={href}>{userRoles[row.role]}<small className="owner-sub">{isFlatcloudMember(row)?"Skupina FlatCloud":"Externí prostředí"}</small></Link></td>
             <td><Link className="row-cell-link" href={href}>{accessLabel}</Link></td>
             <td><Link className="row-cell-link" href={href}><span className={`status ${row.active ? "ok" : "bad"}`}>{row.active ? "Aktivní" : "Deaktivovaný"}</span></Link></td>
             <td><Link className="row-cell-link" href={href}>{row.lastActivityAt ? <time dateTime={row.lastActivityAt.toISOString()}>{row.lastActivityAt.toLocaleString("cs-CZ", { timeZone: "Europe/Prague", dateStyle: "short", timeStyle: "short" })}</time> : "Dosud nezaznamenána"}</Link></td>
-            <td><Link className="row-cell-link table-link" href={href}>Upravit</Link></td>
+            <td><Link className="table-link" href={href}>Upravit</Link>{row.active && row.id !== user.id && <form action="/api/admin/user-preview" method="post"><input type="hidden" name="userId" value={row.id}/><button className="secondary">Pohled uživatele</button></form>}</td>
           </tr>;
         }) : <tr><td colSpan={6} className="table-empty">Vybranému filtru neodpovídá žádný účet.</td></tr>}</tbody>
       </table></div>

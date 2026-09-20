@@ -13,3 +13,8 @@ html.fc-sidebar-collapsed .flatberry-shell .admin-operations-panel{display:none}
 @media(pointer:coarse){.flatberry-shell .v21-nav .admin-operations-panel a{min-height:44px}}
 
 .user-activity-controls{padding:0 22px 12px}
+
+.user-preview-main { outline: 3px solid #2873ea; outline-offset: -3px; }
+.user-preview-banner { position: sticky; top: 0; z-index: 90; padding: 12px 24px; background: #eaf2ff; border-bottom: 2px solid #2873ea; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.user-preview-banner span { display: block; font-size: 12px; margin-top: 3px; }
+@media(max-width:600px) { .user-preview-banner { align-items: flex-start; flex-direction: column; padding: 12px; } }

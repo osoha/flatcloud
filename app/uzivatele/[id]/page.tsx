@@ -16,7 +16,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
   if (admin.role !== "SUPER_ADMIN") redirect("/portfolio");
   const { id } = await params;
   const [edited, properties, query] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, phone: true, title: true, role: true, active: true, allProperties: true, avatarMimeType: true, updatedAt: true, activity: { select: { lastSeenAt: true } }, memberships: true, unitMemberships: true, managedProperties: { select: { id: true, name: true } } } }),
+    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, phone: true, title: true, role: true, active: true, allProperties: true, flatcloudMember: true, avatarMimeType: true, updatedAt: true, activity: { select: { lastSeenAt: true } }, memberships: true, unitMemberships: true, managedProperties: { select: { id: true, name: true } } } }),
     prisma.property.findMany({ where: { active: true }, orderBy: { name: "asc" }, include: { units: { orderBy: { label: "asc" } } } }),
     searchParams,
   ]);
@@ -51,6 +51,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
 
     {edited.active && edited.role !== "SUPER_ADMIN" && edited.id !== admin.id && <p><a className="secondary" href={`/uzivatele/${edited.id}/obnova-hesla`}>Obnovit heslo uživatele</a></p>}
 
+    {edited.active && edited.id !== admin.id && <form action="/api/admin/user-preview" method="post"><input type="hidden" name="userId" value={edited.id}/><button className="secondary">Pohled uživatele</button></form>}
     <form className={styles.formStack} action={`/api/users/${edited.id}`} method="post" encType="multipart/form-data" data-testid="user-access-form">
       {locksLastAdmin && <><input type="hidden" name="role" value={edited.role}/><input type="hidden" name="active" value="on"/><input type="hidden" name="allProperties" value="on"/></>}
 
@@ -66,6 +67,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
         </div>
       </section>
 
+      <section className={`card ${styles.sectionCard}`}><h2>Příslušnost ke skupině</h2><p>Členství zpřístupní interní kontext FlatCloud pouze v rozsahu přidělených oprávnění. Vlastnictví ani správa nemovitosti členství neurčuje.</p><input type="hidden" name="membershipFieldPresent" value="1"/><label className="checkbox-field"><input type="checkbox" name="flatcloudMember" defaultChecked={edited.flatcloudMember || edited.role === "SUPER_ADMIN"} disabled={edited.role === "SUPER_ADMIN"}/><span>Uživatel patří do skupiny FlatCloud</span></label><p>Externí uživatel má čisté prostředí Flatberry. Hlavní administrátor má interní kontext vždy.</p></section>
       <section className={`card ${styles.sectionCard}`}>
         <div className={styles.sectionHead}><div><h2>Role a rozsah přístupu</h2><p>Nejprve určete globální roli a rozsah. Potom níže nastavte konkrétní úroveň pro jednotlivé objekty nebo jednotky.</p></div><span className={styles.sectionTag}>Oprávnění</span></div>
         <div className={styles.accessBasics}>
@@ -110,7 +112,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
         </div>
 
         {edited.managedProperties.length > 0 && <div className="notice">Správce objektů: {edited.managedProperties.map((property) => property.name).join(", ")}</div>}
-        <label className={styles.confirmBox}><input type="checkbox" name="confirmAccessChange"/><span><strong>Potvrzení změny přístupu</strong><span>Pokud měním roli, aktivní stav nebo rozsah objektů/jednotek, potvrzuji dopad na přístup tohoto uživatele. Bez tohoto potvrzení server změnu oprávnění neuloží.</span></span></label>
+        <label className={styles.confirmBox}><input type="checkbox" name="confirmAccessChange"/><span><strong>Potvrzení změny přístupu</strong><span>Pokud měním roli, příslušnost ke skupině, aktivní stav nebo rozsah objektů/jednotek, potvrzuji dopad na přístup tohoto uživatele. Bez tohoto potvrzení server změnu oprávnění neuloží.</span></span></label>
       </section>
 
       <div className={styles.actions}><a className="secondary" href="/uzivatele">Zrušit</a><button className="primary" type="submit">Uložit změny uživatele</button></div>
