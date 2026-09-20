@@ -2,7 +2,7 @@ import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import type { collectionComparison } from "@/lib/collection-comparison";
 
 export function KpiTrend({ comparison }: { comparison: ReturnType<typeof collectionComparison> }) {
-  if (!comparison) return null;
+  if (!comparison) return <div className="kpi-trend"><small>Srovnání není dostupné</small></div>;
   const delta = Math.round(comparison.deltaPoints * 10) / 10;
   const Icon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
   const [year, month] = comparison.previousPeriod.split("-").map(Number);

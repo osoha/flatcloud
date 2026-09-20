@@ -41,7 +41,7 @@ check("shareholder hub exposes an active annual workflow and editor", () => {
   assert.match(hub, /href="\/reporty\/vyrocni"/);
   assert.doesNotMatch(hub, /Výroční reporty[\s\S]{0,500}aria-disabled="true"/);
   const workspace = read("app/reporty/vyrocni/[groupId]/reporty/[reportId]/page.tsx");
-  for (const marker of ["Korporátní příběh", "Cílová hodnota portfolia", "Cena akcie", "Realizované výnosy z exitu", "Zmrazený Q4 snapshot", "Příloha a provenience"]) assert.match(workspace, new RegExp(marker));
+  for (const marker of ["Korporátní příběh", "Cílová hodnota portfolia", "Cena akcie", "Realizované výnosy z exitu", "Zmrazený Q4 datový záznam", "Příloha a provenience"]) assert.match(workspace, new RegExp(marker));
 });
 
 check("routes, browser smoke, pipeline and CI cover R13A", () => {

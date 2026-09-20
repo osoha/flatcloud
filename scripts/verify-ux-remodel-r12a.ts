@@ -16,9 +16,11 @@ check("property workflows preserve the property in top-bar shortcuts", () => {
     "app/nemovitosti/[id]/najemnici/novy/page.tsx",
     "app/nemovitosti/[id]/naklady/[costId]/page.tsx",
     "app/nemovitosti/[id]/platby/nova/page.tsx",
-    "app/nemovitosti/[id]/reporting/page.tsx",
     "app/nemovitosti/[id]/upravit/page.tsx",
   ];
+  const reportRedirect=read("app/nemovitosti/[id]/reporting/page.tsx");
+  assert.match(reportRedirect,/properties:id/);
+  assert.match(reportRedirect,/requirePropertyAccess/);
   for (const path of propertyPages) assert.match(read(path), /<Shell user=\{user\} taskPropertyId=\{id\}/, path);
 });
 

@@ -70,7 +70,8 @@ check("management scope is explicit and filterable by owner", () => {
   assert.match(picker, /Rozsah správy/);
   assert.match(picker, /Vše ve správě/);
   assert.match(picker, /scope-owner-preset/);
-  assert.match(reports, /Nejde o konsolidované finanční KPI skupiny FlatCloud/);
+  assert.match(reports, /key!=="asset"\|\|corporateAccess/);
+  assert.match(read("lib/reporting/general-kpis.ts"), /flatcloudConsolidationBasisPoints:10000/);
   assert.doesNotMatch(portfolio, /Provozní cockpit · napříč vlastníky/);
 });
 

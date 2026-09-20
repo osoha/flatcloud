@@ -17,8 +17,10 @@ check("one stable scrollable row preserves natural label widths", () => {
   assert.match(css, /flex:0 0 auto;min-width:max-content/);
   assert.doesNotMatch(css, /skewX|clip-path:polygon/);
 });
-check("property tabs retain all existing routes", () => {
-  for (const slug of ["prehled", "jednotky", "najemnici", "smlouvy", "platby", "finance", "vyuctovani/podklady", "provoz", "banka", "meridla", "technicke-udaje", "dokumenty", "reporting", "nastaveni"]) assert.ok(subnav.includes(`"${slug}"`));
+check("property tabs retain operational routes; reporting moves to central reports", () => {
+  for (const slug of ["prehled", "jednotky", "najemnici", "smlouvy", "platby", "finance", "vyuctovani/podklady", "provoz", "banka", "meridla", "technicke-udaje", "dokumenty", "nastaveni"]) assert.ok(subnav.includes(`"${slug}"`));
+  assert.doesNotMatch(subnav, /\["reporting", "Reporty"\]/);
+  assert.match(readFileSync("app/nemovitosti/[id]/reporting/page.tsx","utf8"), /redirect\(`/);
   assert.match(subnav, /unitLimited\?unitSections:fullSections/);
 });
 check("brand uses the same bitmap and a smaller clipping window", () => {
@@ -31,7 +33,7 @@ check("brand uses the same bitmap and a smaller clipping window", () => {
 });
 check("final icon corrections are explicit and isolated", () => {
   assert.match(css, /flatberry-heading-icon[^\n]+width:1.25cap;height:1.25cap/);
-  assert.match(css, /entity-avatar>\.entity-avatar-glyph\{width:80%;height:80%/);
+  assert.match(css, /entity-avatar>\.entity-avatar-glyph\{width:68%;height:68%/);
   assert.match(readFileSync("components/EntityAvatar.tsx", "utf8"), /onError=\{\(\) => setFailedId\(photoId\)\}/);
 });
 console.log(`Flatberry original A verified: ${checks} checks.`);

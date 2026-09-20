@@ -7,7 +7,7 @@ type User = Parameters<typeof documentAccessWhere>[0];
 export type EntityPhotos = { properties: Record<string, string>; units: Record<string, string> };
 
 /** Batch lookup through existing document permissions. Never expose storage URLs.
- * Prefer a document already selected as a report's primary photo, then first upload.
+ * Display only the explicit personal choice; absent choices use a generic icon.
  * Property avatars cannot accidentally borrow another unit's photo or a task attachment.
  */
 export async function loadEntityPhotoCandidates(user: User, propertyIds: string[]) {
@@ -35,8 +35,14 @@ export async function loadEntityPhotos(user: User, propertyIds: string[]): Promi
     const map = document.unitId ? result.units : result.properties;
     const key = document.unitId || document.propertyId;
     const preferred = preferences[entityAppearanceKey(document.propertyId, document.unitId)]?.photoId;
-    if (preferred === "icon") continue;
-    if (!map[key] || preferred === document.id) map[key] = document.id;
+    if (preferred === document.id) map[key] = document.id;
+  }
+  for (const [key, preference] of Object.entries(preferences)) {
+    if (preference.photoId !== "upload" || !preference.avatarMimeType) continue;
+    const [kind, id] = key.split(":");
+    if (kind === "property" && !propertyIds.includes(id)) continue;
+    // Image endpoint rechecks effective user and entity access on every request.
+    (kind === "unit" ? result.units : result.properties)[id] = `avatar:${key}:${preference.updatedAt.getTime()}`;
   }
   return result;
 }

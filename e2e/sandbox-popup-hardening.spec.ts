@@ -35,7 +35,7 @@ test("velké modaly kvality a distribuce zůstávají ve viewportu", async ({ pa
 
   await page.goto("/portfolio/kvalita");
   const snapshot = page.locator(".condition-assessment").last();
-  await snapshot.getByText("Nový snapshot", { exact: true }).click();
+  await snapshot.getByText("Nové hodnocení", { exact: true }).click();
   await expectViewportDialog(page, "Nové hodnocení kvality");
 
   await page.goto("/distribuce");
@@ -53,7 +53,7 @@ test("viewport modal funguje i na mobilu a zavře se Escape", async ({ page }) =
   await login(page);
   await page.goto("/portfolio/kvalita");
   const trigger = page.locator(".condition-assessment").last();
-  await trigger.getByText("Nový snapshot", { exact: true }).click();
+  await trigger.getByText("Nové hodnocení", { exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Nové hodnocení kvality" });
   await expect(dialog).toBeVisible();
   const box = await dialog.boundingBox();

@@ -1,3 +1,4 @@
+import { ProspectDirectory } from "@/components/distribution/ProspectDirectory";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -21,7 +22,7 @@ const moneyNumberInput = (cents: number | null | undefined) => moneyInput(cents)
 export default async function DistributionCrmPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string; q?:string; unassigned?:string; prospectId?:string }>;
 }) {
   const [user, query] = await Promise.all([requireUser(), searchParams]);
   if (!canSeeAll(user.role)) redirect("/portfolio");
@@ -138,6 +139,7 @@ export default async function DistributionCrmPage({
           </div>
         </div>
         <Flash ok={query.ok} error={query.error} />
+        <ProspectDirectory prospects={prospects} query={query.q} unassigned={query.unassigned==="1"}/>
         <MethodologyCallout slug="crm-distribuce" compact />
         <div className="stat-grid v21-stat-grid distribution-crm-kpis">
           <Stat
@@ -208,7 +210,7 @@ export default async function DistributionCrmPage({
               </button>
             </form>
           </details>
-          <details className="card create-panel">
+          <details className="card create-panel" id="nova-prilezitost" open={Boolean(query.prospectId)}>
             <summary>
               <Plus size={15} /> Nový zájem o jednotku
             </summary>
@@ -219,7 +221,7 @@ export default async function DistributionCrmPage({
             >
               <label className="field">
                 <span>Zájemce *</span>
-                <select name="prospectId" required>
+                <select name="prospectId" required defaultValue={query.prospectId||""}>
                   <option value="">Vyberte zájemce</option>
                   {prospects.map((prospect) => (
                     <option value={prospect.id} key={prospect.id}>

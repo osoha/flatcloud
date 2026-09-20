@@ -1,7 +1,8 @@
+import { requireManagedUnit } from "@/lib/managed-unit";
 import { MeterType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { text } from "@/lib/forms";
-import { requireManagedProperty, audit } from "@/lib/management";
+import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 
 const defaultUnits: Record<MeterType, string> = {
@@ -14,7 +15,7 @@ const defaultUnits: Record<MeterType, string> = {
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; unitId: string }> }) {
   const { id, unitId } = await params;
-  const access = await requireManagedProperty(id);
+  const access = await requireManagedUnit(id,unitId);
   if (!access) return go(request, "/login");
   try {
     if (!(await prisma.unit.findFirst({ where: { id: unitId, propertyId: id, property: { active: true } }, select: { id: true } }))) throw new Error("Jednotka nebyla nalezena.");

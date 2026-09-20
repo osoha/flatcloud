@@ -273,13 +273,13 @@ test("kvalita jednotky a distribuční připravenost mají oddělený průchod",
   expect(unitHref).toBeTruthy();
   await page.goto(`${unitHref}#kvalita`);
   const condition = page.locator("#kvalita");
-  await condition.getByText("Uložit nový snapshot", { exact: false }).first().click();
+  await condition.getByText("Uložit hodnocení", { exact: false }).first().click();
   await condition.getByLabel("Kvalita jednotky *").selectOption("B_GOOD");
   await condition.getByLabel("Naléhavost investice *").selectOption("MONITOR");
   await condition.getByLabel("Odhad CAPEX Kč").fill("125000");
   await condition.getByLabel("Poznámka / rozsah").fill("E2E kontrolní hodnocení");
-  await condition.getByRole("button", { name: "Uložit nový snapshot", exact: true }).click();
-  await expect(page.getByText("Nový snapshot kvality a plánu obnovy byl uložen.")).toBeVisible();
+  await condition.getByRole("button", { name: "Uložit hodnocení", exact: true }).click();
+  await expect(page.getByText("Hodnocení kvality a plánu obnovy bylo uloženo.")).toBeVisible();
   await page.goto("/distribuce");
   const firstAssessment = page.locator("tbody tr").first().locator(".distribution-assessment").first();
   await firstAssessment.getByText("Změnit připravenost", { exact: true }).click();
@@ -1176,7 +1176,7 @@ test("R13: výroční editor odděluje korporátní a nemovitostní vrstvu", asy
   await page.getByRole("button", { name: "Uložit korporátní a portfolio vrstvu", exact: true }).click();
   await expect(page.getByText("Korporátní a portfolio vrstva byla uložena.", { exact: true })).toBeVisible();
   await page.locator(".annual-report-nav-group a").first().click();
-  await expect(page.getByText("Zmrazený Q4 snapshot", { exact: true })).toBeVisible();
+  await expect(page.getByText("Zmrazený Q4 datový záznam", { exact: true })).toBeVisible();
   await page.getByLabel("Hodnota ke konci roku Kč").fill("26000000");
   await page.getByLabel("Cílová hodnota Kč").fill("32000000");
   await page.getByLabel("Investiční případ").fill("R13 E2E investiční případ nemovitosti.");

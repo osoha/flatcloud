@@ -6,6 +6,8 @@ import "./r26-settlement-hardening.css";
 import "./r29d-costs-payments-polish.css";
 import "./flatberry.css";
 import "./admin-activity.css";
+import "./visual-polish.css";
+import "./dark-theme.css";
 
 export const metadata = {
   title: "Flatberry",

@@ -1499,6 +1499,7 @@ model Occupant {
 }
 
 model Meter {
+  tariffs MeterTariff[]
   id              String       @id @default(cuid())
   propertyId      String
   property        Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -2467,6 +2468,8 @@ model ServiceSettlementWorkflow {
 
 // Personal presentation only. Entity access is always checked against the original object.
 model UserEntityAppearance {
+  avatarData Bytes?
+  avatarMimeType String?
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2491,4 +2494,16 @@ model UserPrivateToolSettings {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   mapsKeyEncrypted String?
   updatedAt DateTime @updatedAt
+}
+
+model MeterTariff {
+  id String @id @default(cuid())
+  meterId String
+  meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  validFrom DateTime
+  priceCentsPerUnit Decimal @db.Decimal(14, 4)
+  monthlyAdvanceCents Int
+  unitOfMeasure String
+  createdAt DateTime @default(now())
+  @@unique([meterId, validFrom])
 }

@@ -54,7 +54,7 @@ export default async function AnnualReadinessPage({
             <strong>Checklist nic automaticky neopravuje</strong>
             <span>
               Stav vychází z aktuální evidence a vede na zdrojové moduly.
-              Publikované snapshoty, reporty ani účetní klasifikaci nemění.
+              Publikované datové záznamy, reporty ani účetní klasifikaci nemění.
             </span>
           </div>
         </div>

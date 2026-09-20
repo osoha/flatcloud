@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -32,11 +33,12 @@ export default async function ReportingSettingsPage({
   const canWrite = hasAllPropertyAccess(user) || membership?.permission === "EDIT" || membership?.permission === "ADMIN";
   if (!canWrite) notFound();
 
-  const snapshots = await prisma.quarterSnapshot.findMany({
+  const corporateHistory=isFlatcloudMember(user)&&(property.flatcloudConsolidationBasisPoints??0)>0;
+  const snapshots = corporateHistory ? await prisma.quarterSnapshot.findMany({
     where: { propertyId: id, source: "MANUAL_BASELINE" },
     include: { createdBy: { select: { name: true } } },
     orderBy: [{ year: "desc" }, { quarter: "desc" }, { revision: "desc" }],
-  });
+  }) : [];
   const latest = new Map<string, (typeof snapshots)[number]>();
   for (const row of snapshots) {
     const key = `${row.year}-${row.quarter}`;
@@ -56,10 +58,10 @@ export default async function ReportingSettingsPage({
   return <Shell user={user} taskPropertyId={id}>
     <div className="page">
       <div className="breadcrumb"><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><Link href={`/nemovitosti/${id}/nastaveni`}>Nastavení</Link><span>›</span><span>Reporty</span></div>
-      <div className="page-title"><div><span className="eyebrow">Interní nastavení</span><PageHeading>Nastavení reportů</PageHeading><p>{property.name} · korekce a historické vstupy</p></div><Link className="secondary" href={`/nemovitosti/${id}/reporting`}>Zpět na reporty</Link></div>
+      <div className="page-title"><div><PageHeading>Nastavení reportů</PageHeading><p>{property.name} · korekce a historické vstupy</p></div><Link className="secondary" href={`/nemovitosti/${id}/reporting`}>Zpět na reporty</Link></div>
       <PropertySubnav propertyId={id} active="nastaveni"/>
       <Flash ok={query.ok} error={query.error}/>
-      <div className="notice"><strong>Není součástí vlastnického reportu</strong><span>Ruční korekce a historické vstupy jsou dostupné pouze uživatelům se zápisem nebo plnou správou objektu. Běžný vlastník je v Reportech neuvidí.</span></div>
+
 
       <section id="mf" className="card">
         <div className="card-head"><div><h2>Přiřazení cenové mapy MF</h2><p className="muted-copy">Ruční korekci používejte jen tehdy, když automatické přiřazení podle údajů nemovitosti není jednoznačné.</p></div></div>
@@ -72,7 +74,7 @@ export default async function ReportingSettingsPage({
         {mfCandidates.length > 0 && <div className="stack-list">{mfCandidates.map((candidate) => <form key={candidate.territoryCode} action={`/api/properties/${id}/mf-rent/location`} method="post" className="inline-edit-card"><input type="hidden" name="territoryCode" value={candidate.territoryCode}/><div className="rule-summary"><div><strong>{candidate.territoryName}</strong><small>{candidate.municipalityName} · {candidate.territoryCode}</small></div><button className="secondary" type="submit">Přiřadit</button></div></form>)}</div>}
       </section>
 
-      <section id="historie" className="card">
+      {corporateHistory && <section id="historie" className="card">
         <div className="card-head"><div><h2>Historická kvartální data</h2><p className="muted-copy">Každé uložení vytváří novou neměnnou revizi. Prázdné hodnoty zůstávají neznámé.</p></div></div>
         <form className="compact-form" action={`/api/properties/${id}/reporting/historical-quarter`} method="post">
           <label className="field"><span>Rok</span><input name="year" type="number" min="1900" max="2200" required defaultValue={editing?.year}/></label>
@@ -86,7 +88,7 @@ export default async function ReportingSettingsPage({
           <button className="primary" type="submit">{editing ? "Uložit novou revizi" : "Uložit období"}</button>
         </form>
         <div className="table-wrap" style={{marginTop:16}}><table><thead><tr><th>Období</th><th>Revize</th><th>Zdroj</th><th>Uložil / datum</th><th></th></tr></thead><tbody>{rows.length ? rows.map((row)=><tr key={row.id}><td>Q{row.quarter} {row.year}</td><td>r{row.revision}</td><td>{row.sourceNote || "—"}</td><td>{row.createdBy?.name || "—"} · {row.createdAt.toLocaleDateString("cs-CZ")}</td><td><Link href={`/nemovitosti/${id}/nastaveni/reporting?edit=${row.year}-${row.quarter}#historie`}>Nová revize</Link></td></tr>) : <tr><td colSpan={5} className="table-empty">Zatím bez historických dat.</td></tr>}</tbody></table></div>
-      </section>
+      </section>}
     </div>
   </Shell>;
 }
