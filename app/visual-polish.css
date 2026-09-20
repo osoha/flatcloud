@@ -54,3 +54,9 @@ html[data-theme="dark"] .flatberry-brand-bitmap{filter:invert(1) hue-rotate(180d
 html[data-theme="dark"]{--navy:#d9e8ff;--navy-2:#c0d6f5;--fb-surface:#192536;--fb-subtle:#202e42}
 html[data-theme="dark"]{--card:#192536;--green-soft:#213d35;--orange:#e9bd76;--orange-soft:#413725;--red-soft:#402b35;--purple:#bca3f3;--purple-soft:#362f4d;--shadow:0 8px 28px rgb(0 0 0 / .15)}
 html[data-theme="dark"] .primary{background:#2168f5;color:#fff}
+/* Portaled forms use dialog typography, independent of their compact table trigger. */
+.fb-modal .dismissible-details-head>strong{font-size:15px;line-height:1.4}
+.fb-modal .field>span,.fb-modal .checkbox-field{font-size:13px;line-height:1.5}
+.fb-modal .field :is(input,select,textarea){font-size:14px}
+.fb-modal :is(.primary,.secondary,.dismissible-details-close){font-size:13px}
+.fb-modal .field small{font-size:12px;line-height:1.5}
