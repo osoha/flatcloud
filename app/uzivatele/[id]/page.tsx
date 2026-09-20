@@ -7,6 +7,7 @@ import { userRoles } from "@/lib/labels";
 import { UserAvatar } from "@/components/UserAvatar";
 import { PermissionLevelSelect } from "./PermissionLevelSelect";
 import styles from "./user-access.module.css";
+import { isUserOnline } from "@/lib/user-activity-policy";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,12 @@ export default async function UserEditPage({ params, searchParams }: { params: P
   if (admin.role !== "SUPER_ADMIN") redirect("/portfolio");
   const { id } = await params;
   const [edited, properties, query] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, phone: true, title: true, role: true, active: true, allProperties: true, avatarMimeType: true, updatedAt: true, memberships: true, unitMemberships: true, managedProperties: { select: { id: true, name: true } } } }),
+    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, phone: true, title: true, role: true, active: true, allProperties: true, avatarMimeType: true, updatedAt: true, activity: { select: { lastSeenAt: true } }, memberships: true, unitMemberships: true, managedProperties: { select: { id: true, name: true } } } }),
     prisma.property.findMany({ where: { active: true }, orderBy: { name: "asc" }, include: { units: { orderBy: { label: "asc" } } } }),
     searchParams,
   ]);
   if (!edited) notFound();
+  const online = isUserOnline(edited.active, edited.activity?.lastSeenAt);
 
   const activeSuperAdminCount = await prisma.user.count({ where: { active: true, role: "SUPER_ADMIN" } });
   const locksLastAdmin = edited.active && edited.role === "SUPER_ADMIN" && activeSuperAdminCount === 1;
@@ -36,6 +38,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
 
   return <Shell user={admin}><FormPage title={`Uživatel: ${edited.name}`} description="Kontaktní profil a srozumitelné nastavení rozsahu i úrovně oprávnění." backHref="/uzivatele">
     <Flash ok={query.ok} error={query.error}/>
+    {online && <p className="user-activity-online">Online · viditelná karta aplikace během posledních 2 minut</p>}
     <section className={`card ${styles.accessOverview}`} data-testid="user-access-overview">
       <div className={styles.overviewHead}><div><h2>Aktuální přístup</h2><p>Rychlý přehled toho, co uživatel právě vidí a v jakém rozsahu může pracovat.</p></div><span className={styles.overviewBadge}>{edited.active ? "Aktivní účet" : "Deaktivovaný účet"}</span></div>
       <div className={styles.overviewGrid}>
@@ -55,7 +58,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
         <div className={styles.sectionHead}><div><h2>Profil uživatele</h2><p>Kontaktní údaje a fotografie nemění rozsah oprávnění.</p></div><span className={styles.sectionTag}>Profil</span></div>
         {locksLastAdmin && <div className="notice">Toto je poslední aktivní hlavní administrátor. Jeho roli ani aktivní stav nelze změnit, dokud nevytvoříte dalšího aktivního hlavního administrátora.</div>}
         <div className={styles.profileGrid}>
-          <div className={styles.avatarRow}><UserAvatar user={edited} size="lg"/><div className={styles.avatarActions}><div><strong>Avatar uživatele</strong><p>PNG, JPG nebo WebP, maximálně 2 MB. Bez nahrané fotografie zůstávají iniciály.</p></div><input type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/><label className="checkbox-field"><input type="checkbox" name="removeAvatar"/><span>Odstranit současný avatar</span></label></div></div>
+          <div className={styles.avatarRow}><UserAvatar user={edited} size="lg" className={online ? "user-online" : ""}/><div className={styles.avatarActions}><div><strong>Avatar uživatele</strong><p>PNG, JPG nebo WebP, maximálně 2 MB. Bez nahrané fotografie zůstávají iniciály.</p></div><input type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/><label className="checkbox-field"><input type="checkbox" name="removeAvatar"/><span>Odstranit současný avatar</span></label></div></div>
           <Field label="Jméno" name="name" defaultValue={edited.name} required/>
           <Field label="E-mail" name="email" defaultValue={edited.email} type="email" required/>
           <Field label="Telefon" name="phone" defaultValue={edited.phone}/>

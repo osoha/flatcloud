@@ -15,6 +15,9 @@ import { ScopeAwareLink } from "@/components/ScopeAwareLink";
 import { NativeDetailsEscape } from "@/components/NativeDetailsEscape";
 import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
 import { SidebarCollapseToggle } from "@/components/SidebarCollapseToggle";
+import { UserActivityHeartbeat } from "@/components/UserActivityHeartbeat";
+import { AdminOperationsPanel } from "@/components/admin/AdminOperationsPanel";
+import { loadAdminOperations } from "@/lib/admin-operations";
 
 type ShellUser = {
   id: string;
@@ -58,10 +61,12 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
     select: { _count: { select: { memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } }, unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } } } } },
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
+  const operations = superAdmin ? await loadAdminOperations() : null;
 
   return <div className="app-shell v21-shell flatberry-shell">
     <NativeDetailsEscape/>
     <ActiveTabVisibility/>
+    <UserActivityHeartbeat/>
     <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
       <SidebarCollapseToggle/>
@@ -102,6 +107,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
         {superAdmin && <CollapsibleNavGroup id="administration" label="Správa" activeRoots={["/uzivatele", "/nastaveni"]}>
           <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>
           <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>
+          {operations && <AdminOperationsPanel initial={operations}/>}
         </CollapsibleNavGroup>}
       </nav>
       <div className="sidebar-footer">
