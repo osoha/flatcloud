@@ -53,9 +53,9 @@ async function main() {
     const quality = read("app/portfolio/kvalita/page.tsx");
     const detail = read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx");
     const distribution = read("app/distribuce/page.tsx");
-    for (const marker of ["Kvalita a technický stav portfolia", "všechna spravovaná aktiva", "Prioritní fronta obnovy", "UnitConditionAssessmentForm"]) assert.match(quality, new RegExp(marker));
+    for (const marker of ["Kvalita a technický stav portfolia", "PortfolioScopePicker", "Prioritní fronta obnovy", "UnitConditionAssessmentForm"]) assert.match(quality, new RegExp(marker));
     for (const marker of ["id=\"kvalita\"", "Kvalita a plán obnovy", "Historie hodnocení"]) assert.match(detail, new RegExp(marker));
-    assert.match(distribution, /Technický stav je samostatný podklad/);
+    assert.match(distribution, /unitConditionRatings/);
     assert.doesNotMatch(distribution, /name="rating"|name="investmentUrgency"|name="estimatedCapex"/);
   });
 

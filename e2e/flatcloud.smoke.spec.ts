@@ -352,7 +352,7 @@ test("CAPEX výhled vede z fronty do pětiletého plánu a zpět", async ({ page
   await page.getByRole("link", { name: "CAPEX výhled", exact: true }).click();
   await expect(page).toHaveURL(/\/portfolio\/kvalita\/plan/);
   await expect(page.getByRole("heading", { name: "Plán obnovy a CAPEX výhled", exact: true })).toBeVisible();
-  await expect(page.getByText("Provozní plán · bez vazby na interní Distribuci", { exact: true })).toBeVisible();
+  await expect(page.locator(".scope-picker")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Časová mapa obnovy", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Aktivní plán obnovy", exact: true })).toBeVisible();
   await expect(page.locator(".capex-timeline-column")).toHaveCount(8);
