@@ -15,7 +15,7 @@ const read = (path: string) => fs.readFileSync(path, "utf8");
 
 async function verifyDatabaseBehavior() {
   const marker = `verify-v22c-part2ba1-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const users = await Promise.all([["edit", UserRole.OWNER_VIEWER], ["view", UserRole.OWNER_VIEWER]].map(([label, role]) => prisma.user.create({ data: { email: `${marker}-${label}@example.test`, name: `${marker}-${label}`, passwordHash: "verifier-not-a-login", role: role as UserRole, active: true } })));
+  const users = await Promise.all([["edit", UserRole.OWNER_VIEWER], ["view", UserRole.OWNER_VIEWER]].map(([label, role]) => prisma.user.create({ data: { flatcloudMember: true, email: `${marker}-${label}@example.test`, name: `${marker}-${label}`, passwordHash: "verifier-not-a-login", role: role as UserRole, active: true } })));
   const [editor, viewer] = users;
   const actor = (user: { id: string; role: UserRole }) => ({ id: user.id, role: user.role });
   let ownerId: string | undefined, propertyId: string | undefined, groupId: string | undefined, snapshotId: string | undefined, reportId: string | undefined;

@@ -50,7 +50,7 @@ async function runtimeChecks() {
   const users = await Promise.all(
     ["editor", "outsider", "super"].map((label) =>
       prisma.user.create({
-        data: {
+        data: { flatcloudMember: true,
           name: `${marker}-${label}`,
           email: `${marker}-${label}@example.test`,
           passwordHash: "test",

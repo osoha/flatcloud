@@ -29,7 +29,8 @@ export function reportingBackofficeNavVisible(role: string, memberships: Array<{
 
 async function storedActor(tx: Prisma.TransactionClient, actor: ReportingBackofficeActor) {
   const user = await tx.user.findUnique({ where: { id: actor.id }, select: { id: true, role: true, flatcloudMember: true, active: true } });
-  if (!user?.active || !isFlatcloudMember(user)) domainError("Přihlášený uživatel není aktivní.");
+  if (!user?.active) domainError("Přihlášený uživatel není aktivní.");
+  if (!isFlatcloudMember(user)) domainError("Nemáte příslušnost ke skupině FlatCloud.");
   return user;
 }
 export async function backofficePermissionForGroup(actor: ReportingBackofficeActor, groupId: string, tx: Prisma.TransactionClient | typeof prisma = prisma) {

@@ -142,3 +142,63 @@ test("R32D: private encrypted map key persists, isolates accounts, forgets, and 
     await prisma.user.delete({where:{id:other.id}});
   }
 });
+
+test("R32D: synthetic capture crops the confirmed square, retains source strip, and stops every track",async({page})=>{
+  // Deterministic transport test, not evidence of live Google/WebGL coverage or permission consent.
+  await page.goto("/login");
+  await page.route("**/api/admin/skills/maps-key**",route=>route.fulfill({json:{configured:true,key:"SYNTHETIC_TEST_KEY"}}));
+  await page.route("https://maps.googleapis.com/**",route=>route.fulfill({contentType:"application/javascript",body:`
+    class FakeMap extends HTMLElement {
+      constructor(opts){super();Object.assign(this,opts);this.style.cssText='display:block;width:100%;height:100%;background:rgb(30,70,200)'}
+      flyCameraTo({endCamera}){Object.assign(this,endCamera);setTimeout(()=>{this.dispatchEvent(new Event('gmp-animationend'));const event=new Event('gmp-steadychange');event.isSteady=true;this.dispatchEvent(event)},20)}
+    }
+    customElements.define('r32-test-map',FakeMap);
+    window.google={maps:{importLibrary:async()=>({Map3DElement:FakeMap,AltitudeMode:{RELATIVE_TO_GROUND:'RELATIVE',ABSOLUTE:'ABSOLUTE'},MapMode:{SATELLITE:'SATELLITE'},GestureHandling:{COOPERATIVE:'COOPERATIVE'}})}};
+    window.flatberryMapsLoaded();
+  `}));
+  await page.evaluate(()=>{
+    const w=window as any;
+    let handle="";
+    Object.defineProperty(navigator.mediaDevices,"setCaptureHandleConfig",{configurable:true,value:(config:any)=>{handle=config.handle}});
+    Object.defineProperty(navigator.mediaDevices,"getDisplayMedia",{configurable:true,value:async()=>{
+      const source=document.createElement("canvas");source.width=innerWidth;source.height=innerHeight;
+      const ctx=source.getContext("2d")!;
+      const paint=()=>{
+        ctx.fillStyle="rgb(240,0,0)";ctx.fillRect(0,0,source.width,source.height);
+        const rect=document.getElementById("viewport")!.getBoundingClientRect();
+        ctx.fillStyle="rgb(30,70,200)";ctx.fillRect(rect.x,rect.y,rect.width,rect.height);
+        ctx.fillStyle="rgb(220,220,250)";ctx.fillRect(rect.x+rect.width/2-10,rect.y,20,rect.height-76);
+        ctx.fillStyle="rgb(0,130,30)";ctx.fillRect(rect.x,rect.bottom-76,rect.width,76);
+      };
+      paint();const timer=setInterval(paint,30);const stream=source.captureStream(15),track=stream.getVideoTracks()[0];
+      const stop=track.stop.bind(track);track.stop=()=>{w.captureStopped=true;clearInterval(timer);stop()};
+      track.getSettings=()=>({displaySurface:"browser"});
+      (track as any).getCaptureHandle=()=>({handle,origin:location.origin});
+      return stream;
+    }});
+    const original=HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext=function(this:HTMLCanvasElement,kind:any,...args:any[]){
+      if(kind==="webgl2") return {getExtension:()=>null} as any;
+      return original.call(this,kind,...args as []) as any;
+    } as typeof original;
+  });
+  await page.setContent(houseAvatarTemplate);
+  await expect(page.locator("#key-state")).toContainText("Soukromý klíč je uložený");
+  await page.getByRole("button",{name:"Rychlý test: Onšovecká 427",exact:true}).click();
+  await expect(page.locator("#status")).toContainText("Scéna je vykreslena");
+  await page.locator("#confirmed").check();
+  await page.getByRole("button",{name:"Vidím prostorové fasády a střechu",exact:true}).click();
+  await page.getByRole("button",{name:"Použít tento pohled",exact:true}).click();
+  await page.getByRole("button",{name:"Připravit výřez (PNG)",exact:true}).click();
+  await expect(page.locator("#export-preview")).toBeVisible();
+  const pixels=await page.locator("#export-preview").evaluate(async(img:HTMLImageElement)=>{
+    await img.decode();const canvas=document.createElement("canvas");canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+    const ctx=canvas.getContext("2d")!;ctx.drawImage(img,0,0);
+    return {width:img.naturalWidth,height:img.naturalHeight,center:[...ctx.getImageData(400,400,1,1).data],source:[...ctx.getImageData(400,1010,1,1).data],stopped:(window as any).captureStopped};
+  });
+  expect(pixels.width).toBe(1024);expect(pixels.height).toBe(1024);
+  expect(pixels.center.slice(0,3)).toEqual([30,70,200]);expect(pixels.source.slice(0,3)).toEqual([0,130,30]);expect(pixels.stopped).toBe(true);
+  await expect(page.locator("#download-crop")).toBeDisabled();
+  await page.locator("#export-confirm").check();
+  await expect(page.locator("#download-crop")).toBeEnabled();
+});

@@ -74,7 +74,7 @@ async function runtimeChecks() {
       ["super", "SUPER_ADMIN"],
     ].map(([label, role]) =>
       prisma.user.create({
-        data: {
+        data: { flatcloudMember: true,
           name: `${marker}-${label}`,
           email: `${marker}-${label}@example.test`,
           passwordHash: "test",
