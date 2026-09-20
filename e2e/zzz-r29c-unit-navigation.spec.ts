@@ -21,7 +21,7 @@ test("unit-only owner gets unit reports but never report correction settings", a
     const tag = `R29C ${crypto.randomUUID().slice(0, 8)}`;
     const owner = await db.owner.create({ data: { name: `${tag} owner` } });
     const property = await db.property.create({ data: { name: `${tag} property`, address: "Syntetická 29", city: "Praha", ownerId: owner.id } });
-    const visibleUnit = await db.unit.create({ data: { propertyId: property.id, label: "R29C visible" } });
+    const visibleUnit = await db.unit.create({ data: { propertyId: property.id, label: "R29C visible", operationalStatusEvents: { create: { status: "STANDARD", source: "MANUAL_BASELINE", effectiveAt: new Date("2020-01-01T12:00:00Z") } } } });
     const foreignUnit = await db.unit.create({ data: { propertyId: property.id, label: "R29C hidden" } });
     const tenant = await db.tenant.create({ data: { name: `${tag} tenant` } });
     await db.lease.create({ data: { unitId: visibleUnit.id, tenantId: tenant.id, startDate: new Date("2026-01-01"), endDate: new Date("2027-12-31"), financialTrackingFromPeriod: "2026-01", variableSymbol: `R29C${Date.now()}`, rentCents: 1500000, servicesCents: 300000, depositCents: 3000000 } });
