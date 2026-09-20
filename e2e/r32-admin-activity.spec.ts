@@ -54,7 +54,7 @@ test("R32A: super-admin vidí tři provozní údaje, online kroužek a filtrová
     const panel = page.getByRole("region", { name: "Provoz aplikace" });
     await expect(panel).toBeVisible();
     await expect(panel.getByRole("link")).toHaveCount(3);
-    await expect(panel.getByRole("link", { name: /Uživatelé online/ })).toHaveAttribute("href", "/uzivatele?activity=online");
+    await expect(panel.getByRole("link", { name: /Uživatelé online/ })).toHaveAttribute("href", "/uzivatele?activity=online#seznam-uzivatelu");
     const live = page.locator("#seznam-uzivatelu tr").filter({ hasText: "R32 Online účet" });
     await expect(live.locator(".user-online")).toHaveCSS("outline-width", "3px");
     await expect(live.getByText("Online", { exact: true })).toBeVisible();

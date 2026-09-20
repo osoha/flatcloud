@@ -11,3 +11,5 @@ html.fc-sidebar-collapsed .flatberry-shell .admin-operations-panel{display:none}
 .user-activity-note{font-size:12px;line-height:1.6;color:#71829b;margin:12px 0}
 #seznam-uzivatelu,#cekajici-pozvanky{scroll-margin-top:100px}
 @media(pointer:coarse){.flatberry-shell .v21-nav .admin-operations-panel a{min-height:44px}}
+
+.user-activity-controls{padding:0 22px 12px}

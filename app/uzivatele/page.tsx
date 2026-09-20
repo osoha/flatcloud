@@ -54,11 +54,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     <AdminSubnav active="users"/>
     <Flash ok={query.ok} error={query.error}/>
     {query.invite && <div className="invite-link-box"><strong>Odkaz k ručnímu předání</strong><input readOnly value={query.invite}/></div>}
-    <form action="/uzivatele#seznam-uzivatelu" method="get" className="user-activity-filters">
-      <label className="field"><span>Aktivita uživatelů</span><select name="activity" defaultValue={activityView}><option value="name">Běžné řazení — podle jména</option><option value="online">Online přednostně</option><option value="inactive">Neaktivní déle než 30 dní</option><option value="unseen">Bez záznamu aktivity</option></select></label>
-      <button type="submit" className="secondary">Zobrazit účty</button><RefreshActivity/>
-    </form>
-    <p className="user-activity-note">Online = viditelná karta aplikace během posledních 2 minut. Stav k {now.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Prague" })}. Bez záznamu aktivity znamená, že zatím nemáme potvrzenou aktivitu ani historické přihlášení; nejde o deaktivovaný účet.</p>
+
 
     <div className="detail-grid users-create-grid">
       <details className="card col-12">
@@ -93,7 +89,14 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     </div>
 
     <div className="card portfolio-table-card" id="seznam-uzivatelu" style={{ marginTop: 16 }}>
-      <div className="table-toolbar"><div><h2>Aktivní účty</h2><p>Kliknutím na libovolné místo řádku otevřete profil a oprávnění uživatele.</p></div></div>
+      <div className="table-toolbar"><div><h2>Uživatelské účty</h2><p>Kliknutím na libovolné místo řádku otevřete profil a oprávnění uživatele.</p></div></div>
+      <div className="user-activity-controls">
+    <form action="/uzivatele#seznam-uzivatelu" method="get" className="user-activity-filters">
+      <label className="field"><span>Aktivita uživatelů</span><select name="activity" defaultValue={activityView}><option value="name">Běžné řazení — podle jména</option><option value="online">Online přednostně</option><option value="inactive">Neaktivní déle než 30 dní</option><option value="unseen">Bez záznamu aktivity</option></select></label>
+      <button type="submit" className="secondary">Zobrazit účty</button><RefreshActivity/>
+    </form>
+    <p className="user-activity-note">Online = viditelná karta aplikace během posledních 2 minut. Stav k {now.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Prague" })}. Bez záznamu aktivity znamená, že zatím nemáme potvrzenou aktivitu ani historické přihlášení; nejde o deaktivovaný účet.</p>
+      </div>
       <div className="table-wrap"><table>
         <thead><tr><th>Uživatel</th><th>Role</th><th>Nemovitosti</th><th>Stav</th><th>Poslední aktivita</th><th></th></tr></thead>
         <tbody>{users.length ? users.map((row) => {
