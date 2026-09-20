@@ -45,7 +45,7 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const membership = property.memberships.find((row) => row.userId === user.id);
   const unitMembership = unit.userAccesses.find((row) => row.userId === user.id);
   const canManage = canSeeAll(user.role) || membership?.permission === "EDIT" || membership?.permission === "ADMIN" || unitMembership?.permission === "EDIT" || unitMembership?.permission === "ADMIN";
-  const canManageMeters = property.active && canManage;
+  const canManageMeters = property.active && (hasAllPropertyAccess(user) || membership?.permission === "EDIT" || membership?.permission === "ADMIN" || unitMembership?.permission === "EDIT" || unitMembership?.permission === "ADMIN");
   const activeLease = currentLeaseForUnit(unit.leases);
   const futureLeases = futureLeasesForUnit(unit.leases);
   const pastLeases = pastLeasesForUnit(unit.leases);

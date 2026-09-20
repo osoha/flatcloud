@@ -46,3 +46,7 @@ html[data-content-width="standard"] .flatberry-shell .page{max-width:1440px!impo
 .fb-modal .dismissible-details-close{color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;display:flex;gap:6px;align-items:center}
 
 .fb-modal{min-width:0!important}
+
+.condition-assessment-form .field{display:flex!important}
+/* Monochrome light lettering and blue mark on dark surfaces; photo avatars stay untouched. */
+html[data-theme="dark"] .flatberry-brand-bitmap{filter:invert(1) hue-rotate(180deg);mix-blend-mode:screen}

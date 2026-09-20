@@ -167,14 +167,6 @@ export default async function DistributionCrmPage({
             icon={<CalendarClock />}
           />
         </div>
-        <div className="notice">
-          <strong>Interní osobní údaje · bez veřejného publikování</strong>
-          <span>
-            Kontakt je dostupný pouze interním správcům. Založení nebo změna
-            příležitosti neposílá e-mail, nevytváří rezervaci v právním smyslu a
-            nezveřejňuje jednotku.
-          </span>
-        </div>
         <div className="distribution-crm-create">
           <details className="card create-panel">
             <summary>
