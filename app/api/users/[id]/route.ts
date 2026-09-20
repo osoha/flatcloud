@@ -67,7 +67,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (unitMemberships.length) await tx.userUnit.createMany({ data: unitMemberships.map((membership) => ({ userId: id, ...membership })) });
     }, { isolationLevel: "Serializable" });
 
-    await audit(admin.id, "USER_UPDATED", "User", id, { email, role, active, allProperties, memberships, unitMemberships, flatcloudMember: savedMembership, avatarChanged: Object.keys(avatarUpdate).length > 0 });
+    await audit(admin.id, "USER_UPDATED", "User", id, { email, role, active, allProperties, memberships, unitMemberships, avatarChanged: Object.keys(avatarUpdate).length > 0, flatcloudMember: savedMembership });
     return goWithMessage(request, `/uzivatele/${id}`, "ok", "Uživatel a jeho oprávnění byli uloženi.");
   } catch (error) {
     return goWithMessage(request, `/uzivatele/${id}`, "error", error instanceof Error ? error.message : "Uživatele se nepodařilo uložit.");
