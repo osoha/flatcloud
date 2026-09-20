@@ -74,22 +74,22 @@ test("levé menu má ikonové sbalení, hover popisky a kompaktní profil", asyn
   await expect(footer.getByRole("button", { name: "Odhlásit" })).toBeHidden();
   await expect(footer.getByTitle("Můj účet")).toBeVisible();
   const collapsedLayout = await sidebar.evaluate((element) => {
-    const brand = element.querySelector<HTMLElement>(".brand")!;
+    const brand = element.querySelector<HTMLElement>(".flatberry-expand .flatberry-brand-bitmap")!;
     const avatar = element.querySelector<HTMLElement>(".sidebar-footer .avatar")!;
     const avatarBox = avatar.getBoundingClientRect();
     return {
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
       brandBackground: getComputedStyle(brand).backgroundImage,
-      brandImageDisplay: getComputedStyle(brand.querySelector("img")!).display,
+      brandWidth: brand.getBoundingClientRect().width,
       avatarDisplay: getComputedStyle(avatar).display,
       avatarWidth: avatarBox.width,
       avatarHeight: avatarBox.height,
     };
   });
   expect(collapsedLayout.scrollWidth).toBeLessThanOrEqual(collapsedLayout.clientWidth);
-  expect(collapsedLayout.brandBackground).toContain("flatcloud-logo-white.png");
-  expect(collapsedLayout.brandImageDisplay).toBe("none");
+  expect(collapsedLayout.brandBackground).toContain("flatberry-logo.png");
+  expect(collapsedLayout.brandWidth).toBe(146);
   expect(collapsedLayout.avatarDisplay).not.toBe("none");
   expect(collapsedLayout.avatarWidth).toBe(34);
   expect(collapsedLayout.avatarHeight).toBe(34);
@@ -141,9 +141,11 @@ test("záložky nemovitosti navazují na záhlaví a jejich texty se nepřekrýv
     };
   });
   expect(Math.abs(layout.navigationTop - layout.headerBottom)).toBeLessThanOrEqual(1);
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1);
-  expect(layout.firstBevel).not.toBe("none");
-  expect(layout.lastBevel).not.toBe("none");
+  // Original A preserves readable widths; overflow is intentionally scrollable.
+  await expect(navigation).toHaveCSS("overflow-x", "auto");
+  await expect(navigation).toHaveCSS("flex-wrap", "nowrap");
+  expect(layout.firstBevel).toBe("none");
+  expect(layout.lastBevel).toBe("none");
   for (let index = 0; index < layout.boxes.length; index += 1) {
     const box = layout.boxes[index];
     expect(box.textLeft).toBeGreaterThanOrEqual(box.left - 1);

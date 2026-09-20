@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
@@ -55,7 +56,7 @@ export default async function ReportingSettingsPage({
   return <Shell user={user} taskPropertyId={id}>
     <div className="page">
       <div className="breadcrumb"><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><Link href={`/nemovitosti/${id}/nastaveni`}>Nastavení</Link><span>›</span><span>Reporty</span></div>
-      <div className="page-title"><div><span className="eyebrow">Interní nastavení</span><h1>Nastavení reportů</h1><p>{property.name} · korekce a historické vstupy</p></div><Link className="secondary" href={`/nemovitosti/${id}/reporting`}>Zpět na reporty</Link></div>
+      <div className="page-title"><div><span className="eyebrow">Interní nastavení</span><PageHeading>Nastavení reportů</PageHeading><p>{property.name} · korekce a historické vstupy</p></div><Link className="secondary" href={`/nemovitosti/${id}/reporting`}>Zpět na reporty</Link></div>
       <PropertySubnav propertyId={id} active="nastaveni"/>
       <Flash ok={query.ok} error={query.error}/>
       <div className="notice"><strong>Není součástí vlastnického reportu</strong><span>Ruční korekce a historické vstupy jsou dostupné pouze uživatelům se zápisem nebo plnou správou objektu. Běžný vlastník je v Reportech neuvidí.</span></div>

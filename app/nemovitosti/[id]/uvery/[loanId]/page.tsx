@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import { FinancialTrendChart } from "@/components/FinancialTrendChart";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -27,7 +28,7 @@ export default async function LoanDetail({ params }: { params: Promise<{ id: str
   const financeUrl = `/nemovitosti/${id}/finance#uvery`;
   return <Shell user={user} taskPropertyId={id}><div className="page">
     <div className="breadcrumb"><Link href={financeUrl}>{property.name} · Finance</Link><span>›</span><span>Úvěr</span></div>
-    <div className="page-title"><div><h1>{loan.label}</h1><p>{loan.lender} · {loan.active ? "Aktivní" : "Ukončený"} · {loanRateTypes[loan.rateType]}</p></div><Link className="secondary" href={financeUrl}>Zpět na finance</Link></div>
+    <div className="page-title"><div><PageHeading>{loan.label}</PageHeading><p>{loan.lender} · {loan.active ? "Aktivní" : "Ukončený"} · {loanRateTypes[loan.rateType]}</p></div><Link className="secondary" href={financeUrl}>Zpět na finance</Link></div>
     <PropertySubnav propertyId={id} active="finance" unitLimited={false}/>
     <section className="card" aria-label="Potvrzený stav úvěru"><h2>Potvrzený stav úvěru</h2><p>Poslední evidovaný stav k dnešku. Potvrzení stavu není potvrzením bankovní úhrady ani účetního nákladu.</p>
       <div className="summary-list"><div><span>Původní jistina</span><strong>{moneyExact(Number(loan.principalCents))}</strong></div><div><span>Stav ke dni</span><strong>{current.confirmedAsOfDate ? date(current.confirmedAsOfDate) : "Chybí datovaný stav"}</strong></div><div><span>Zbývající jistina</span><strong>{current.confirmedAsOfDate ? moneyExact(Number(current.outstandingPrincipalCents)) : "Nedoloženo"}</strong></div><div><span>Roční sazba</span><strong>{current.confirmedAsOfDate ? percentFromBasisPoints(current.annualInterestRateBps) : "Nedoloženo"}</strong></div><div><span>Měsíční dluhová služba</span><strong>{current.confirmedAsOfDate && current.monthlyDebtServiceCents != null ? moneyExact(Number(current.monthlyDebtServiceCents)) : "Neuvedeno"}</strong></div></div>

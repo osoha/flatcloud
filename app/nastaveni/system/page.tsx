@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CheckCircle2, Mail, RefreshCw, ShieldCheck } from "lucide-react";
@@ -22,7 +23,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
   return <Shell user={user}><div className="page v21-admin-page">
     <div className="breadcrumb"><Link href="/nastaveni">Administrace</Link><span>›</span><span>Integrace a automatizace</span></div>
-    <div className="page-title"><div><h1>Integrace a automatizace</h1><p>Technická nastavení zdrojů dat, úložiště, bankovní schránky a komunikace.</p></div></div>
+    <div className="page-title"><div><PageHeading>Integrace a automatizace</PageHeading><p>Technická nastavení zdrojů dat, úložiště, bankovní schránky a komunikace.</p></div></div>
     <AdminSubnav active="system"/>
     <Flash ok={query.ok} error={query.error}/>
 

@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarClock, Handshake, Plus, UserRound, Users } from "lucide-react";
@@ -118,7 +119,7 @@ export default async function DistributionCrmPage({
         </div>
         <div className="page-title">
           <div>
-            <h1>CRM zájemců o jednotky</h1>
+            <PageHeading>CRM zájemců o jednotky</PageHeading>
             <p>
               Interní pipeline kontaktů, prohlídek, nabídek a rezervací pro
               potvrzená aktiva FlatCloud.

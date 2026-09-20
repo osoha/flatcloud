@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
@@ -33,7 +34,7 @@ export default async function DistributionReportingPage({
         </div>
         <div className="page-title">
           <div>
-            <h1>Distribuční podklady pro akcionáře</h1>
+            <PageHeading>Distribuční podklady pro akcionáře</PageHeading>
             <p>
               {data.period.label} · {data.scopeLabel} · data k{" "}
               {date(data.generatedAt)}

@@ -1,11 +1,11 @@
-import Image from "next/image";
+import { PageHeading } from "@/components/PageHeading";
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams;
   return (
     <main className="login-page">
       <div className="login-card">
-        <div className="login-logo"><Image src="/flatcloud-logo.png" width={210} height={51} alt="FlatCloud" priority/></div>
-        <h1>Přihlášení</h1>
+        <div className="login-logo"><span className="flatberry-brand-bitmap" role="img" aria-label="Flatberry"/></div>
+        <PageHeading>Přihlášení</PageHeading>
         <p>Evidence nájemních plateb a správa portfolia.</p>
         {params.error && <div className="error">Neplatný e-mail nebo heslo.</div>}
         <form action="/api/auth/login" method="post">

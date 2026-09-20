@@ -1,0 +1,140 @@
+/* Flatberry — approved original A, with the final cap-height and avatar corrections.
+   Product skin only: report documents / PDF templates retain their own visual system. */
+:root{--blue:#2168f5;--blue-soft:#edf4ff;--text:#13233e;--muted:#67768e;--line:#e3ebf7;--bg:#f7f9fd;--green:#247f61;--red:#b94b46;--shadow:0 3px 16px #26406906}
+.flatberry-shell{--fb-sidebar:240px;--fb-rail:72px;border-radius:0;min-height:100vh}
+.flatberry-shell .sidebar{width:var(--fb-sidebar);background:#fff;color:var(--text);border-right:1px solid var(--line);border-radius:0;box-shadow:none;transform:none}
+.flatberry-shell .main{width:calc(100% - var(--fb-sidebar));margin-left:var(--fb-sidebar);border-radius:0;min-width:0}
+.flatberry-shell .page{padding:26px 32px 36px;max-width:none;min-width:0}
+.flatberry-shell .sidebar-brand-row{height:94px;min-height:94px;display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:0;padding:0 16px;border:0}
+.flatberry-shell .sidebar-brand-row .brand{height:44px;width:154px;min-width:0;display:flex;align-items:center;flex:none;padding:0 0 0 8px;background:none;overflow:hidden}
+.flatberry-brand-clip{display:block;width:146px;height:29px;overflow:hidden;flex:none}
+.flatberry-brand-bitmap{display:block;width:146px;height:29px;flex:none;background:url('/flatberry-logo.png') no-repeat -38.5px -24.3px / 222px auto;transform:none}
+.flatberry-mark-only{width:26px}
+.flatberry-shell .sidebar-brand-row .sidebar-collapse-toggle,.flatberry-expand{display:flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;min-height:44px;margin:0;padding:0;border:0;background:transparent;color:#7288a7;border-radius:8px;cursor:pointer}
+.flatberry-shell .sidebar-brand-row .sidebar-collapse-toggle:hover,.flatberry-expand:hover{background:#eef4ff;color:var(--blue)}
+.flatberry-shell [hidden]{display:none!important}
+.flatberry-shell .v21-nav{padding:0 16px 12px;gap:3px;min-height:0}
+.flatberry-shell .nav-label{color:#8693a7;font-size:11px;font-weight:500;letter-spacing:.09em;padding:14px 12px 7px}
+.flatberry-shell .v21-nav a{min-height:43px;padding:10px 12px;gap:10px;font-size:13px;font-weight:400;color:#576781;border-radius:11px;position:relative;line-height:1.4}
+.flatberry-shell .v21-nav a:hover{background:#f4f7fe;color:#245dbb}
+.flatberry-shell .v21-nav a:is(.active,[aria-current="page"]){background:#edf4ff;color:#165ad9;font-weight:600;box-shadow:none}
+.flatberry-shell .v21-nav .ico{background:none;color:inherit;width:20px;flex:none}
+.flatberry-shell .v21-nav .ico svg{width:18px;height:18px;stroke-width:1.6}
+.flatberry-shell .nav-group-toggle{padding:10px 12px;min-height:40px;border:0;border-radius:8px;background:transparent;color:#7183a0;font-size:12px;font-weight:500}
+.flatberry-shell .nav-group-toggle:hover{background:#f4f7fe;color:#245dbb}
+.flatberry-shell .nav-count{background:#fff0ee;color:#b7493f;min-width:19px;height:19px;border-radius:6px;font-size:11px;font-weight:500;box-shadow:none}
+.flatberry-shell .sidebar-footer{border-top:1px solid var(--line);padding:12px 16px}
+.flatberry-shell .sidebar-footer .user-card{background:transparent;border:0;padding:4px;min-height:54px}
+.flatberry-shell .sidebar-footer .user-card strong{font-size:12px;font-weight:500;color:#344763}
+.flatberry-shell .sidebar-footer .user-card-meta{font-size:11px;color:#71819a;font-weight:400}
+.flatberry-shell .sidebar-footer .logout-form button{color:#7288a7}
+.flatberry-shell .sidebar-footer :is(.user-card-profile,.logout-form button):hover{background:#edf4ff;color:var(--blue)}
+html.fc-sidebar-collapsed .flatberry-shell .sidebar{width:var(--fb-rail);display:flex}
+html.fc-sidebar-collapsed .flatberry-shell .main{margin-left:var(--fb-rail);width:calc(100% - var(--fb-rail))}
+html.fc-sidebar-collapsed .flatberry-shell .sidebar-brand-row{grid-template-columns:44px;justify-content:center;padding:0 14px;height:94px;gap:0}
+html.fc-sidebar-collapsed .flatberry-shell .v21-nav{padding-inline:10px}
+html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer{padding-inline:8px}
+html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:hover{background:#edf4ff}
+.flatberry-shell :is(a,button,summary,input,select,textarea):focus-visible{outline:2px solid #3979ef;outline-offset:3px}
+.flatberry-shell .topbar{min-height:85px;height:auto;padding:18px 26px;background:#fff;border-bottom:1px solid var(--line);box-shadow:none;border-radius:0;gap:12px}
+.flatberry-shell .global-search{min-width:180px;flex:1 1 220px;max-width:680px;background:#f3f6fb;color:#8a96a9;border:0;border-radius:10px;min-height:40px}
+.flatberry-shell .global-search input{font-size:13px;background:transparent}
+.flatberry-shell .top-actions{gap:8px;flex-wrap:wrap}
+.flatberry-shell :is(.primary,.secondary){font-size:13px;font-weight:500;border-radius:10px;min-height:40px;line-height:1.4;padding:9px 12px;box-shadow:none}
+.flatberry-shell .primary{background:#2168f5;color:#fff;border:1px solid #2168f5}
+.flatberry-shell .primary:hover{background:#195cdb}
+.flatberry-shell .secondary{background:#fff;color:#3f516e;border:1px solid #dfe7f2}
+.flatberry-shell .secondary:hover{background:#f6f9ff;border-color:#bcd2fb}
+.flatberry-shell .top-action{font-size:12px;min-height:36px;padding:8px 10px}
+.flatberry-shell .card{background:#fff;border-color:var(--line);border-radius:16px;box-shadow:none}
+.flatberry-shell :is(.page-title,.property-header,.unit-hero){background:#fff;background-image:none;border:1px solid var(--line);border-radius:20px;padding:26px;box-shadow:none}
+.flatberry-shell .page-title{align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap}
+.flatberry-shell .page-title>div:first-child{min-width:0}
+.flatberry-shell .flatberry-page-heading{display:flex;align-items:baseline;gap:12px;font-size:31px;font-weight:600;line-height:1.2;letter-spacing:-.9px;margin:0;color:#162641}
+.flatberry-page-heading>span{min-width:0;overflow-wrap:anywhere}
+/* Lucide's artwork has 3px inset inside its 24px viewbox. 1.25cap yields ~1cap ink. */
+.flatberry-shell .flatberry-page-heading>.flatberry-heading-icon{display:block;flex:none;width:.95em;height:.95em;width:1.25cap;height:1.25cap;align-self:center;stroke-width:1.65;color:#5681c5;background:none;border:0;border-radius:0;padding:0;overflow:visible}
+.flatberry-shell :is(.page-title,.property-header) p{color:#71829b;font-size:13px;font-weight:400;margin:10px 0 0;line-height:1.6}
+.flatberry-shell .breadcrumb{font-size:12px;color:#7b89a0;margin-bottom:16px}
+.flatberry-shell h2{font-size:17px;font-weight:600;letter-spacing:-.2px;color:#263c5b}
+.flatberry-shell h3{font-weight:600}
+.flatberry-shell :is(.muted-copy,.owner-sub,.table-toolbar p){font-size:12px;color:#71829b;line-height:1.6}
+/* Original A: one stable row, softly attached to the white identity box. */
+.flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){display:flex;align-items:center;flex-wrap:nowrap;gap:4px;width:100%;max-width:100%;min-width:0;margin:0 0 20px;padding:12px 14px 14px;border:1px solid #e3ebf7;border-top:3px solid #79a8fb;border-radius:0 0 17px 17px;background:#fff;box-shadow:none;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:#cfddf1 transparent;overscroll-behavior-inline:contain}
+.flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{flex:0 0 auto;min-width:max-content;min-height:41px;display:inline-flex;align-items:center;justify-content:center;padding:10px 14px!important;margin:0!important;border:0!important;border-radius:9px;background:transparent;color:#62748f;font-size:13px;font-weight:500;line-height:1.45;white-space:nowrap;box-shadow:none}
+.flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a::before,
+.flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a::after{content:none}
+.flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:hover{background:#f0f5ff;color:#2a62bd}
+.flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:is(.active,[aria-current="page"]){background:#2468ef;color:#fff;border-radius:8px 8px 11px 11px;box-shadow:0 4px 8px #2168f522}
+.flatberry-shell :is(.page-title,.property-header,.unit-hero):has(+ :is(.section-nav,.property-subnav,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav,.unit-tabs)){margin-bottom:0;border-bottom:0;border-radius:20px 20px 0 0}
+.flatberry-shell .unit-tabs{position:sticky;top:85px}
+.flatberry-shell .property-header{grid-template-columns:auto minmax(0,1fr) auto;gap:20px;align-items:center}
+.flatberry-shell .property-header-identity{min-width:0;gap:8px;align-items:center}
+.flatberry-shell .property-header-identity small{font-size:11px;color:#7b8ba2}
+.flatberry-shell .property-meta{gap:6px 12px;margin-top:12px}
+.flatberry-shell .meta-pill{background:transparent;border:0;padding:0;color:#617795;font-size:12px;font-weight:400}
+.flatberry-shell .property-map-link{font-size:13px;color:#677d9a}
+.flatberry-shell .property-icon-frame{background:#eef3f9;color:#7d94b3;box-shadow:none}
+.entity-avatar{display:inline-flex;align-items:center;justify-content:center;background:#eef3f9;color:#718aaa;border-radius:11px;flex:none;width:68px;height:66px;overflow:hidden;vertical-align:middle}
+.entity-avatar-lg{width:80px;height:80px;border-radius:14px}
+/* 80% SVG box × ~83% artwork = ~66% of the tile. Never inherit generic 18px icons. */
+.flatberry-shell .entity-avatar>.entity-avatar-glyph{width:80%;height:80%;flex:none;stroke-width:1.5}
+.entity-avatar>img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.flatberry-shell .property-cell{display:flex;align-items:center;gap:13px;min-width:250px}
+.flatberry-shell .property-cell>div{min-width:0}
+.flatberry-shell .property-cell strong{font-size:14px;font-weight:500;color:#294769;white-space:normal;overflow-wrap:anywhere}
+.flatberry-shell .property-cell small{font-size:12px;margin-top:5px;color:#7890ac;white-space:normal}
+.flatberry-shell .unit-hero>div:first-child{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:16px}
+.flatberry-shell .unit-hero .entity-avatar{grid-column:1;grid-row:1/5;align-self:center}
+.flatberry-shell .unit-hero>div:first-child>:not(.entity-avatar){grid-column:2}
+.flatberry-shell .stat-grid{gap:14px}
+.flatberry-shell .stat{position:relative;display:flex;align-items:flex-start;min-height:135px;padding:20px;gap:0}
+.flatberry-shell .stat>.stat-icon{position:absolute;top:19px;right:18px;width:18px;height:18px;margin:0;border:0;background:transparent;color:#91a7c8;border-radius:0;box-shadow:none}
+.flatberry-shell .stat>.stat-icon svg{width:17px;height:17px;stroke-width:1.5}
+.flatberry-shell .stat>.stat-icon+div{width:100%;min-width:0}
+.flatberry-shell .stat span{display:block;font-size:13px;font-weight:400;color:#7183a0;padding-right:16px}
+.flatberry-shell .stat strong{font-size:25px;font-weight:500;letter-spacing:-.6px;line-height:1.35;color:#2168f5;white-space:normal;margin-top:8px}
+.flatberry-shell .stat small{font-size:12px;font-weight:400;line-height:1.5;color:#7890ac;margin-top:7px}
+.flatberry-shell .stat .stat-arrow{display:none}
+.flatberry-shell .stat :is(.negative,.bad),.flatberry-shell .negative{color:#b94b46}
+.flatberry-shell .stat .positive,.flatberry-shell .positive{color:#247f61}
+.flatberry-shell .stat-link:hover{transform:none;border-color:#b8d0f6;box-shadow:0 3px 14px #2168f509}
+.flatberry-shell .table-toolbar{padding:20px 22px 15px;border-bottom:0}
+.flatberry-shell table{font-size:13px}
+.flatberry-shell th{font-size:12px;font-weight:500;text-transform:none;letter-spacing:0;padding:12px 14px;background:#f7faff;color:#7188a7;border-color:#e6edf6;line-height:1.5}
+.flatberry-shell td{font-size:13px;padding:15px 14px;border-color:#edf2f8;line-height:1.5;color:#47617e}
+.flatberry-shell td.money{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:500}
+.flatberry-shell td.negative{color:#b94b46}.flatberry-shell td.positive{color:#247f61}
+.flatberry-shell .portfolio-table-card{overflow:hidden;padding:0}
+.flatberry-shell .table-wrap{max-width:100%;overflow-x:auto!important;scrollbar-width:thin}
+.flatberry-shell .portfolio-table-card .status{background:transparent;border:0;padding:0;font-size:12px;font-weight:500;white-space:normal}
+.flatberry-shell .portfolio-table-card .status.ok{color:#247f61}.flatberry-shell .portfolio-table-card .status.warn{color:#927031}.flatberry-shell .portfolio-table-card .status.bad{color:#b94b46}
+.collection-indicator{display:inline-flex;flex-direction:column;gap:7px;min-width:76px;font-size:13px;font-variant-numeric:tabular-nums}
+.collection-indicator.complete{color:#247f61;--collection-color:#41977a}.collection-indicator.partial{color:#927031;--collection-color:#c8a052}.collection-indicator.unpaid{color:#b94b46;--collection-color:#c9736b}
+.collection-track{display:block;height:5px;width:100%;border:0;background:#edf1f6;border-radius:4px;overflow:hidden}
+.collection-track>i{display:block;height:100%;border-radius:4px;background:var(--collection-color)}
+.collection-empty{color:#7e8ea5}.collection-empty small{display:block;font-size:11px;white-space:nowrap}
+.flatberry-shell .highlighted-property-row{background:var(--row-highlight,transparent)}
+.flatberry-shell .highlighted-property-row:hover{background:color-mix(in srgb,var(--row-highlight,#fff) 80%,#f4f7fb)}
+.property-highlight-select{font:inherit;font-size:12px;color:#657b97;border:1px solid #e0e7f0;border-radius:7px;padding:8px 6px;background:#fff;max-width:115px}
+.flatberry-shell .attention-icon{background:transparent;border-radius:0;color:inherit}
+.flatberry-shell .attention-item{background:transparent;border:0;border-bottom:1px solid #edf2f8;border-radius:0;padding:12px 0}
+.flatberry-shell .attention-item strong{font-size:13px;font-weight:500}.flatberry-shell .attention-item small{font-size:12px;line-height:1.5}
+.flatberry-shell .field>span{font-size:13px;font-weight:500}.flatberry-shell .field :is(input,select,textarea){font-size:14px;border-color:#dfe7f2}
+.flatberry-shell :is(.notice,.flash,.compact-notice){font-size:13px;line-height:1.6;box-shadow:none}
+.flatberry-shell .quality-panel{border-left:3px solid #d7ae72}
+.flatberry-shell .quality-panel>summary{font-size:13px;font-weight:500}
+.flatberry-shell .method-tip{font-size:12px;line-height:1.7;color:#607896;margin:14px 22px}.method-tip summary{cursor:pointer;color:#326aba}
+.login-page{background:#f7f9fd}.login-card{box-shadow:none;border-color:#e3ebf7}.login-logo .flatberry-brand-bitmap{margin:8px 0 24px}.login-card .flatberry-heading-icon{display:none}.login-card .primary{background:#2168f5}
+@media(min-width:1500px){.flatberry-shell .page{padding:30px 36px 40px}.flatberry-shell .stat strong{font-size:28px}}
+@media(max-width:1250px){.flatberry-shell .v21-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.flatberry-shell .topbar{flex-wrap:wrap}.flatberry-shell .top-actions{margin-left:auto}.flatberry-shell .property-header{grid-template-columns:auto minmax(0,1fr)}.flatberry-shell .property-header-right{grid-column:1/-1;text-align:left}.flatberry-shell .property-header-actions{justify-content:flex-start}}
+@media(max-width:1000px){.flatberry-shell .page{padding:20px}.flatberry-shell .topbar{padding:16px 20px}.flatberry-shell .top-actions{width:100%;margin:0}.flatberry-shell .top-spacer{display:none}}
+@media(max-width:700px){.flatberry-shell .sidebar,html.fc-sidebar-collapsed .flatberry-shell .sidebar{display:none}.flatberry-shell .main,html.fc-sidebar-collapsed .flatberry-shell .main{margin-left:0;width:100%}.flatberry-shell .page{padding:16px}.flatberry-shell .topbar{padding:12px 16px;min-height:70px}.flatberry-shell :is(.page-title,.property-header,.unit-hero){padding:20px}.flatberry-shell .flatberry-page-heading{font-size:27px}.flatberry-shell .v21-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.flatberry-shell .stat{padding:16px;min-height:125px}.flatberry-shell .stat strong{font-size:24px}.flatberry-shell .stat span{font-size:12px}.flatberry-shell .stat>.stat-icon{right:10px;top:14px}.flatberry-shell .property-header{grid-template-columns:auto minmax(0,1fr);gap:12px}.entity-avatar-lg{width:68px;height:68px}.flatberry-shell .unit-tabs{top:0}.flatberry-shell .global-search{display:flex;flex-basis:100%}.flatberry-shell .account-chip{display:inline-flex}.flatberry-shell .top-action{font-size:12px}}
+@media(pointer:coarse){.property-highlight-select{min-height:44px}}
+@media(prefers-reduced-motion:reduce){.flatberry-shell *{scroll-behavior:auto;transition:none!important}}
+@media print{.flatberry-shell .sidebar{display:none!important}.flatberry-shell .main{margin:0!important;width:100%!important}.flatberry-shell .property-highlight-select{display:none}.flatberry-shell .flatberry-heading-icon{display:none}}
+.flatberry-shell .kpi-trend{display:flex;align-items:flex-start;gap:6px;margin-top:14px;padding-top:10px;border-top:1px solid #edf1f7;font-size:12px;line-height:1.5}
+.flatberry-shell .kpi-trend>svg{width:15px;height:15px;flex:none;margin-top:2px;stroke-width:1.6}
+.flatberry-shell .kpi-trend small{display:block;color:#75869d;font-size:11px;margin-top:2px}.kpi-trend.neutral{color:#64758c}
+.favorite-property{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border:0;border-radius:8px;background:transparent;color:#93a4bd;cursor:pointer}.favorite-property:hover{background:#f0f5ff;color:#6d83a8}.favorite-property.is-favorite{color:#b98827}.favorite-property:disabled{cursor:progress;opacity:.6}
+.appearance-identity{display:flex;align-items:center;gap:18px;margin-bottom:24px}.appearance-identity h2{margin:0}.appearance-identity p{margin-bottom:0}

@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
@@ -82,7 +83,7 @@ export default async function PropertyReportingPage({
     <div className="page">
       <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><span>Reporty</span></div>
       <div className="page-title">
-        <div><h1>{unitLimited ? "Reporty jednotek" : "Reporty"}</h1><p>{property.name}{unitLimited ? " · pouze vaše jednotky" : ""}</p></div>
+        <div><PageHeading>{unitLimited ? "Reporty jednotek" : "Reporty"}</PageHeading><p>{property.name}{unitLimited ? " · pouze vaše jednotky" : ""}</p></div>
         {canWrite && <Link className="secondary" href={`/nemovitosti/${id}/nastaveni/reporting`}>Nastavení reportů</Link>}
       </div>
       <PropertySubnav propertyId={id} active="reporting" unitLimited={unitLimited}/>

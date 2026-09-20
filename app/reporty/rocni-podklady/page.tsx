@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -54,7 +55,7 @@ export default async function AnnualOwnerPackagePage({
         <div className="breadcrumb">Reporty › Roční podklady vlastníka</div>
         <div className="page-title">
           <div>
-            <h1>Roční podklady vlastníka</h1>
+            <PageHeading>Roční podklady vlastníka</PageHeading>
             <p>
               {data.periodMode === "CLOSED"
                 ? `Uzavřený kalendářní rok ${year}.`

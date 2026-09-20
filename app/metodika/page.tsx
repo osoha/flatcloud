@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import {
   BookOpen,
@@ -81,7 +82,7 @@ export default async function MethodologyPage({
       <div className="page methodology-page">
         <div className="page-title">
           <div>
-            <h1>Podpora práce</h1>
+            <PageHeading>Podpora práce</PageHeading>
             <p>
               Průvodci podle životní situace, praktická metodika, jednotný
               slovník a interní znalostní osnovy.

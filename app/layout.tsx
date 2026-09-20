@@ -4,9 +4,10 @@ import "./audit-polish.css";
 import "./final-ui-polish.css";
 import "./r26-settlement-hardening.css";
 import "./r29d-costs-payments-polish.css";
+import "./flatberry.css";
 
 export const metadata = {
-  title: "FlatCloud Rent",
+  title: "Flatberry",
   description: "Evidence nájemních plateb",
   robots: { index: false, follow: false },
 };

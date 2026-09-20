@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import { readingMethods } from "@/lib/meter-reading-rules";
 import { SettlementEvidenceTable } from "@/components/SettlementEvidenceTable";
 import Link from "next/link";
@@ -35,7 +36,7 @@ export default async function ServiceSettlementPreviewPage({ params, searchParam
   const resultLabel = "Pracovní rozdíl proti předpisům";
   return <Shell user={user} taskPropertyId={preview.lease.unit.propertyId} taskLeaseId={preview.lease.id}><div className="page service-settlement-page">
     <div className="breadcrumb"><Link href={`/smlouvy/${leaseId}`}>← Smlouva</Link><span>›</span><span>Vyúčtování služeb</span></div>
-    <div className="page-title"><div><span className="eyebrow">Pracovní náhled · bez zaúčtování</span><h1>Vyúčtování služeb</h1><p>{contractingPartyNames(preview.lease).join(" + ")} · {preview.lease.unit.property.name} · {preview.lease.unit.label}</p></div><span className={`status ${preview.ready ? "ok" : "warn"}`}>{preview.ready ? "Podklady připravené" : "Doplnit podklady"}</span></div>
+    <div className="page-title"><div><span className="eyebrow">Pracovní náhled · bez zaúčtování</span><PageHeading>Vyúčtování služeb</PageHeading><p>{contractingPartyNames(preview.lease).join(" + ")} · {preview.lease.unit.property.name} · {preview.lease.unit.label}</p></div><span className={`status ${preview.ready ? "ok" : "warn"}`}>{preview.ready ? "Podklady připravené" : "Doplnit podklady"}</span></div>
     {canReadSources&&<Link className="secondary" href={`/nemovitosti/${preview.lease.unit.propertyId}/vyuctovani/podklady?unitId=${encodeURIComponent(preview.lease.unitId)}&leaseId=${encodeURIComponent(preview.lease.id)}`}>Faktury a externí podklady vyúčtování</Link>}
     <Flash ok={query.ok} error={query.error}/>
     {periodError&&<p className="form-error">{periodError} Zobrazuji poslední uzavřený kalendářní rok.</p>}

@@ -117,8 +117,11 @@ test("R30 · asset manager projde celý kontext nemovitosti bez globálního ove
     await assertSurface(page, route, `nemovitost/${section}`);
     await expect.soft(page.locator(".property-subnav"), `nemovitost/${section}: property tabs`).toBeVisible();
     await expect.soft(page.locator(".property-subnav a.active"), `nemovitost/${section}: právě jedna aktivní záložka`).toHaveCount(1);
-    const tabOverflow = await page.locator(".property-subnav").evaluate((el) => el.scrollWidth - el.clientWidth);
-    expect.soft(tabOverflow, `nemovitost/${section}: tabs se na širokém desktopu vejdou`).toBeLessThanOrEqual(2);
+    // Approved A keeps readable labels in one horizontally scrollable row at every width.
+    await expect.soft(page.locator(".property-subnav")).toHaveCSS("overflow-x", "auto");
+    await expect.soft(page.locator(".property-subnav")).toHaveCSS("flex-wrap", "nowrap");
+    await page.locator(".property-subnav a").last().scrollIntoViewIfNeeded();
+    await expect.soft(page.locator(".property-subnav a").last()).toBeInViewport();
   }
   clean();
 });

@@ -475,6 +475,7 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  entityAppearances UserEntityAppearance[]
   authoredMeterReadings MeterReading[] @relation("ReadingAuthor")
   settlementSourcesCreated SettlementSource[] @relation("SourceCreator")
   settlementSourcesConfirmed SettlementSource[] @relation("SourceConfirmer")
@@ -2459,4 +2460,18 @@ model ServiceSettlementWorkflow {
   settledAt         DateTime?
   createdAt         DateTime                        @default(now())
   updatedAt         DateTime                        @updatedAt
+}
+
+// Personal presentation only. Entity access is always checked against the original object.
+model UserEntityAppearance {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityKey String
+  favorite  Boolean  @default(false)
+  color     String?
+  photoId   String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, entityKey])
 }
