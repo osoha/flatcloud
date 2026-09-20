@@ -31,5 +31,8 @@ test("R33: unit editor without house grant owns meters and private avatar; cross
  const sharp=(await import("sharp")).default;const avatar=await sharp({create:{width:20,height:30,channels:3,background:{r:90,g:130,b:200}}}).png().toBuffer();
  await page.request.post(`/api/properties/${property.id}/appearance`,{headers:h,multipart:{unitId:own.id,photoId:"upload",avatar:{name:"avatar.png",mimeType:"image/png",buffer:avatar}}});const appearance=await db.userEntityAppearance.findUniqueOrThrow({where:{userId_entityKey:{userId:user.id,entityKey:`unit:${own.id}`}}});expect(appearance.avatarMimeType).toBe("image/webp");expect((await sharp(appearance.avatarData!).metadata()).width).toBe(320);const image=await page.request.get(`/api/entity-avatar?key=unit:${own.id}`,{headers:h});expect(image.status()).toBe(200);expect(image.headers()["cache-control"]).toBe("private, no-store");
  await page.goto(`/nemovitosti/${property.id}/reporting?unitId=${own.id}`);await expect(page).toHaveURL(new RegExp(`/reporty\\?.*unitId=${own.id}`));await expect(page.locator("main")).not.toContainText(other.label);
- }finally{await db.meterReading.deleteMany({where:{meter:{propertyId:property.id}}});await db.auditLog.deleteMany({where:{userId:user.id}});await db.property.delete({where:{id:property.id}});await db.owner.delete({where:{id:owner.id}});await db.user.delete({where:{id:user.id}});}
+ }finally{
+ // Readings and their authors are immutable history. Archive only these isolated CI fixtures; the disposable database owns their lifecycle.
+ await db.property.update({where:{id:property.id},data:{active:false}});await db.user.update({where:{id:user.id},data:{active:false}});
+ }
 });
