@@ -540,3 +540,7 @@ html[data-theme="dark"] body{background:var(--bg);color:var(--text)}
 html[data-theme="dark"] .flatberry-brand-bitmap{background-color:#fff;border-radius:3px}
 html[data-theme="dark"] :is(input,select,textarea,dialog){color:var(--text);background-color:#192536;border-color:var(--line)}
 html[data-theme="dark"] .fb-modal .dismissible-details-panel{background:#192536;color:var(--text)}
+
+/* Selected navigation stays unmistakable in both themes. */
+html[data-theme="dark"] .flatberry-shell :is(.section-nav,.v21-section-nav,.property-subnav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:is(.active,[aria-current="page"]){background:#2468ef;color:#fff}
+html[data-theme="dark"] .flatberry-shell .v21-nav a:is(.active,[aria-current="page"]){background:#243c60;color:#a8caff}
