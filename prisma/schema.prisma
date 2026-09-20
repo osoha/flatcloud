@@ -475,6 +475,7 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  activity UserActivity?
   entityAppearances UserEntityAppearance[]
   authoredMeterReadings MeterReading[] @relation("ReadingAuthor")
   settlementSourcesCreated SettlementSource[] @relation("SourceCreator")
@@ -2474,4 +2475,11 @@ model UserEntityAppearance {
   updatedAt DateTime @updatedAt
 
   @@unique([userId, entityKey])
+}
+
+model UserActivity {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenAt DateTime
+  @@index([lastSeenAt])
 }

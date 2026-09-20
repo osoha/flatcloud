@@ -1,5 +1,13 @@
 # Vizuální polish — odložený backlog
 
+## Lidské review Flatberry po R31 — 20. 9. 2026 (pouze evidence)
+
+Tyto připomínky nyní NEIMPLEMENTOVAT. Uživatel bude přidávat další a následně spustí samostatný blok grafiky a UX. Funkční administrátorská pipeline pokračuje odděleně.
+
+- **FB-01 — Avatar objektu:** kresba je po R31 příliš velká. Mírně ji zmenšit; cílem není návrat k původní téměř prázdné dlaždici. Velikost znovu posoudit podle screenshotu `b178be4c-570c-4f66-847e-3bd14873cd27.png`. H1 tímto požadavkem neměnit.
+- **FB-02 — Bubliny v reportech:** přehodnotit zejména „LIVE · Data k …“ a „Provozní KPI · napříč vlastníky“ pod H1. Navrhnout zjednodušení, přesun či odstranění podle informačního významu, ne pouze další změnu barvy. Reference `950857ee-35e5-46cd-88b1-75ef1ff0bc29.png`.
+- **FB-03 — Nefunkční výzvy k akci:** projít celou aplikaci a doplnit skutečné prolinkování textů typu „Otevřete nastavení“. Konkrétně Administrace: Bankovní schránka a Odesílání e-mailů. Odkaz musí vést přímo k odpovídajícímu nastavení a fungovat i z klávesnice. Reference `97f67fde-5c3c-4f50-a7e3-d4254a0965a9.png`. I tato položka je na výslovný pokyn zatím jen evidovaná.
+
 Tento backlog se otevře až po dokončení funkční opravné pipeline. Nálezy zde nejsou důvodem k průběžnému přestavování funkčních bloků; projdou samostatnou agentní kontrolou v roli grafického designera a následným lidským review.
 
 ## VP-01 — Filtry Dokumentů
