@@ -22,8 +22,8 @@ class MemoryStorage implements FileStorage {
 
 async function databaseBehavior() {
   const marker = `verify-v22c-part2ba3a-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const [editor, admin, viewer] = await Promise.all(["editor", "admin", "viewer"].map((label) => prisma.user.create({ data: { email: `${marker}-${label}@example.test`, name: label, passwordHash: "not-a-login", role: UserRole.OWNER_VIEWER, active: true } })));
-  const superAdmin = await prisma.user.create({ data: { email: `${marker}-super@example.test`, name: "super", passwordHash: "not-a-login", role: UserRole.SUPER_ADMIN, active: true } });
+  const [editor, admin, viewer] = await Promise.all(["editor", "admin", "viewer"].map((label) => prisma.user.create({ data: { flatcloudMember: true, email: `${marker}-${label}@example.test`, name: label, passwordHash: "not-a-login", role: UserRole.OWNER_VIEWER, active: true } })));
+  const superAdmin = await prisma.user.create({ data: { flatcloudMember: true, email: `${marker}-super@example.test`, name: "super", passwordHash: "not-a-login", role: UserRole.SUPER_ADMIN, active: true } });
   let groupId: string | undefined;
   try {
     const group = await prisma.reportingGroup.create({ data: { name: marker, members: { create: [{ userId: editor.id, permission: "EDIT" }, { userId: admin.id, permission: "ADMIN" }, { userId: viewer.id, permission: "VIEW" }] } } }); groupId = group.id;

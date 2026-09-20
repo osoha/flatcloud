@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { CalendarRange, CircleDollarSign, ClockAlert, Hammer } from "lucide-react";
@@ -36,7 +37,7 @@ export default async function PortfolioCapexPlanPage({ searchParams }: { searchP
   }), baseYear);
   const selectionValue = serializePortfolioSelection(selection);
   const selectionQuery = selectionValue === null ? "" : `?properties=${encodeURIComponent(selectionValue)}`;
-  const pickerProperties = availableProperties.map(({ id, name, address, city, active, owner, communicationOwner, flatcloudConsolidationBasisPoints }) => ({ id, name, address, city, active, ownerId: communicationOwner?.id || owner.id, ownerName: communicationOwner?.name || owner.name, scopeKind: flatcloudConsolidationBasisPoints == null ? "UNCLASSIFIED" as const : flatcloudConsolidationBasisPoints > 0 ? "FLATCLOUD" as const : "EXTERNAL" as const }));
+  const pickerProperties = availableProperties.map(({ id, name, address, city, active, owner, communicationOwner, flatcloudConsolidationBasisPoints }) => ({ id, name, address, city, active, ownerId: communicationOwner?.id || owner.id, ownerName: communicationOwner?.name || owner.name, scopeKind: !isFlatcloudMember(user) ? undefined : flatcloudConsolidationBasisPoints == null ? "UNCLASSIFIED" as const : flatcloudConsolidationBasisPoints > 0 ? "FLATCLOUD" as const : "EXTERNAL" as const }));
   const maxBucketAmount = Math.max(1, ...forecast.buckets.map((bucket) => bucket.plannedAmountCents));
 
   return <Shell user={user}><div className="page portfolio-quality-page capex-forecast-page">

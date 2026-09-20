@@ -26,7 +26,7 @@ class MemoryStorage implements FileStorage {
 async function verifyDatabaseRuntime() {
   if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL is required for A3b runtime verification.");
   const marker = `verify-v22c-part2ba3b-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const admin = await prisma.user.create({ data: { email: `${marker}@example.test`, name: marker, passwordHash: "not-a-login", role: UserRole.OWNER_VIEWER, active: true } });
+  const admin = await prisma.user.create({ data: { flatcloudMember: true, email: `${marker}@example.test`, name: marker, passwordHash: "not-a-login", role: UserRole.OWNER_VIEWER, active: true } });
   let ownerId: string | undefined, propertyId: string | undefined, groupId: string | undefined, snapshotId: string | undefined;
   const storage = new MemoryStorage();
   const frozen = { group: "Zmrazené české portfolio", property: "Dům Příčná", address: "Příčná 12, 110 00 Praha" };

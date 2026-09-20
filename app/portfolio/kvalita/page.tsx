@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { CalendarClock, ClipboardCheck, Hammer, Home } from "lucide-react";
@@ -46,7 +47,7 @@ export default async function PortfolioQualityPage({ searchParams }: { searchPar
   const selectionValue = serializePortfolioSelection(selection);
   const returnTo = selectionValue === null ? "/portfolio/kvalita" : `/portfolio/kvalita?properties=${encodeURIComponent(selectionValue)}`;
   const selectionQuery = selectionValue === null ? "" : `?properties=${encodeURIComponent(selectionValue)}`;
-  const pickerProperties = availableProperties.map(({ id, name, address, city, active, owner, communicationOwner, flatcloudConsolidationBasisPoints }) => ({ id, name, address, city, active, ownerId: communicationOwner?.id || owner.id, ownerName: communicationOwner?.name || owner.name, scopeKind: flatcloudConsolidationBasisPoints == null ? "UNCLASSIFIED" as const : flatcloudConsolidationBasisPoints > 0 ? "FLATCLOUD" as const : "EXTERNAL" as const }));
+  const pickerProperties = availableProperties.map(({ id, name, address, city, active, owner, communicationOwner, flatcloudConsolidationBasisPoints }) => ({ id, name, address, city, active, ownerId: communicationOwner?.id || owner.id, ownerName: communicationOwner?.name || owner.name, scopeKind: !isFlatcloudMember(user) ? undefined : flatcloudConsolidationBasisPoints == null ? "UNCLASSIFIED" as const : flatcloudConsolidationBasisPoints > 0 ? "FLATCLOUD" as const : "EXTERNAL" as const }));
 
   return <Shell user={user}><div className="page portfolio-quality-page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Kvalita a CAPEX</span></div>

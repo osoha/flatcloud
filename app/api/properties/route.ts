@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PropertyOwnershipMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
@@ -25,11 +26,11 @@ export async function POST(request: Request) {
     const property = await prisma.property.create({ data: {
       name: text(form, "name", true)!, address: text(form, "address", true)!, city: text(form, "city", true)!,
       postalCode: text(form, "postalCode"), note: text(form, "note"), technicalData: technicalDataJson({ buildingType: safeBuildingType(text(form, "buildingType")) }),
-      ownerId, ownershipMode, communicationOwnerId, managerId, managementScope, flatcloudConsolidationBasisPoints,
+      ownerId, ownershipMode, communicationOwnerId, managerId, ...(isFlatcloudMember(user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}),
       ownerships: { create: { ownerId, shareBasisPoints: wholeObject ? 10000 : 0 } },
       memberships: managerId ? { create: { userId: managerId, permission: "ADMIN" } } : undefined,
     } });
-    await audit(user.id, "PROPERTY_CREATED", "Property", property.id, { propertyCode: property.propertyCode, ownerId, ownershipMode, communicationOwnerId, managerId, managementScope, flatcloudConsolidationBasisPoints });
+    await audit(user.id, "PROPERTY_CREATED", "Property", property.id, { propertyCode: property.propertyCode, ownerId, ownershipMode, communicationOwnerId, managerId, ...(isFlatcloudMember(user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}) });
     return goWithMessage(request, `/nemovitosti/${property.id}/prehled`, "ok", "Nemovitost byla vytvořena.");
   } catch (error) {
     return goWithMessage(request, "/nemovitosti/nova", "error", error instanceof Error ? error.message : "Nemovitost se nepodařilo vytvořit.");

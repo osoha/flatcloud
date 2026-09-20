@@ -86,8 +86,9 @@ check("asset scope excludes external and unclassified properties", () => {
 
 check("asset report is restricted to full portfolio access in the UI", () => {
   const report = read("app/reporty/page.tsx");
-  assert.match(report, /requestedView === "asset" && !fullAccess/);
-  assert.match(report, /view==="asset"&&fullAccess/);
+  assert.match(report, /corporateAccess = fullAccess && isFlatcloudMember\(user\)/);
+  assert.match(report, /requestedView === "asset" && !corporateAccess/);
+  assert.match(report, /view==="asset"&&corporateAccess/);
   assert.match(report, /Externí a nezařazené nemovitosti/);
 });
 

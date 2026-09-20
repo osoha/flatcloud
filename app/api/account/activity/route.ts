@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@/lib/auth";
+import { actualUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 export async function POST() {
-  const user = await currentUser();
+  const user = await actualUser();
   if (!user) return NextResponse.json({ error: "Přihlášení vypršelo." }, { status: 401 });
   const now = new Date();
   // One row per actual account; caller-supplied identity/timestamps are never accepted.

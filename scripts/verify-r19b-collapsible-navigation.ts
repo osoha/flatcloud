@@ -24,7 +24,7 @@ check("secondary navigation is split into intentional collapsible groups", () =>
   const shell = read("components/Shell.tsx");
   assert.match(shell, /id="evidence" label="Evidence"[^\n]+defaultOpen/);
   assert.match(shell, /id="support" label="Podpora práce" activeRoots=\{\["\/metodika"\]\}/);
-  assert.match(shell, /id="administration" label="Správa" activeRoots=\{\["\/uzivatele", "\/nastaveni"\]\}/);
+  assert.match(shell, /id="administration" label="Správa" activeRoots=\{\["\/uzivatele", "\/nastaveni", "\/dovednosti"\]\}/);
   assert.match(shell, /superAdmin && <CollapsibleNavGroup id="administration"/);
 });
 

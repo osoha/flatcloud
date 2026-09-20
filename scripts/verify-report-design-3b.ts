@@ -156,10 +156,11 @@ function main() {
       "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b",
     );
   });
+  // R32 adds the explicit corporate membership boundary; publication/quality transitions remain unchanged.
   check("publication service includes the approved period confidence gate", () => {
     assert.equal(
       hash("lib/reporting/quarterly-report-service.ts"),
-      "be1224ea1507afdc751460a487a310e3d8fb70e6b8795713bdb4fe4d6ef67eae",
+      "3f59b81b57f08fd810207cb1a356d4c5622b780027665184a12949a3191965d4",
     );
     assert.equal(
       hash(

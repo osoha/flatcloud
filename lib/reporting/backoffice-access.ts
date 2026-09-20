@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { Prisma, ReportingGroupPermission } from "@prisma/client";
 import { businessDateKey, businessDateKeyToInstant, type BusinessDateKey } from "../calendar";
 import { prisma } from "../db";
@@ -27,13 +28,14 @@ export function canCreateReportingGroup(role: string) { return role === "SUPER_A
 export function reportingBackofficeNavVisible(role: string, memberships: Array<{ permission: string }> = []) { return role === "SUPER_ADMIN" || memberships.some((row) => row.permission === "EDIT" || row.permission === "ADMIN"); }
 
 async function storedActor(tx: Prisma.TransactionClient, actor: ReportingBackofficeActor) {
-  const user = await tx.user.findUnique({ where: { id: actor.id }, select: { id: true, role: true, active: true } });
+  const user = await tx.user.findUnique({ where: { id: actor.id }, select: { id: true, role: true, flatcloudMember: true, active: true } });
   if (!user?.active) domainError("Přihlášený uživatel není aktivní.");
+  if (!isFlatcloudMember(user)) domainError("Nemáte příslušnost ke skupině FlatCloud.");
   return user;
 }
 export async function backofficePermissionForGroup(actor: ReportingBackofficeActor, groupId: string, tx: Prisma.TransactionClient | typeof prisma = prisma) {
-  const user = await tx.user.findUnique({ where: { id: actor.id }, select: { role: true, active: true, reportingGroupMemberships: { where: { reportingGroupId: groupId }, select: { permission: true }, take: 1 } } });
-  if (!user?.active) return "NONE" as const;
+  const user = await tx.user.findUnique({ where: { id: actor.id }, select: { role: true, flatcloudMember: true, active: true, reportingGroupMemberships: { where: { reportingGroupId: groupId }, select: { permission: true }, take: 1 } } });
+  if (!user?.active || !isFlatcloudMember(user)) return "NONE" as const;
   return effectiveBackofficePermission(user.role, user.reportingGroupMemberships[0]?.permission);
 }
 export async function requireReportingBackoffice(actor: ReportingBackofficeActor, groupId: string, minimum: "EDIT" | "ADMIN", tx: Prisma.TransactionClient | typeof prisma = prisma) {
@@ -43,10 +45,13 @@ export async function requireReportingBackoffice(actor: ReportingBackofficeActor
   return permission;
 }
 export async function hasReportingBackofficeAccess(actor: ReportingBackofficeActor) {
-  if (actor.role === "SUPER_ADMIN") return true;
+  const member = await prisma.user.findUnique({where:{id:actor.id},select:{role:true,flatcloudMember:true,active:true}});
+  if (!member?.active || !isFlatcloudMember(member)) return false;
+  if (member.role === "SUPER_ADMIN") return true;
   return Boolean(await prisma.reportingGroupMember.count({ where: { userId: actor.id, permission: { in: ["EDIT", "ADMIN"] } } }));
 }
 export async function listReportingBackofficeGroups(actor: ReportingBackofficeActor) {
+  if (!await hasReportingBackofficeAccess(actor)) return [];
   const where = actor.role === "SUPER_ADMIN" ? {} : { members: { some: { userId: actor.id, permission: { in: ["EDIT", "ADMIN"] as ReportingGroupPermission[] } } } };
   const groups = await prisma.reportingGroup.findMany({ where, select: { id: true, name: true, description: true, active: true, properties: { select: { propertyId: true } }, members: { where: { userId: actor.id }, select: { permission: true }, take: 1 }, quarterlyReports: { select: { year: true, quarter: true, revision: true, status: true }, orderBy: [{ year: "desc" }, { quarter: "desc" }, { revision: "desc" }], take: 1 } }, orderBy: [{ active: "desc" }, { name: "asc" }] });
   return groups.map((group) => ({ ...group, propertyCount: new Set(group.properties.map((row) => row.propertyId)).size, effectivePermission: effectiveBackofficePermission(actor.role, group.members[0]?.permission), latestReport: group.quarterlyReports[0] || null }));

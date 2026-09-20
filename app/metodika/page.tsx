@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import {
@@ -41,32 +42,35 @@ export default async function MethodologyPage({
     : "guides";
   const q = query.q || "";
   const needle = q.trim().toLocaleLowerCase("cs");
-  const guides = methodologyGuides.filter(
+  const internal = isFlatcloudMember(user);
+  const internalChapters = new Set(["vyrocni-report", "vice-vlastniku", "valuace-jednotek", "crm-distribuce", "reporting-distribuce", "uvitaci-dopis-vlastnikovi"]);
+  const visibleChapters = methodologyChapters.filter(chapter => internal || !internalChapters.has(chapter.slug));
+  const guides = methodologyGuides.filter(guide => internal || !["rocni-uzaverka", "novy-vlastnik"].includes(guide.slug)).filter(
     (guide) =>
       !needle ||
       `${guide.title} ${guide.situation} ${guide.audience} ${guide.outcome} ${guide.steps.map((step) => `${step.label} ${step.note}`).join(" ")}`
         .toLocaleLowerCase("cs")
         .includes(needle),
   );
-  const chapters = methodologyChapters.filter(
+  const chapters = visibleChapters.filter(
     (chapter) =>
       !needle ||
       `${chapter.title} ${chapter.summary} ${chapter.category} ${chapter.audience} ${chapter.steps.join(" ")}`
         .toLocaleLowerCase("cs")
         .includes(needle),
   );
-  const glossary = methodologyGlossary.filter(
+  const glossary = methodologyGlossary.filter(term => internal || !internalChapters.has(term.chapterSlug)).filter(
     (term) =>
       !needle ||
       methodologySearchText(term).toLocaleLowerCase("cs").includes(needle),
   );
-  const mediaBriefs = methodologyMediaBriefs.filter(
+  const mediaBriefs = methodologyMediaBriefs.filter(brief => internal || !internalChapters.has(brief.chapterSlug)).filter(
     (brief) =>
       !needle ||
       methodologySearchText(brief).toLocaleLowerCase("cs").includes(needle),
   );
   const categories = [
-    ...new Set(methodologyChapters.map((chapter) => chapter.category)),
+    ...new Set(visibleChapters.map((chapter) => chapter.category)),
   ];
   const resultCount =
     view === "guides"
