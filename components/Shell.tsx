@@ -34,7 +34,7 @@ type ShellUser = {
 
 export async function Shell({ user: contentUser, children, taskPropertyId, taskLeaseId }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string }) {
   const context = await previewContext();
-  const preview = context.requested && context.actor?.role === "SUPER_ADMIN";
+  const preview = context.requested && Boolean(context.actor);
   const user = preview ? context.actor! : contentUser;
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
@@ -134,7 +134,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           {!preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {!preview && canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
           {!preview && canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
-          <Link className="account-chip" href="/ucet" aria-label="Můj účet"><UserRound size={15}/><span>{user.name}</span></Link>
+          <Link className="account-chip" href="/ucet" aria-label="Můj účet"><UserRound size={15}/><span>{context.target?.name || user.name}</span></Link>
         </div>
       </header>
       {children}

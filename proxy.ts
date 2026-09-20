@@ -12,7 +12,7 @@ export function proxy(request: NextRequest) {
   if (preview && !previewRequestAllowed(request.method, path)) {
     return NextResponse.json({error:"Pohled uživatele je pouze pro čtení. Nejprve ukončete náhled."},{status:403,headers:{"Cache-Control":"no-store"}});
   }
-  if (preview && ["/uzivatele", "/nastaveni", "/dovednosti", "/login"].some(root => path === root || path.startsWith(root + "/"))) {
+  if (preview && ["/uzivatele", "/nastaveni", "/dovednosti"].some(root => path === root || path.startsWith(root + "/"))) {
     return NextResponse.redirect(new URL("/nahled/omezeni", request.url));
   }
   const response = NextResponse.next({request:{headers}});

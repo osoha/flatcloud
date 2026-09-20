@@ -1,3 +1,4 @@
+import { canViewReportingGroup } from "../lib/reporting/access";
 import { expect, test, type Page } from "@playwright/test";
 import { Script, createContext } from "node:vm";
 import { houseAvatarTemplate } from "../lib/skills/house-avatar-template";
@@ -14,6 +15,10 @@ async function login(page: Page, address = email) {
 async function headers(page:Page) {return {Cookie:(await page.context().cookies()).map(c=>`${c.name}=${c.value}`).join("; ")};}
 
 test("R32B: membership and read-only policy fail closed; approved map logic parses and validates selection", () => {
+  const member = {id:"u",role:"OWNER_VIEWER",reportingGroupMemberships:[{reportingGroupId:"g",permission:"ADMIN"}]};
+  expect(canViewReportingGroup(member,"g")).toBe(false);
+  expect(canViewReportingGroup({...member,flatcloudMember:true},"g")).toBe(true);
+  expect(canViewReportingGroup({...member,flatcloudMember:true},"other")).toBe(false);
   expect(isFlatcloudMember({role:"MANAGER"})).toBe(false);
   expect(isFlatcloudMember({role:"OWNER_VIEWER",flatcloudMember:true})).toBe(true);
   expect(isFlatcloudMember({role:"SUPER_ADMIN"})).toBe(true);
