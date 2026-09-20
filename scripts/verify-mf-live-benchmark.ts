@@ -184,12 +184,16 @@ check("live report is read-only and shows period, coverage and source provenance
   const page = read("app/reporty/page.tsx");
   const service = read("lib/reporting/mf-rent/service.ts");
   const liveService = read("lib/reporting/live-service.ts");
-  const propertyPage = read("app/nemovitosti/[id]/reporting/page.tsx");
+  const propertyReportPage = read("app/nemovitosti/[id]/reporting/page.tsx");
+  const propertyReportSettings = read("app/nemovitosti/[id]/nastaveni/reporting/page.tsx");
   for (const token of ["MF benchmark", "Pokrytí", "Datové období MF", "pouze ke čtení"])
     assert.ok(page.includes(token), token);
   assert.ok(service.includes("PROPERTY_CADASTRAL_DATA"));
-  assert.ok(propertyPage.includes("Údaje nemovitosti"));
-  assert.ok(propertyPage.includes("Plzeň Černice nebo 620106"));
+  assert.ok(propertyReportPage.includes("redirect(`/reporty?${target}`)"));
+  assert.ok(propertyReportPage.includes("requireUnitAccess(user,id,query.unitId)"));
+  assert.ok(propertyReportSettings.includes("Přiřazení cenové mapy MF"));
+  assert.ok(propertyReportSettings.includes("Údaje nemovitosti"));
+  assert.ok(propertyReportSettings.includes("Plzeň Černice nebo 620106"));
   assert.ok(read("app/nemovitosti/[id]/upravit/page.tsx").includes("Černice [620106]"));
   assert.ok(page.indexOf("<QualityPanel") > page.indexOf("<PropertyPerformance"));
   assert.doesNotMatch(page, /<details className="card quality-panel" open=/);

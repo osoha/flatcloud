@@ -84,6 +84,17 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
           <div className="form-actions"><button className="primary" type="submit">Uložit nastavení</button></div>
         </form>}
 
+        <form className="card edit-form" action={`/api/properties/${id}/charges/${charge.id}`} method="post">
+          <input type="hidden" name="mode" value="debt-treatment"/>
+          <div className="card-head"><div><h2>Zařazení pohledávky</h2><p className="muted-copy">Nemění původní předpis ani historii. Určuje, zda se neuhrazená částka započítává do aktuálních dluhových KPI.</p></div></div>
+          <div className="form-grid">
+            <Select label="Stav pohledávky" name="debtTreatment" defaultValue={charge.debtTreatment} options={[["CURRENT","Aktuální dluh"],["HISTORICAL","Historická pohledávka"],["EXCLUDED","Nezobrazovat v dluhových KPI"]]}/>
+            <Textarea label="Důvod změny" name="debtTreatmentReason" defaultValue={charge.debtTreatmentReason} placeholder="Např. historický testovací nájemní vztah" full/>
+          </div>
+          {charge.debtTreatment !== "CURRENT" && <div className="notice" style={{marginTop:10}}><strong>{charge.debtTreatment === "HISTORICAL" ? "Historická pohledávka" : "Vyřazeno z KPI"}</strong><span>{charge.debtTreatmentReason || "Bez poznámky"}{charge.debtTreatmentAt ? ` · od ${charge.debtTreatmentAt.toLocaleDateString("cs-CZ")}` : ""}</span></div>}
+          <div className="form-actions"><button className="secondary" type="submit">Uložit zařazení</button></div>
+        </form>
+
         {charge.active && paid === 0 && <form className="card edit-form" action={`/api/properties/${id}/charges/${charge.id}`} method="post">
           <input type="hidden" name="mode" value="waive"/>
           <div className="card-head"><div><h2>Odpuštění předpisu</h2><p className="muted-copy">Vypne pouze tento měsíc. Historie zůstane zachována a automatika jej znovu nezapne.</p></div></div>

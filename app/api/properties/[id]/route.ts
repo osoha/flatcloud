@@ -1,3 +1,4 @@
+import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PropertyOwnershipMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
@@ -37,14 +38,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         note: text(form, "note"),
         technicalData,
         active: boolValue(form, "active"),
-        ...(ownerId ? { ownerId, ownershipMode, communicationOwnerId: communicationOwnerId || ownerId, managerId: managerId || null, managementScope, flatcloudConsolidationBasisPoints } : {}),
+        ...(ownerId ? { ownerId, ownershipMode, communicationOwnerId: communicationOwnerId || ownerId, managerId: managerId || null, ...(isFlatcloudMember(access.user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}) } : {}),
       } });
       if (ownerId) await tx.propertyOwnership.upsert({ where: { propertyId_ownerId: { propertyId: id, ownerId } }, update: {}, create: { propertyId: id, ownerId, shareBasisPoints: ownershipMode === "WHOLE_OBJECT" ? 10000 : 0 } });
       if (ownerId && previous?.managerId && previous.managerId !== managerId) await tx.userProperty.deleteMany({ where: { userId: previous.managerId, propertyId: id } });
       if (ownerId && managerId) await tx.userProperty.upsert({ where: { userId_propertyId: { userId: managerId, propertyId: id } }, update: { permission: "ADMIN" }, create: { userId: managerId, propertyId: id, permission: "ADMIN" } });
       return updated;
     });
-    await audit(access.user.id, "PROPERTY_UPDATED", "Property", property.id, { name: property.name, active: property.active, ownerId, ownershipMode, communicationOwnerId, managerId, ...(ownerId ? { managementScope, flatcloudConsolidationBasisPoints } : {}), technicalDataUpdated: true }, id);
+    await audit(access.user.id, "PROPERTY_UPDATED", "Property", property.id, { name: property.name, active: property.active, ownerId, ownershipMode, communicationOwnerId, managerId, ...(ownerId ? { ...(isFlatcloudMember(access.user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}) } : {}), technicalDataUpdated: true }, id);
     let driveWarning = "";
     if (process.env.FILE_STORAGE_DRIVER === "gdrive") {
       try {

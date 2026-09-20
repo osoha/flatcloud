@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Shell } from "@/components/Shell";
@@ -31,7 +32,7 @@ export default async function LeaseFinancialChangePage({ params, searchParams }:
   const currentServices = preview?.current.services.amountCents ?? lease.servicesCents;
   return <Shell user={user} taskPropertyId={lease.unit.propertyId} taskLeaseId={lease.id}><div className="page form-page rent-change-proposal-page">
     <div className="breadcrumb"><Link href={`/smlouvy/${leaseId}`}>← Zpět na smlouvu</Link></div>
-    <div className="page-title"><div><span className="eyebrow">Finance smlouvy · bezpečná změna</span><h1>Změnit nájemné a služby</h1><p>{lease.unit.property.name} · {lease.unit.label} · {lease.tenant.name}</p></div></div>
+    <div className="page-title"><div><span className="eyebrow">Finance smlouvy · bezpečná změna</span><PageHeading>Změnit nájemné a služby</PageHeading><p>{lease.unit.property.name} · {lease.unit.label} · {lease.tenant.name}</p></div></div>
     <Flash error={query.error || previewError || undefined}/>
     <div className="notice"><strong>Historie se nepřepisuje</strong><span>Změna může platit nejdříve od příštího měsíce. Minulé, aktuální, uhrazené a ručně upravené předpisy zůstanou beze změny.</span></div>
     {!preview ? <form className="card edit-form" method="get"><input type="hidden" name="preview" value="1"/><div className="form-grid">

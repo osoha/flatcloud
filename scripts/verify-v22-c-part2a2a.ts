@@ -17,7 +17,7 @@ async function verifyDatabaseBehavior() {
   const email = (label: string) => `${marker}-${label}@example.test`;
   const users = await Promise.all([
     ["super", UserRole.SUPER_ADMIN], ["edit", UserRole.OWNER_VIEWER], ["admin", UserRole.OWNER_VIEWER], ["member", UserRole.OWNER_VIEWER],
-  ].map(([label, role]) => prisma.user.create({ data: { email: email(label), name: `${marker}-${label}`, passwordHash: "verifier-not-a-login", role: role as UserRole, active: true } })));
+  ].map(([label, role]) => prisma.user.create({ data: { flatcloudMember: true, email: email(label), name: `${marker}-${label}`, passwordHash: "verifier-not-a-login", role: role as UserRole, active: true } })));
   const [superAdmin, editor, admin, member] = users;
   const actor = (user: { id: string; role: UserRole }) => ({ id: user.id, role: user.role });
   let ownerId: string | undefined;

@@ -50,7 +50,7 @@ async function runtimeChecks() {
   const users = await Promise.all(
     ["editor", "outsider", "super"].map((label) =>
       prisma.user.create({
-        data: {
+        data: { flatcloudMember: true,
           name: `${marker}-${label}`,
           email: `${marker}-${label}@example.test`,
           passwordHash: "test",
@@ -754,7 +754,7 @@ async function main() {
     () => {
       assert.equal(
         hash("lib/reporting/pdf/quarterly-report-pdf.tsx"),
-        "ae22aeb7e1f81b95bb73ec7dae498811bcdbc380a6c2cd3de40e61d3809b24ff",
+        "0d3c3f39d33593d7655a555b3b5bee418f55c676106d270eb2b9f48e2b3f8d24",
       );
       assert.equal(
         hash("lib/reporting/pdf/quarterly-report-pdf-data.ts"),

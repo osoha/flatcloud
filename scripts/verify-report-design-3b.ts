@@ -149,17 +149,18 @@ function main() {
   check("canonical PDF renderer and loader are unchanged", () => {
     assert.equal(
       hash("lib/reporting/pdf/quarterly-report-pdf.tsx"),
-      "ae22aeb7e1f81b95bb73ec7dae498811bcdbc380a6c2cd3de40e61d3809b24ff",
+      "0d3c3f39d33593d7655a555b3b5bee418f55c676106d270eb2b9f48e2b3f8d24",
     );
     assert.equal(
       hash("lib/reporting/pdf/quarterly-report-pdf-data.ts"),
       "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b",
     );
   });
+  // R32 adds the explicit corporate membership boundary; publication/quality transitions remain unchanged.
   check("publication service includes the approved period confidence gate", () => {
     assert.equal(
       hash("lib/reporting/quarterly-report-service.ts"),
-      "be1224ea1507afdc751460a487a310e3d8fb70e6b8795713bdb4fe4d6ef67eae",
+      "3f59b81b57f08fd810207cb1a356d4c5622b780027665184a12949a3191965d4",
     );
     assert.equal(
       hash(

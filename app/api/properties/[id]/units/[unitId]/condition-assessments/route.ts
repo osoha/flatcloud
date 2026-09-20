@@ -20,7 +20,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       assessedAt: dateValue(form, "assessedAt", true)!,
       note: text(form, "note"),
     });
-    return goWithMessage(request, returnTo, "ok", "Nový snapshot kvality a plánu obnovy byl uložen.");
+    return goWithMessage(request, returnTo, "ok", "Hodnocení kvality a plánu obnovy bylo uloženo.");
   } catch (error) {
     return goWithMessage(request, returnTo, "error", error instanceof Error ? error.message : "Hodnocení se nepodařilo uložit.");
   }

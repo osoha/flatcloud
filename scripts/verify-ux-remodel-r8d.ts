@@ -59,8 +59,9 @@ check("completed work contributes only to current-year actual and variance", () 
 
 check("page is portfolio-scoped and independent from Distribution", () => {
   const page = read("app/portfolio/kvalita/plan/page.tsx");
-  for (const marker of ["accessibleProperties", "PortfolioScopePicker", "Časová mapa obnovy", "Aktivní plán obnovy", "bez vazby na interní Distribuci"]) assert.match(page, new RegExp(marker));
+  for (const marker of ["accessibleProperties", "PortfolioScopePicker", "Časová mapa obnovy", "Aktivní plán obnovy"]) assert.match(page, new RegExp(marker));
   assert.doesNotMatch(page, /distributionAssessment|distributionValuation|ProspectOpportunity/);
+  assert.match(page, /selectedPropertyIds|liveSelectedPropertyIds/);
   const subnav = read("components/portfolio/PortfolioQualitySubnav.tsx");
   assert.match(subnav, /portfolio\/kvalita\/plan/);
   assert.match(subnav, /query/);

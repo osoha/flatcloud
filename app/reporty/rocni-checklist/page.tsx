@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ClipboardCheck } from "lucide-react";
@@ -35,7 +36,7 @@ export default async function AnnualReadinessPage({
         <div className="page-title">
           <div>
             <span className="eyebrow">R22 · společná kontrolní fronta</span>
-            <h1>Roční připravenost</h1>
+            <PageHeading>Roční připravenost</PageHeading>
             <p>
               Read-only kontrola Q4, výroční revize, valuací, rozpočtů a
               účetních podkladů podle reportovací skupiny.
@@ -53,7 +54,7 @@ export default async function AnnualReadinessPage({
             <strong>Checklist nic automaticky neopravuje</strong>
             <span>
               Stav vychází z aktuální evidence a vede na zdrojové moduly.
-              Publikované snapshoty, reporty ani účetní klasifikaci nemění.
+              Publikované datové záznamy, reporty ani účetní klasifikaci nemění.
             </span>
           </div>
         </div>

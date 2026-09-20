@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -23,7 +24,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
       <div className="page">
         <div className="page-title">
           <div>
-            <h1>Můj účet</h1>
+            <PageHeading>Můj účet</PageHeading>
             <p>{user.name} · {user.email}</p>
           </div>
         </div>

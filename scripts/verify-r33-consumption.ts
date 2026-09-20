@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import { meterConsumption } from "../lib/meter-consumption";
+const dt=(d:string)=>new Date(`${d}T12:00:00Z`);
+const readings=[{id:"a",readAt:dt("2026-01-01"),value:100},{id:"b",readAt:dt("2026-01-11"),value:120}];
+const rates=[{validFrom:dt("2026-01-01"),priceCentsPerUnit:1000,monthlyAdvanceCents:50000,unitOfMeasure:"m³"},{validFrom:dt("2026-01-06"),priceCentsPerUnit:2000,monthlyAdvanceCents:60000,unitOfMeasure:"m³"}];
+let row=meterConsumption(readings,rates,"m³")[0];assert.equal(row.quantity,20);assert.equal(row.daily,2);assert.equal(row.estimatedCostCents,30000);assert.equal(row.monthlyCostCents,121750);
+assert.equal(meterConsumption(readings,rates.slice(1),"m³")[0].estimatedCostCents,null);
+assert.equal(meterConsumption(readings,rates,"kWh")[0].estimatedCostCents,null);
+assert.equal(meterConsumption([readings[0]],rates,"m³").length,0);
+assert.equal(meterConsumption([readings[0],{...readings[1],value:90}],rates,"m³")[0].quantity,null);
+assert.equal(meterConsumption(readings,rates,"m³",[dt("2026-01-05")])[0].quantity,null);
+assert.equal(meterConsumption(readings,rates,"m³",[dt("2026-01-01")])[0].quantity,20);
+assert.equal(meterConsumption([{...readings[0],leaseId:"one"},{...readings[1],leaseId:"two"}],rates,"m³")[0].quantity,null);
+row=meterConsumption([...readings,{...readings[1],id:"c",value:130,correctsId:"b",method:"ESTIMATE"}],rates,"m³")[0];assert.equal(row.quantity,30);assert.equal(row.estimatedReading,true);
+assert.equal(meterConsumption(readings,[{...rates[0],priceCentsPerUnit:0}],"m³")[0].estimatedCostCents,0);
+console.log("R33 consumption: effective prices, missing data, units, corrections, tenancy boundaries and zero price verified.");

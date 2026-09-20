@@ -33,7 +33,7 @@ check("approval is compare-and-set and revisions are serialized",()=>{
 
 check("UI explains immutable snapshot and no-write approval",()=>{
   const report=read("app/reporty/page.tsx"),detail=read("app/reporty/valorizace/[planId]/page.tsx"),styles=read("app/globals.css");
-  for(const marker of ["Uložit tuto variantu","Uložit jako koncept","neměnný snapshot","Uložené scénáře"])assert.match(report,new RegExp(marker));
+  for(const marker of ["Uložit tuto variantu","Uložit jako koncept","neměnný datový záznam","Uložené scénáře"])assert.match(report,new RegExp(marker));
   for(const marker of ["Zmrazený plán","smlouvy a předpisy zůstávají beze změny","Potvrdit schválení plánu","Historie revizí"])assert.match(detail,new RegExp(marker));
   for(const marker of ["forecast-save-panel","forecast-approval-panel","forecast-revision-history"])assert.match(styles,new RegExp(marker));
 });

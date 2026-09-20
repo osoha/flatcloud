@@ -89,7 +89,9 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
   }
   function apply() {
     const next: PortfolioSelection = draft.length === availableProperties.length ? { mode: "ALL" } : { mode: "SELECTED", propertyIds: [...draft].sort() };
-    router.push(withPortfolioSelection(pathname, new URLSearchParams(searchParams.toString()), next));
+    const params = new URLSearchParams(searchParams.toString());
+    if (pathname === "/reporty") params.delete("unitId");
+    router.push(withPortfolioSelection(pathname, params, next));
     setOpen(false);
   }
 

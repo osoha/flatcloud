@@ -8,7 +8,7 @@ import { assertEffectiveReportProperties, assertReportTransitionAllowed, assertS
 let count = 0;
 async function check(name: string, test: () => unknown | Promise<unknown>) { await test(); count += 1; console.log(`✓ ${count}. ${name}`); }
 function rejects(test: () => unknown, pattern?: RegExp) { if (pattern) assert.throws(test, pattern); else assert.throws(test); }
-const member = (permission: "VIEW" | "EDIT" | "ADMIN", role = "USER"): ReportingUser => ({ id: permission.toLowerCase(), role, reportingGroupMemberships: [{ reportingGroupId: "group", permission }] });
+const member = (permission: "VIEW" | "EDIT" | "ADMIN", role = "USER"): ReportingUser => ({ id: permission.toLowerCase(), role, flatcloudMember: true, reportingGroupMemberships: [{ reportingGroupId: "group", permission }] });
 const superAdmin: ReportingUser = { id: "super", role: "SUPER_ADMIN" };
 const asOfDate = businessDateKeyToInstant(quarterEndKey(2026, 1));
 const source = fs.readFileSync("lib/reporting/quarterly-report-service.ts", "utf8");

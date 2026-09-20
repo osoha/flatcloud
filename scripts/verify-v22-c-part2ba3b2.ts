@@ -45,7 +45,7 @@ async function runtimeChecks() {
     throw new Error("DATABASE_URL is required for A3b.2 runtime verification.");
   const marker = `verify-v22c-a3b2-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const user = await prisma.user.create({
-    data: {
+    data: { flatcloudMember: true,
       email: `${marker}@example.test`,
       name: marker,
       passwordHash: "not-a-login",

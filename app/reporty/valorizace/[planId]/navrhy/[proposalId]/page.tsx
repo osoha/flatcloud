@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { PropertyPermission } from "@prisma/client";
 import { notFound } from "next/navigation";
@@ -18,7 +19,7 @@ export default async function RentChangeProposalPage({ params, searchParams }: {
   const difference = proposal.proposedRentCents - proposal.previousRentCents;
   return <Shell user={user}><div className="page rent-change-proposal-page">
     <div className="breadcrumb"><Link href={`/reporty/valorizace/${planId}`}>← Schválený plán</Link><span>›</span><span>Návrh změny nájemného</span></div>
-    <div className="page-title"><div><span className="eyebrow">Druhý krok · právní a finanční kontrola</span><h1>Návrh změny nájemného</h1><p>{proposal.lease.unit.property.name} · {proposal.lease.unit.label} · {proposal.lease.tenant.name}</p></div><span className={`status ${proposal.status==="CONFIRMED"?"ok":"warn"}`}>{rentChangeProposalStatuses[proposal.status]}</span></div>
+    <div className="page-title"><div><span className="eyebrow">Druhý krok · právní a finanční kontrola</span><PageHeading>Návrh změny nájemného</PageHeading><p>{proposal.lease.unit.property.name} · {proposal.lease.unit.label} · {proposal.lease.tenant.name}</p></div><span className={`status ${proposal.status==="CONFIRMED"?"ok":"warn"}`}>{rentChangeProposalStatuses[proposal.status]}</span></div>
     <Flash ok={query.ok} error={query.error}/>
     <div className="notice asset-scope-note"><strong>Samostatná změna jedné smlouvy</strong><span>Potvrzení se týká pouze této smlouvy. Služby, kauce, délka nájmu ani ostatní jednotky ze scénáře se nemění.</span></div>
     <div className="card rent-change-review"><div className="card-head"><div><h2>Kontrola před potvrzením</h2><p className="muted-copy">Zdroj: {proposal.forecastPlanId} · vytvořil/a {proposal.createdBy.name} {date(proposal.createdAt)}</p></div></div><div className="rent-change-amounts"><span><small>Původní nájemné</small><strong>{money(proposal.previousRentCents)}</strong></span><b aria-hidden="true">→</b><span><small>Nové nájemné</small><strong>{money(proposal.proposedRentCents)}</strong><em>{difference>=0?"+ ":""}{money(difference)}</em></span></div><div className="summary-list"><div><span>Účinnost od</span><strong>{date(proposal.effectiveFrom)}</strong></div><div><span>Právní důvod</span><strong>{proposal.legalBasis}</strong></div><div><span>Poznámka</span><strong>{proposal.note||"—"}</strong></div><div><span>Zdrojový plán</span><strong><Link href={`/reporty/valorizace/${proposal.forecastPlanId}`}>Otevřít schválenou revizi</Link></strong></div></div>

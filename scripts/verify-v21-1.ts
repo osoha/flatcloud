@@ -16,7 +16,8 @@ assert.doesNotMatch(render, /flatcloud-rent-notifications\n/);
 
 const shell = readFileSync("components/Shell.tsx", "utf8");
 assert.match(shell, /Nový úkol/);
-assert.match(shell, /flatcloud-logo(?:-white)?\.png/);
+assert.match(shell, /SidebarCollapseToggle/);
+assert.match(readFileSync("app/flatberry.css", "utf8"), /flatberry-logo\.png/);
 const task = readFileSync("app\/ukoly\/[id]\/page.tsx", "utf8");
 assert.match(task, /discussion-thread/);
 assert.match(task, /Aktuální dluh po splatnosti/);

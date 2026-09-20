@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { hasAllPropertyAccess, requireUser } from "@/lib/auth";
@@ -54,7 +55,7 @@ export default async function PropertyCostDetail({ params, searchParams }: { par
   const allUnitsHaveArea = property.units.length > 0 && property.units.every((unit) => unit.areaM2 && unit.areaM2 > 0);
   return <Shell user={user} taskPropertyId={id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/finance`}>{property.name}</Link><span>›</span><span>{cost.title}</span></div>
-    <div className="page-title"><div><h1>{cost.title}</h1><p>{propertyCostKinds[cost.kind]} · {propertyCostStatuses[cost.status]} · {date(cost.effectiveAt)}</p></div><Link className="secondary" href={`/nemovitosti/${id}/finance#naklady`}>Zpět na finance</Link></div>
+    <div className="page-title"><div><PageHeading>{cost.title}</PageHeading><p>{propertyCostKinds[cost.kind]} · {propertyCostStatuses[cost.status]} · {date(cost.effectiveAt)}</p></div><Link className="secondary" href={`/nemovitosti/${id}/finance#naklady`}>Zpět na finance</Link></div>
     <PropertySubnav propertyId={id} active="finance" unitLimited={false}/>
     <Flash ok={query.ok} error={query.error}/>
     {cost.task&&<p><Link href={`/ukoly/${cost.task.id}`}>Související úkol: {cost.task.title}</Link></p>}

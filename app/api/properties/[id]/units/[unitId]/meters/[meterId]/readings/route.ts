@@ -1,11 +1,12 @@
+import { requireManagedUnit } from "@/lib/managed-unit";
 import { floatValue, text } from '@/lib/forms';
-import { requireManagedProperty } from '@/lib/management';
+
 import { recordMeterReading } from '@/lib/meter-readings';
 import { go, goWithMessage } from '@/lib/route-response';
 
 export async function POST(request:Request,{params}:{params:Promise<{id:string;unitId:string;meterId:string}>}) {
   const {id,unitId,meterId}=await params;
-  const access=await requireManagedProperty(id);
+  const access=await requireManagedUnit(id,unitId);
   if(!access) return go(request,'/login');
   try {
     const form=await request.formData();

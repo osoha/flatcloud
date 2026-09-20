@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -35,7 +36,7 @@ export default async function BudgetDetail({ params, searchParams }: { params: P
   const financeUrl = `/nemovitosti/${id}/finance?financeYear=${line.year}`;
   return <Shell user={user} taskPropertyId={id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={financeUrl}>{property.name}</Link><span>›</span><span>Rozpočet</span></div>
-    <div className="page-title"><div><h1>{line.title}</h1><p>Rozpočet {line.year} · {propertyCostKinds[line.kind]} · {propertyCostCategories[line.category]}</p></div><Link className="secondary" href={financeUrl}>Zpět na finance</Link></div>
+    <div className="page-title"><div><PageHeading>{line.title}</PageHeading><p>Rozpočet {line.year} · {propertyCostKinds[line.kind]} · {propertyCostCategories[line.category]}</p></div><Link className="secondary" href={financeUrl}>Zpět na finance</Link></div>
     <PropertySubnav propertyId={id} active="finance" unitLimited={false}/>
     <Flash ok={query.ok} error={query.error}/>
     <section className="card" aria-label="Limit rozpočtu"><h2>Limit rozpočtu</h2><div className="summary-list">

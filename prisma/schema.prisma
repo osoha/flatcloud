@@ -259,6 +259,32 @@ enum MeterType {
   GAS
 }
 
+
+enum MeterScope {
+  UNIT
+  HOUSE_MAIN
+  HOUSE_SUBMETER
+}
+
+
+enum SettlementAllocationMethod {
+  METER_CONSUMPTION
+  AREA
+  PERSON_DAYS
+  EXTERNAL_RESULT
+  MANUAL
+}
+
+
+enum ServiceSettlementWorkflowStatus {
+  WORKING
+  PAYMENT_CLOSED
+  APPROVED
+  DELIVERED
+  OBJECTION_OPEN
+  SETTLED
+}
+
 enum NotificationType {
   PAYMENT_NOTICE
   FIRST_REMINDER
@@ -437,15 +463,31 @@ enum ReportDesignPageRole {
   TRENDS
 }
 
+enum DebtTreatment {
+  CURRENT
+  HISTORICAL
+  EXCLUDED
+}
+
 enum ReportDesignBackgroundMode {
   GENERATED
   ASSET
 }
 
 model User {
+  flatcloudMember Boolean @default(false)
+  privateToolSettings UserPrivateToolSettings?
+  activity UserActivity?
+  entityAppearances UserEntityAppearance[]
   authoredMeterReadings MeterReading[] @relation("ReadingAuthor")
   settlementSourcesCreated SettlementSource[] @relation("SourceCreator")
   settlementSourcesConfirmed SettlementSource[] @relation("SourceConfirmer")
+  settlementAllocationRulesCreated SettlementAllocationRule[]
+  settlementAllocationBatchesConfirmed SettlementAllocationBatch[]
+  settlementWorkflowsClosed ServiceSettlementWorkflow[] @relation("SettlementWorkflowCloser")
+  settlementWorkflowsApproved ServiceSettlementWorkflow[] @relation("SettlementWorkflowApprover")
+  settlementWorkflowsDelivered ServiceSettlementWorkflow[] @relation("SettlementWorkflowDeliverer")
+  settlementWorkflowsSettled ServiceSettlementWorkflow[] @relation("SettlementWorkflowSettler")
   isTestIdentity                       Boolean                        @default(false)
   id                                   String                         @id @default(cuid())
   email                                String                         @unique
@@ -559,6 +601,8 @@ model OwnerBankAccount {
 
 model Property {
   settlementSources SettlementSource[]
+  settlementAllocationRules SettlementAllocationRule[]
+  settlementAllocationBatches SettlementAllocationBatch[]
 
   id                                String                       @id @default(cuid())
   propertyCode                      String                       @unique @default(dbgenerated())
@@ -581,6 +625,7 @@ model Property {
   flatcloudConsolidationBasisPoints Int?
   ownerships                        PropertyOwnership[]
   units                             Unit[]
+  meters                            Meter[]
   bankAccounts                      BankAccount[]
   matchingRules                     BankMatchingRule[]
   memberships                       UserProperty[]
@@ -1054,6 +1099,8 @@ model Unit {
   assetCosts                PropertyCost[]
   assetCostAllocations      PropertyCostAllocation[]
   assetAssessments          UnitAssetAssessment[]
+  areaPeriods               UnitAreaPeriod[]
+  settlementAllocationRows  SettlementAllocationRow[]
   conditionAssessments      UnitConditionAssessment[]
   valuationSnapshots        UnitValuationSnapshot[]
   distributionOpportunities DistributionOpportunity[]
@@ -1404,6 +1451,8 @@ model Lease {
   credits                     LeaseCredit[]
   rentChangeProposals         RentChangeProposal[]
   serviceSettlementProtocols  ServiceSettlementProtocol[]
+  occupancyPeriods            LeaseOccupancyPeriod[]
+  settlementAllocationRows     SettlementAllocationRow[]
   documents                   Document[]
   createdAt                   DateTime                    @default(now())
   updatedAt                   DateTime                    @updatedAt
@@ -1450,19 +1499,34 @@ model Occupant {
 }
 
 model Meter {
-  id            String         @id @default(cuid())
-  unitId        String
-  unit          Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  type          MeterType
-  label         String?
-  serialNumber  String?
-  unitOfMeasure String
-  active        Boolean        @default(true)
-  readings      MeterReading[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  tariffs MeterTariff[]
+  id              String       @id @default(cuid())
+  propertyId      String
+  property        Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId          String?
+  unit            Unit?        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  scope           MeterScope   @default(UNIT)
+  parentId        String?
+  parent          Meter?       @relation("MeterHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children        Meter[]      @relation("MeterHierarchy")
+  replacementOfId String?      @unique
+  replacementOf   Meter?       @relation("MeterReplacement", fields: [replacementOfId], references: [id], onDelete: Restrict)
+  replacedBy      Meter?       @relation("MeterReplacement")
+  type            MeterType
+  label           String?
+  serialNumber    String?
+  location        String?
+  unitOfMeasure   String
+  installedAt     DateTime?
+  removedAt       DateTime?
+  active          Boolean      @default(true)
+  readings        MeterReading[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
+  @@index([propertyId, scope, type])
   @@index([unitId, type])
+  @@index([parentId])
 }
 
 model MeterReading {
@@ -1519,6 +1583,9 @@ model Charge {
   note                      String?
   active                    Boolean                    @default(true)
   manualOverride            Boolean                    @default(false)
+  debtTreatment             DebtTreatment              @default(CURRENT)
+  debtTreatmentAt           DateTime?
+  debtTreatmentReason       String?
   items                     ChargeItem[]
   allocations               PaymentAllocation[]
   securityDepositOffsets    SecurityDepositMovement[]  @relation("SecurityDepositOffsetCharge")
@@ -1527,6 +1594,7 @@ model Charge {
   updatedAt                 DateTime                   @updatedAt
   notifications             RentNotification[]
   serviceSettlementProtocol ServiceSettlementProtocol?
+  settlementWorkflowDebit ServiceSettlementWorkflow? @relation("SettlementWorkflowCharge")
 
   @@unique([leaseId, period])
   @@index([leaseId, dueDate])
@@ -1672,6 +1740,7 @@ model LeaseCredit {
   createdAt                 DateTime                   @default(now())
   applications              LeaseCreditApplication[]
   serviceSettlementProtocol ServiceSettlementProtocol?
+  settlementWorkflowCredit ServiceSettlementWorkflow? @relation("SettlementWorkflowCredit")
 
   @@index([leaseId, effectiveAt])
 }
@@ -1694,6 +1763,7 @@ model ServiceSettlementProtocol {
   issuedById       String
   issuedBy         User         @relation("ServiceSettlementProtocolIssuer", fields: [issuedById], references: [id], onDelete: Restrict)
   issuedAt         DateTime     @default(now())
+  workflow         ServiceSettlementWorkflow?
 
   @@unique([leaseId, periodFrom, periodTo])
   @@index([leaseId, issuedAt])
@@ -2272,7 +2342,168 @@ model SettlementSource {
   confirmedBy User? @relation("SourceConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
   confirmedAt DateTime?
   confirmation Json?
+  allocationBatches SettlementAllocationBatch[]
 
   @@unique([propertyId, identityKey, version])
   @@index([propertyId, createdAt])
+}
+
+
+model SettlementAllocationRule {
+  id          String                     @id @default(cuid())
+  propertyId  String
+  property    Property                   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  service     String
+  method      SettlementAllocationMethod
+  validFrom   DateTime
+  validTo     DateTime?
+  meterType   MeterType?
+  note        String?
+  active      Boolean                    @default(true)
+  createdById String
+  createdBy   User                       @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime                   @default(now())
+  batches     SettlementAllocationBatch[]
+
+  @@index([propertyId, service, validFrom])
+}
+
+model LeaseOccupancyPeriod {
+  id          String   @id @default(cuid())
+  leaseId     String
+  lease       Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  validFrom   DateTime
+  validTo     DateTime?
+  personCount Int
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([leaseId, validFrom])
+}
+
+model UnitAreaPeriod {
+  id        String   @id @default(cuid())
+  unitId    String
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  validFrom DateTime
+  validTo   DateTime?
+  areaM2    Float
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([unitId, validFrom])
+}
+
+
+model SettlementAllocationBatch {
+  id            String                   @id @default(cuid())
+  propertyId    String
+  property      Property                 @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  sourceId      String
+  source        SettlementSource         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  lineKey       String
+  ruleId        String?
+  rule          SettlementAllocationRule? @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  method        SettlementAllocationMethod
+  totalCents    Int
+  basisSnapshot Json
+  rows          SettlementAllocationRow[]
+  confirmedById String
+  confirmedBy   User                     @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
+  confirmedAt   DateTime                 @default(now())
+
+  @@unique([sourceId, lineKey])
+  @@index([propertyId, confirmedAt])
+}
+
+model SettlementAllocationRow {
+  id               String                    @id @default(cuid())
+  batchId          String
+  batch            SettlementAllocationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  unitId           String
+  unit             Unit                      @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  leaseId          String?
+  lease             Lease?                   @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  basis             Float
+  shareBasisPoints Int
+  amountCents      Int
+  label             String
+
+  @@index([unitId, leaseId])
+}
+
+
+model ServiceSettlementWorkflow {
+  id                String                          @id @default(cuid())
+  protocolId        String                          @unique
+  protocol          ServiceSettlementProtocol       @relation(fields: [protocolId], references: [id], onDelete: Restrict)
+  status            ServiceSettlementWorkflowStatus @default(WORKING)
+  paymentSnapshot   Json?
+  paymentClosedById String?
+  paymentClosedBy   User?                           @relation("SettlementWorkflowCloser", fields: [paymentClosedById], references: [id], onDelete: Restrict)
+  paymentClosedAt   DateTime?
+  approvedById      String?
+  approvedBy        User?                           @relation("SettlementWorkflowApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  approvedAt        DateTime?
+  deliveredById     String?
+  deliveredBy       User?                           @relation("SettlementWorkflowDeliverer", fields: [deliveredById], references: [id], onDelete: Restrict)
+  deliveredAt       DateTime?
+  deliveryMethod    String?
+  deliveryReference String?
+  objectionUntil    DateTime?
+  objectionNote     String?
+  objectionRaisedAt DateTime?
+  objectionResolvedAt DateTime?
+  objectionResolution String?
+  chargeId          String?                         @unique
+  charge            Charge?                         @relation("SettlementWorkflowCharge", fields: [chargeId], references: [id], onDelete: Restrict)
+  creditId          String?                         @unique
+  credit            LeaseCredit?                    @relation("SettlementWorkflowCredit", fields: [creditId], references: [id], onDelete: Restrict)
+  settledById       String?
+  settledBy         User?                           @relation("SettlementWorkflowSettler", fields: [settledById], references: [id], onDelete: Restrict)
+  settledAt         DateTime?
+  createdAt         DateTime                        @default(now())
+  updatedAt         DateTime                        @updatedAt
+}
+
+// Personal presentation only. Entity access is always checked against the original object.
+model UserEntityAppearance {
+  avatarData Bytes?
+  avatarMimeType String?
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityKey String
+  favorite  Boolean  @default(false)
+  color     String?
+  photoId   String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, entityKey])
+}
+
+model UserActivity {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastSeenAt DateTime
+  @@index([lastSeenAt])
+}
+
+model UserPrivateToolSettings {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mapsKeyEncrypted String?
+  updatedAt DateTime @updatedAt
+}
+
+model MeterTariff {
+  id String @id @default(cuid())
+  meterId String
+  meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  validFrom DateTime
+  priceCentsPerUnit Decimal @db.Decimal(14, 4)
+  monthlyAdvanceCents Int
+  unitOfMeasure String
+  createdAt DateTime @default(now())
+  @@unique([meterId, validFrom])
 }

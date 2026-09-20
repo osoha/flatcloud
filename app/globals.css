@@ -527,3 +527,5 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 
 .forecast-custom-horizon summary { cursor: pointer; padding: 8px 12px; border: 1px solid #d8e2ef; border-radius: 8px; }
 .forecast-custom-horizon form { padding: 12px; max-width: 320px; }
+
+@media print{.service-protocol-page .settlement-workflow-card,.service-protocol-page .action-row .status,.service-protocol-page .action-row button{display:none!important}.service-protocol-page{background:#fff}.service-protocol-page .card{break-inside:avoid}}

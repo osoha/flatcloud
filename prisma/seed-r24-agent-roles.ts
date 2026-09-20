@@ -15,7 +15,7 @@ export const R24_ROLE_USERS = {
   assetManager: "r24.asset@flatcloud.test",
 } as const;
 
-type UserFixture = { email: string; name: string; role: UserRole; allProperties?: boolean; propertyName?: string; permission?: PropertyPermission; unitOnly?: boolean };
+type UserFixture = { email: string; name: string; role: UserRole; flatcloudMember?: boolean; allProperties?: boolean; propertyName?: string; permission?: PropertyPermission; unitOnly?: boolean };
 
 export async function ensureR24AgentRoles(prisma: PrismaClient) {
   const passwordHash = await bcrypt.hash(R24_ROLE_PASSWORD, 8);
@@ -23,18 +23,18 @@ export async function ensureR24AgentRoles(prisma: PrismaClient) {
     { email: R24_ROLE_USERS.novice, name: "R24 · Novic", role: "OWNER_VIEWER", propertyName: "Dům ve správě", permission: "VIEW", unitOnly: true },
     { email: R24_ROLE_USERS.advanced, name: "R24 · Pokročilý uživatel", role: "PROPERTY_MANAGER", propertyName: "Moskevská", permission: "EDIT" },
     { email: R24_ROLE_USERS.externalOwner, name: "R24 · Externí vlastník", role: "OWNER_VIEWER", propertyName: "Dům ve správě", permission: "VIEW" },
-    { email: R24_ROLE_USERS.distributionLead, name: "R24 · Šéf distribuce", role: "MANAGER", allProperties: true },
-    { email: R24_ROLE_USERS.internalAssistant, name: "R24 · Interní asistentka", role: "OWNER_VIEWER", propertyName: "Karla Aksamita", permission: "EDIT" },
+    { email: R24_ROLE_USERS.distributionLead, flatcloudMember: true, name: "R24 · Šéf distribuce", role: "MANAGER", allProperties: true },
+    { email: R24_ROLE_USERS.internalAssistant, flatcloudMember: true, name: "R24 · Interní asistentka", role: "OWNER_VIEWER", propertyName: "Karla Aksamita", permission: "EDIT" },
     { email: R24_ROLE_USERS.technicalManager, name: "R24 · Technický správce", role: "PROPERTY_MANAGER", propertyName: "Moskevská", permission: "EDIT" },
     { email: R24_ROLE_USERS.unitManager, name: "R24 · Správce jednotek", role: "PROPERTY_MANAGER", propertyName: "Dům ve správě", permission: "EDIT" },
-    { email: R24_ROLE_USERS.assetManager, name: "R24 · Asset manager", role: "MANAGER", allProperties: true },
+    { email: R24_ROLE_USERS.assetManager, flatcloudMember: true, name: "R24 · Asset manager", role: "MANAGER", allProperties: true },
   ];
 
   for (const fixture of fixtures) {
     const user = await prisma.user.upsert({
       where: { email: fixture.email },
-      update: { name: fixture.name, role: fixture.role, active: true, allProperties: Boolean(fixture.allProperties), passwordHash, title: R24_DATA_MARKER, isTestIdentity: true },
-      create: { email: fixture.email, name: fixture.name, role: fixture.role, active: true, allProperties: Boolean(fixture.allProperties), passwordHash, title: R24_DATA_MARKER, isTestIdentity: true },
+      update: { name: fixture.name, role: fixture.role, active: true, allProperties: Boolean(fixture.allProperties), flatcloudMember: Boolean(fixture.flatcloudMember), passwordHash, title: R24_DATA_MARKER, isTestIdentity: true },
+      create: { email: fixture.email, name: fixture.name, role: fixture.role, active: true, allProperties: Boolean(fixture.allProperties), flatcloudMember: Boolean(fixture.flatcloudMember), passwordHash, title: R24_DATA_MARKER, isTestIdentity: true },
     });
     if (!fixture.propertyName) continue;
     const property = await prisma.property.findFirstOrThrow({ where: { name: fixture.propertyName }, include: { units: { orderBy: { label: "asc" }, take: 1 } } });

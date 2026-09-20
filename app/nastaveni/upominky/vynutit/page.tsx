@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -21,7 +22,7 @@ export default async function ForceReminderPage({ searchParams }: { searchParams
 
   return <Shell user={user}><div className="page form-page">
     <div className="breadcrumb"><Link href="/nastaveni/system">← Zpět do automatizace</Link></div>
-    <div className="page-title"><div><h1>Vynucené rozeslání upomínek</h1><p>Ruční zásah mimo běžný kalendář. Již úspěšně odeslaný stupeň se znovu nepošle.</p></div></div>
+    <div className="page-title"><div><PageHeading>Vynucené rozeslání upomínek</PageHeading><p>Ruční zásah mimo běžný kalendář. Již úspěšně odeslaný stupeň se znovu nepošle.</p></div></div>
     <Flash ok={query.ok} error={query.error}/>
 
     <div className="detail-grid">

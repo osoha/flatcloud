@@ -14,9 +14,9 @@ const percent = (value: number | null | undefined) => value == null ? dash : `${
 
 function OperationalKpiPreview({ property }: { property: QuarterlyPropertyWorkspaceData }) {
   const data = property.snapshot.data;
-  if (!data) return <section className="quarterly-editor-section"><h3>Provozní KPI</h3><p className="muted-copy">Data vybraného snapshotu se nepodařilo načíst.</p></section>;
+  if (!data) return <section className="quarterly-editor-section"><h3>Provozní KPI</h3><p className="muted-copy">Data vybraného datového záznamu se nepodařilo načíst.</p></section>;
   const units = data.units, rent = data.rentRoll, collections = data.collections, deposits = data.deposits, leases = data.leases;
-  return <section className="quarterly-editor-section"><div className="quarterly-section-heading"><div><span className="quarterly-eyebrow">Pouze pro kontext editora</span><h3>Provozní KPI vybraného snapshotu</h3></div><small>Bez nových výpočtů</small></div><div className="quarterly-kpi-grid">
+  return <section className="quarterly-editor-section"><div className="quarterly-section-heading"><div><span className="quarterly-eyebrow">Pouze pro kontext editora</span><h3>Provozní KPI vybraného datového záznamu</h3></div><small>Bez nových výpočtů</small></div><div className="quarterly-kpi-grid">
     <div><span>Jednotky celkem</span><strong>{integer(units?.total)}</strong><small>Pronajímatelné {integer(units?.rentable)}</small></div>
     <div><span>Obsazené / volné</span><strong>{integer(units?.occupied)} / {integer(units?.vacant)}</strong><small>Rekonstrukce {integer(units?.renovation)}</small></div>
     <div><span>Měsíční nájemné</span><strong>{money(rent?.monthlyNetRentCents)}</strong><small>Se službami {money(rent?.monthlyTotalCents)}</small></div>
@@ -43,7 +43,7 @@ export function QuarterlyReportPropertyWorkspace({ property, candidates, photoCa
     <QuarterlyReportPrimaryPhoto selected={property.primaryPhoto} candidates={photoCandidates} editable={editable} baseAction={baseAction}/>
     <QuarterlyReportPrimaryPhoto selected={property.supportivePhoto} candidates={photoCandidates} editable={editable} baseAction={baseAction} slot="supportive"/>
     <div className="card quarterly-property-main">{editable ? <QuarterlyPropertyEditorialEditor action={`${baseAction}/content`} propertyStatus={property.propertyStatus} managementCommentary={property.managementCommentary} additionalCommentary={property.additionalCommentary} initialTechnicalSections={technicalSections} initialValuationRows={valuationRows} operationalKpis={<OperationalKpiPreview property={property}/>}/> : <PropertyEditorialReadOnly property={property}/>}</div>
-    <div className="card quarterly-preview-placeholder"><div><span className="quarterly-eyebrow">Investorský výstup pro tuto nemovitost</span><h2>Náhled reportu</h2><p>Otevřete skutečný report z připojeného snapshotu, vybraných fotografií a přiřazené designové šablony v jejím nativním formátu.</p></div><Link className="button secondary" href={previewHref}>Náhled reportu</Link></div>
+    <div className="card quarterly-preview-placeholder"><div><span className="quarterly-eyebrow">Investorský výstup pro tuto nemovitost</span><h2>Náhled reportu</h2><p>Otevřete skutečný report z připojeného datového záznamu, vybraných fotografií a přiřazené designové šablony v jejím nativním formátu.</p></div><Link className="button secondary" href={previewHref}>Náhled reportu</Link></div>
     <QuarterlyReportDataPanel snapshot={property.snapshot} candidates={candidates} editable={editable} baseAction={baseAction}/>
     <nav className="quarterly-property-pager" aria-label="Přechod mezi nemovitostmi">{previous ? <Link className="button secondary" href={`?propertyId=${encodeURIComponent(previous.id)}`}>← {previous.name}</Link> : <span/>}{next ? <Link className="button secondary" href={`?propertyId=${encodeURIComponent(next.id)}`}>{next.name} →</Link> : <span/>}</nav>
   </div>;

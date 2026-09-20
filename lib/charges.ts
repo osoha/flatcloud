@@ -10,6 +10,7 @@ type ChargeLike = {
   allocations: AllocationLike[];
   securityDepositOffsets?: OffsetLike[];
   creditApplications?: CreditApplicationLike[];
+  debtTreatment?: "CURRENT" | "HISTORICAL" | "EXCLUDED";
 };
 
 export function paidCents(charge: Pick<ChargeLike, "allocations"> & Partial<Pick<ChargeLike, "securityDepositOffsets" | "creditApplications">>) {
@@ -35,6 +36,7 @@ export function isPastDue(dueDate: Date, now = new Date()) {
 }
 
 export function overdueDebtCents(charge: ChargeLike, now = new Date()) {
+  if ((charge.debtTreatment ?? "CURRENT") !== "CURRENT") return 0;
   if (!charge.active || !isPastDue(charge.dueDate, now)) return 0;
   return outstandingCents(charge);
 }
@@ -58,4 +60,9 @@ export function chargeStateLabel(state: ChargeDisplayState) {
     partial: "Částečně uhrazeno",
     scheduled: "Předepsáno",
   }[state];
+}
+
+export function historicalDebtCents(charge: ChargeLike, now = new Date()) {
+  if (charge.debtTreatment !== "HISTORICAL" || !charge.active || !isPastDue(charge.dueDate, now)) return 0;
+  return outstandingCents(charge);
 }

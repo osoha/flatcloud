@@ -74,28 +74,43 @@ test("levé menu má ikonové sbalení, hover popisky a kompaktní profil", asyn
   await expect(footer.getByRole("button", { name: "Odhlásit" })).toBeHidden();
   await expect(footer.getByTitle("Můj účet")).toBeVisible();
   const collapsedLayout = await sidebar.evaluate((element) => {
-    const brand = element.querySelector<HTMLElement>(".brand")!;
+    const brand = element.querySelector<HTMLElement>(".flatberry-expand .flatberry-brand-bitmap")!;
     const avatar = element.querySelector<HTMLElement>(".sidebar-footer .avatar")!;
     const avatarBox = avatar.getBoundingClientRect();
     return {
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
       brandBackground: getComputedStyle(brand).backgroundImage,
-      brandImageDisplay: getComputedStyle(brand.querySelector("img")!).display,
+      brandWidth: brand.getBoundingClientRect().width,
       avatarDisplay: getComputedStyle(avatar).display,
       avatarWidth: avatarBox.width,
       avatarHeight: avatarBox.height,
     };
   });
   expect(collapsedLayout.scrollWidth).toBeLessThanOrEqual(collapsedLayout.clientWidth);
-  expect(collapsedLayout.brandBackground).toContain("flatcloud-logo-white.png");
-  expect(collapsedLayout.brandImageDisplay).toBe("none");
+  expect(collapsedLayout.brandBackground).toContain("flatberry-logo.png");
+  expect(collapsedLayout.brandWidth).toBe(146);
   expect(collapsedLayout.avatarDisplay).not.toBe("none");
   expect(collapsedLayout.avatarWidth).toBe(34);
   expect(collapsedLayout.avatarHeight).toBe(34);
   expect(await page.evaluate(() => localStorage.getItem("flatcloud:sidebar-collapsed"))).toBe("1");
   await footer.getByTitle("Můj účet").click();
   await expect(page).toHaveURL(/\/ucet(?:\?|$)/);
+});
+
+test("R28 sidebar skupiny a kompaktní rail nemají mrtvé ovládací prvky", async ({ page }) => {
+  await login(page);
+  const sidebar=page.locator(".sidebar");
+  const operations=sidebar.locator(".nav-collapsible-section").filter({hasText:"Provoz"}).first();
+  const finance=sidebar.locator(".nav-collapsible-section").filter({hasText:"Finance"}).first();
+  await expect(operations.getByRole("button",{name:"Provoz"})).toBeVisible();
+  await expect(finance.getByRole("button",{name:"Finance"})).toBeVisible();
+  await sidebar.getByRole("button",{name:"Sbalit levé menu"}).click();
+  await expect(page.locator("html")).toHaveClass(/fc-sidebar-collapsed/);
+  await expect(operations.locator(".nav-group-toggle")).toBeHidden();
+  await expect(finance.locator(".nav-group-toggle")).toBeHidden();
+  await expect(sidebar.getByTitle("Úkoly")).toBeVisible();
+  await expect(sidebar.getByTitle("Předpisy")).toBeVisible();
 });
 
 test("záložky nemovitosti navazují na záhlaví a jejich texty se nepřekrývají", async ({ page }) => {
@@ -126,9 +141,11 @@ test("záložky nemovitosti navazují na záhlaví a jejich texty se nepřekrýv
     };
   });
   expect(Math.abs(layout.navigationTop - layout.headerBottom)).toBeLessThanOrEqual(1);
-  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth + 1);
-  expect(layout.firstBevel).not.toBe("none");
-  expect(layout.lastBevel).not.toBe("none");
+  // Original A preserves readable widths; overflow is intentionally scrollable.
+  await expect(navigation).toHaveCSS("overflow-x", "auto");
+  await expect(navigation).toHaveCSS("flex-wrap", "nowrap");
+  expect(layout.firstBevel).toBe("none");
+  expect(layout.lastBevel).toBe("none");
   for (let index = 0; index < layout.boxes.length; index += 1) {
     const box = layout.boxes[index];
     expect(box.textLeft).toBeGreaterThanOrEqual(box.left - 1);
@@ -176,10 +193,11 @@ test("globální správce vidí provozní rozsah napříč vlastníky", async ({
     "FlatCloud a.s. – mateřská společnost",
   );
   await page.goto("/reporty");
-  await expect(page.locator(".operational-scope-note")).toContainText("Nejde o konsolidované finanční KPI skupiny FlatCloud");
+  await expect(page.locator(".operational-scope-note")).toHaveCount(0);
+  await expect(page.locator(".scope-picker-trigger")).toBeVisible();
   await page.getByRole("link", { name: "FlatCloud Asset", exact: true }).click();
   await expect(page).toHaveURL(/view=asset/);
-  await expect(page.getByText("KPI skupiny · potvrzená aktiva", { exact: true })).toBeVisible();
+  await expect(page.getByText("Finanční rozsah skupiny FlatCloud", { exact: true })).toBeVisible();
   const assetTable = page.getByRole("table").filter({ hasText: "Konsolidační podíl" });
   await expect(assetTable.getByRole("row")).toHaveCount(3);
   await expect(assetTable).toContainText("Moskevská");
@@ -250,32 +268,32 @@ test("kvalita jednotky a distribuční připravenost mají oddělený průchod",
   await login(page);
   await page.goto("/distribuce");
   await expect(page.getByRole("heading", { name: "Interní distribuce", exact: true })).toBeVisible();
-  await expect(page.getByText("Interní obchodní modul · pouze FlatCloud Group", { exact: true })).toBeVisible();
-  await expect(page.getByText("Technický stav je samostatný podklad", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", {name:"Interní distribuce",exact:true})).toBeVisible();
+  await expect(page.locator(".distribution-assessment").first()).toBeVisible();
   const unitHref = await page.locator("tbody tr").first().getByRole("link").first().getAttribute("href");
   expect(unitHref).toBeTruthy();
   await page.goto(`${unitHref}#kvalita`);
   const condition = page.locator("#kvalita");
-  await condition.getByText("Uložit nový snapshot", { exact: false }).first().click();
+  await condition.getByText("Uložit hodnocení", { exact: false }).first().click();
   await condition.getByLabel("Kvalita jednotky *").selectOption("B_GOOD");
   await condition.getByLabel("Naléhavost investice *").selectOption("MONITOR");
   await condition.getByLabel("Odhad CAPEX Kč").fill("125000");
   await condition.getByLabel("Poznámka / rozsah").fill("E2E kontrolní hodnocení");
-  await condition.getByRole("button", { name: "Uložit nový snapshot", exact: true }).click();
-  await expect(page.getByText("Nový snapshot kvality a plánu obnovy byl uložen.")).toBeVisible();
+  await condition.getByRole("button", { name: "Uložit hodnocení", exact: true }).click();
+  await expect(page.getByText("Hodnocení kvality a plánu obnovy bylo uloženo.")).toBeVisible();
   await page.goto("/distribuce");
   const firstAssessment = page.locator("tbody tr").first().locator(".distribution-assessment").first();
   await firstAssessment.getByText("Změnit připravenost", { exact: true }).click();
-  await firstAssessment.getByLabel("Interně připraveno pro distribuci").check();
-  await firstAssessment.getByLabel("Poznámka / další krok").fill("E2E obchodní připravenost");
-  await firstAssessment.getByRole("button", { name: "Uložit nový stav", exact: true }).click();
+  await page.getByRole("dialog", { name: "Změna distribuční připravenosti", exact: true }).getByLabel("Interně připraveno pro distribuci").check();
+  await page.getByRole("dialog", { name: "Změna distribuční připravenosti", exact: true }).getByLabel("Poznámka / další krok").fill("E2E obchodní připravenost");
+  await page.getByRole("dialog", { name: "Změna distribuční připravenosti", exact: true }).getByRole("button", { name: "Uložit nový stav", exact: true }).click();
   await expect(page.getByText("Nový stav distribuční připravenosti byl uložen do historie.")).toBeVisible();
   const firstValuation = page.locator(".distribution-valuation").first();
   await firstValuation.getByText("Nová valuace", { exact: true }).click();
-  await firstValuation.getByLabel("Tržní hodnota Kč *").fill("5000000");
-  await firstValuation.getByLabel("Zdroj *").selectOption("INTERNAL_COMPARABLES");
-  await firstValuation.getByLabel("Reference / číslo posudku").fill("E2E-COMP");
-  await firstValuation.getByRole("button", { name: "Uložit novou valuaci", exact: true }).click();
+  await page.getByRole("dialog", { name: "Nová valuace jednotky", exact: true }).getByLabel("Tržní hodnota Kč *").fill("5000000");
+  await page.getByRole("dialog", { name: "Nová valuace jednotky", exact: true }).getByLabel("Zdroj *").selectOption("INTERNAL_COMPARABLES");
+  await page.getByRole("dialog", { name: "Nová valuace jednotky", exact: true }).getByLabel("Reference / číslo posudku").fill("E2E-COMP");
+  await page.getByRole("dialog", { name: "Nová valuace jednotky", exact: true }).getByRole("button", { name: "Uložit novou valuaci", exact: true }).click();
   await expect(page.getByText("Nová valuace jednotky byla uložena do historie.")).toBeVisible();
   await expect(page.getByText("5 000 000 Kč", { exact: true }).first()).toBeVisible();
   assertNoBrowserFailures();
@@ -288,8 +306,8 @@ test("schválený CAPEX plán se právě jednou převede do realizace", async ({
   await expect(page.getByRole("heading", { name: "Prioritní fronta obnovy", exact: true })).toBeVisible();
   const row = page.locator("tbody tr").filter({ hasText: "Schváleno" }).first();
   await row.getByText("Převést plán", { exact: true }).click();
-  await row.getByLabel("Název CAPEX akce *").fill("E2E schválená obnova");
-  await row.getByRole("button", { name: "Převést do realizace", exact: true }).click();
+  await page.getByRole("dialog", { name: "Převést schválený plán", exact: true }).getByLabel("Název CAPEX akce *").fill("E2E schválená obnova");
+  await page.getByRole("dialog", { name: "Převést schválený plán", exact: true }).getByRole("button", { name: "Převést do realizace", exact: true }).click();
   await expect(page.getByText(/CAPEX plán byl převeden do úkolu a rozpočtu pro rok/)).toBeVisible();
   const converted = page.locator("tbody tr").filter({ hasText: "Připraveno k zahájení" }).first();
   await expect(converted.getByRole("link", { name: "Úkol", exact: true })).toBeVisible();
@@ -305,21 +323,21 @@ test("CAPEX realizace projde zahájením, skutečností a řízeným zavřením 
   await page.goto("/portfolio/kvalita");
   const row = page.locator("tbody tr").filter({ hasText: "Připraveno k zahájení" }).first();
   await row.getByText("Řídit realizaci", { exact: true }).click();
-  await expect(row.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toBeVisible();
-  await row.getByRole("button", { name: "Zavřít", exact: true }).click();
-  await expect(row.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toBeVisible();
+  await page.getByRole("dialog", { name: "Průběh CAPEX realizace", exact: true }).getByRole("button", { name: "Zavřít", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toHaveCount(0);
   await row.getByText("Řídit realizaci", { exact: true }).click();
   await page.keyboard.press("Escape");
-  await expect(row.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Průběh CAPEX realizace" })).toHaveCount(0);
   await row.getByText("Řídit realizaci", { exact: true }).click();
-  await row.getByLabel("Datum zahájení *").fill("2026-09-06");
-  await row.getByRole("button", { name: "Zahájit realizaci", exact: true }).click();
+  await page.getByRole("dialog", { name: "Průběh CAPEX realizace", exact: true }).getByLabel("Datum zahájení *").fill("2026-09-06");
+  await page.getByRole("dialog", { name: "Průběh CAPEX realizace", exact: true }).getByRole("button", { name: "Zahájit realizaci", exact: true }).click();
   await expect(page.getByText("CAPEX realizace byla zahájena.")).toBeVisible();
   const started = page.locator("tbody tr").filter({ hasText: "Probíhá" }).first();
   await started.getByText("Řídit realizaci", { exact: true }).click();
-  await started.getByLabel("Skutečný CAPEX Kč *").fill("675000");
-  await started.getByLabel("Datum dokončení *").fill("2026-09-06");
-  await started.getByRole("button", { name: "Dokončit a zapsat skutečnost", exact: true }).click();
+  await page.getByRole("dialog", { name: "Průběh CAPEX realizace", exact: true }).getByLabel("Skutečný CAPEX Kč *").fill("675000");
+  await page.getByRole("dialog", { name: "Průběh CAPEX realizace", exact: true }).getByLabel("Datum dokončení *").fill("2026-09-06");
+  await page.getByRole("dialog", { name: "Průběh CAPEX realizace", exact: true }).getByRole("button", { name: "Dokončit a zapsat skutečnost", exact: true }).click();
   await expect(page.getByText("CAPEX realizace byla dokončena a skutečný náklad zapsán.")).toBeVisible();
   const completed = page.locator("tbody tr").filter({ hasText: /Skutečnost\s+675\s+000\s+Kč/ }).first();
   await expect(completed).toBeVisible();
@@ -335,7 +353,7 @@ test("CAPEX výhled vede z fronty do pětiletého plánu a zpět", async ({ page
   await page.getByRole("link", { name: "CAPEX výhled", exact: true }).click();
   await expect(page).toHaveURL(/\/portfolio\/kvalita\/plan/);
   await expect(page.getByRole("heading", { name: "Plán obnovy a CAPEX výhled", exact: true })).toBeVisible();
-  await expect(page.getByText("Provozní plán · bez vazby na interní Distribuci", { exact: true })).toBeVisible();
+  await expect(page.locator(".scope-picker")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Časová mapa obnovy", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Aktivní plán obnovy", exact: true })).toBeVisible();
   await expect(page.locator(".capex-timeline-column")).toHaveCount(8);
@@ -366,18 +384,18 @@ test("interní CRM vede zájemce přes příležitost a další krok", async ({ 
   await page.getByLabel("Další krok k datu").first().fill(new Date(Date.now()+7*86_400_000).toISOString().slice(0,10));
   await page.getByRole("button", { name: "Založit příležitost", exact: true }).click();
   await expect(page.getByText("Příležitost byla založena.")).toBeVisible();
-  const row = page.getByRole("row").filter({ hasText: prospectName });
+  const row = page.locator("tr").filter({ has: page.locator(".crm-opportunity-edit"), hasText: prospectName });
   await row.getByText("Upravit", { exact: true }).click();
-  await row.getByLabel("Fáze *").selectOption("CONTACTED");
-  await row.getByLabel("Stav opce").selectOption("SIGNED");
-  await row.getByLabel("Cena opce Kč").fill("150000");
-  await row.getByLabel("Platnost opce do").fill(new Date(Date.now()+30*86_400_000).toISOString().slice(0,10));
-  await row.getByLabel("Reference dokumentu").fill("OPCE-E2E-001");
-  await row.getByRole("button", { name: "Uložit fázi a další krok včetně opce", exact: true }).click();
+  await page.getByRole("dialog", { name: `Upravit příležitost ${prospectName}`, exact: true }).getByLabel("Fáze *").selectOption("CONTACTED");
+  await page.getByRole("dialog", { name: `Upravit příležitost ${prospectName}`, exact: true }).getByLabel("Stav opce").selectOption("SIGNED");
+  await page.getByRole("dialog", { name: `Upravit příležitost ${prospectName}`, exact: true }).getByLabel("Cena opce Kč").fill("150000");
+  await page.getByRole("dialog", { name: `Upravit příležitost ${prospectName}`, exact: true }).getByLabel("Platnost opce do").fill(new Date(Date.now()+30*86_400_000).toISOString().slice(0,10));
+  await page.getByRole("dialog", { name: `Upravit příležitost ${prospectName}`, exact: true }).getByLabel("Reference dokumentu").fill("OPCE-E2E-001");
+  await page.getByRole("dialog", { name: `Upravit příležitost ${prospectName}`, exact: true }).getByRole("button", { name: "Uložit fázi a další krok včetně opce", exact: true }).click();
   await expect(page.getByText("Fáze, opce a další krok byly aktualizovány.")).toBeVisible();
-  await expect(page.getByRole("row").filter({ hasText: prospectName })).toContainText("Kontaktován");
-  await expect(page.getByRole("row").filter({ hasText: prospectName })).toContainText("Opce podepsána");
-  await page.getByRole("row").filter({ hasText: prospectName }).getByText("Upravit", { exact: true }).click();
+  await expect(page.locator("tr").filter({ has: page.locator(".crm-opportunity-edit"), hasText: prospectName })).toContainText("Kontaktován");
+  await expect(page.locator("tr").filter({ has: page.locator(".crm-opportunity-edit"), hasText: prospectName })).toContainText("Opce podepsána");
+  await page.locator("tr").filter({ has: page.locator(".crm-opportunity-edit"), hasText: prospectName }).getByText("Upravit", { exact: true }).click();
   await expect(page.getByText("Historie funnelu", { exact: true })).toBeVisible();
   await expect(page.locator(".distribution-funnel-history span")).toHaveCount(2);
   assertNoBrowserFailures();
@@ -397,7 +415,7 @@ test("uvítací dopis navazuje na uzavřený prodej a vyžaduje ruční kontrolu
   await page.getByLabel("Jednotka *").selectOption({ index: 1 });
   await page.getByLabel("Fáze *").first().selectOption("WON");
   await page.getByRole("button", { name: "Založit příležitost", exact: true }).click();
-  await expect(page.getByRole("row").filter({ hasText: prospectName })).toContainText("Uzavřeno");
+  await expect(page.locator("tr").filter({ has: page.locator(".crm-opportunity-edit"), hasText: prospectName })).toContainText("Uzavřeno");
   await page.getByRole("link", { name: "Uvítací dopisy", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Uvítací dopisy novým vlastníkům", exact: true })).toBeVisible();
   await expect(page.getByText("Žádné automatické odesílání podle katastru", { exact: true })).toBeVisible();
@@ -1057,6 +1075,7 @@ test("Q4: nový objekt bez účtu vede uživatele k bezpečnému doplnění", as
   await login(page);
   await page.locator("a.property-cell").filter({ hasText: "QA Q4 · Objekt bez účtu" }).click();
   const checklist = page.locator(".onboarding-checklist");
+  await checklist.locator("summary").click();
   await expect(checklist.getByText("Účty pro inkaso", { exact: true })).toBeVisible();
   await expect(checklist).toContainText("0/1 jednotek má účet");
   await checklist.getByText("Účty pro inkaso", { exact: true }).click();
@@ -1140,7 +1159,7 @@ test("R13: výroční editor odděluje korporátní a nemovitostní vrstvu", asy
   await page.getByRole("button", { name: "Přidat interval", exact: true }).click();
   await expect(page.getByText("Interval nemovitosti byl přidán.", { exact: true })).toBeVisible();
   await page.goto(`/reporty/vyrocni/${groupId}`);
-  await page.getByLabel("Rok").fill(String(new Date().getUTCFullYear()));
+  await page.getByLabel("Rok", { exact: true }).fill(String(new Date().getUTCFullYear()));
   await page.getByRole("button", { name: "Založit výroční report", exact: true }).click();
   await expect(page.getByText("Výroční report byl založen.", { exact: true })).toBeVisible();
   await expect(page.locator(".annual-q4-alignment")).toBeVisible();
@@ -1158,7 +1177,7 @@ test("R13: výroční editor odděluje korporátní a nemovitostní vrstvu", asy
   await page.getByRole("button", { name: "Uložit korporátní a portfolio vrstvu", exact: true }).click();
   await expect(page.getByText("Korporátní a portfolio vrstva byla uložena.", { exact: true })).toBeVisible();
   await page.locator(".annual-report-nav-group a").first().click();
-  await expect(page.getByText("Zmrazený Q4 snapshot", { exact: true })).toBeVisible();
+  await expect(page.getByText("Zmrazený Q4 datový záznam", { exact: true })).toBeVisible();
   await page.getByLabel("Hodnota ke konci roku Kč").fill("26000000");
   await page.getByLabel("Cílová hodnota Kč").fill("32000000");
   await page.getByLabel("Investiční případ").fill("R13 E2E investiční případ nemovitosti.");
@@ -1182,7 +1201,7 @@ test("R13B: výroční report prochází kontrolou a verzovanou publikací", asy
   await page.getByRole("button", { name: "Přidat interval", exact: true }).click();
   await expect(page.getByText("Interval nemovitosti byl přidán.", { exact: true })).toBeVisible();
   await page.goto(`/reporty/vyrocni/${groupId}`);
-  await page.getByLabel("Rok").fill("2025");
+  await page.getByLabel("Rok", { exact: true }).fill("2025");
   await page.getByRole("button", { name: "Založit výroční report", exact: true }).click();
   await expect(page.getByText("Výroční report byl založen.", { exact: true })).toBeVisible();
   await page.getByLabel("Slovo zakladatele").fill("Rok 2025 potvrdil dlouhodobou strategii FlatCloud.");

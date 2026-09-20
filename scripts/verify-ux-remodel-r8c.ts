@@ -114,17 +114,18 @@ async function main() {
 
   await check("navigation keeps quality in Operations and removes the dashboard shortcut", () => {
     const shell = read("components/Shell.tsx");
+    const operations = shell.indexOf('id="operations"');
     const tasks = shell.indexOf('href="/ukoly"');
     const quality = shell.indexOf('href="/portfolio/kvalita"');
-    const finance = shell.indexOf('<div className="nav-label">Finance</div>');
-    assert.ok(tasks >= 0 && quality > tasks && finance > quality, "Kvalita a CAPEX must sit after Tasks in Operations");
+    const finance = shell.indexOf('id="finance"');
+    assert.ok(operations >= 0 && tasks > operations && quality > tasks && finance > quality, "Kvalita a CAPEX must sit after Tasks in Operations and before Finance");
     const portfolio = read("app/portfolio/page.tsx");
     assert.doesNotMatch(portfolio, /href="\/portfolio\/kvalita"/);
   });
 
   await check("all floating forms share an explicit and keyboard dismiss path", () => {
     const component = read("components/DismissibleDetails.tsx");
-    for (const marker of ["Zavřít", 'event.key === "Escape"', 'document.addEventListener("pointerdown"', 'role="dialog"']) assert.match(component, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
+    for (const marker of ["Zavřít", 'event.key === "Escape"', 'document.addEventListener("pointerdown"', 'role={viewportModal ? undefined : "dialog"}', '<dialog', '.showModal()', 'onCancel=']) assert.match(component, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
     for (const file of ["app/portfolio/kvalita/page.tsx", "app/distribuce/page.tsx", "app/distribuce/zajemci/page.tsx", "app/uzivatele/page.tsx", "app/nemovitosti/[id]/[section]/page.tsx", "app/reporty/valorizace/[planId]/page.tsx"]) assert.match(read(file), /DismissibleDetails/);
     const scope = read("components/PortfolioScopePicker.tsx");
     assert.match(scope, /event\.key === "Escape"/);

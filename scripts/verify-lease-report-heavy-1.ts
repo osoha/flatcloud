@@ -176,7 +176,7 @@ async function main() {
       for (const token of ["await replaceRecurringAmount(tx, leaseId, \"RENT\", preview.input.rentCents", "await replaceRecurringAmount(tx, leaseId, \"SERVICES\", preview.input.servicesCents", "rentCents: preview.input.rentCents", "servicesCents: preview.input.servicesCents", "syncLeaseCharges"]) assert.ok(financialService.includes(token));
       assert.ok(!generalRoute.includes("await replaceRecurringAmount"));
     });
-    await check("report routes link tenancy rows back to tenant unit and contract cards", () => { const page = read("app/reporty/page.tsx"); for (const token of ["/najemnici/${row.tenantId}", "/jednotky/${row.unitId}", "/smlouvy/${row.leaseId}"]) assert.ok(page.includes(token)); });
+    await check("report routes link tenancy rows back to tenant unit and contract cards", () => { const page = read("components/TenancyReport.tsx"); for (const token of ["/najemnici/${row.tenantId}", "/jednotky/${row.unitId}", "/smlouvy/${row.leaseId}"]) assert.ok(page.includes(token)); });
   } finally {
     await prisma.auditLog.deleteMany({ where: { OR: [{ propertyId: property.id }, { entityId: { in: leaseIds } }] } });
     await prisma.property.delete({ where: { id: property.id } });
