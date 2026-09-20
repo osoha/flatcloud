@@ -56,7 +56,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
       {locksLastAdmin && <><input type="hidden" name="role" value={edited.role}/><input type="hidden" name="active" value="on"/><input type="hidden" name="allProperties" value="on"/></>}
 
       <section className={`card ${styles.sectionCard}`}>
-        <div className={styles.sectionHead}><div><h2>Profil uživatele</h2><p>Kontaktní údaje a fotografie nemění rozsah oprávnění.</p></div><span className={styles.sectionTag}>Profil</span></div>
+        <div className={styles.sectionHead}><div><h2>Profil uživatele</h2><p></p></div><span className={styles.sectionTag}>Profil</span></div>
         {locksLastAdmin && <div className="notice">Toto je poslední aktivní hlavní administrátor. Jeho roli ani aktivní stav nelze změnit, dokud nevytvoříte dalšího aktivního hlavního administrátora.</div>}
         <div className={styles.profileGrid}>
           <div className={styles.avatarRow}><UserAvatar user={edited} size="lg" className={online ? "user-online" : ""}/><div className={styles.avatarActions}><div><strong>Avatar uživatele</strong><p>PNG, JPG nebo WebP, maximálně 2 MB. Bez nahrané fotografie zůstávají iniciály.</p></div><input type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/><label className="checkbox-field"><input type="checkbox" name="removeAvatar"/><span>Odstranit současný avatar</span></label></div></div>

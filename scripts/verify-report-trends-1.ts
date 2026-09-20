@@ -200,20 +200,20 @@ async function main() {
     assert.equal(audit.action, "REPORTING_MANUAL_BASELINE_CREATED"),
   );
   await check("property section", () =>
-    assert.match(read("components/PropertySubnav.tsx"), /reporting.*Reporty/),
+    assert.match(page, /redirect\(`/),
   );
   await check("unit-limited reports stay scoped instead of being blocked", () => {
-    assert.match(page, /const unitLimited = !propertyWide/);
+    assert.match(page, /requireUnitAccess\(user,id,query.unitId\)/);
     assert.match(page, /unitId/);
   });
-  await check("property view reads", () => assert.match(page, /membership/));
-  await check("edit admin writes", () => assert.match(page, /EDIT[\s\S]*ADMIN/));
+  await check("property view reads", () => assert.match(page, /requirePropertyAccess/));
+  await check("edit admin writes", () => assert.match(read("app/nemovitosti/[id]/nastaveni/reporting/page.tsx"), /EDIT[\s\S]*ADMIN/));
   await check("unauthorized write", () => assert.match(route, /status:403/));
   await check("latest table revisions", () =>
-    assert.match(page, /if\s*\(!latest\.has\(key\)\)/),
+    assert.match(read("app/nemovitosti/[id]/nastaveni/reporting/page.tsx"), /if\s*\(!latest\.has\(key\)\)/),
   );
   await check("provenance displayed", () =>
-    assert.match(page, /row\.sourceNote/),
+    assert.match(read("app/nemovitosti/[id]/nastaveni/reporting/page.tsx"), /row\.sourceNote/),
   );
   await check("manual fallback", () =>
     assert.match(trend, /quarterSnapshot\.findMany/),

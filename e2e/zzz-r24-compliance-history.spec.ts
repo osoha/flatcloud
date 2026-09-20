@@ -39,7 +39,7 @@ test("R24 compliance: completion shows full history, notes, actor and original p
   await row.getByLabel("Poznámka", { exact: true }).fill(`${marker} completed in UI`);
   await row.getByRole("button", { name: "Uložit provedení" }).click();
   await expect(page.getByRole("status")).toContainText("Kontrola byla zaznamenána");
-  await row.getByText("Historie kontrol (5)", { exact: true }).click();
+  await row.getByText("Historie kontrol a protokoly (5)", { exact: true }).click();
   const history = row.locator(".compliance-history");
   await expect(history).toContainText(`${marker} record 1`);
   await expect(history).toContainText(`${marker} completed in UI`);
@@ -58,7 +58,7 @@ test("R24 compliance: property VIEW reads history; unit-only and foreign scopes 
   await login(page, R24_ROLE_USERS.externalOwner);
   await page.goto(`/nemovitosti/${property.id}/provoz`);
   const row = page.locator(".compliance-row").filter({ hasText: item.name });
-  await row.getByText("Historie kontrol (4)", { exact: true }).click();
+  await row.getByText("Historie kontrol a protokoly (4)", { exact: true }).click();
   await expect(row).toContainText(`${marker} record 1`);
   await expect(row.getByRole("button", { name: "Uložit provedení" })).toHaveCount(0);
   await expect(row).not.toContainText("hidden deleted protocol");

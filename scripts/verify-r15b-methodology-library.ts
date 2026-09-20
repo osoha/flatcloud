@@ -7,7 +7,7 @@ let passed = 0;
 function check(name: string, run: () => void) { run(); passed += 1; console.log(`✓ ${name}`); }
 
 check("glossary covers reporting, finance and distribution vocabulary", () => {
-  for (const term of ["LIVE stav", "Snapshot", "Q4 snapshot", "OPEX", "CAPEX", "NOI", "LTV", "DSCR", "Konsolidační podíl", "Příležitost", "Opce", "PII"]) {
+  for (const term of ["LIVE stav", "Uložený stav", "Stav k 31. prosinci", "OPEX", "CAPEX", "NOI", "LTV", "DSCR", "Konsolidační podíl", "Příležitost", "Opce", "PII"]) {
     assert.ok(methodologyGlossary.some((item) => item.term === term), `Missing term ${term}`);
   }
   assert.ok(methodologyGlossary.every((term) => term.definition.length >= 45 && term.chapterSlug));

@@ -34,7 +34,8 @@ test("Flatberry: logo drží velikost, záložky jednu řadu a ikony viditelnou 
     const box = svg.getBoundingClientRect(), tile = svg.parentElement!.getBoundingClientRect();
     return Math.max(ink.width * box.width / 24, ink.height * box.height / 24) / Math.min(tile.width, tile.height);
   });
-  expect(ratio).toBeGreaterThanOrEqual(.60); expect(ratio).toBeLessThanOrEqual(.76);
+  // FB01: smaller 68% SVG frame gives approximately 58% visible building ink.
+  expect(ratio).toBeGreaterThanOrEqual(.54); expect(ratio).toBeLessThanOrEqual(.64);
   const titleRatio = await page.locator("h1 .flatberry-heading-icon").evaluate(svg => {
     const h1 = svg.closest("h1")!, style = getComputedStyle(h1), canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d")!; ctx.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
@@ -68,9 +69,9 @@ test("Flatberry: hvězdička řadí nahoru, barva patří do vzhledu a ukládá 
   await expect(page.locator(".property-row").first().locator(".favorite-property")).toHaveAttribute("aria-pressed", "true");
   await page.goto(`/nemovitosti/${propertyId}/vzhled`);
   await page.getByLabel("Barva karty v přehledu").selectOption("blue");
-  await page.getByLabel("Fotografie / avatar").selectOption("icon");
-  await page.getByRole("button", { name: "Uložit vzhled" }).click();
-  await expect(page.getByRole("status")).toContainText("Váš vzhled byl uložen");
+  await page.getByLabel("Avatar objektu / jednotky").selectOption("icon");
+  await page.getByRole("button", { name: "Uložit kartu" }).click();
+  await expect(page.getByRole("status")).toContainText("Úprava karty byla uložena");
   await page.goto("/portfolio");
   const changed = page.locator(`.property-row:has(a[href="${href}"])`);
   await expect(changed).toHaveCSS("background-color", "rgb(238, 244, 255)");

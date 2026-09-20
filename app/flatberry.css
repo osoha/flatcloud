@@ -77,8 +77,8 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .property-icon-frame{background:#eef3f9;color:#7d94b3;box-shadow:none}
 .entity-avatar{display:inline-flex;align-items:center;justify-content:center;background:#eef3f9;color:#718aaa;border-radius:11px;flex:none;width:68px;height:66px;overflow:hidden;vertical-align:middle}
 .entity-avatar-lg{width:80px;height:80px;border-radius:14px}
-/* 80% SVG box × ~83% artwork = ~66% of the tile. Never inherit generic 18px icons. */
-.flatberry-shell .entity-avatar>.entity-avatar-glyph{width:80%;height:80%;flex:none;stroke-width:1.5}
+/* Generic artwork occupies about 57% of the tile; photos retain the full tile. */
+.flatberry-shell .entity-avatar>.entity-avatar-glyph{width:68%;height:68%;flex:none;stroke-width:1.5}
 .entity-avatar>img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
 .flatberry-shell .property-cell{display:flex;align-items:center;gap:13px;min-width:250px}
 .flatberry-shell .property-cell>div{min-width:0}

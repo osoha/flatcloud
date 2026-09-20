@@ -52,7 +52,7 @@ export const methodologyGuides: MethodologyGuide[] = [
     { label: "Založit řízený úkol", note: "Další kontakt a výsledek ponechte v auditované pracovní frontě.", href: "/ukoly/novy" },
   ] },
   { slug: "obnova-jednotky", title: "Plánuji opravu nebo obnovu jednotky", situation: "OPEX / CAPEX", audience: "Technický a asset manager", outcome: "Rozhodnutí má stav, rozpočet, odpovědnost a oddělený plán od skutečnosti.", steps: [
-    { label: "Posoudit technický stav", note: "Hodnocení a naléhavost uložte jako nový datovaný snapshot.", href: "/portfolio/kvalita" },
+    { label: "Posoudit technický stav", note: "Hodnocení a naléhavost uložte jako nové datované hodnocení.", href: "/portfolio/kvalita" },
     { label: "Schválit plán CAPEX", note: "Teprve potvrzený plán převádějte do realizace.", href: "/portfolio/kvalita/plan" },
     { label: "Doložit skutečný náklad", note: "Po dokončení připojte účetní doklad a zkontrolujte odchylku.", href: "/reporty/rocni-podklady" },
   ] },
@@ -77,8 +77,9 @@ export const methodologyChapters: MethodologyChapter[] = [
     audience: "Všichni uživatelé",
     steps: [
       "V portfoliu klikněte na hvězdičku u objektu. Oblíbené objekty se řadí první; archivované zůstávají v oddělené části. Dalším kliknutím označení zrušíte.",
-      "V detailu otevřete Vzhled objektu nebo Vzhled jednotky. Zde společně vyberete fotografii / avatar a barvu. Barva a oblíbenost jsou nezávislé volby.",
-      "Automaticky použijeme dostupnou titulní fotografii, případně první připojenou fotografii. Můžete si vybrat jinou dostupnou fotografii nebo obecnou ikonu. Chybějící obrázek vždy nahradí ikona.",
+      "V detailu objektu nebo jednotky otevřete Upravit kartu, případně klikněte přímo na jeho avatar. Zde společně vyberete fotografii / avatar a barvu. Barva a oblíbenost jsou nezávislé volby.",
+      "První volbou je Obecná ikona. Dále můžete zvolit fotografii z nahraných dokumentů nebo nahrát vlastní avatar (JPG, PNG nebo WebP do 2 MB). Nový obrázek automaticky otočíme a upravíme do čtverce. Nedostupnou fotografii nahradí ikona.",
+      "Dole v levém menu přepnete jedním klikem světlý nebo tmavý režim a standardní nebo široký obsah. Na mobilu jsou přepínače v horní liště. Tyto dvě volby si pamatuje váš prohlížeč pro váš účet.",
       "Objekt se zvolenou barvou zvýrazní na hlavní stránce portfolia; u jednotky se zvýrazní její záhlaví. Výchozí nastavení je bez barvy a obnovíte je volbou Bez zvýraznění.",
       "Volby se ukládají k vašemu účtu a platí i po přihlášení na jiném zařízení. Nemění nastavení ostatních lidí ani finanční stav. Zelená a červená částka dluhu vyjadřují skutečný stav, nikoli osobní barvu karty.",
     ],
@@ -189,9 +190,9 @@ export const methodologyChapters: MethodologyChapter[] = [
     slug: "vyrocni-report",
     category: "Asset management",
     title: "Výroční report pro akcionáře",
-    summary: "Interní příprava korporátního příběhu, hodnoty portfolia, kapitol nemovitostí a kontrolovaného PDF z uzavřených Q4 snapshotů.",
+    summary: "Interní příprava korporátního příběhu, hodnoty portfolia, kapitol nemovitostí a kontrolovaného PDF z uzavřených Q4 datových záznamů.",
     audience: "Vedení, asset manager a interní reporting",
-    steps: ["Zvolte aktivní reportovací skupinu a uzavřený rok; založením reportu se zmrazí přesný rozsah nemovitostí a jejich Q4 snapshoty k 31. prosinci.", "V konceptu doplňte slovo zakladatele, shrnutí roku, investiční tezi, tvorbu hodnoty, výhled, hodnotu aktiv, dluh, exity a údaje o akcii.", "U každé nemovitosti oddělte počáteční, koncovou a cílovou hodnotu, investiční případ, tvorbu hodnoty, výhled exitu a poznámku ke zdroji.", "Před odesláním ke kontrole odstraňte všechny blokátory úplnosti a ověřte provenienci zmrazených dat v příloze.", "Ve stavu Ke kontrole otevřete deterministický PDF náhled; administrátor musí potvrdit jeho vizuální kontrolu před publikací.", "Publikovanou revizi neupravujte. Potřebnou opravu založte jako novou revizi, aby původní PDF, snapshoty i auditní stopa zůstaly zachované."],
+    steps: ["Zvolte aktivní reportovací skupinu a uzavřený rok; založením reportu se zmrazí přesný rozsah nemovitostí a jejich Q4 datové záznamy k 31. prosinci.", "V konceptu doplňte slovo zakladatele, shrnutí roku, investiční tezi, tvorbu hodnoty, výhled, hodnotu aktiv, dluh, exity a údaje o akcii.", "U každé nemovitosti oddělte počáteční, koncovou a cílovou hodnotu, investiční případ, tvorbu hodnoty, výhled exitu a poznámku ke zdroji.", "Před odesláním ke kontrole odstraňte všechny blokátory úplnosti a ověřte provenienci zmrazených dat v příloze.", "Ve stavu Ke kontrole otevřete deterministický PDF náhled; administrátor musí potvrdit jeho vizuální kontrolu před publikací.", "Publikovanou revizi neupravujte. Potřebnou opravu založte jako novou revizi, aby původní PDF, uložené verze dat i auditní stopa zůstaly zachované."],
     check: "Publikovat lze pouze uzavřený a úplný report se shodným zmrazeným rozsahem, schváleným PDF náhledem a dohledatelnými zdroji. Workflow je interní a samo nic veřejně nerozesílá.",
     href: "/reporty/vyrocni",
   },
@@ -211,7 +212,7 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Kvalita jednotek a plán obnovy",
     summary: "Neutrální evidence fyzického stavu, investiční naléhavosti a plánovaného CAPEX napříč spravovaným portfoliem.",
     audience: "Správce a asset manager",
-    steps: ["Hodnoťte všechna oprávněně spravovaná aktiva bez ohledu na vlastníka, konsolidaci nebo zamýšlený prodej.", "Určete současný fyzický stav písmenem A–D a samostatně zvolte naléhavost investice.", "Doplňte realistický odhad CAPEX, stav plánu obnovy a u plánované či probíhající akce cílový termín.", "Poznámkou popište rozsah nebo zdroj odhadu tak, aby další hodnotitel dokázal rozhodnutí ověřit.", "Při změně stavu vytvořte nový snapshot. Starší hodnocení se nepřepisuje; distribuční připravenost a valuace mají vlastní proces.", "Teprve schválený aktuální plán s kladnou částkou a termínem převeďte do realizace. Jedním krokem vznikne propojený úkol údržby, plánovaný CAPEX náklad a rozpočtová položka; opakovaný převod systém zablokuje.", "Realizaci zahajte a dokončete pouze z modulu Kvalita a CAPEX. Zahájení přepne úkol a náklad do průběhu; dokončení zapíše skutečnou částku, uzavře úkol a ukáže odchylku proti původnímu plánu. Historické události se nepřepisují.", "V CAPEX výhledu kontrolujte zvlášť položky po termínu, pětiletý horizont, pozdější záměry a položky bez termínu. Rozpad Záměr / Schváleno / V realizaci vychází vždy z posledního snapshotu a událostí realizace.", "Skutečnost a odchylka se počítají pouze z dokončených realizací v daném roce. Výhled je provozní plán, nikoli účetní či daňový podklad, a nemá vazbu na interní Distribuci."],
+    steps: ["Hodnoťte všechna oprávněně spravovaná aktiva bez ohledu na vlastníka, konsolidaci nebo zamýšlený prodej.", "Určete současný fyzický stav písmenem A–D a samostatně zvolte naléhavost investice.", "Doplňte realistický odhad CAPEX, stav plánu obnovy a u plánované či probíhající akce cílový termín.", "Poznámkou popište rozsah nebo zdroj odhadu tak, aby další hodnotitel dokázal rozhodnutí ověřit.", "Při změně stavu vytvořte nové hodnocení. Starší hodnocení se nepřepisuje; distribuční připravenost a valuace mají vlastní proces.", "Teprve schválený aktuální plán s kladnou částkou a termínem převeďte do realizace. Jedním krokem vznikne propojený úkol údržby, plánovaný CAPEX náklad a rozpočtová položka; opakovaný převod systém zablokuje.", "Realizaci zahajte a dokončete pouze z modulu Kvalita a CAPEX. Zahájení přepne úkol a náklad do průběhu; dokončení zapíše skutečnou částku, uzavře úkol a ukáže odchylku proti původnímu plánu. Historické události se nepřepisují.", "V CAPEX výhledu kontrolujte zvlášť položky po termínu, pětiletý horizont, pozdější záměry a položky bez termínu. Rozpad Záměr / Schváleno / V realizaci vychází vždy z posledního hodnocení a událostí realizace.", "Skutečnost a odchylka se počítají pouze z dokončených realizací v daném roce. Výhled je provozní plán, nikoli účetní či daňový podklad, a nemá vazbu na interní Distribuci."],
     check: "Každá jednotka má aktuální datované hodnocení, zdůvodněný CAPEX a dohledatelný stav plánu; schválená realizace má právě jeden úkol, náklad a rozpočtovou položku. Dokončená realizace má skutečný náklad a viditelnou odchylku vůči neměnnému plánu. Součet časových košů odpovídá aktivním plánům a technický stav ani výhled se nevydávají za valuaci, účetnictví nebo distribuční rozhodnutí.",
     href: "/portfolio/kvalita",
   },
@@ -221,7 +222,7 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Valuace jednotek pro distribuci",
     summary: "Oddělená historie tržní hodnoty jednotlivé jednotky, zdroje ocenění a kontrolního přepočtu na m².",
     audience: "Interní asset manager",
-    steps: ["Nejdřív doplňte plochu, samostatné technické hodnocení a odhad potřebného CAPEX.", "Zvolte zdroj valuace: interní srovnání, externí posudek, nabídkovou cenu nebo realizovanou transakci.", "Uveďte datum a dohledatelnou referenci; interní srovnání popište v poznámce.", "Novou informaci uložte jako další snapshot, původní hodnotu nepřepisujte.", "Hodnotu Kč/m² používejte jako kontrolu konzistence, ne jako samostatný zdroj ocenění."],
+    steps: ["Nejdřív doplňte plochu, samostatné technické hodnocení a odhad potřebného CAPEX.", "Zvolte zdroj valuace: interní srovnání, externí posudek, nabídkovou cenu nebo realizovanou transakci.", "Uveďte datum a dohledatelnou referenci; interní srovnání popište v poznámce.", "Novou informaci uložte jako další hodnocení, původní hodnotu nepřepisujte.", "Hodnotu Kč/m² používejte jako kontrolu konzistence, ne jako samostatný zdroj ocenění."],
     check: "Poslední valuace má datum, zdroj a referenci a není zaměněna s technickým ratingem, CAPEX ani automatickou prodejní cenou.",
     href: "/distribuce",
   },
@@ -262,9 +263,9 @@ export function methodologyChapter(slug: string) {
 }
 
 export const methodologyGlossary: MethodologyGlossaryTerm[] = [
-  { term: "LIVE stav", aliases: ["aktuální stav", "dnešní stav"], definition: "Aktuální provozní pohled přepočtený z dnešních dat. Není historickým snapshotem ani účetní závěrkou.", chapterSlug: "reporting-distribuce" },
-  { term: "Snapshot", aliases: ["zmrazená data", "datový otisk"], definition: "Neměnný datovaný otisk vstupů použitý pro reprodukovatelný report nebo rozhodnutí.", chapterSlug: "vyrocni-report" },
-  { term: "Q4 snapshot", aliases: ["snapshot k 31. prosinci"], definition: "Uzavřený snapshot nemovitosti k 31. prosinci, který je zdrojem výročního reportu za daný rok.", chapterSlug: "vyrocni-report" },
+  { term: "LIVE stav", aliases: ["aktuální stav", "dnešní stav"], definition: "Aktuální provozní pohled přepočtený z dnešních dat. Není historickým záznamem ani účetní závěrkou.", chapterSlug: "reporting-distribuce" },
+  { term: "Uložený stav", aliases: ["zmrazená data", "datový otisk"], definition: "Neměnný datovaný otisk vstupů použitý pro reprodukovatelný report nebo rozhodnutí.", chapterSlug: "vyrocni-report" },
+  { term: "Stav k 31. prosinci", aliases: ["Q4", "uzavřená roční data"], definition: "Uzavřený stav nemovitosti k 31. prosinci, který je zdrojem výročního reportu za daný rok.", chapterSlug: "vyrocni-report" },
   { term: "OPEX", aliases: ["provozní náklad"], definition: "Výdaj související s běžným provozem a správou aktiva; v evidenci zůstává oddělený od investičního CAPEX.", chapterSlug: "naklady-a-uvery" },
   { term: "CAPEX", aliases: ["investiční náklad", "investice"], definition: "Investiční výdaj na pořízení, obnovu nebo významné zhodnocení aktiva; plán a skutečnost se evidují odděleně.", chapterSlug: "kategorizace-jednotek" },
   { term: "Roční nájemné", aliases: ["annual rent", "roční run-rate nájemného"], definition: "Indikativní roční nájemné odvozené z aktuálního měsíčního čistého nájemného. Nezohledňuje budoucí expirace ani neobsazenost.", formula: "Měsíční čisté nájemné × 12", chapterSlug: "naklady-a-uvery" },
@@ -284,7 +285,7 @@ export const methodologyGlossary: MethodologyGlossaryTerm[] = [
 ];
 
 export const methodologyMediaBriefs: MethodologyMediaBrief[] = [
-  { kind: "Video", title: "Od Q4 snapshotu k výročnímu reportu", duration: "6–8 min", purpose: "Ukázat interní editor, kontrolu úplnosti, PDF náhled a založení nové revize.", outline: ["Výběr skupiny a roku", "Zmrazená data a editace", "Kontrola a publikace"], chapterSlug: "vyrocni-report" },
+  { kind: "Video", title: "Od Q4 datového záznamu k výročnímu reportu", duration: "6–8 min", purpose: "Ukázat interní editor, kontrolu úplnosti, PDF náhled a založení nové revize.", outline: ["Výběr skupiny a roku", "Zmrazená data a editace", "Kontrola a publikace"], chapterSlug: "vyrocni-report" },
   { kind: "Podcast", title: "Co znamenají NOI, LTV a DSCR", duration: "12–15 min", purpose: "Sjednotit interpretaci finančních KPI a vysvětlit jejich datové limity.", outline: ["Definice metrik", "Datované vstupy", "Alarmy a lidské rozhodnutí"], chapterSlug: "naklady-a-uvery" },
   { kind: "Video", title: "Roční podklady vlastníka bez záměny za daňové přiznání", duration: "5–7 min", purpose: "Provést kontrolou příjmů, nákladových dokladů, úvěrových mezer a exportu CSV.", outline: ["Uzavřený rok a vlastník", "Blokátory a doklady", "Pracovní export pro účetního"], chapterSlug: "rocni-podklady" },
   { kind: "Podcast", title: "LIVE funnel versus historie pohybů", duration: "10–12 min", purpose: "Vysvětlit dva odlišné řezy distribuční pipeline a pravidla agregace bez PII.", outline: ["Dnešní stav", "Neměnné události", "Bezpečný reporting"], chapterSlug: "reporting-distribuce" },

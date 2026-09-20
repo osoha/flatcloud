@@ -30,9 +30,9 @@ export default async function AdminOverviewPage() {
     <div className="page-title"><div><PageHeading>Administrace</PageHeading><p>Stav systému a vstup do globálních nastavení aplikace.</p></div></div>
     <AdminSubnav active="overview"/>
     <div className="admin-health-grid" aria-label="Stav klíčových služeb">
-      <Health label="Bankovní schránka" ready={mailboxReady}/>
-      <Health label="Google Drive" ready={driveReady}/>
-      <Health label="Odesílání e-mailů" ready={smtpReady}/>
+      <Health label="Bankovní schránka" ready={mailboxReady} href="/nastaveni/system#bankovni-schranka"/>
+      <Health label="Google Drive" ready={driveReady} href="/nastaveni/system#uloziste"/>
+      <Health label="Odesílání e-mailů" ready={smtpReady} href="/nastaveni/system#odesilani-emailu"/>
       <div className="card admin-health-card"><span>Nespárované položky</span><strong>{unmatched}</strong><Link href="/platby/nesparovane">Otevřít frontu</Link></div>
     </div>
     <div className="admin-module-grid">
@@ -46,8 +46,8 @@ export default async function AdminOverviewPage() {
   </div></Shell>;
 }
 
-function Health({ label, ready }: { label: string; ready: boolean }) {
-  return <div className="card admin-health-card"><span>{label}</span><strong className={ready ? "positive" : "negative"}>{ready ? "Připraveno" : "Vyžaduje kontrolu"}</strong><small>{ready ? <><CheckCircle2 size={13}/> Konfigurace je dostupná</> : <><Mail size={13}/> Otevřete nastavení</>}</small></div>;
+function Health({ label, ready, href }: { label: string; ready: boolean; href: string }) {
+  return <div className="card admin-health-card"><span>{label}</span><strong className={ready ? "positive" : "negative"}>{ready ? "Připraveno" : "Vyžaduje kontrolu"}</strong><Link href={href}>{ready ? <><CheckCircle2 size={13}/> Otevřít nastavení</> : <><Mail size={13}/> Otevřete nastavení</>}</Link></div>;
 }
 
 function Module({ icon, title, text, href, cta }: { icon: React.ReactNode; title: string; text: string; href: string; cta: string }) {

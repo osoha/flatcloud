@@ -5,7 +5,7 @@ export function ReadOnlyPreview() {
     const root = document.querySelector(".user-preview-main");
     if (!root) return;
     const disableWrites = () => {
-      root.querySelectorAll<HTMLFormElement>("form").forEach(form => {
+      document.querySelectorAll<HTMLFormElement>(".user-preview-main form, .fb-modal form").forEach(form => {
         if (form.closest(".user-preview-banner") || form.method.toLowerCase() === "get") return;
         form.querySelectorAll<HTMLInputElement | HTMLButtonElement | HTMLSelectElement | HTMLTextAreaElement>("input,button,select,textarea").forEach(control => {
           if (!control.disabled) { control.disabled = true; control.title = "Náhled uživatele je pouze pro čtení."; }
@@ -14,7 +14,7 @@ export function ReadOnlyPreview() {
     };
     disableWrites();
     const observer = new MutationObserver(disableWrites);
-    observer.observe(root, {childList:true,subtree:true});
+    observer.observe(document.body, {childList:true,subtree:true});
     return () => observer.disconnect();
   }, []);
   return null;

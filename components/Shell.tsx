@@ -1,3 +1,4 @@
+import { DisplayPreferences } from "@/components/DisplayPreferences";
 import { ReadOnlyPreview } from "@/components/admin/ReadOnlyPreview";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { ActiveTabVisibility } from "@/components/ActiveTabVisibility";
@@ -118,6 +119,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         </CollapsibleNavGroup>}
       </nav>
       <div className="sidebar-footer">
+        <DisplayPreferences userId={user.id}/>
         <div className="user-card">
           <Link className="user-card-profile" href="/ucet" title="Můj účet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small className="user-card-meta">{userRoles[user.role]||user.role}</small></div></Link>
           <form className="logout-form" action="/api/auth/logout" method="post"><button aria-label="Odhlásit" title="Odhlásit"><LogOut size={16}/></button></form>
@@ -131,6 +133,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
+          <DisplayPreferences userId={user.id} mobile/>
           {!preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {!preview && canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
           {!preview && canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}

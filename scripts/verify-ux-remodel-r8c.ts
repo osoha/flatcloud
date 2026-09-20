@@ -125,7 +125,7 @@ async function main() {
 
   await check("all floating forms share an explicit and keyboard dismiss path", () => {
     const component = read("components/DismissibleDetails.tsx");
-    for (const marker of ["Zavřít", 'event.key === "Escape"', 'document.addEventListener("pointerdown"', 'role="dialog"']) assert.match(component, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
+    for (const marker of ["Zavřít", 'event.key === "Escape"', 'document.addEventListener("pointerdown"', 'role={viewportModal ? undefined : "dialog"}', '<dialog', '.showModal()', 'onCancel=']) assert.match(component, new RegExp(marker.replace(/[?*+.[\]{}()]/g, "\\$&")));
     for (const file of ["app/portfolio/kvalita/page.tsx", "app/distribuce/page.tsx", "app/distribuce/zajemci/page.tsx", "app/uzivatele/page.tsx", "app/nemovitosti/[id]/[section]/page.tsx", "app/reporty/valorizace/[planId]/page.tsx"]) assert.match(read(file), /DismissibleDetails/);
     const scope = read("components/PortfolioScopePicker.tsx");
     assert.match(scope, /event\.key === "Escape"/);

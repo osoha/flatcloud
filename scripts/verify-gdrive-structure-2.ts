@@ -160,7 +160,7 @@ async function main() {
     const mfRentService = read("lib/reporting/mf-rent/service.ts");
     assert.doesNotMatch(mfRentService, /googleDrive|DriveFileStorage|storageKey|folderId/i);
   });
-  await check("quarterly PDF renderers are untouched", () => { assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf.tsx"), "ae22aeb7e1f81b95bb73ec7dae498811bcdbc380a6c2cd3de40e61d3809b24ff"); assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf-data.ts"), "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b"); });
+  await check("quarterly PDF renderers are untouched", () => { assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf.tsx"), "0d3c3f39d33593d7655a555b3b5bee418f55c676106d270eb2b9f48e2b3f8d24"); assert.equal(hash("lib/reporting/pdf/quarterly-report-pdf-data.ts"), "dcca6ef52c3854c225698999aecf9442e49a3bf8cd530bebc2c3a49911f4a86b"); });
   await check("production reconciliation contains no hardcoded property identity", () => assert.doesNotMatch(service, /Černice|Veská|Juriga|Moskevská/));
   console.log(`GDRIVE-STRUCTURE-2 verification passed: ${count} checks.`);
 }

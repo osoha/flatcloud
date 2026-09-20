@@ -10,7 +10,7 @@ check("annual shareholder workflow has a complete internal methodology chapter",
   const chapter = methodologyChapter("vyrocni-report");
   assert.ok(chapter);
   assert.equal(chapter.href, "/reporty/vyrocni");
-  for (const marker of ["Q4 snapshoty", "slovo zakladatele", "PDF náhled", "novou revizi", "samo nic veřejně nerozesílá"]) assert.match(`${chapter.steps.join(" ")} ${chapter.check}`, new RegExp(marker));
+  for (const marker of ["Q4 datové záznamy", "slovo zakladatele", "PDF náhled", "novou revizi", "samo nic veřejně nerozesílá"]) assert.match(`${chapter.steps.join(" ")} ${chapter.check}`, new RegExp(marker));
 });
 check("distribution methodology reflects valuation prefill, option lifecycle and immutable events", () => {
   const chapter = methodologyChapter("crm-distribuce");

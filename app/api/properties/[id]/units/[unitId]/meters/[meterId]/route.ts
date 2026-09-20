@@ -1,11 +1,12 @@
+import { requireManagedUnit } from "@/lib/managed-unit";
 import { prisma } from "@/lib/db";
 import { text } from "@/lib/forms";
-import { requireManagedProperty, audit } from "@/lib/management";
+import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; unitId: string; meterId: string }> }) {
   const { id, unitId, meterId } = await params;
-  const access = await requireManagedProperty(id);
+  const access = await requireManagedUnit(id,unitId);
   if (!access) return go(request, "/login");
   try {
     const existing = await prisma.meter.findFirst({ where: { id: meterId, unitId, unit: { propertyId: id } } });

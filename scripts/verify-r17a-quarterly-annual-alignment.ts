@@ -24,7 +24,7 @@ check("missing Q4 and both mismatch dimensions remain explicit", () => {
 
 check("workspace comparison is read-only and uses the latest published Q4", () => {
   const page = read("app/reporty/vyrocni/[groupId]/reporty/[reportId]/page.tsx");
-  for (const marker of ["quarter: 4", "status: \"PUBLISHED\"", "orderBy: { revision: \"desc\" }", "Q4 a výroční rozsah jsou sladěné", "Výroční snapshoty se automaticky nemění"]) assert.match(page, new RegExp(marker));
+  for (const marker of ["quarter: 4", "status: \"PUBLISHED\"", "orderBy: { revision: \"desc\" }", "Q4 a výroční rozsah jsou sladěné", "Výroční datové záznamy se automaticky nemění"]) assert.match(page, new RegExp(marker));
   assert.doesNotMatch(page, /quarterlyReport\.(update|create|delete)/);
 });
 

@@ -31,7 +31,7 @@ check("settings mutations return to their editing context", () => {
 check("distribution copy is explicitly internal without the ambiguous category label", () => {
   const page = read("app/distribuce/page.tsx");
   assert.match(page, /Interní distribuce/);
-  assert.match(page, /Interní obchodní modul/);
+  assert.match(read("lib/user-context-policy.ts"), /\/distribuce/);
   assert.doesNotMatch(page, /Kategorizace a distribuce/);
 });
 console.log(`R7 navigace a administrace ověřeny: ${checks} kontrol.`);

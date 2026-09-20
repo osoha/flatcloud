@@ -13,7 +13,6 @@ const fullSections = [
   ["meridla", "Měřidla"],
   ["technicke-udaje", "Technické údaje"],
   ["dokumenty", "Dokumenty"],
-  ["reporting", "Reporty"],
   ["nastaveni", "Nastavení"],
 ];
 
@@ -24,7 +23,6 @@ const unitSections = [
   ["smlouvy", "Smlouvy"],
   ["platby", "Platby"],
   ["dluznici", "Saldo"],
-  ["reporting", "Reporty"],
   ["banka","Bankovní účet"],
   ["dokumenty", "Dokumenty"],
 ];
