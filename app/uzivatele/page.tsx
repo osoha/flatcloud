@@ -9,7 +9,7 @@ import { propertyPermissions, userRoles } from "@/lib/labels";
 import { UserAvatar } from "@/components/UserAvatar";
 import { AdminSubnav } from "@/components/admin/AdminSubnav";
 import { DismissibleDetails } from "@/components/DismissibleDetails";
-import { filterAndSortActivity, isUserOnline, parseActivityView } from "@/lib/user-activity-policy";
+import { filterAndSortActivity, isUserOnline, latestActivityAt, parseActivityView } from "@/lib/user-activity-policy";
 import { RefreshActivity } from "@/components/admin/RefreshActivity";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +47,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   ]);
   const now = new Date(), activityView = parseActivityView(query.activity);
   const loginDates = new Map(logins.map(row => [row.userId, row._max.createdAt]));
-  const users = filterAndSortActivity(storedUsers.map(row => ({ ...row, lastActivityAt: row.activity?.lastSeenAt || loginDates.get(row.id) || null, online: isUserOnline(row.active, row.activity?.lastSeenAt, now) })), activityView, now);
+  const users = filterAndSortActivity(storedUsers.map(row => ({ ...row, lastActivityAt: latestActivityAt(row.activity?.lastSeenAt, loginDates.get(row.id)), online: isUserOnline(row.active, row.activity?.lastSeenAt, now) })), activityView, now);
 
   return <Shell user={user}><div className="page">
     <div className="page-title"><div><PageHeading>Uživatelé a oprávnění</PageHeading><p>Jeden člen může mít přístup k více objektům nebo ke všem současným i budoucím nemovitostem.</p></div></div>

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { filterAndSortActivity, isUserOnline, parseActivityView, ONLINE_WINDOW_MS } from "../lib/user-activity-policy";
+import { filterAndSortActivity, isUserOnline, latestActivityAt, parseActivityView, ONLINE_WINDOW_MS } from "../lib/user-activity-policy";
 import { R24_ROLE_PASSWORD, R24_ROLE_USERS } from "../prisma/seed-r24-agent-roles";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test";
@@ -23,6 +23,11 @@ test("R32A: online expiruje, deaktivovaný a budoucí čas nejsou online; filtry
   expect(isUserOnline(true, new Date(now.getTime() + 1), now)).toBe(false);
   expect(isUserOnline(true, null, now)).toBe(false);
   expect(parseActivityView("injected")).toBe("name");
+  const older = new Date("2026-08-01");
+  expect(latestActivityAt(older, now)).toBe(now);
+  expect(latestActivityAt(now, older)).toBe(now);
+  expect(latestActivityAt(null, now)).toBe(now);
+  expect(latestActivityAt()).toBeNull();
   const rows = [
     { id: "old", name: "Adam", active: true, online: false, lastActivityAt: new Date("2026-08-01") },
     { id: "new", name: "Boris", active: true, online: false, lastActivityAt: null },

@@ -2,6 +2,11 @@ export const ONLINE_WINDOW_MS = 2 * 60_000;
 export const INACTIVE_WINDOW_MS = 30 * 24 * 60 * 60_000;
 export const activityViews = ["name", "online", "inactive", "unseen"] as const;
 export type ActivityView = typeof activityViews[number];
+export function latestActivityAt(seen?: Date | null, login?: Date | null) {
+  if (!seen) return login || null;
+  if (!login) return seen;
+  return seen.getTime() >= login.getTime() ? seen : login;
+}
 export function parseActivityView(value?: string): ActivityView {
   return activityViews.includes(value as ActivityView) ? value as ActivityView : "name";
 }
