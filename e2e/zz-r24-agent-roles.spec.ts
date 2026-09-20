@@ -141,7 +141,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
     await page.goto("/reporty");
     await expect(page.getByRole("heading", { name: "Reporty", exact: true })).toBeVisible();
     await page.getByRole("link", { name: "FlatCloud Asset", exact: true }).click();
-    await expect(page.getByText("KPI skupiny · potvrzená aktiva", { exact: true })).toBeVisible();
+    await expect(page.getByText("Finanční rozsah skupiny FlatCloud", { exact: true })).toBeVisible();
     await page.goto("/reporty/rocni-podklady");
     await expect(page.getByRole("heading", { name: "Roční podklady vlastníka", exact: true })).toBeVisible();
     clean();

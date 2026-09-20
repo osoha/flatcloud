@@ -30,25 +30,29 @@ test("unit-only owner gets unit reports but never report correction settings", a
 
     await login(page, user.email, password);
     await page.goto(`/nemovitosti/${property.id}/reporting`);
-    await expect(page.getByRole("heading", { name: "Reporty jednotek", exact: true })).toBeVisible();
-    await expect(page.locator(".property-subnav").getByRole("link", { name: "Reporty", exact: true })).toBeVisible();
-    await expect(page.getByText(visibleUnit.label, { exact: true }).first()).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/reporty\\?properties=${property.id}`));
+    await page.getByRole("link", { name: "Nájemní vztahy", exact: true }).click();
+    await expect(page.locator("main")).toContainText(visibleUnit.label);
     await expect(page.getByText(foreignUnit.label, { exact: true })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Nastavení reportů", exact: true })).toHaveCount(0);
 
     await page.goto(`/nemovitosti/${property.id}/reporting?unitId=${visibleUnit.id}`);
-    await expect(page.getByText("Report jednotky", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`unitId=${visibleUnit.id}`));
+    await expect(page.getByRole("link", { name: "Zrušit filtr jednotky", exact: true })).toBeVisible();
     await expect(page.getByText("15 000 Kč", { exact: true }).first()).toBeVisible();
     const forbidden = await page.goto(`/nemovitosti/${property.id}/nastaveni/reporting`);
     expect(forbidden?.status()).toBe(404);
 
     await context.clearCookies();
     await login(page, adminEmail, adminPassword);
-    await page.goto(`/nemovitosti/${property.id}/reporting`);
+    await page.goto(`/nemovitosti/${property.id}/nastaveni`);
     await expect(page.getByRole("link", { name: "Nastavení reportů", exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Nastavení reportů", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Nastavení reportů", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Přiřazení cenové mapy MF", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Historická kvartální data", exact: true })).toHaveCount(0);
+    await db.property.update({ where: { id: property.id }, data: { flatcloudConsolidationBasisPoints: 10000 } });
+    await page.reload();
     await expect(page.getByRole("heading", { name: "Historická kvartální data", exact: true })).toBeVisible();
   } finally {
     await db.$disconnect();

@@ -31,7 +31,7 @@ test("R24 návrh bodu nezapisuje mapu a změna vyžaduje potvrzení", async ({ p
   await page.getByRole("button", { name: "Přidat interval", exact: true }).click();
   await expect(page.getByText("Interval nemovitosti byl přidán.", { exact: true })).toBeVisible();
   await page.goto(`/reporty/vyrocni/${groupId}`);
-  await page.getByLabel("Rok").fill("2026");
+  await page.getByLabel("Rok", { exact: true }).fill("2026");
   await page.getByRole("button", { name: "Založit výroční report", exact: true }).click();
   await expect(page.getByText("Výroční report byl založen.", { exact: true })).toBeVisible();
   await page.goto(`${new URL(page.url()).pathname}?section=map`);

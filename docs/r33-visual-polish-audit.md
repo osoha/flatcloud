@@ -30,4 +30,8 @@ Autorizace: uživatel 20. 9. 2026 spustil všech 22 evidovaných bodů. Větev v
 
 ## Ověření
 
-Probíhá: statické kontrakty, výpočty spotřeby, sestavení, migrace a browser regrese v izolovaném CI, následně nasazení a vizuální kontrola skutečného sandboxu.
+Lokální TypeScript, výpočty spotřeby a statické kontrakty prošly. Izolované CI ověřilo migrace, sestavení a aplikační/DB regrese. Nové browser scénáře R33 ověřily tmavý režim a šířku, pořadí portfolia, sjednocené reporty, soukromý avatar a hranici měřidel jednotky.
+
+Starší browser kontrakty byly převedeny na schválené české názvy, nativní dialogy a centrální reporty; ověření dat, oprávnění, klávesnice a historie zachováno. Při kontrole navigace byl doplněn chybějící vstup Nastavení → Reporty.
+
+Finální výsledky kompletní regrese pro přesný commit, nasazení a vizuální kontroly sandboxu jsou vedeny v [PR #153](https://github.com/osoha/flatcloud/pull/153). Dokončení vyžaduje úspěšné všechny CI sady a kontrolu nasazených obrazovek.

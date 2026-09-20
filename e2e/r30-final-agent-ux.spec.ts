@@ -115,13 +115,15 @@ test("R30 · asset manager projde celý kontext nemovitosti bez globálního ove
   for (const section of sections) {
     const route = `/nemovitosti/${propertyId}/${section}`;
     await assertSurface(page, route, `nemovitost/${section}`);
-    await expect.soft(page.locator(".property-subnav"), `nemovitost/${section}: property tabs`).toBeVisible();
-    await expect.soft(page.locator(".property-subnav a.active"), `nemovitost/${section}: právě jedna aktivní záložka`).toHaveCount(1);
+    const tabs = page.locator(section === "reporting" ? ".report-tabs" : ".property-subnav");
+    if (section === "reporting") await expect(page).toHaveURL(new RegExp(`/reporty\\?properties=${propertyId}`));
+    await expect.soft(tabs, `nemovitost/${section}: context tabs`).toBeVisible();
+    await expect.soft(tabs.locator("a.active"), `nemovitost/${section}: právě jedna aktivní záložka`).toHaveCount(1);
     // Approved A keeps readable labels in one horizontally scrollable row at every width.
-    await expect.soft(page.locator(".property-subnav")).toHaveCSS("overflow-x", "auto");
-    await expect.soft(page.locator(".property-subnav")).toHaveCSS("flex-wrap", "nowrap");
-    await page.locator(".property-subnav a").last().scrollIntoViewIfNeeded();
-    await expect.soft(page.locator(".property-subnav a").last()).toBeInViewport();
+    await expect.soft(tabs).toHaveCSS("overflow-x", "auto");
+    await expect.soft(tabs).toHaveCSS("flex-wrap", "nowrap");
+    await tabs.locator("a").last().scrollIntoViewIfNeeded();
+    await expect.soft(tabs.locator("a").last()).toBeInViewport();
   }
   clean();
 });

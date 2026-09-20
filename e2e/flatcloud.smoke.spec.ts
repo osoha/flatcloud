@@ -193,10 +193,11 @@ test("globální správce vidí provozní rozsah napříč vlastníky", async ({
     "FlatCloud a.s. – mateřská společnost",
   );
   await page.goto("/reporty");
-  await expect(page.locator(".operational-scope-note")).toContainText("Nejde o konsolidované finanční KPI skupiny FlatCloud");
+  await expect(page.locator(".operational-scope-note")).toHaveCount(0);
+  await expect(page.locator(".scope-picker-trigger")).toBeVisible();
   await page.getByRole("link", { name: "FlatCloud Asset", exact: true }).click();
   await expect(page).toHaveURL(/view=asset/);
-  await expect(page.getByText("KPI skupiny · potvrzená aktiva", { exact: true })).toBeVisible();
+  await expect(page.getByText("Finanční rozsah skupiny FlatCloud", { exact: true })).toBeVisible();
   const assetTable = page.getByRole("table").filter({ hasText: "Konsolidační podíl" });
   await expect(assetTable.getByRole("row")).toHaveCount(3);
   await expect(assetTable).toContainText("Moskevská");
@@ -1158,7 +1159,7 @@ test("R13: výroční editor odděluje korporátní a nemovitostní vrstvu", asy
   await page.getByRole("button", { name: "Přidat interval", exact: true }).click();
   await expect(page.getByText("Interval nemovitosti byl přidán.", { exact: true })).toBeVisible();
   await page.goto(`/reporty/vyrocni/${groupId}`);
-  await page.getByLabel("Rok").fill(String(new Date().getUTCFullYear()));
+  await page.getByLabel("Rok", { exact: true }).fill(String(new Date().getUTCFullYear()));
   await page.getByRole("button", { name: "Založit výroční report", exact: true }).click();
   await expect(page.getByText("Výroční report byl založen.", { exact: true })).toBeVisible();
   await expect(page.locator(".annual-q4-alignment")).toBeVisible();
@@ -1200,7 +1201,7 @@ test("R13B: výroční report prochází kontrolou a verzovanou publikací", asy
   await page.getByRole("button", { name: "Přidat interval", exact: true }).click();
   await expect(page.getByText("Interval nemovitosti byl přidán.", { exact: true })).toBeVisible();
   await page.goto(`/reporty/vyrocni/${groupId}`);
-  await page.getByLabel("Rok").fill("2025");
+  await page.getByLabel("Rok", { exact: true }).fill("2025");
   await page.getByRole("button", { name: "Založit výroční report", exact: true }).click();
   await expect(page.getByText("Výroční report byl založen.", { exact: true })).toBeVisible();
   await page.getByLabel("Slovo zakladatele").fill("Rok 2025 potvrdil dlouhodobou strategii FlatCloud.");
