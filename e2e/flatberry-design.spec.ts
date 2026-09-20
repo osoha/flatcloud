@@ -1,4 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
+async function apiHeaders(page: Page) {
+  // Browser accepts Secure cookies on loopback; APIRequestContext needs them explicitly on HTTP CI.
+  return { Accept: "application/json", Cookie: (await page.context().cookies()).map(cookie => `${cookie.name}=${cookie.value}`).join("; ") };
+}
 async function login(page: Page) {
   await page.goto("/login");
   await page.getByLabel("E-mail", { exact: true }).fill(process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test");
@@ -71,11 +75,11 @@ test("Flatberry: hvězdička řadí nahoru, barva patří do vzhledu a ukládá 
   const changed = page.locator(`.property-row:has(a[href="${href}"])`);
   await expect(changed).toHaveCSS("background-color", "rgb(238, 244, 255)");
   await expect(changed.locator(".favorite-property")).toHaveAttribute("aria-pressed", "true");
-  const invalid = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: { Accept: "application/json" }, multipart: { photoId: "unauthorized-document" } });
+  const invalid = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: await apiHeaders(page), multipart: { photoId: "unauthorized-document" } });
   expect(invalid.status()).toBe(400);
-  const wrongUnit = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: { Accept: "application/json" }, multipart: { unitId: "unavailable-unit", color: "blue" } });
+  const wrongUnit = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: await apiHeaders(page), multipart: { unitId: "unavailable-unit", color: "blue" } });
   expect(wrongUnit.status()).toBe(404);
-  const reset = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: { Accept: "application/json" }, multipart: { favorite: "false", color: "", photoId: "" } });
+  const reset = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: await apiHeaders(page), multipart: { favorite: "false", color: "", photoId: "" } });
   expect(reset.ok()).toBe(true);
 });
 
@@ -94,7 +98,7 @@ test("Flatberry: dostupná fotografie se načte a její chyba přejde na velký 
   const document = await prisma.document.create({ data: { propertyId, fileAssetId: asset.id, category: "PHOTO", title: "R31 isolated avatar fixture", createdById: actor.id } });
   const imageUrl = `**/api/documents/${document.id}/download?variant=thumbnail`;
   try {
-    const save = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: { Accept: "application/json" }, multipart: { photoId: document.id } });
+    const save = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: await apiHeaders(page), multipart: { photoId: document.id } });
     expect(save.ok()).toBe(true);
     await page.route(imageUrl, route => route.fulfill({ status: 200, contentType: "image/png", body: photoBytes }));
     await page.goto(href!);

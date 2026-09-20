@@ -50,7 +50,7 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell :is(.page-title,.property-header,.unit-hero){background:#fff;background-image:none;border:1px solid var(--line);border-radius:20px;padding:26px;box-shadow:none}
 .flatberry-shell .page-title{align-items:center;margin-bottom:20px;gap:16px;flex-wrap:wrap}
 .flatberry-shell .page-title>div:first-child{min-width:0}
-.flatberry-shell .flatberry-page-heading{display:flex;align-items:baseline;gap:12px;font-size:31px;font-weight:600;line-height:1.2;letter-spacing:-.9px;margin:0;color:#162641}
+.flatberry-shell h1.flatberry-page-heading{display:flex;align-items:baseline;gap:12px;font-size:31px;font-weight:600;line-height:1.2;letter-spacing:-.9px;margin:0;color:#162641}
 .flatberry-page-heading>span{min-width:0;overflow-wrap:anywhere}
 /* Lucide's artwork has 3px inset inside its 24px viewbox. 1.25cap yields ~1cap ink. */
 .flatberry-shell .flatberry-page-heading>.flatberry-heading-icon{display:block;flex:none;width:.95em;height:.95em;width:1.25cap;height:1.25cap;align-self:center;stroke-width:1.65;color:#5681c5;background:none;border:0;border-radius:0;padding:0;overflow:visible}
@@ -129,7 +129,7 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 @media(min-width:1500px){.flatberry-shell .page{padding:30px 36px 40px}.flatberry-shell .stat strong{font-size:28px}}
 @media(max-width:1250px){.flatberry-shell .v21-stat-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.flatberry-shell .topbar{flex-wrap:wrap}.flatberry-shell .top-actions{margin-left:auto}.flatberry-shell .property-header{grid-template-columns:auto minmax(0,1fr)}.flatberry-shell .property-header-right{grid-column:1/-1;text-align:left}.flatberry-shell .property-header-actions{justify-content:flex-start}}
 @media(max-width:1000px){.flatberry-shell .page{padding:20px}.flatberry-shell .topbar{padding:16px 20px}.flatberry-shell .top-actions{width:100%;margin:0}.flatberry-shell .top-spacer{display:none}}
-@media(max-width:700px){.flatberry-shell .sidebar,html.fc-sidebar-collapsed .flatberry-shell .sidebar{display:none}.flatberry-shell .main,html.fc-sidebar-collapsed .flatberry-shell .main{margin-left:0;width:100%}.flatberry-shell .page{padding:16px}.flatberry-shell .topbar{padding:12px 16px;min-height:70px}.flatberry-shell :is(.page-title,.property-header,.unit-hero){padding:20px}.flatberry-shell .flatberry-page-heading{font-size:27px}.flatberry-shell .v21-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.flatberry-shell .stat{padding:16px;min-height:125px}.flatberry-shell .stat strong{font-size:24px}.flatberry-shell .stat span{font-size:12px}.flatberry-shell .stat>.stat-icon{right:10px;top:14px}.flatberry-shell .property-header{grid-template-columns:auto minmax(0,1fr);gap:12px}.entity-avatar-lg{width:68px;height:68px}.flatberry-shell .unit-tabs{top:0}.flatberry-shell .global-search{display:flex;flex-basis:100%}.flatberry-shell .account-chip{display:inline-flex}.flatberry-shell .top-action{font-size:12px}}
+@media(max-width:700px){.flatberry-shell .sidebar,html.fc-sidebar-collapsed .flatberry-shell .sidebar{display:none}.flatberry-shell .main,html.fc-sidebar-collapsed .flatberry-shell .main{margin-left:0;width:100%}.flatberry-shell .page{padding:16px}.flatberry-shell .topbar{padding:12px 16px;min-height:70px}.flatberry-shell :is(.page-title,.property-header,.unit-hero){padding:20px}.flatberry-shell h1.flatberry-page-heading{font-size:27px}.flatberry-shell .v21-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.flatberry-shell .stat{padding:16px;min-height:125px}.flatberry-shell .stat strong{font-size:24px}.flatberry-shell .stat span{font-size:12px}.flatberry-shell .stat>.stat-icon{right:10px;top:14px}.flatberry-shell .property-header{grid-template-columns:auto minmax(0,1fr);gap:12px}.entity-avatar-lg{width:68px;height:68px}.flatberry-shell .unit-tabs{top:0}.flatberry-shell .global-search{display:flex;flex-basis:100%}.flatberry-shell .account-chip{display:inline-flex}.flatberry-shell .top-action{font-size:12px}}
 @media(pointer:coarse){.property-highlight-select{min-height:44px}}
 @media(prefers-reduced-motion:reduce){.flatberry-shell *{scroll-behavior:auto;transition:none!important}}
 @media print{.flatberry-shell .sidebar{display:none!important}.flatberry-shell .main{margin:0!important;width:100%!important}.flatberry-shell .property-highlight-select{display:none}.flatberry-shell .flatberry-heading-icon{display:none}}
@@ -147,3 +147,17 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 @media(max-width:700px){.flatberry-shell .property-header-summary{grid-column:2}.flatberry-shell .property-header-side{grid-column:1/-1}}
 .flatberry-shell .property-header-identity{width:92px}.flatberry-shell .property-header-identity small{white-space:normal;text-align:center;line-height:1.5}
 @media(pointer:coarse){.favorite-property{width:44px;height:44px}}
+/* Remove the old end bevels, including their pseudo-class specificity. */
+.flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:first-child::before,
+.flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:last-child::after{content:none;display:none;transform:none}
+/* The final reference keeps readiness as a compact, expandable summary. */
+.flatberry-shell .onboarding-checklist{padding:0 18px;border-top:1px solid #e3ebf7;border-left:3px solid #d7ae72;border-radius:12px;margin-bottom:20px}
+.flatberry-shell .onboarding-checklist>summary{display:flex;align-items:center;gap:14px;list-style:none;cursor:pointer;padding:15px 0;margin:0}
+.flatberry-shell .onboarding-checklist>summary::-webkit-details-marker{display:none}
+.flatberry-shell .onboarding-checklist>summary>div:first-child{flex:1;min-width:0}
+.flatberry-shell .onboarding-checklist h2{font-size:15px;font-weight:500;margin:4px 0 0}
+.flatberry-shell .onboarding-checklist .eyebrow{font-size:11px;font-weight:500;letter-spacing:0;text-transform:none;color:#7183a0}
+.flatberry-shell .onboarding-progress strong{font-size:22px;font-weight:500;color:#526f99}.flatberry-shell .onboarding-progress span{font-size:11px;font-weight:400}
+.flatberry-shell .onboarding-chevron{flex:none;color:#7890ac}.flatberry-shell .onboarding-checklist[open] .onboarding-chevron{transform:rotate(180deg)}
+.flatberry-shell .onboarding-checklist .onboarding-progress-track>i{background:#79a8fb}
+.flatberry-shell .onboarding-checklist .onboarding-footer{padding-bottom:16px}

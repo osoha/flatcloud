@@ -1074,6 +1074,7 @@ test("Q4: nový objekt bez účtu vede uživatele k bezpečnému doplnění", as
   await login(page);
   await page.locator("a.property-cell").filter({ hasText: "QA Q4 · Objekt bez účtu" }).click();
   const checklist = page.locator(".onboarding-checklist");
+  await checklist.locator("summary").click();
   await expect(checklist.getByText("Účty pro inkaso", { exact: true })).toBeVisible();
   await expect(checklist).toContainText("0/1 jednotek má účet");
   await checklist.getByText("Účty pro inkaso", { exact: true }).click();
