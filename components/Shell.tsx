@@ -1,3 +1,4 @@
+import { ActiveTabVisibility } from "@/components/ActiveTabVisibility";
 import Link from "next/link";
 import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, LayoutDashboard, Library, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
@@ -60,6 +61,7 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
 
   return <div className="app-shell v21-shell flatberry-shell">
     <NativeDetailsEscape/>
+    <ActiveTabVisibility/>
     <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
       <SidebarCollapseToggle/>

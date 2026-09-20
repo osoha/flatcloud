@@ -45,6 +45,7 @@ test("Flatberry: logo drží velikost, záložky jednu řadu a ikony viditelnou 
   await expect(tabs.locator("a.active")).toHaveCSS("background-color", "rgb(36, 104, 239)");
   await tabs.getByRole("link", { name: "Nastavení", exact: true }).click();
   await expect(page).toHaveURL(/\/nastaveni$/);
+  await expect(page.locator(".property-subnav a.active")).toBeInViewport();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
