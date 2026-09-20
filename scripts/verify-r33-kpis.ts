@@ -1,0 +1,15 @@
+import assert from "node:assert/strict";
+import { guardKpiInputs } from "../lib/reporting/kpi-completeness";
+const full = { annualRentCents: 10000, outstandingPrincipalCents: 20000, equityCents: 80000, noiCents: 8000, cashflowCents: 6000, yieldBps: 800, roeBps: 750, ltvBps: 2000, dscrBps: 40000 };
+const unknownRent = guardKpiInputs(full, false, true);
+for (const key of ["annualRentCents", "noiCents", "cashflowCents", "yieldBps", "roeBps", "dscrBps"] as const) assert.equal(unknownRent[key], null);
+assert.equal(unknownRent.ltvBps, full.ltvBps);
+const unknownLoan = guardKpiInputs(full, true, false);
+for (const key of ["outstandingPrincipalCents", "equityCents", "cashflowCents", "roeBps", "ltvBps", "dscrBps"] as const) assert.equal(unknownLoan[key], null);
+assert.equal(unknownLoan.noiCents, full.noiCents);
+assert.equal(unknownLoan.yieldBps, full.yieldBps);
+const zero = guardKpiInputs({...full, annualRentCents: 0, noiCents: 0, yieldBps: 0}, true, true);
+assert.equal(zero.noiCents, 0); assert.equal(zero.yieldBps, 0);
+assert.deepEqual(guardKpiInputs(full,true,true), {...full, rentComplete:true, principalComplete:true});
+assert.equal(full.noiCents,8000);
+console.log("R33 KPI completeness: unknown inputs blocked; known zero and independent metrics preserved.");
