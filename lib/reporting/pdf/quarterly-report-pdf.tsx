@@ -36,7 +36,7 @@ const integer = (value: Numeric) => value == null ? dash : value.toLocaleString(
 const decimal = (value: Numeric, suffix = "") => value == null ? dash : `${value.toLocaleString("cs-CZ", { maximumFractionDigits: 2 })}${suffix}`;
 const money = (value: Numeric) => value == null ? dash : `${(value / 100).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} Kč`;
 const percentBps = (value: Numeric) => value == null ? dash : `${(value / 100).toLocaleString("cs-CZ", { maximumFractionDigits: 1 })} %`;
-const sourceLabel = (source: string) => source === "CALCULATED" ? "Automaticky vypočtený snapshot" : "Ruční historický baseline";
+const sourceLabel = (source: string) => source === "CALCULATED" ? "Automaticky vypočtený stav" : "Ruční historický baseline";
 const propertyStatusLabels = { STABILIZED: "Stabilizovaná", RENOVATION: "Rekonstrukce", DEVELOPMENT: "Development", EXIT: "Exit / prodej" } as const;
 const technicalStatusLabels = { OK: "V pořádku", WATCH: "Sledovat", ACTION: "Vyžaduje akci", RISK: "Riziko" } as const;
 const reportDate = (value: Date) => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Prague", year: "numeric", month: "2-digit", day: "2-digit" }).format(value);

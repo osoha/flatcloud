@@ -147,6 +147,6 @@ export async function createRentForecastPlanRevision(planId: string, actor: Acto
 }
 
 export function rentForecastPlanErrorMessage(error: unknown) {
-  if (error instanceof z.ZodError) return "Uložený snapshot scénáře je poškozený nebo nekompatibilní.";
+  if (error instanceof z.ZodError) return "Uložený stav scénáře je poškozený nebo nekompatibilní.";
   return error instanceof Error ? error.message : "Scénář se nepodařilo zpracovat.";
 }

@@ -24,6 +24,7 @@ Autorizace: uživatel 20. 9. 2026 spustil všech 22 evidovaných bodů. Větev v
 
 - FB12 je uživatelem výslovně autorizovaná oprava hranice zápisu jednotky: sdílený predikát editableUnitWhere, žádný nový grant k domu. Povinný integrační test cizí jednotky a VIEW role.
 - Aditivní migrace: privátní obrázek osobní karty, ceny a zálohy měřidel. Žádná destruktivní migrace ani přepis měřených dat.
+- V PDF se mění pouze český popisek původu dat „Automaticky vypočtený stav“. Výpočty ani layout PDF se nemění; kontrolní hash rendereru aktualizován po kontrole přesného diffu.
 - KPI vychází z evidovaných nákladů; jejich existence sama nezaručuje úplnost evidence. Metodika je přímo u výsledku. Nezadaný úvěr = žádný evidovaný dluh, existující úvěr bez stavu = neznámé financování.
 - Výchozí noční režim je ruční osobní volba, nikoli automatická změna podle hodin.
 

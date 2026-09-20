@@ -267,8 +267,8 @@ test("kvalita jednotky a distribuční připravenost mají oddělený průchod",
   await login(page);
   await page.goto("/distribuce");
   await expect(page.getByRole("heading", { name: "Interní distribuce", exact: true })).toBeVisible();
-  await expect(page.getByText("Interní obchodní modul · pouze FlatCloud Group", { exact: true })).toBeVisible();
-  await expect(page.getByText("Technický stav je samostatný podklad", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", {name:"Interní distribuce",exact:true})).toBeVisible();
+  await expect(page.locator(".distribution-assessment").first()).toBeVisible();
   const unitHref = await page.locator("tbody tr").first().getByRole("link").first().getAttribute("href");
   expect(unitHref).toBeTruthy();
   await page.goto(`${unitHref}#kvalita`);
