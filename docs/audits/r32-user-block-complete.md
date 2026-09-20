@@ -35,4 +35,6 @@ TypeScript, Prisma validate a production build ověřeny lokálně. Integrační
 
 Reference API: [Next.js Proxy](https://nextjs.org/docs/app/api-reference/file-conventions/proxy), [Google Map3DElement](https://developers.google.com/maps/documentation/javascript/reference/3d-map), [Chrome screen sharing controls](https://developer.chrome.com/docs/web-platform/screen-sharing-controls).
 
-Odložené grafické poznámky FB-01..03 se nemění.
+Odložené připomínky FB-01 až FB-20 jsou pouze evidované v `docs/visual-polish-backlog.md`; zahrnují i nové funkční náměty, tmavý režim a šířku obsahu. R32 je neimplementuje.
+
+Testovací identity R24 mají explicitní členství: šéf distribuce, interní asistentka a asset manager jsou členové FlatCloud. Ostatní scénáře včetně externího vlastníka zůstávají externí. Nastavení je součástí izolovaných testovacích fixtures, nikoli automatickým převodem skutečných uživatelů podle role.
