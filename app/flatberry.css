@@ -145,3 +145,5 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .operational-scope-note summary{cursor:pointer;font-size:12px;font-weight:500}.flatberry-shell .operational-scope-note p{font-size:12px;line-height:1.6;margin-bottom:0}
 .flatberry-shell .property-appearance-link{font-size:12px;color:#326aba;text-decoration:none}.flatberry-shell .property-appearance-link:hover{text-decoration:underline}
 @media(max-width:700px){.flatberry-shell .property-header-summary{grid-column:2}.flatberry-shell .property-header-side{grid-column:1/-1}}
+.flatberry-shell .property-header-identity{width:92px}.flatberry-shell .property-header-identity small{white-space:normal;text-align:center;line-height:1.5}
+@media(pointer:coarse){.favorite-property{width:44px;height:44px}}

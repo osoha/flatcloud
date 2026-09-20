@@ -70,6 +70,22 @@ export const methodologyGuides: MethodologyGuide[] = [
 
 export const methodologyChapters: MethodologyChapter[] = [
   {
+    slug: "osobni-vzhled-portfolia",
+    category: "Začínáme",
+    title: "Oblíbené objekty, fotografie a vlastní barvy",
+    summary: "Uspořádejte si portfolio pomocí hvězdiček a nastavte si osobní vzhled objektů a jednotek.",
+    audience: "Všichni uživatelé",
+    steps: [
+      "V portfoliu klikněte na hvězdičku u objektu. Oblíbené objekty se řadí první; archivované zůstávají v oddělené části. Dalším kliknutím označení zrušíte.",
+      "V detailu otevřete Vzhled objektu nebo Vzhled jednotky. Zde společně vyberete fotografii / avatar a barvu. Barva a oblíbenost jsou nezávislé volby.",
+      "Automaticky použijeme dostupnou titulní fotografii, případně první připojenou fotografii. Můžete si vybrat jinou dostupnou fotografii nebo obecnou ikonu. Chybějící obrázek vždy nahradí ikona.",
+      "Objekt se zvolenou barvou zvýrazní na hlavní stránce portfolia; u jednotky se zvýrazní její záhlaví. Výchozí nastavení je bez barvy a obnovíte je volbou Bez zvýraznění.",
+      "Volby se ukládají k vašemu účtu a platí i po přihlášení na jiném zařízení. Nemění nastavení ostatních lidí ani finanční stav. Zelená a červená částka dluhu vyjadřují skutečný stav, nikoli osobní barvu karty.",
+    ],
+    check: "Oblíbené objekty jsou nahoře, fotografie odpovídá objektu a osobní barva se neplete s finančními ukazateli.",
+    href: "/portfolio",
+  },
+  {
     slug: "zalozeni-nemovitosti",
     category: "Začínáme",
     title: "Založení a převzetí nemovitosti",

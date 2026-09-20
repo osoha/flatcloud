@@ -77,3 +77,39 @@ test("Flatberry: hvězdička řadí nahoru, barva patří do vzhledu a ukládá 
   const reset = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: { Accept: "application/json" }, multipart: { favorite: "false", color: "", photoId: "" } });
   expect(reset.ok()).toBe(true);
 });
+
+test("Flatberry: dostupná fotografie se načte a její chyba přejde na velký obecný avatar", async ({ page }) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "Synthetic photo metadata belongs only to the isolated local/CI database.");
+  const { prisma } = await import("../lib/db");
+  const { readFile } = await import("node:fs/promises");
+  await login(page);
+  const href = await page.locator('a.property-cell[href$="/prehled"]').first().getAttribute("href");
+  const propertyId = href!.split("/")[2];
+  const actor = await prisma.user.findUniqueOrThrow({ where: { email: process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test" } });
+  const entityKey = `property:${propertyId}`;
+  const previous = await prisma.userEntityAppearance.findUnique({ where: { userId_entityKey: { userId: actor.id, entityKey } } });
+  const photoBytes = await readFile("public/flatberry-logo.png");
+  const asset = await prisma.fileAsset.create({ data: { storageKey: `r31-avatar-test-${Date.now()}.png`, originalName: "R31 isolated photo fixture.png", mimeType: "image/png", sizeBytes: photoBytes.length, sha256: "0".repeat(64), uploadedById: actor.id } });
+  const document = await prisma.document.create({ data: { propertyId, fileAssetId: asset.id, category: "PHOTO", title: "R31 isolated avatar fixture", createdById: actor.id } });
+  const imageUrl = `**/api/documents/${document.id}/download?variant=thumbnail`;
+  try {
+    const save = await page.request.post(`/api/properties/${propertyId}/appearance`, { headers: { Accept: "application/json" }, multipart: { photoId: document.id } });
+    expect(save.ok()).toBe(true);
+    await page.route(imageUrl, route => route.fulfill({ status: 200, contentType: "image/png", body: photoBytes }));
+    await page.goto(href!);
+    const image = page.locator(".property-header-identity .entity-avatar img");
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expect(image).toHaveCSS("object-fit", "cover");
+    await page.unroute(imageUrl);
+    await page.route(imageUrl, route => route.fulfill({ status: 404, body: "Unavailable" }));
+    await page.reload();
+    await expect(page.locator(".property-header-identity .entity-avatar-glyph")).toBeVisible();
+    await expect(image).toHaveCount(0);
+  } finally {
+    if (previous) await prisma.userEntityAppearance.update({ where: { id: previous.id }, data: { photoId: previous.photoId } });
+    else await prisma.userEntityAppearance.deleteMany({ where: { userId: actor.id, entityKey } });
+    await prisma.document.delete({ where: { id: document.id } });
+    await prisma.fileAsset.delete({ where: { id: asset.id } });
+  }
+});

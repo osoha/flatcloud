@@ -8,6 +8,8 @@ import type { ComponentProps } from "react";
 export function PageHeading({ children, className = "", ...props }: ComponentProps<"h1">) {
   const path = usePathname();
   const Icon = path.includes("/jednotky/") ? DoorOpen
+    : path.includes("/dokumenty") ? FileText
+    : path.includes("/najemnici") ? Users
     : path.startsWith("/nemovitosti") ? Building2
     : path.startsWith("/portfolio/kvalita") ? Hammer
     : path.startsWith("/portfolio") ? LayoutDashboard
