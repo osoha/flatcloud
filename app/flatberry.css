@@ -138,3 +138,10 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .kpi-trend small{display:block;color:#75869d;font-size:11px;margin-top:2px}.kpi-trend.neutral{color:#64758c}
 .favorite-property{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border:0;border-radius:8px;background:transparent;color:#93a4bd;cursor:pointer}.favorite-property:hover{background:#f0f5ff;color:#6d83a8}.favorite-property.is-favorite{color:#b98827}.favorite-property:disabled{cursor:progress;opacity:.6}
 .appearance-identity{display:flex;align-items:center;gap:18px;margin-bottom:24px}.appearance-identity h2{margin:0}.appearance-identity p{margin-bottom:0}
+/* Override the former inset property strip at equal specificity. */
+.flatberry-shell .property-header + .property-subnav{width:100%;max-width:100%;margin:0 0 20px;border-top:3px solid #79a8fb;overflow-x:auto}
+.flatberry-shell .property-header + .property-subnav>a{min-height:41px;border-top:0}
+.flatberry-shell .operational-scope-note{margin:0 0 18px;padding:12px 16px;border:1px solid #e3ebf7;background:#fff;color:#67768e;border-radius:12px}
+.flatberry-shell .operational-scope-note summary{cursor:pointer;font-size:12px;font-weight:500}.flatberry-shell .operational-scope-note p{font-size:12px;line-height:1.6;margin-bottom:0}
+.flatberry-shell .property-appearance-link{font-size:12px;color:#326aba;text-decoration:none}.flatberry-shell .property-appearance-link:hover{text-decoration:underline}
+@media(max-width:700px){.flatberry-shell .property-header-summary{grid-column:2}.flatberry-shell .property-header-side{grid-column:1/-1}}
