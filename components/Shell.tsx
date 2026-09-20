@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { ActiveTabVisibility } from "@/components/ActiveTabVisibility";
 import Link from "next/link";
 import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, LayoutDashboard, Library, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
@@ -59,16 +59,12 @@ export async function Shell({ user, children, taskPropertyId, taskLeaseId }: { u
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
-  return <div className="app-shell v21-shell">
+  return <div className="app-shell v21-shell flatberry-shell">
     <NativeDetailsEscape/>
+    <ActiveTabVisibility/>
     <a className="skip-link" href="#main-content">Přeskočit na hlavní obsah</a>
     <aside className="sidebar">
-      <div className="sidebar-brand-row">
-        <Link className="brand" href="/portfolio" aria-label="FlatCloud – domovská stránka" title="FlatCloud – domovská stránka">
-          <Image src="/flatcloud-logo-white.png" width={148} height={36} alt="FlatCloud" priority/>
-        </Link>
-        <SidebarCollapseToggle/>
-      </div>
+      <SidebarCollapseToggle/>
       <nav className="nav v21-nav">
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>

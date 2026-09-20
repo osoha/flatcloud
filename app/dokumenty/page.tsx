@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { DocumentCategory, Prisma } from "@prisma/client";
 import { requireUser } from "@/lib/auth";
@@ -43,7 +44,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
   const filtered = Boolean(q.q || q.property || q.category || q.type || q.dateFrom || q.dateTo);
 
   return <Shell user={user}><div className="page">
-    <div className="page-title"><div><h1>Dokumenty</h1><p>Soukromý katalog smluv, protokolů, fotografií a příloh, ke kterým máte přístup.</p></div></div>
+    <div className="page-title"><div><PageHeading>Dokumenty</PageHeading><p>Soukromý katalog smluv, protokolů, fotografií a příloh, ke kterým máte přístup.</p></div></div>
     <form className="card filter-row document-filter-row" method="get" aria-label="Filtry katalogu dokumentů">
       <label className="field document-search-field"><span>Hledat</span><input name="q" defaultValue={q.q} placeholder="Název nebo soubor"/></label>
       <label className="field"><span>Nemovitost</span><select name="property" defaultValue={q.property || ""}><option value="">Všechny nemovitosti</option>{properties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></label>

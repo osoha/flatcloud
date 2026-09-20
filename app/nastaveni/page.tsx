@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BarChart3, CheckCircle2, Database, HardDrive, Mail, Settings2, ShieldCheck, Users } from "lucide-react";
@@ -26,7 +27,7 @@ export default async function AdminOverviewPage() {
   const smtpReady = Boolean(settings.smtpHost || process.env.SMTP_HOST) && Boolean(settings.smtpFromEmail || process.env.SMTP_FROM_EMAIL);
 
   return <Shell user={user}><div className="page admin-overview-page">
-    <div className="page-title"><div><h1>Administrace</h1><p>Stav systému a vstup do globálních nastavení aplikace.</p></div></div>
+    <div className="page-title"><div><PageHeading>Administrace</PageHeading><p>Stav systému a vstup do globálních nastavení aplikace.</p></div></div>
     <AdminSubnav active="overview"/>
     <div className="admin-health-grid" aria-label="Stav klíčových služeb">
       <Health label="Bankovní schránka" ready={mailboxReady}/>

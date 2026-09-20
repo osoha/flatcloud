@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { requireUser } from "@/lib/auth";
@@ -55,7 +56,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return <Shell user={user}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Hledání</span></div>
-    <div className="page-title"><div><h1>Hledání</h1><p>Nemovitosti, jednotky, nájemníci, smlouvy, platby a úkoly v rozsahu vašich oprávnění.</p></div></div>
+    <div className="page-title"><div><PageHeading>Hledání</PageHeading><p>Nemovitosti, jednotky, nájemníci, smlouvy, platby a úkoly v rozsahu vašich oprávnění.</p></div></div>
     <form className="card search-page-form" action="/hledat" method="get">
       <Search size={18} aria-hidden="true"/><input name="q" aria-label="Hledaný výraz" defaultValue={q} autoFocus placeholder="Hledat nemovitost, nájemníka, smlouvu, VS, platbu nebo úkol…"/><button className="primary" type="submit">Hledat</button>
     </form>

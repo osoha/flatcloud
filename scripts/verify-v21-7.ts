@@ -50,8 +50,8 @@ checks.push(["edit rotates token", rotate.includes("mode\") === \"edit") && rota
 checks.push(["property actor cannot escalate global role", rotate.includes("Nemáte oprávnění udělit globální roli") && propertyCreate.includes("UserRole.OWNER_VIEWER")]);
 checks.push(["pending global actions", ["Odeslat znovu", "Upravit oprávnění", "Zrušit"].every((label) => users.includes(label))]);
 checks.push(["pending property actions", ["Odeslat znovu", "Upravit oprávnění", "Zrušit"].every((label) => propertyUsers.includes(label))]);
-checks.push(["portfolio property glyph shared", portfolio.includes("<PropertyIcon") && !portfolio.includes("<Building2")]);
-checks.push(["property detail glyph shared", propertyDetail.includes("<PropertyIcon")]);
+checks.push(["portfolio property glyph shared", portfolio.includes("<EntityAvatar") && !portfolio.includes("<Building2")]);
+checks.push(["property detail glyph shared", propertyDetail.includes("<EntityAvatar")]);
 checks.push(["version", JSON.parse(read("package.json")).version === "1.22.0" && JSON.parse(read("package-lock.json")).version === "1.22.0"]);
 checks.push(["CI V21.7", read(".github/workflows/ci.yml").includes("npm run verify:v21.7")]);
 checks.push(["single V21.7 migration", read("prisma/migrations/20260828170000_v21_7_invitation_role/migration.sql").includes('ADD COLUMN "role"')]);

@@ -37,6 +37,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run verify:tab-navigation-v2
+      - run: node --import tsx scripts/verify-flatberry-comparison.ts
       - run: npm run verify:valorizace-v3
       - run: npx prisma generate
       - run: npx prisma validate

@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MailPlus, Send, UserCheck } from "lucide-react";
@@ -19,7 +20,7 @@ export default async function WelcomeLettersPage({ searchParams }: { searchParam
   ]);
   const candidates = opportunities.filter((item) => !item.welcomeLetters[0] || ["SENT", "ARCHIVED"].includes(item.welcomeLetters[0].status));
   const ready = letters.filter((letter) => letter.status === "READY").length, sent = letters.filter((letter) => letter.status === "SENT").length;
-  return <Shell user={user}><div className="page distribution-welcome-page"><div className="breadcrumb"><Link href="/distribuce">Distribuce</Link><span>›</span><span>Uvítací dopisy</span></div><div className="page-title"><div><h1>Uvítací dopisy novým vlastníkům</h1><p>Postprodejní péče navázaná na uzavřený prodej, konkrétní jednotku, dům a prodávající SPV.</p><span className="scope-context-badge">Externí komunikace · ruční kontrola před odesláním</span></div><div className="action-row"><Link className="secondary" href="/distribuce/zajemci">CRM zájemců</Link><Link className="secondary" href="/distribuce">Zpět na Distribuci</Link></div></div><Flash ok={query.ok} error={query.error}/>
+  return <Shell user={user}><div className="page distribution-welcome-page"><div className="breadcrumb"><Link href="/distribuce">Distribuce</Link><span>›</span><span>Uvítací dopisy</span></div><div className="page-title"><div><PageHeading>Uvítací dopisy novým vlastníkům</PageHeading><p>Postprodejní péče navázaná na uzavřený prodej, konkrétní jednotku, dům a prodávající SPV.</p><span className="scope-context-badge">Externí komunikace · ruční kontrola před odesláním</span></div><div className="action-row"><Link className="secondary" href="/distribuce/zajemci">CRM zájemců</Link><Link className="secondary" href="/distribuce">Zpět na Distribuci</Link></div></div><Flash ok={query.ok} error={query.error}/>
     <MethodologyCallout slug="uvitaci-dopis-vlastnikovi" compact/>
     <div className="notice"><strong>Žádné automatické odesílání podle katastru</strong><span>Datum nabytí určuje nejdřívější možné odeslání. Každý e-mail musí projít editací, kontrolním stavem a samostatným potvrzením konkrétního pracovníka.</span></div>
     <div className="stat-grid v21-stat-grid distribution-crm-kpis"><Stat label="Uzavřené prodeje k založení" value={String(candidates.length)} icon={<UserCheck/>}/><Stat label="Připraveno k odeslání" value={String(ready)} icon={<Send/>}/><Stat label="Odeslané dopisy" value={String(sent)} icon={<MailPlus/>}/></div>

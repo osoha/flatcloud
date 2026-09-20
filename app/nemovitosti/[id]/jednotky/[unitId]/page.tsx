@@ -1,3 +1,8 @@
+import { loadEntityAppearances } from "@/lib/entity-appearance";
+import { appearanceBackgrounds } from "@/lib/entity-appearance-values";
+import { EntityAvatar } from "@/components/EntityAvatar";
+import { loadEntityPhotos } from "@/lib/entity-photos";
+import { PageHeading } from "@/components/PageHeading";
 import { MeterReadingHistory } from "@/components/MeterReadingHistory";
 import { OwnershipHistory } from "@/components/OwnershipHistory";
 import Link from "next/link";
@@ -68,9 +73,11 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const currentActualAmount = currentExecutionState?.key === "COMPLETED" ? currentExecutionState.event.actualAmountCents : null;
   const currentVariance = currentCondition ? unitConditionCapexVariance(currentCondition.estimatedCapexCents, currentActualAmount) : null;
 
+  const [photos, appearances] = await Promise.all([loadEntityPhotos(user, [id]), loadEntityAppearances(user.id)]);
+  const appearance = appearances[`unit:${unitId}`];
   return <Shell user={user} taskPropertyId={id} taskLeaseId={activeLease?.id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><Link href={`/nemovitosti/${id}/jednotky`}>Jednotky</Link><span>›</span><span>{unit.label}</span></div>
-    <div className="unit-hero card"><div><span className="eyebrow">{unitTypes[unit.type]}</span><h1>{unit.label}</h1><p>{property.name} · {unit.floor || "podlaží neuvedeno"} · {unit.areaM2 ? `${unit.areaM2} m²` : "plocha neuvedena"}</p><small>ID jednotky: {formatCompoundUnitBusinessId(property.propertyCode, unit.unitCode)}</small></div><div className="action-row">{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unit.id}/upravit`}><Pencil size={15}/> Upravit jednotku</Link>}{canManage && <Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova?unitId=${unit.id}`}><Plus size={15}/> Nová smlouva</Link>}</div></div>
+    <div className="unit-hero card" style={{backgroundColor: appearance?.color ? appearanceBackgrounds[appearance.color] : undefined}}><div><EntityAvatar photoId={photos.units[unitId]} kind="unit" size="lg"/><span className="eyebrow">{unitTypes[unit.type]}</span><PageHeading>{unit.label}</PageHeading><p>{property.name} · {unit.floor || "podlaží neuvedeno"} · {unit.areaM2 ? `${unit.areaM2} m²` : "plocha neuvedena"}</p><small>ID jednotky: {formatCompoundUnitBusinessId(property.propertyCode, unit.unitCode)}</small></div><div className="action-row"><Link className="secondary" href={`/nemovitosti/${id}/vzhled?unitId=${unitId}`}>Vzhled jednotky</Link>{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unit.id}/upravit`}><Pencil size={15}/> Upravit jednotku</Link>}{canManage && <Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova?unitId=${unit.id}`}><Plus size={15}/> Nová smlouva</Link>}</div></div>
     <Flash ok={query.ok} error={query.error}/>
     <nav className="unit-tabs"><a href="#prehled">Přehled</a><a href="#kvalita">Kvalita a CAPEX</a>{activeLease && <><a href="#predpisy">Předpisy</a><a href="#platby">Platby</a><a href="#smlouva">Smlouva</a><a href="#komunikace">Upomínky</a><a href="#osoby">Osoby</a></>}<a href="#dokumenty">Dokumenty</a><a href="#meridla">Měřidla</a></nav>
     <div id="prehled" className="unit-kpi-grid">

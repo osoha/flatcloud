@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -18,7 +19,7 @@ export default async function OwnersPage({ searchParams }: { searchParams: Promi
   ]);
 
   return <Shell user={user}><div className="page">
-    <div className="page-title"><div><h1>Vlastníci a SPV</h1><p>Oddělená portfolia interních společností i externích vlastníků včetně platebních účtů.</p></div></div>
+    <div className="page-title"><div><PageHeading>Vlastníci a SPV</PageHeading><p>Oddělená portfolia interních společností i externích vlastníků včetně platebních účtů.</p></div></div>
     <Flash ok={query.ok} error={query.error}/>
     <div className="detail-grid">
       <div className="card col-7">

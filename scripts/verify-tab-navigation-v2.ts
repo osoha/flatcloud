@@ -1,17 +1,37 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-const css=readFileSync("app/final-ui-polish.css","utf8");
-const propertySubnav=readFileSync("components/PropertySubnav.tsx","utf8");
-let n=0;const check=(name:string,fn:()=>void)=>{fn();console.log(`✓ ${++n}. ${name}`)};
-check("category tabs use strong blue separator",()=>{assert.match(css,/border-top:4px solid var\(--fc-tab-blue\)/);assert.match(css,/--fc-tab-blue:#2563eb/)});
-check("active tab is full blue with white text",()=>{assert.match(css,/background:var\(--fc-tab-blue\);\s*color:#fff/)});
-check("tabs use clean borderless softened bevels instead of sharp polygon clipping",()=>{assert.doesNotMatch(css,/clip-path:polygon/);assert.match(css,/width:20px;[\s\S]*border:0;[\s\S]*box-shadow:none/);assert.match(css,/a:first-child::before[\s\S]*transform:skewX\(8deg\)[\s\S]*border-radius:0 0 0 10px/);assert.match(css,/a:last-child::after[\s\S]*transform:skewX\(-8deg\)[\s\S]*border-radius:0 0 10px 0/)});
-check("property navigation has a dedicated styling hook",()=>assert.match(propertySubnav,/section-nav v21-section-nav property-subnav/));
-check("desktop property tabs attach directly below the identity card",()=>{assert.match(css,/property-header:has\(\+ \.property-subnav\)[\s\S]*margin-bottom:0/);assert.match(css,/property-header \+ \.property-subnav\{[\s\S]*margin:-1px 24px 18px;[\s\S]*border-top:0/)});
-check("desktop property navigation is inset and scrollbar-free",()=>assert.match(css,/property-header \+ \.property-subnav\{[\s\S]*width:calc\(100% - 48px\)[\s\S]*overflow-x:hidden/));
-check("mobile property navigation returns to the full-width separator variant",()=>assert.match(css,/@media\(max-width:700px\)[\s\S]*property-header \+ \.property-subnav\{[\s\S]*width:100%;[\s\S]*border-top:4px solid var\(--fc-tab-blue\);[\s\S]*overflow-x:auto/));
-check("wide desktop tabs size from their labels without collisions",()=>assert.match(css,/@media\(min-width:1200px\)[\s\S]*overflow-x:hidden;[\s\S]*flex:1 1 auto;[\s\S]*min-width:max-content/));
-check("mobile restores natural tab width and horizontal scrolling",()=>assert.match(css,/@media\(max-width:700px\)[\s\S]*flex:0 0 auto;[\s\S]*min-width:max-content/));
-check("collapsed sidebar prevents horizontal overflow and uses a visible avatar-only account access",()=>{assert.match(css,/fc-sidebar-collapsed[\s\S]*sidebar\{width:88px;overflow-x:hidden/);assert.match(css,/user-card-profile>div:not\(\.avatar\)\{display:none\}/);assert.match(css,/user-card-profile \.avatar\{display:grid;width:34px;height:34px/);assert.match(css,/fc-sidebar-collapsed[\s\S]*logout-form\{display:none\}/)});
-check("collapsed rail has spacing instead of dead clickable group dividers",()=>{assert.match(css,/fc-sidebar-collapsed[\s\S]*nav-collapsible-section\{display:grid;margin-top:7px\}/);assert.match(css,/fc-sidebar-collapsed[\s\S]*nav-group-toggle\{display:none\}/)});
-console.log(`TAB-NAV-R28 verified: ${n} checks.`);
+const css = readFileSync("app/flatberry.css", "utf8");
+const subnav = readFileSync("components/PropertySubnav.tsx", "utf8");
+const brand = readFileSync("components/SidebarCollapseToggle.tsx", "utf8");
+let checks = 0;
+function check(name: string, run: () => void) { run(); console.log(`✓ ${++checks}. ${name}`); }
+// R31 supersedes R28's bevels and forced desktop fit with the user's original A.
+check("approved skin is the final application stylesheet", () => assert.match(readFileSync("app/layout.tsx", "utf8"), /import "\.\/flatberry.css"/));
+check("original A has a light attached strip and solid active tab", () => {
+  assert.match(css, /border-top:3px solid #79a8fb/);
+  assert.match(css, /background:#2468ef;color:#fff;border-radius:8px 8px 11px 11px/);
+  assert.match(css, /property-header[^\n]+:has\([^\n]+margin-bottom:0;border-bottom:0/);
+});
+check("one stable scrollable row preserves natural label widths", () => {
+  assert.match(css, /flex-wrap:nowrap[^\n]+overflow-x:auto/);
+  assert.match(css, /flex:0 0 auto;min-width:max-content/);
+  assert.doesNotMatch(css, /skewX|clip-path:polygon/);
+});
+check("property tabs retain all existing routes", () => {
+  for (const slug of ["prehled", "jednotky", "najemnici", "smlouvy", "platby", "finance", "vyuctovani/podklady", "provoz", "banka", "meridla", "technicke-udaje", "dokumenty", "reporting", "nastaveni"]) assert.ok(subnav.includes(`"${slug}"`));
+  assert.match(subnav, /unitLimited\?unitSections:fullSections/);
+});
+check("brand uses the same bitmap and a smaller clipping window", () => {
+  assert.match(brand, /const bitmap = <span className="flatberry-brand-bitmap"/);
+  assert.equal((brand.match(/\{bitmap\}/g) || []).length, 2);
+  assert.match(css, /flatberry-mark-only\{width:26px\}/);
+  assert.match(brand, /aria-label="Rozbalit levé menu"[^\n]+hidden=\{!collapsed\}/);
+  assert.match(brand, /aria-label="Sbalit levé menu"[^\n]+hidden=\{collapsed\}/);
+  assert.doesNotMatch(brand, /PanelLeftOpen/);
+});
+check("final icon corrections are explicit and isolated", () => {
+  assert.match(css, /flatberry-heading-icon[^\n]+width:1.25cap;height:1.25cap/);
+  assert.match(css, /entity-avatar>\.entity-avatar-glyph\{width:80%;height:80%/);
+  assert.match(readFileSync("components/EntityAvatar.tsx", "utf8"), /onError=\{\(\) => setFailedId\(photoId\)\}/);
+});
+console.log(`Flatberry original A verified: ${checks} checks.`);

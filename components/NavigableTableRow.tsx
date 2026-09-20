@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from "react";
 
 export const rowNavigationInteractiveSelector = "a,button,input,select,textarea,summary,details,form,label,[role='button'],[role='link'],[contenteditable='true']";
 
@@ -9,7 +9,7 @@ function hasInteractiveTarget(target: EventTarget | null, row: HTMLTableRowEleme
   return target instanceof Element && target !== row && Boolean(target.closest(rowNavigationInteractiveSelector));
 }
 
-export function NavigableTableRow({ href, children, className = "", ariaLabel = "Otevřít detail" }: { href: string; children: ReactNode; className?: string; ariaLabel?: string }) {
+export function NavigableTableRow({ href, children, className = "", ariaLabel = "Otevřít detail", style }: { href: string; children: ReactNode; className?: string; ariaLabel?: string; style?: CSSProperties }) {
   const router = useRouter();
   function open(modified: boolean) { if (modified) window.open(href, "_blank", "noopener,noreferrer"); else router.push(href); }
   function onClick(event: MouseEvent<HTMLTableRowElement>) {
@@ -24,5 +24,5 @@ export function NavigableTableRow({ href, children, className = "", ariaLabel = 
     if (event.target !== event.currentTarget || (event.key !== "Enter" && event.key !== " ")) return;
     event.preventDefault(); open(event.metaKey || event.ctrlKey || event.shiftKey || event.altKey);
   }
-  return <tr className={`navigable-table-row ${className}`.trim()} tabIndex={0} aria-label={ariaLabel} onClick={onClick} onAuxClick={onAuxClick} onKeyDown={onKeyDown}>{children}</tr>;
+  return <tr style={style} className={`navigable-table-row ${className}`.trim()} tabIndex={0} aria-label={ariaLabel} onClick={onClick} onAuxClick={onAuxClick} onKeyDown={onKeyDown}>{children}</tr>;
 }

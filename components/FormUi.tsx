@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 
 export function Flash({ ok, error }: { ok?: string; error?: string }) {
@@ -6,7 +7,7 @@ export function Flash({ ok, error }: { ok?: string; error?: string }) {
 }
 
 export function FormPage({ title, description, backHref, children }: { title: string; description?: string; backHref: string; children: React.ReactNode }) {
-  return <div className="page form-page"><div className="breadcrumb"><Link href={backHref}>← Zpět</Link></div><div className="page-title"><div><h1>{title}</h1>{description&&<p>{description}</p>}</div></div>{children}</div>;
+  return <div className="page form-page"><div className="breadcrumb"><Link href={backHref}>← Zpět</Link></div><div className="page-title"><div><PageHeading>{title}</PageHeading>{description&&<p>{description}</p>}</div></div>{children}</div>;
 }
 
 export function FormCard({ action, children, submitLabel = "Uložit", cancelHref, method = "post" }: { action: string; children: React.ReactNode; submitLabel?: string; cancelHref: string; method?: "post" }) {

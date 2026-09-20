@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
@@ -42,7 +43,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   ]);
 
   return <Shell user={user}><div className="page">
-    <div className="page-title"><div><h1>Uživatelé a oprávnění</h1><p>Jeden člen může mít přístup k více objektům nebo ke všem současným i budoucím nemovitostem.</p></div></div>
+    <div className="page-title"><div><PageHeading>Uživatelé a oprávnění</PageHeading><p>Jeden člen může mít přístup k více objektům nebo ke všem současným i budoucím nemovitostem.</p></div></div>
     <AdminSubnav active="users"/>
     <Flash ok={query.ok} error={query.error}/>
     {query.invite && <div className="invite-link-box"><strong>Odkaz k ručnímu předání</strong><input readOnly value={query.invite}/></div>}

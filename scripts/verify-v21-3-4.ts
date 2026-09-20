@@ -43,7 +43,8 @@ assert.match(report, /Ruční úprava/);
 assert.match(report, /jednotky\/\$\{row\.unit\.id\}/);
 
 const shell = readFileSync("components/Shell.tsx", "utf8");
-assert.match(shell, /flatcloud-logo-white\.png/);
+assert.match(shell, /SidebarCollapseToggle/);
+assert.ok(existsSync("public/flatberry-logo.png"));
 assert.ok(existsSync("public/flatcloud-logo-white.png"));
 
 const settingsPage = readFileSync("app/nastaveni/system/page.tsx", "utf8");

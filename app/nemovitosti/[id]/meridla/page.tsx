@@ -1,3 +1,4 @@
+import { PageHeading } from "@/components/PageHeading";
 import { notFound } from "next/navigation";
 import { Gauge, Plus } from "lucide-react";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
@@ -25,7 +26,7 @@ export default async function PropertyMeters({params,searchParams}:{params:Promi
   const parentOptions=houseMeters.filter(m=>m.active&&m.scope==="HOUSE_MAIN");
   return <Shell user={user} taskPropertyId={id}><div className="page">
     <div className="breadcrumb">Portfolio › {property.name} › Měřidla</div>
-    <div className="page-title"><div><h1>Domovní měřidla</h1><p>Hlavní a podružná měřidla objektu, jejich hierarchie a historie výměn.</p></div></div>
+    <div className="page-title"><div><PageHeading>Domovní měřidla</PageHeading><p>Hlavní a podružná měřidla objektu, jejich hierarchie a historie výměn.</p></div></div>
     <PropertySubnav propertyId={id} active="meridla"/>
     <Flash ok={query.ok} error={query.error}/>
     <div className="notice"><strong>Princip evidence</strong><span>Hlavní domovní měřidlo je kořen. Podružné měřidlo lze navázat jen na stejné médium a měrnou jednotku. Bytová měřidla zůstávají na kartách jednotek. Výměna staré měřidlo nemaže.</span></div>

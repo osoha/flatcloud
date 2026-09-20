@@ -54,7 +54,8 @@ test("R29D desktop finance a platby mají kompaktní hierarchii bez zbytečného
   });
   expect(financeChrome.height).toBeLessThan(60);
   expect(financeChrome.boxShadow).toBe("none");
-  expect(parseFloat(financeChrome.fontSize)).toBeLessThanOrEqual(11);
+  // Flatberry A raises body/context text to readable 13px; compact height remains required.
+  expect(parseFloat(financeChrome.fontSize)).toBe(13);
   await expectNoDocumentOverflow(page);
 
   await page.goto(`/nemovitosti/${propertyId}/platby`);
