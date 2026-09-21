@@ -38,6 +38,7 @@ export type AnnualIncomeRow = {
 };
 export type AnnualExpenseEvidenceStatus =
   "ACCOUNTING_DOCUMENT" | "SUPPORT_ONLY" | "MISSING";
+export type AnnualCostPaymentRow = { id:string; costId:string; title:string; propertyName:string; bookedAt:Date; effectiveAt:Date; kind:string; amountCents:number; ownerAmountCents:number; note:string };
 export type AnnualExpenseRow = {
   id: string;
   effectiveAt: Date;
@@ -55,6 +56,8 @@ export type AnnualExpenseRow = {
   accountingDocumentCount: number;
   supportingDocumentCount: number;
   evidenceStatus: AnnualExpenseEvidenceStatus;
+  paidCents: number;
+  outstandingCents: number;
   annualReviewStatus: string;
   annualReviewNote: string | null;
   annualReviewedBy: string | null;
@@ -353,14 +356,17 @@ export async function loadAnnualOwnerPackage(
     }),
     prisma.propertyCost.findMany({
       where: {
-        ...costAccess,
-        status: "ACTUAL",
-        effectiveAt: { gte: range.from, lte: range.to },
+        AND: [costAccess, { OR: [
+          { status: "ACTUAL" as const, effectiveAt: { gte: range.from, lte: range.to } },
+          { bankSettlements: { some: { voidedAt: null, transaction: { bookedAt: { gte: range.from, lte: range.to } } } } },
+        ] }],
       },
       select: {
         id: true,
         propertyId: true,
         title: true,
+        status: true,
+        bankSettlements: { where: { voidedAt: null }, include: { transaction: { select: { bookedAt: true } } } },
         kind: true,
         category: true,
         amountCents: true,
@@ -408,6 +414,7 @@ export async function loadAnnualOwnerPackage(
           where: scope.mode === "ALL" ? undefined : { unitId: { in: unitIds } },
           select: {
             amountCents: true,
+            shareBasisPoints: true,
             unit: {
               select: {
                 id: true,
@@ -630,6 +637,8 @@ export async function loadAnnualOwnerPackage(
     });
 
   const expenseRows: AnnualExpenseRow[] = [];
+  const costPaymentRows: AnnualCostPaymentRow[] = [];
+  issues.push({ code: "BANK_COVERAGE", severity: "WARNING", message: "Úplnost bankovních výdajů ověřte proti výpisům všech účtů. Evidované ACTUAL náklady nejsou zaplacené výdaje. Úhrady jsou uvedeny samostatně podle bankovního data; převody, zálohy a jistina jsou v bankovním přehledu domu." });
   for (const cost of costs) {
     let ownerAmountCents = 0,
       ownerShareBasisPoints: number | null = null,
@@ -671,7 +680,10 @@ export async function loadAnnualOwnerPackage(
         message: `${cost.property.name}: náklad „${cost.title}“ není rozdělený na jednotky, proto jej nelze přiřadit vlastníkovi.`,
         href: `/nemovitosti/${cost.propertyId}/naklady/${cost.id}`,
       });
-    if (!ownerAmountCents) continue;
+    const ownerRatio = cost.allocations.length
+      ? cost.allocations.reduce((sum,item) => sum + item.shareBasisPoints / 10000 * ownerShareForUnit({ ...item.unit, property: cost.property },cost.effectiveAt).share / 10000,0)
+      : (ownerShareBasisPoints || 0) / 10000;
+    if (!ownerRatio) continue;
     const { accountingDocumentCount, supportingDocumentCount, evidenceStatus } =
       classifyAnnualExpenseEvidence(
         cost.documents.map((document) => document.category),
@@ -695,7 +707,15 @@ export async function loadAnnualOwnerPackage(
         message: `${cost.property.name}: odborná účetní kontrola klasifikace nákladu „${cost.title}“ není potvrzena.`,
         href: `/reporty/rocni-podklady?ownerId=${selectedOwner.id}&year=${input.year}#cost-${cost.id}`,
       });
+    const paidCents = cost.bankSettlements.filter(p => p.transaction.bookedAt <= range.to).reduce((sum,p) => sum + (p.kind === "COST_REFUND" ? -p.amountCents : p.amountCents), 0);
+    for (const payment of cost.bankSettlements.filter(p => p.transaction.bookedAt >= range.from && p.transaction.bookedAt <= range.to)) {
+      const sign = payment.kind === "COST_REFUND" ? -1 : 1;
+      costPaymentRows.push({ id: payment.id, costId: cost.id, title: cost.title, propertyName: cost.property.name, bookedAt: payment.transaction.bookedAt, effectiveAt: cost.effectiveAt, kind: payment.kind, amountCents: sign * payment.amountCents, ownerAmountCents: sign * Math.round(payment.amountCents * ownerRatio), note: "Podíl podle rozdělení a vlastnictví nákladu k jeho vzniku; ověřit skutečného plátce a daňové zacházení." });
+    }
+    if (cost.status !== "ACTUAL" || cost.effectiveAt < range.from || cost.effectiveAt > range.to) continue;
     expenseRows.push({
+      paidCents,
+      outstandingCents: cost.amountCents - paidCents,
       id: cost.id,
       effectiveAt: cost.effectiveAt,
       propertyId: cost.propertyId,
@@ -821,6 +841,7 @@ export async function loadAnnualOwnerPackage(
     selectedOwner,
     incomeRows,
     expenseRows,
+    costPaymentRows,
     loanRows,
     ownershipPeriods,
     editorScopes,
@@ -854,6 +875,7 @@ function emptyPackage(
     selectedOwner,
     incomeRows: [] as AnnualIncomeRow[],
     expenseRows: [] as AnnualExpenseRow[],
+    costPaymentRows: [] as AnnualCostPaymentRow[],
     loanRows: [] as AnnualLoanRow[],
     ownershipPeriods: [],
     editorScopes: [],

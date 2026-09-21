@@ -12,6 +12,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const transaction = await prisma.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true, securityDepositReceipts: { where: { type: "RECEIVED" } } } });
     if (!transaction) throw new Error("Platba nebyla nalezena.");
+    if (transaction.source === "expense-statement") throw new Error("Pohyb patří do evidence bankovních výdajů a vratek, nikoli k nájemnému nebo kauci.");
     if (transaction.allocations.length) throw new Error("Platba už má ruční nebo automatické přiřazení.");
     assertNoReceivedDepositForTransactionAction(transaction.securityDepositReceipts.length, "rule");
     const form = await request.formData();

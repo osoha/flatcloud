@@ -246,7 +246,8 @@ test("roční podklady vedou od vlastníka ke zdrojům a bezpečnému exportu", 
   await page.getByLabel("Vlastník *").selectOption({ index: 1 });
   await page.getByRole("button", { name: "Načíst podklady", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Přijaté úhrady", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Skutečné výdaje", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evidované náklady", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bankovní úhrady nákladů", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Úvěry a úroky", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Historická vlastnická struktura", exact: true })).toBeVisible();
   await expect(page.getByText(/Nejde o automatické stanovení základu daně/)).toBeVisible();
