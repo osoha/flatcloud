@@ -60,7 +60,7 @@ export default async function AnnualOwnerPackagePage({
               {data.periodMode === "CLOSED"
                 ? `Uzavřený kalendářní rok ${year}.`
                 : `Průběžné podklady ${year} do ${date(new Date(`${data.dataThrough}T12:00:00Z`))}; rok ještě není uzavřený.`}{" "}
-              Příjmy, skutečné výdaje, doklady a kontrola úvěrů.
+              Příjmy, evidované náklady, bankovní úhrady, doklady a kontrola úvěrů.
             </p>
           </div>
           {exportHref && (
