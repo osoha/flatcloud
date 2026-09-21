@@ -50,6 +50,8 @@ test("P07A jeden kontakt ukazuje více jednotek, fáze, termín i detail s histo
 test("P07A filtry se kombinují na téže příležitosti a dnešní termín není po splatnosti", async({page})=>{
   await login(page);const directory=await overview(page);const filters=page.getByRole("form",{name:"Filtry zájemců"});
   await filters.getByLabel("Dům",{exact:true}).selectOption(houseA);await filters.getByLabel("Fáze příležitosti").selectOption("OFFER");await filters.getByRole("button",{name:"Použít filtry"}).click();await expect(directory).toContainText("Žádné kontakty neodpovídají výběru");
+  const headingBox=await page.getByRole("heading",{name:"Přehled zájemců",exact:true}).boundingBox(),topbarBox=await page.locator(".v21-topbar").boundingBox();
+  expect(headingBox!.y).toBeGreaterThanOrEqual(topbarBox!.y+topbarBox!.height);
   await overview(page,`&propertyId=${houseB}&stage=OFFER`);await expect(directory.locator("li")).toHaveCount(1);await expect(directory.locator("li")).toContainText("B-201");
   await overview(page,"&due=overdue");await expect(directory.locator("li")).toHaveCount(1);await expect(directory.locator("li")).toContainText("B-201");
   await overview(page,"&due=today");await expect(directory.locator("li")).toHaveCount(1);await expect(directory.locator("li")).toContainText("A-101");await expect(directory.locator("li")).not.toContainText("Po termínu");
@@ -69,6 +71,9 @@ test("P07A nový kontakt, mobilní přehled a zachované omezení interního CRM
   await login(page);await overview(page);await page.getByRole("link",{name:"Nový kontakt",exact:true}).click();await expect(page.locator("#novy-zajemce")).toHaveAttribute("open","");
   await page.getByLabel("Jméno / název *").fill(`${prefix} Nový`);await page.locator("#novy-zajemce").getByLabel("E-mail",{exact:true}).fill("p07a-new@example.test");await page.getByRole("button",{name:"Přidat zájemce",exact:true}).click();await expect(page.getByText("Zájemce byl přidán do interního CRM.")).toBeVisible();
   await overview(page);await page.setViewportSize({width:390,height:844});await expect(page.getByRole("button",{name:"Použít filtry"})).toBeVisible();
+  const checkbox=page.getByRole("checkbox",{name:"Bez příležitosti v přehledu",exact:true});
+  expect((await checkbox.boundingBox())!.width).toBeLessThanOrEqual(20);
+  expect(await checkbox.evaluate(el=>el.closest("label")!.getBoundingClientRect().height)).toBeLessThanOrEqual(40);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1)).toBe(true);await page.screenshot({path:test.info().outputPath("p07a-mobile.png"),fullPage:true});
   await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:test.info().outputPath("p07a-desktop.png"),fullPage:true});
   await page.context().clearCookies();await login(page,R24_ROLE_USERS.advanced,process.env.E2E_ROLE_PASSWORD||R24_ROLE_PASSWORD);await page.goto("/distribuce/zajemci");await expect(page).toHaveURL(/\/portfolio/);await expect(page.locator(".sidebar").getByRole("link",{name:"Zájemci",exact:true})).toHaveCount(0);

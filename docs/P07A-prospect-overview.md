@@ -17,3 +17,7 @@ P07A spojuje existující identitu kontaktu s jeho příležitostmi. Není samos
 `e2e/p07a-prospect-overview.spec.ts`: čtyři scénáře v izolované databázi — přehled a změna příležitosti s historií; skutečný formulář filtrů a termíny; úprava kontaktu a předvyplněná nová příležitost; nový kontakt, desktop/mobil a odmítnutí neinterní role. Existující CRM a R33 testy zůstávají v plném CI.
 
 Živé sandboxové převzetí a odkazy na release jsou zaznamenány v konsolidované pipeline po nasazení. Produkční převzetí vyžaduje samostatné rozhodnutí.
+
+## Živé UX převzetí 21. 9. 2026
+
+PR157 nasazen do sandboxu jako `4a73d483a8da9cac15449153a4eb1d61c9bfa812`, CI 35594723928: 181/181 testů. Přihlášený průchod potvrdil dva zájmy jednoho testovacího kontaktu (Javorová A-101/A-102), samostatný kontakt bez nabídky, kombinace filtrů, dnes/po termínu/příštích 7 dní, úpravu kontaktu, předvyplnění příležitosti a změnu dalšího kroku s historií. Světlý a tmavý režim ověřeny. Závěrečné dotažení upravuje jen rozměr checkboxu a odsazení kotev pod pevnou horní lištou; browser regrese kontroluje také jejich geometrii.
