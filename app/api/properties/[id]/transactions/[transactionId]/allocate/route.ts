@@ -19,6 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const transaction = await tx.bankTransaction.findFirst({ where: { id: transactionId, bankAccount: { propertyId: id } }, include: { allocations: true, securityDepositReceipts: true } });
       const charge = await tx.charge.findFirst({ where: { id: chargeId, lease: { unit: { propertyId: id } } }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true } });
       if (!transaction || !charge) throw new Error("Platba nebo předpis nebyly nalezeny.");
+    if (transaction.source === "expense-statement") throw new Error("Pohyb patří do evidence bankovních výdajů a vratek, nikoli k nájemnému nebo kauci.");
       assertTransactionAcceptsRentAllocation(transaction.status);
       if (transaction.amountCents <= 0) throw new Error("Odchozí platbu nelze přiřadit k nájemnému.");
       assertActiveChargeForPayment(charge.active);

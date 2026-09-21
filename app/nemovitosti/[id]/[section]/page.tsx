@@ -206,7 +206,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
     </div>}
 
     {section === "finance" && <>
-      <MethodologyCallout slug="naklady-a-uvery"/>
+      <MethodologyCallout slug="naklady-a-uvery"/><p><Link className="primary" href={`/nemovitosti/${id}/bankovni-vydaje`}>Bankovní výdaje a úhrady nákladů</Link></p>
       <div className="notice asset-finance-scope"><strong>Finance objektu, ne nájemní smlouvy.</strong><span>Zde evidujete OPEX, CAPEX a úvěry celé nemovitosti. Nájemné, služby, předpisy, úhrady a kauce zůstávají v detailu smlouvy a jednotky.</span></div>
       <form className="card registry-filter-bar" action={`/nemovitosti/${id}/finance`} method="get">
         <label className="field"><span>Rozpočtové období</span><select name="financeYear" defaultValue={assetFinanceYear}>{[assetFinanceYear-2,assetFinanceYear-1,assetFinanceYear,assetFinanceYear+1,assetFinanceYear+2].map((year)=><option value={year} key={year}>{year}</option>)}</select></label>

@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const category = text(form, "category") as PropertyCostCategory;
     if (!Object.values(PropertyCostKind).includes(kind) || !Object.values(PropertyCostStatus).includes(status) || !Object.values(PropertyCostCategory).includes(category)) throw new Error("Vyberte platný typ, stav a kategorii nákladu.");
     const amountCents = moneyToCents(form, "amount");
-    if (!Number.isSafeInteger(amountCents) || amountCents <= 0 || amountCents > 2147483647) throw new Error("Částka nákladu musí být kladná a v podporovaném rozsahu.");
+    if (!Number.isSafeInteger(amountCents) || amountCents < 0 || amountCents > 2147483647) throw new Error("Částka nákladu musí být nezáporná a v podporovaném rozsahu.");
     const data = { kind, status, category, amountCents, title: text(form, "title", true)!, effectiveAt: dateValue(form, "effectiveAt", true)!, vendor: text(form, "vendor"), documentNumber: text(form, "documentNumber"), note: text(form, "note"), taskId: text(form, "taskId") };
     await serializableTransaction(async tx => {
       const cost = await tx.propertyCost.findFirst({ where: { id: costId, propertyId: id }, include: { allocations: true, conditionPlanExecution: true, budgetLine: true } });

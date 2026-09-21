@@ -87,16 +87,16 @@ export async function recomputeTransactionStatusTx(tx:Prisma.TransactionClient|t
   await tx.bankTransaction.update({ where: { id: transactionId }, data: { status: expected.status } });
 }
 
-export async function allocateAvailableTransactionToLeaseTx(tx:Prisma.TransactionClient,transactionId:string,leaseId:string){const transaction=await tx.bankTransaction.findUnique({where:{id:transactionId},include:{allocations:true,securityDepositReceipts:true,bankAccount:true}});if(!transaction||transaction.amountCents<=0)return null;const lease=await tx.lease.findFirst({where:{id:leaseId,unit:{propertyId:transaction.bankAccount.propertyId}},include:{charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true},orderBy:{dueDate:"asc"}}}});if(!lease)return null;const available=transaction.amountCents-transaction.allocations.reduce((sum,row)=>sum+row.amountCents,0)-transaction.securityDepositReceipts.filter(row=>row.type==="RECEIVED").reduce((sum,row)=>sum+row.amountCents,0),plan=planOldestChargeAllocations(lease.charges.map(charge=>({chargeId:charge.id,outstandingCents:outstandingCents(charge)})),available);for(const allocation of plan.allocations)await tx.paymentAllocation.upsert({where:{transactionId_chargeId:{transactionId,chargeId:allocation.chargeId}},update:{amountCents:{increment:allocation.amountCents}},create:{transactionId,chargeId:allocation.chargeId,amountCents:allocation.amountCents}});return {leaseId,allocations:plan.allocations.map(row=>({...row,leaseId})),remainingCents:plan.remainingCents}}
+export async function allocateAvailableTransactionToLeaseTx(tx:Prisma.TransactionClient,transactionId:string,leaseId:string){const transaction=await tx.bankTransaction.findUnique({where:{id:transactionId},include:{allocations:true,securityDepositReceipts:true,bankAccount:true}});if(!transaction||transaction.amountCents<=0||transaction.source==="expense-statement")return null;const lease=await tx.lease.findFirst({where:{id:leaseId,unit:{propertyId:transaction.bankAccount.propertyId}},include:{charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true},orderBy:{dueDate:"asc"}}}});if(!lease)return null;const available=transaction.amountCents-transaction.allocations.reduce((sum,row)=>sum+row.amountCents,0)-transaction.securityDepositReceipts.filter(row=>row.type==="RECEIVED").reduce((sum,row)=>sum+row.amountCents,0),plan=planOldestChargeAllocations(lease.charges.map(charge=>({chargeId:charge.id,outstandingCents:outstandingCents(charge)})),available);for(const allocation of plan.allocations)await tx.paymentAllocation.upsert({where:{transactionId_chargeId:{transactionId,chargeId:allocation.chargeId}},update:{amountCents:{increment:allocation.amountCents}},create:{transactionId,chargeId:allocation.chargeId,amountCents:allocation.amountCents}});return {leaseId,allocations:plan.allocations.map(row=>({...row,leaseId})),remainingCents:plan.remainingCents}}
 
 export async function processTransaction(transactionId: string) {
   const transaction = await prisma.bankTransaction.findUnique({
     where: { id: transactionId },
     include: { bankAccount: true, allocations: true },
   });
-  if (!transaction || transaction.allocations.length || transaction.status === PaymentStatus.IGNORED) return;
+  if (!transaction || transaction.source === "expense-statement" || transaction.allocations.length || transaction.status === PaymentStatus.IGNORED) return;
   if (transaction.amountCents <= 0) {
-    await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status: PaymentStatus.IGNORED, matchNote: "Odchozí platba – mimo evidenci nájmů." } });
+    await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status: PaymentStatus.IGNORED, matchNote: "Odchozí platba – k posouzení v Bankovních výdajích a úhradách nákladů." } });
     return;
   }
 

@@ -600,6 +600,7 @@ model OwnerBankAccount {
 }
 
 model Property {
+  bankExpenseAllocations BankExpenseAllocation[]
   settlementSources SettlementSource[]
   settlementAllocationRules SettlementAllocationRule[]
   settlementAllocationBatches SettlementAllocationBatch[]
@@ -662,6 +663,7 @@ model Property {
 }
 
 model PropertyCost {
+  bankSettlements BankExpenseAllocation[]
   budgetLineId           String?
   budgetLine             PropertyBudgetLine?         @relation(fields: [budgetLineId], references: [id], onDelete: Restrict)
   id                     String                      @id @default(cuid())
@@ -1660,6 +1662,8 @@ model BankMatchingRule {
 }
 
 model BankTransaction {
+  expenseRevision Int @default(0)
+  expenseAllocations BankExpenseAllocation[]
   id                      String                    @id @default(cuid())
   bankAccountId           String
   bankAccount             BankAccount               @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
@@ -2506,4 +2510,27 @@ model MeterTariff {
   unitOfMeasure String
   createdAt DateTime @default(now())
   @@unique([meterId, validFrom])
+}
+
+// Append-only settlement ledger. Corrections void a row and retain its author/reason.
+model BankExpenseAllocation {
+  id String @id @default(cuid())
+  transactionId String
+  transaction BankTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  propertyCostId String?
+  propertyCost PropertyCost? @relation(fields: [propertyCostId], references: [id], onDelete: Restrict)
+  propertyId String
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  kind String
+  amountCents Int
+  reason String
+  createdById String
+  createdAt DateTime @default(now())
+  voidedAt DateTime?
+  voidedById String?
+  voidReason String?
+
+  @@index([transactionId, voidedAt])
+  @@index([propertyCostId, voidedAt])
+  @@index([propertyId, createdAt])
 }

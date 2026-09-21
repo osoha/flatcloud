@@ -529,3 +529,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .forecast-custom-horizon form { padding: 12px; max-width: 320px; }
 
 @media print{.service-protocol-page .settlement-workflow-card,.service-protocol-page .action-row .status,.service-protocol-page .action-row button{display:none!important}.service-protocol-page{background:#fff}.service-protocol-page .card{break-inside:avoid}}
+
+/* P01B uses existing surface tokens; settlement state is independent of cost status. */
+.bank-settlement-summary { display: flex; flex-wrap: wrap; gap: 1rem 2rem; margin: 1rem 0; }
+.bank-settlement-summary > div { display: grid; gap: .25rem; }
