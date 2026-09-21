@@ -15,7 +15,7 @@ test("R33: dark mode persists, wide layout and important portfolio content prece
 test("R33: merged tenancy, actionable settings and contact directory",async({page})=>{
  await login(page);await page.goto("/reporty?view=contracts");await expect(page.getByRole("heading",{name:"Nájemní vztahy",exact:true})).toBeVisible();await expect(page.locator(".report-tabs").getByRole("link",{name:"Smlouvy",exact:true})).toHaveCount(0);await expect(page.getByRole("button",{name:"Stáhnout CSV"})).toBeVisible();await expect(page.locator(".report-tabs").getByRole("link",{name:"KPIs",exact:true})).toBeVisible();
  await page.goto("/nastaveni");const link=page.locator(".admin-health-card").filter({hasText:"Bankovní schránka"}).getByRole("link");await link.click();await expect(page).toHaveURL(/#bankovni-schranka$/);await expect(page.locator("#bankovni-schranka")).toBeVisible();
- await page.goto("/distribuce/zajemci");await expect(page.getByRole("heading",{name:"Adresář zájemců"})).toBeVisible();
+ await page.goto("/distribuce/zajemci");await expect(page.getByRole("heading",{name:"Přehled zájemců"})).toBeVisible();
 });
 test("R33: unit editor without house grant owns meters and private avatar; cross-unit writes rejected",async({page})=>{
  test.skip(Boolean(process.env.E2E_BASE_URL),"Isolated fixtures only");const {prisma:db}=await import("../lib/db");const admin=await db.user.findUniqueOrThrow({where:{email}}),stamp=Date.now();
