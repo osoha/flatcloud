@@ -125,6 +125,10 @@ test("P01B shared account can settle another linked house and rejects unlinked h
 test("P01B fully credited invoice preserves payments and reports refund due",async({page})=>{
   const f=await fixture(page),bank=await f.bank(-1800000);await applyExpense(f.command(bank.id,1800000));
   const cost=await db.propertyCost.findUniqueOrThrow({where:{id:f.cost.id}});
+  for(const amount of ["", "-1", "0.001"]) {
+    const invalid=await post(page,`/api/properties/${f.propertyId}/costs/${cost.id}`,{expectedUpdatedAt:cost.updatedAt.toISOString(),kind:cost.kind,status:cost.status,category:cost.category,title:cost.title,amount,effectiveAt:"2025-12-15",reason:"P01B neplatný dobropis"});
+    expect(invalid.has("error"),invalid.toString()).toBe(true);
+  }
   const response=await post(page,`/api/properties/${f.propertyId}/costs/${cost.id}`,{expectedUpdatedAt:cost.updatedAt.toISOString(),kind:cost.kind,status:cost.status,category:cost.category,title:cost.title,amount:"0",effectiveAt:"2025-12-15",reason:"P01B úplný dobropis DOB-01"});expect(response.has("ok"),response.toString()).toBe(true);
   await page.goto(`/nemovitosti/${f.propertyId}/naklady/${cost.id}`);await expect(page.getByRole("region",{name:"Úhrady nákladu"})).toContainText("Přeplatek k vrácení");
   const refund=await f.bank(1800000);await applyExpense({...f.command(refund.id,1800000),kind:"COST_REFUND"});

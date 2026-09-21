@@ -170,10 +170,10 @@ export const methodologyChapters: MethodologyChapter[] = [
     slug: "rocni-podklady",
     category: "Finance",
     title: "Roční podklady vlastníka",
-    summary: "Kontrolní balíček skutečně přijatých úhrad, skutečných výdajů, dokladů a úvěrových mezer před předáním účetnímu.",
+    summary: "Kontrolní balíček přijatých úhrad, evidovaných nákladů, samostatných bankovních úhrad nákladů, dokladů a úvěrových mezer před předáním účetnímu.",
     audience: "Vlastník a finanční správce",
-    steps: ["Vyberte jednoho právního vlastníka a uzavřený kalendářní rok.", "Ověřte, že příjmy vycházejí z přiřazených bankovních úhrad a výdaje pouze ze stavu Skutečnost.", "Doplňte účinné intervaly vlastnických podílů; ke každému datu musí úplná struktura dát 100 %.", "Doplňte rozdělení společných nákladů, účetní doklady a stav odborné kontroly každé klasifikace.", "U úvěru zapište skutečně zaplacený roční úrok a připojte účetní doklad; sazba ani jistina nejsou náhradou výpisu.", "CSV předejte účetnímu jako pracovní zdroj, ne jako hotové daňové přiznání."],
-    check: "Balíček nemá blokátor, každý výdaj má doklad a odborník potvrdil kategorizaci, historické vlastnictví i daňové zacházení.",
+    steps: ["Vyberte jednoho právního vlastníka a uzavřený kalendářní rok.", "Příjmy ověřte podle přiřazených bankovních úhrad. Evidované náklady vycházejí ze stavu Skutečnost a data vzniku; samostatná tabulka úhrad používá bankovní datum, i když náklad vznikl v jiném roce. Obě tabulky nesčítejte jako další náklady.", "Doplňte účinné intervaly vlastnických podílů; ke každému datu musí úplná struktura dát 100 %.", "Doplňte rozdělení společných nákladů, účetní doklady a stav odborné kontroly každé klasifikace.", "U úvěru zapište skutečně zaplacený roční úrok a připojte účetní doklad; sazba ani jistina nejsou náhradou výpisu.", "CSV předejte účetnímu jako pracovní zdroj, ne jako hotové daňové přiznání."],
+    check: "Balíček nemá blokátor, náklady mají doklady a bankovní úhrady odpovídají výpisům. Odborník ověřil úplnost všech účtů, skutečného plátce, kategorizaci, historické vlastnictví i daňové zacházení.",
     href: "/reporty/rocni-podklady",
   },
   {

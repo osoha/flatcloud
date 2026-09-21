@@ -20,7 +20,7 @@ Rozsah: pouze sandbox. Výchozí sandbox 861274d50a420dc9daf0efcecd2a74ca9b4da9c
 
 - Parser a výpočty: `scripts/verify-p01b-bank-costs.ts`.
 - Integrační / browser scénáře: `e2e/zzz-p01b-bank-costs.spec.ts`; faktura 18 000 Kč / 10 000 + 8 000 / tři jednotky, souhrnná platba, jiný rok, opakovaný import a konflikt ID, souběhy, cizí scope, nový návrh, zálohy, vratky, úplný dobropis, sdílený účet, historie oprav.
-- Migrační změna je pouze aditivní. Nové vazby chrání FK RESTRICT; nezmění stávající finanční částky.
+- Migrace přidává evidenci úhrad a rozšiřuje kontrolu částky nákladu z kladné na nezápornou pro úplné dobropisy. Žádná existující částka se nepřepisuje ani nemaže. Nové vazby chrání FK RESTRICT; nové náklady nadále vznikají s kladnou částkou.
 - Lokální TypeScript, Prisma validate a relevantní statické kontroly; kompletní migrační a browser gate přes izolovaný PostgreSQL v CI. Živý UX průchod zůstává samostatný krok.
 
 ## Stav převzetí

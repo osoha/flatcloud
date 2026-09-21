@@ -1,8 +1,9 @@
 import { PropertyCostCategory, PropertyCostKind, PropertyCostStatus } from "@prisma/client";
-import { dateValue, moneyToCents, text } from "@/lib/forms";
+import { dateValue, text } from "@/lib/forms";
 import { requireManagedProperty } from "@/lib/management";
 import { goWithMessage } from "@/lib/route-response";
 import { serializableTransaction } from "@/lib/serializable";
+import { expenseMoney } from "@/lib/bank-expense-values";
 import { allocateCostAmount } from "@/lib/property-cost-allocations";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; costId: string }> }) {
@@ -18,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const status = text(form, "status") as PropertyCostStatus;
     const category = text(form, "category") as PropertyCostCategory;
     if (!Object.values(PropertyCostKind).includes(kind) || !Object.values(PropertyCostStatus).includes(status) || !Object.values(PropertyCostCategory).includes(category)) throw new Error("Vyberte platný typ, stav a kategorii nákladu.");
-    const amountCents = moneyToCents(form, "amount");
+    const amountCents = expenseMoney(String(form.get("amount") ?? ""));
     if (!Number.isSafeInteger(amountCents) || amountCents < 0 || amountCents > 2147483647) throw new Error("Částka nákladu musí být nezáporná a v podporovaném rozsahu.");
     const data = { kind, status, category, amountCents, title: text(form, "title", true)!, effectiveAt: dateValue(form, "effectiveAt", true)!, vendor: text(form, "vendor"), documentNumber: text(form, "documentNumber"), note: text(form, "note"), taskId: text(form, "taskId") };
     await serializableTransaction(async tx => {
