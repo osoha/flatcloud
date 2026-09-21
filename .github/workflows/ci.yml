@@ -43,6 +43,7 @@ jobs:
       - run: npm run verify:valorizace-v3
       - run: npx prisma generate
       - run: node --import tsx scripts/verify-p01b-bank-costs.ts
+      - run: node --import tsx scripts/verify-p07a-prospect-overview.ts
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run verify:v20
@@ -215,6 +216,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: node --import tsx scripts/verify-p01b-bank-costs.ts
+      - run: node --import tsx scripts/verify-p07a-prospect-overview.ts
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run e2e:seed

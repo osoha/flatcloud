@@ -1,3 +1,4 @@
+import { crmToday, filterProspectOverview, nextActionState, prospectFilters } from "@/lib/distribution/prospect-overview";
 import { ProspectDirectory } from "@/components/distribution/ProspectDirectory";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
@@ -22,7 +23,7 @@ const moneyNumberInput = (cents: number | null | undefined) => moneyInput(cents)
 export default async function DistributionCrmPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; error?: string; q?:string; unassigned?:string; prospectId?:string }>;
+  searchParams: Promise<{ ok?: string; error?: string; prospectId?: string } & Record<string, string | undefined>>;
 }) {
   const [user, query] = await Promise.all([requireUser(), searchParams]);
   if (!canSeeAll(user.role)) redirect("/portfolio");
@@ -31,6 +32,7 @@ export default async function DistributionCrmPage({
       where: { active: true },
       include: {
         opportunities: {
+          where: { unit: { property: { active: true, flatcloudConsolidationBasisPoints: { gt: 0 } } } },
           include: {
             unit: {
               include: {
@@ -77,6 +79,10 @@ export default async function DistributionCrmPage({
       orderBy: { name: "asc" },
     }),
   ]);
+  const filters = prospectFilters(query);
+  const today = crmToday();
+  const visibleProspects = filterProspectOverview(prospects, filters, today);
+  const visibleIds = new Set(visibleProspects.flatMap(p => p.opportunities.map(o => o.id)));
   const opportunities = prospects
       .flatMap((prospect) =>
         prospect.opportunities.map((opportunity) => ({
@@ -91,9 +97,8 @@ export default async function DistributionCrmPage({
     open = opportunities.filter(
       (item) => !["WON", "LOST"].includes(item.stage),
     ),
-    now = new Date(),
     overdue = open.filter(
-      (item) => item.nextActionAt && item.nextActionAt < now,
+      (item) => nextActionState(item, today) === "overdue",
     ),
     units = properties.flatMap((property) =>
       property.units.map((unit) => ({ property, ...unit })),
@@ -139,8 +144,9 @@ export default async function DistributionCrmPage({
           </div>
         </div>
         <Flash ok={query.ok} error={query.error} />
-        <ProspectDirectory prospects={prospects} query={query.q} unassigned={query.unassigned==="1"}/>
+        <ProspectDirectory prospects={visibleProspects} properties={properties} filters={filters} today={today} total={prospects.length}/>
         <MethodologyCallout slug="crm-distribuce" compact />
+        <p className="crm-overall-caption">Celý adresář — souhrny nezávislé na filtrech</p>
         <div className="stat-grid v21-stat-grid distribution-crm-kpis">
           <Stat
             label="Aktivní zájemci"
@@ -168,7 +174,7 @@ export default async function DistributionCrmPage({
           />
         </div>
         <div className="distribution-crm-create">
-          <details className="card create-panel">
+          <details className="card create-panel" id="novy-zajemce" open={query.newContact === "1"}>
             <summary>
               <Plus size={15} /> Nový zájemce
             </summary>
@@ -317,7 +323,7 @@ export default async function DistributionCrmPage({
               <h2>Prodejní pipeline</h2>
               <p>
                 Každý řádek spojuje jednoho zájemce s jednou konkrétní jednotkou
-                a uchovává neměnnou historii změn.
+                a uchovává neměnnou historii změn. Zobrazuje stejný výběr jako přehled výše.
               </p>
             </div>
           </div>
@@ -336,14 +342,12 @@ export default async function DistributionCrmPage({
                 </tr>
               </thead>
               <tbody>
-                {opportunities.length ? (
-                  opportunities.map((item) => {
+                {visibleIds.size ? (
+                  opportunities.filter(item => visibleIds.has(item.id)).map((item) => {
                     const isOverdue =
-                      item.nextActionAt &&
-                      item.nextActionAt < now &&
-                      !["WON", "LOST"].includes(item.stage);
+                      nextActionState(item, today) === "overdue";
                     return (
-                      <tr key={item.id} className={isOverdue ? "row-debt" : ""}>
+                      <tr key={item.id} id={`prilezitost-${item.id}`} className={`crm-pipeline-row ${isOverdue ? "row-debt" : ""}`}>
                         <td>
                           <strong>{item.prospect.name}</strong>
                           <span className="owner-sub">
@@ -553,7 +557,7 @@ export default async function DistributionCrmPage({
                 ) : (
                   <tr>
                     <td className="table-empty" colSpan={8}>
-                      Zatím není založený žádný zájem o jednotku.
+                      Výběru neodpovídá žádná příležitost.
                     </td>
                   </tr>
                 )}

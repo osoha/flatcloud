@@ -127,7 +127,7 @@ test.describe("R24 · agentní role a lifecycle", () => {
     await loginAs(page, R24_ROLE_USERS.distributionLead);
     await page.goto("/distribuce");
     await expect(page.getByRole("heading", { name: "Interní distribuce", exact: true })).toBeVisible();
-    await page.getByRole("link", { name: "CRM zájemců", exact: true }).click();
+    await page.getByRole("link", { name: "Přehled zájemců", exact: true }).click();
     await expect(page.getByRole("heading", { name: "CRM zájemců o jednotky", exact: true })).toBeVisible();
     await page.goto("/distribuce/uvitaci-dopisy");
     await expect(page.getByRole("heading", { name: "Uvítací dopisy novým vlastníkům", exact: true })).toBeVisible();

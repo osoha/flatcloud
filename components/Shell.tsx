@@ -82,7 +82,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
         {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
-        {canAddProperty && isFlatcloudMember(user) && <Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/>}
+        {canAddProperty && isFlatcloudMember(user) && <><Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/><Nav href="/distribuce/zajemci" icon={<UsersRound size={17}/>} label="Zájemci"/></>}
 
         <CollapsibleNavGroup id="operations" label="Provoz" activeRoots={["/ukoly","/portfolio/kvalita","/revize"]} forceOpen={openTasks > 0 || dueRevisions > 0}>
           <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>

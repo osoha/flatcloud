@@ -533,3 +533,15 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 /* P01B uses existing surface tokens; settlement state is independent of cost status. */
 .bank-settlement-summary { display: flex; flex-wrap: wrap; gap: 1rem 2rem; margin: 1rem 0; }
 .bank-settlement-summary > div { display: grid; gap: .25rem; }
+
+/* P07A: contact overview uses the existing FlatBerry table and form palette. */
+.crm-directory-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:0 20px 16px}
+.crm-directory-filters .field{min-width:0;margin:0}.crm-directory-filters input,.crm-directory-filters select{width:100%;min-width:0}
+.crm-directory-filter-actions{grid-column:1/-1;flex-wrap:wrap}.crm-directory-count,.crm-directory-hint{padding:0 20px;margin:0 0 14px;color:var(--muted);font-size:12px}
+.crm-directory-hint{margin-top:14px}.crm-directory table{min-width:800px}.crm-directory tbody th,.crm-directory tbody td{vertical-align:top}
+.crm-directory .crm-contact-cell{width:22%;text-align:left;white-space:normal;text-transform:none;letter-spacing:normal;background:transparent;font-size:12px;overflow-wrap:anywhere}
+.crm-contact-cell>span{display:block;font-weight:400;margin-top:5px}.crm-contact-note{width:20%;white-space:normal;overflow-wrap:anywhere}.crm-contact-note p{white-space:pre-wrap;margin:6px 0}
+.crm-opportunities-cell{width:43%;white-space:normal}.crm-contact-opportunities{list-style:none;margin:0;padding:0}.crm-contact-opportunities li+li{border-top:1px solid var(--line);margin-top:14px;padding-top:14px}
+.crm-opportunity-summary{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:6px}.crm-opportunity-note{margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}.crm-opportunity-detail{display:inline-block;margin-top:6px}
+.crm-contact-actions{display:grid;gap:12px;min-width:120px}.crm-overall-caption{color:var(--muted);font-size:12px;margin:16px 0 8px}.crm-pipeline-row{scroll-margin-top:24px}.crm-pipeline-row:target{outline:2px solid var(--blue);outline-offset:-2px}
+@media(max-width:760px){.crm-directory-filters{grid-template-columns:1fr;padding:0 14px 14px}.crm-directory-filter-actions{align-items:flex-start}.crm-directory-count,.crm-directory-hint{padding:0 14px}}
