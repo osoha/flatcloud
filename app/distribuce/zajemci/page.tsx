@@ -208,7 +208,7 @@ export default async function DistributionCrmPage({
               </button>
             </form>
           </details>
-          <details className="card create-panel" id="nova-prilezitost" open={Boolean(query.prospectId)}>
+          <details className="card create-panel" id="nova-prilezitost" key={query.prospectId || "new"} open={Boolean(query.prospectId)}>
             <summary>
               <Plus size={15} /> Nový zájem o jednotku
             </summary>

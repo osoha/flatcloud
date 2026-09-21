@@ -18,7 +18,7 @@ export function ProspectDirectory({ prospects, properties, filters, today, total
       <h2 id="prospect-directory-title">Přehled zájemců</h2>
       <p>Kontakt, jeho jednotky a další kroky na jednom místě. Kontakty lze vést i bez nabídky.</p>
     </div><Link className="secondary" href="/distribuce/zajemci?newContact=1#novy-zajemce">Nový kontakt</Link></div>
-    <form className="crm-directory-filters" method="get" action="/distribuce/zajemci#adresar" aria-label="Filtry zájemců">
+    <form key={JSON.stringify(filters)} className="crm-directory-filters" method="get" action="/distribuce/zajemci#adresar" aria-label="Filtry zájemců">
       <label className="field"><span>Hledat kontakt</span><input name="q" type="search" defaultValue={filters.q} placeholder="Jméno, e-mail, telefon nebo zdroj" /></label>
       <label className="field"><span>Dům</span><select name="propertyId" defaultValue={filters.propertyId}><option value="">Všechny domy</option>{properties.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
       <label className="field"><span>Jednotka</span><select name="unitId" defaultValue={filters.unitId}><option value="">Všechny jednotky</option>{properties.map(p => <optgroup key={p.id} label={p.name}>{p.units.map(u => <option key={u.id} value={u.id}>{p.name} · {u.label}</option>)}</optgroup>)}</select></label>
