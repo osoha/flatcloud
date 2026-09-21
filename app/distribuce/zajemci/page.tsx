@@ -521,6 +521,7 @@ export default async function DistributionCrmPage({
                               <label className="field">
                                 <span>Poznámka</span>
                                 <textarea
+                                  aria-label="Poznámka"
                                   name="note"
                                   rows={2}
                                   defaultValue={item.note || ""}
