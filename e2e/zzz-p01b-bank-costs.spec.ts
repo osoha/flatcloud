@@ -22,7 +22,10 @@ async function fixture(page:Page) {
   return {actor,propertyId,units,cost,bank,command,suffix,account};
 }
 async function post(page:Page,path:string,form:Record<string,string>) {
-  const r=await page.request.post(path,{form,maxRedirects:0});return new URL(r.headers().location!,"http://localhost").searchParams;
+  // Match existing CI helpers: Chromium sends its Secure loopback session cookie.
+  const result=await page.evaluate(async({path,form})=>{const r=await fetch(path,{method:"POST",body:new URLSearchParams(form)});return {status:r.status,url:r.url};},{path,form});
+  expect([200,404]).toContain(result.status);expect(new URL(result.url).pathname).not.toBe("/login");
+  return new URL(result.url).searchParams;
 }
 test("P01B 18 000, dvě úhrady, tři jednotky, historie a nezměněný KPI",async({page})=>{
   const f=await fixture(page),a=await f.bank(-1000000),b=await f.bank(-800000);
@@ -66,7 +69,13 @@ test("P01B cizí náklad, jednotka, účet a prohlížecí přístup nemohou zap
   await expect(applyExpense({...f.command(bank.id,10000),targetPropertyId:foreign.propertyId})).rejects.toThrow(/účet/);
   const otherCost=await db.propertyCost.create({data:{propertyId:foreign.propertyId,title:"P01B cizí náklad",amountCents:10000,status:"ACTUAL",kind:"OPEX",effectiveAt:new Date()}});
   await expect(applyExpense({...f.command(bank.id,10000),costId:otherCost.id})).rejects.toThrow(/cílového domu/);
-  const result=await post(page,`/api/properties/${foreign.propertyId}/bank-expenses/${bank.id}`,{revision:"0",kind:"TRANSFER",amount:"100",reason:"P01B scope"});expect(result.has("error")).toBe(true);
+  const result=await post(page,`/api/properties/${foreign.propertyId}/bank-expenses/${bank.id}`,{revision:"0",kind:"TRANSFER",amount:"100",reason:"P01B scope"});expect(result.get("error")).toContain("oprávnění");
+  await db.userProperty.update({where:{userId_propertyId:{userId:f.actor.id,propertyId:f.propertyId}},data:{permission:"VIEW"}});
+  try {
+    await page.goto(`/nemovitosti/${f.propertyId}/bankovni-vydaje?year=2026`);
+    await expect(page.getByText("Importovat výdaje a vratky z CSV",{exact:true})).toHaveCount(0);
+    const denied=await post(page,`/api/properties/${f.propertyId}/bank-expenses/${bank.id}`,{revision:"0",kind:"TRANSFER",amount:"100",reason:"P01B VIEW"});expect(denied.get("error")).toContain("oprávnění");
+  } finally {await db.userProperty.update({where:{userId_propertyId:{userId:f.actor.id,propertyId:f.propertyId}},data:{permission:"EDIT"}});}
   expect(await db.bankExpenseAllocation.count({where:{transactionId:bank.id}})).toBe(0);
 });
 test("P01B nové náklady, zálohy a převody přes uživatelský formulář",async({page})=>{
@@ -86,7 +95,16 @@ test("P01B CSV opakovaný import, konflikt ID rollback a změna souboru bez dupl
   await db.propertyPaymentAccount.create({data:{propertyId:f.propertyId,ownerBankAccountId:oa.id,active:true}});
   const content=`id;datum;castka;mena;protistrana;ucet;vs;zprava\n${f.suffix};2026-01-15;-100,50;CZK;Test;123/0800;01;Faktura`;
   const url=`/api/properties/${f.propertyId}/bank-expenses/import`;
-  const upload=async(text:string,name:string)=>{const r=await page.request.post(url,{multipart:{accountId:oa.id,confirmed:"on",file:{name,mimeType:"text/csv",buffer:Buffer.from(text)}},maxRedirects:0});return new URL(r.headers().location!,"http://localhost").searchParams;};
+  const upload=async(text:string,name:string)=>{
+    await page.goto(`/nemovitosti/${f.propertyId}/bankovni-vydaje?year=2026`);
+    await page.getByText("Importovat výdaje a vratky z CSV",{exact:true}).click();
+    const form=page.locator(`form[action="${url}"]`);
+    await form.getByLabel("Účet vlastníka").selectOption(oa.id);
+    await form.getByLabel("CSV výpis").setInputFiles({name,mimeType:"text/csv",buffer:Buffer.from(text)});
+    await form.getByRole("checkbox").check();await form.getByRole("button",{name:"Importovat CSV",exact:true}).click();
+    await expect(page.getByRole("status").or(page.getByRole("alert").filter({hasText:"jinými údaji"}))).toBeVisible();
+    return new URL(page.url()).searchParams;
+  };
   expect((await upload(content,"a.csv")).get("ok")).toContain("Importováno 1");
   expect((await upload(content,"b.csv")).get("ok")).toContain("Importováno 0");
   expect((await upload(content.replace("-100,50","-101,50"),"c.csv")).get("error")).toContain("jinými údaji");
@@ -107,7 +125,7 @@ test("P01B shared account can settle another linked house and rejects unlinked h
 test("P01B fully credited invoice preserves payments and reports refund due",async({page})=>{
   const f=await fixture(page),bank=await f.bank(-1800000);await applyExpense(f.command(bank.id,1800000));
   const cost=await db.propertyCost.findUniqueOrThrow({where:{id:f.cost.id}});
-  const response=await post(page,`/api/properties/${f.propertyId}/costs/${cost.id}`,{expectedUpdatedAt:cost.updatedAt.toISOString(),kind:cost.kind,status:cost.status,category:cost.category,title:cost.title,amount:"0",effectiveAt:"2025-12-15",reason:"P01B úplný dobropis DOB-01"});expect(response.has("ok")).toBe(true);
+  const response=await post(page,`/api/properties/${f.propertyId}/costs/${cost.id}`,{expectedUpdatedAt:cost.updatedAt.toISOString(),kind:cost.kind,status:cost.status,category:cost.category,title:cost.title,amount:"0",effectiveAt:"2025-12-15",reason:"P01B úplný dobropis DOB-01"});expect(response.has("ok"),response.toString()).toBe(true);
   await page.goto(`/nemovitosti/${f.propertyId}/naklady/${cost.id}`);await expect(page.getByRole("region",{name:"Úhrady nákladu"})).toContainText("Přeplatek k vrácení");
   const refund=await f.bank(1800000);await applyExpense({...f.command(refund.id,1800000),kind:"COST_REFUND"});
   const saved=await db.propertyCost.findUniqueOrThrow({where:{id:cost.id},include:{bankSettlements:true}});expect(saved.amountCents).toBe(0);expect(settledCents(saved.bankSettlements)).toBe(0);

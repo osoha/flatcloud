@@ -25,4 +25,4 @@ Rozsah: pouze sandbox. Výchozí sandbox 861274d50a420dc9daf0efcecd2a74ca9b4da9c
 
 ## Stav převzetí
 
-Implementace připravena k CI. P01B není označen jako dokončený do ověření migrací, buildu, regresí a skutečného sandboxového průchodu. Produkční nasazení není součástí oprávnění tohoto bloku. Další pořadí P07A → P02; Matterport odložen k externí distribuci, onepager samostatně.
+Implementace a kontrolní scénáře jsou v PR155 (https://github.com/osoha/flatcloud/pull/155). Aktuální výsledky CI, sandboxového nasazení a živého UX převzetí eviduje tento PR a autoritativní projektová pipeline. P01B se označuje za dokončený až po ověření migrací, buildu, regresí a skutečného sandboxového průchodu. Produkční nasazení není součástí oprávnění tohoto bloku. Další pořadí P07A → P02; Matterport odložen k externí distribuci, onepager samostatně.
