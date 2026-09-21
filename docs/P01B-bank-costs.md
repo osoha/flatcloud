@@ -26,3 +26,11 @@ Rozsah: pouze sandbox. Výchozí sandbox 861274d50a420dc9daf0efcecd2a74ca9b4da9c
 ## Stav převzetí
 
 Implementace a kontrolní scénáře jsou v PR155 (https://github.com/osoha/flatcloud/pull/155). Aktuální výsledky CI, sandboxového nasazení a živého UX převzetí eviduje tento PR a autoritativní projektová pipeline. P01B se označuje za dokončený až po ověření migrací, buildu, regresí a skutečného sandboxového průchodu. Produkční nasazení není součástí oprávnění tohoto bloku. Další pořadí P07A → P02; Matterport odložen k externí distribuci, onepager samostatně.
+
+## Ověření sandboxu 21. 9. 2026
+
+- PR155 sloučen jako `fa89a3838e7bd0e11b0d24e7fcdaefaddeca8b34`; Render `dep-daofvt97lnhs73evs900` LIVE 10:02 UTC, obě migrace úspěšně aplikovány.
+- CI `35585263694`: kompletní build/static/migrate a 177/177 browserových testů; samostatné R26 a debt/popup kontroly prošly.
+- Skutečný přihlášený UX sandbox: Javorová, ruční faktura `P01B-TEST-18000` z 15. 12. 2025, přiložen syntetický PDF doklad, rozděleno na tři jednotky. CSV vytvořilo dvě úhrady; opakování 0 nových / 2 přeskočené. Po 10 000 Kč zbývalo 8 000 Kč, po doplatku nula. Storno a nové přiřazení zachovalo historii; bankovní nerozdělený zůstatek je nula.
+- OPEX zůstal 18 000 Kč v roce 2025 a 1 358,01 Kč v roce 2026. Roční balíček 2026 obsahuje dvě bankovní úhrady, nikoli druhý náklad; balíček 2025 obsahuje původní náklad a žádnou z těchto úhrad.
+- Vizuální kontrola zachovala základ R33; navazující drobné sjednocení filtrů používá existující formulářové třídy FlatBerry. Aktuální stav převzetí viz projektová pipeline.
