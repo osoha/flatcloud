@@ -41,7 +41,7 @@ export default async function AdminOverviewPage() {
       <Module icon={<Users/>} title="Uživatelé a přístupy" text={`${activeUsers} aktivních uživatelů · role, pozvánky a oprávnění.`} href="/uzivatele" cta="Spravovat uživatele"/>
       <Module icon={<Megaphone/>} title="Oznámení" text="Globální a místní sdělení, časová platnost a cílové skupiny." href="/nastaveni/oznameni" cta="Spravovat oznámení"/>
       <Module icon={<CheckCircle2/>} title="Automatické úkoly" text="Globální katalog spouštěčů, předstihy a místní výjimky objektů." href="/nastaveni/automaticke-ukoly" cta="Spravovat automatizace"/>
-      <Module icon={<Database/>} title="Data a importy" text="Cenová mapa MF a stav posledního načtení zdrojových dat." href="/nastaveni/system" cta="Otevřít datové zdroje"/>
+      <Module icon={<Database/>} title="Data a importy" text="Cenová mapa MF, prodejní benchmark a stav zdrojových dat." href="/nastaveni/cenovy-benchmark" cta="Otevřít cenová data"/>
       <Module icon={<ShieldCheck/>} title="Audit a údržba" text="Bezpečné ruční kontroly, retenční úlohy a provozní diagnostika." href="/nastaveni/system" cta="Otevřít údržbu"/>
       <Module icon={<HardDrive/>} title="Dokumenty" text="Centrální katalog dokumentů a kontrola uložených podkladů." href="/dokumenty" cta="Otevřít dokumenty"/>
     </div>

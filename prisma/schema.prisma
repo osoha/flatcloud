@@ -212,9 +212,35 @@ enum UnitConditionExecutionEventKind {
 
 enum UnitValuationSource {
   INTERNAL_COMPARABLES
+  MARKET_BENCHMARK
   EXTERNAL_APPRAISAL
   OFFER_PRICE
   TRANSACTION
+}
+
+enum SaleBenchmarkSource {
+  SREALITY_PRICE_MAP
+  SREALITY_LISTINGS
+  MANUAL_REFERENCE
+}
+
+enum SaleBenchmarkMetric {
+  REALIZED_AVERAGE
+  OFFER_MEDIAN
+}
+
+enum SaleBenchmarkConfidence {
+  HIGH
+  MEDIUM
+  LOW
+  INSUFFICIENT
+}
+
+enum SaleBenchmarkMappingQuality {
+  EXACT
+  ONE_TO_MANY
+  APPROXIMATE
+  UNMAPPED
 }
 
 enum DistributionOpportunityStage {
@@ -531,6 +557,7 @@ model User {
   quarterlyPropertyReportMediaCreated  QuarterlyPropertyReportMedia[] @relation("QuarterlyPropertyReportMediaCreator")
   mfRentDatasetReleasesImported        MfRentDatasetRelease[]         @relation("MfRentDatasetImporter")
   mfRentLocationsConfirmed             PropertyMfRentLocation[]       @relation("MfRentLocationConfirmer")
+  saleBenchmarkSnapshotsImported       SaleBenchmarkSnapshot[]        @relation("SaleBenchmarkImporter")
   propertyValuationsCreated            PropertyValuationSnapshot[]    @relation("PropertyValuationCreator")
   rentForecastPlansCreated             RentForecastPlan[]             @relation("RentForecastPlanCreator")
   rentForecastPlansApproved            RentForecastPlan[]             @relation("RentForecastPlanApprover")
@@ -1080,6 +1107,46 @@ model PropertyMfRentLocation {
   updatedAt        DateTime @updatedAt
 
   @@index([territoryCode])
+}
+
+model SaleBenchmarkSnapshot {
+  id                    String                      @id @default(cuid())
+  source                SaleBenchmarkSource
+  metric                SaleBenchmarkMetric
+  sourceLocalityType    String
+  sourceLocalityId      String
+  sourceLocalityName    String
+  sourceSeoName         String?
+  territoryCode         String
+  ruianCadastralCode    String?
+  cadastralName         String
+  municipalityName      String?
+  marketYear            Int
+  marketQuarter         Int
+  windowFrom            DateTime
+  windowTo              DateTime
+  pricePerSqmCents      BigInt
+  sampleCount           Int
+  confidence            SaleBenchmarkConfidence
+  mappingQuality        SaleBenchmarkMappingQuality
+  baselinePartial       Boolean                     @default(false)
+  acceptedSampleCount   Int?
+  rejectedSampleCount   Int                         @default(0)
+  rejectionSummary      Json?
+  sourceUrl             String?
+  rawHash               String
+  parserVersion         String
+  methodVersion         String
+  retrievedAt           DateTime
+  importedById          String?
+  importedBy            User?                       @relation("SaleBenchmarkImporter", fields: [importedById], references: [id], onDelete: SetNull)
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  @@unique([source, metric, sourceLocalityType, sourceLocalityId, territoryCode, marketYear, marketQuarter])
+  @@index([territoryCode, marketYear, marketQuarter])
+  @@index([source, metric, retrievedAt])
+  @@index([mappingQuality, confidence])
 }
 
 model Unit {

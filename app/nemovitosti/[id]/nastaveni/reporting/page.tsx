@@ -2,7 +2,7 @@ import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
+import { requireUser, hasAllPropertyAccess, canSeeAll } from "@/lib/auth";
 import { requirePropertyAccess } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { Shell } from "@/components/Shell";
@@ -11,6 +11,8 @@ import { Flash } from "@/components/FormUi";
 import { manualBaselineSnapshotDataSchema } from "@/lib/reporting/snapshot-schema";
 import { resolvePropertyMfRentBenchmarks } from "@/lib/reporting/mf-rent/service";
 import { searchMfRentTerritories } from "@/lib/reporting/mf-rent/location-service";
+import { date, money } from "@/lib/format";
+import { loadPropertySaleBenchmark, saleBenchmarkConfidenceLabels, saleBenchmarkMetrics, saleBenchmarkSources } from "@/lib/reporting/sale-benchmark";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,7 @@ export default async function ReportingSettingsPage({
   const now = new Date();
   const mf = await resolvePropertyMfRentBenchmarks({ propertyId: id, targetYear: now.getUTCFullYear(), targetQuarter: Math.floor(now.getUTCMonth() / 3) + 1, cutoff: now });
   const mfCandidates = query.mfSearch ? await searchMfRentTerritories(query.mfSearch, property.city, 25) : [];
+  const sale = await loadPropertySaleBenchmark(id);
 
   return <Shell user={user} taskPropertyId={id}>
     <div className="page">
@@ -72,6 +75,15 @@ export default async function ReportingSettingsPage({
           <button className="secondary" type="submit">Vyhledat</button>
         </form>
         {mfCandidates.length > 0 && <div className="stack-list">{mfCandidates.map((candidate) => <form key={candidate.territoryCode} action={`/api/properties/${id}/mf-rent/location`} method="post" className="inline-edit-card"><input type="hidden" name="territoryCode" value={candidate.territoryCode}/><div className="rule-summary"><div><strong>{candidate.territoryName}</strong><small>{candidate.municipalityName} · {candidate.territoryCode}</small></div><button className="secondary" type="submit">Přiřadit</button></div></form>)}</div>}
+      </section>
+
+      <section id="prodejni-benchmark" className="card portfolio-table-card">
+        <div className="card-head"><div><h2>Orientační prodejní benchmark</h2><p className="muted-copy">Stejné katastrální přiřazení jako MF, samostatné řady realizovaných a nabídkových cen. Automatický benchmark nikdy sám nepřepisuje valuaci.</p></div>{user.role==="SUPER_ADMIN"&&<Link className="secondary" href="/nastaveni/cenovy-benchmark">Správa dat</Link>}</div>
+        {!sale?.territoryCode?<div className="notice"><strong>Chybí územní přiřazení</strong><span>Nejprve potvrďte katastrální území v cenové mapě MF výše.</span></div>:!sale.realized&&!sale.offer?<div className="notice"><strong>Pro {sale.territoryName||sale.territoryCode} zatím nejsou data</strong><span>Chybějící benchmark není nula. Super-admin může načíst auditovaný kvartální snapshot.</span></div>:<>
+          <div className="stat-grid v21-stat-grid"><div className="card stat"><div><span>Realizované ceny</span><strong>{sale.realized?`${money(Number(sale.realized.pricePerSqmCents))}/m²`:"—"}</strong><small>{sale.realized?`${sale.realized.marketYear} Q${sale.realized.marketQuarter} · ${sale.realized.sampleCount} transakcí · ${saleBenchmarkConfidenceLabels[sale.realized.confidence]}`:"Nedostatek dat"}</small></div></div><div className="card stat"><div><span>Nabídkový puls</span><strong>{sale.offer?`${money(Number(sale.offer.pricePerSqmCents))}/m²`:"—"}</strong><small>{sale.offer?`${sale.offer.marketYear} Q${sale.offer.marketQuarter} · ${sale.offer.sampleCount} nabídek · ${saleBenchmarkConfidenceLabels[sale.offer.confidence]}`:"Nedostatek dat"}</small></div></div><div className="card stat"><div><span>Orientační hodnota bytů</span><strong>{sale.benchmarkValueCents==null?"—":money(sale.benchmarkValueCents)}</strong><small>pokrytí {sale.coveredUnits}/{sale.totalUnits} aktivních bytů</small></div></div><div className="card stat"><div><span>Mezikvartální trend</span><strong>{sale.qoqBps==null?"—":`${sale.qoqBps>=0?"+":""}${(sale.qoqBps/100).toLocaleString("cs-CZ",{maximumFractionDigits:2})} %`}</strong><small>realizovaná řada, bez prognózy</small></div></div></div>
+          {sale.realized&&<><div className="table-toolbar"><div><h3>Jednotky podle benchmarku</h3><p>Relevantní plocha × realizovaný benchmark. Potvrzení vytvoří nový stav historie; původní valuaci nemaže.</p></div></div><div className="table-wrap"><table><thead><tr><th>Jednotka</th><th>Plocha</th><th>Orientační hodnota</th><th>Podklad</th><th></th></tr></thead><tbody>{sale.unitRows.map(unit=><tr key={unit.id}><td><strong>{unit.label}</strong></td><td>{unit.areaM2?`${unit.areaM2.toLocaleString("cs-CZ")} m²`:"—"}</td><td>{unit.benchmarkValueCents==null?"—":money(unit.benchmarkValueCents)}</td><td>{saleBenchmarkSources[sale.realized!.source]}<span className="owner-sub">{saleBenchmarkMetrics[sale.realized!.metric]} · okno {date(sale.realized!.windowFrom)}–{date(sale.realized!.windowTo)}</span></td><td>{corporateHistory&&canSeeAll(user.role)&&unit.benchmarkValueCents?<form action={`/api/properties/${id}/sale-benchmark/accept-unit`} method="post"><input type="hidden" name="unitId" value={unit.id}/><input type="hidden" name="snapshotId" value={sale.realized!.id}/><label className="checkbox-field"><input name="confirm" type="checkbox" required/><span>Potvrdit</span></label><button className="secondary" type="submit">Uložit valuaci</button></form>:"—"}</td></tr>)}</tbody></table></div></>}
+          {sale.trend.length>0&&<div className="benchmark-trend-list"><h3>Historie realizovaného benchmarku</h3><div className="summary-list">{sale.trend.map(point=><div key={`${point.year}-${point.quarter}`}><span>{point.year} Q{point.quarter} · {point.sampleCount} vzorků</span><strong>{money(point.pricePerSqmCents)}/m²</strong></div>)}</div></div>}
+        </>}
       </section>
 
       {corporateHistory && <section id="historie" className="card">
