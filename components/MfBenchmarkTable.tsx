@@ -67,7 +67,7 @@ export function MfBenchmarkTable({ properties, units, datasetAvailable = true }:
     event.preventDefault();
     toggle(propertyId);
   }
-  return <div className="card portfolio-table-card report-table-card mf-benchmark-table"><div className="table-toolbar"><h2>MF benchmark podle nemovitostí</h2></div><div className="table-wrap"><table><thead><tr>{["Nemovitost", "Území MF", "Pokryté jednotky", "Pokrytí plochy", "Skutečnost Kč/m²", "MF Kč/m²", "Nájem / trh", "Potenciál / měsíc"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{properties.length ? properties.map((property) => {
+  return <div className="card portfolio-table-card report-table-card mf-benchmark-table"><div className="table-toolbar"><h2>MF benchmark podle nemovitostí <span className="mf-benchmark-heading-note">- cenový benchmark na základě sběrných dat Ministerstva financí ČR</span></h2></div><div className="table-wrap"><table><thead><tr>{["Nemovitost", "Území MF", "Pokryté jednotky", "Pokrytí plochy", "Skutečnost Kč/m²", "MF Kč/m²", "Nájem / trh", "Potenciál / měsíc"].map((header) => <th key={header}>{header}</th>)}</tr></thead><tbody>{properties.length ? properties.map((property) => {
     const isExpanded = expanded.has(property.propertyId);
     const propertyUnits = units.filter((unit) => unit.propertyId === property.propertyId);
     const detailsId = `mf-property-${property.propertyId}`;
