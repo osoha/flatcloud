@@ -25,7 +25,7 @@ test("P02 general thread isolates participants and preserves collaborator/watche
 });
 
 test("P02 general task expands explicit audience groups and lists FlatCloud team first",async({page})=>{
-  const creator=await db.user.findFirstOrThrow({where:{role:"SUPER_ADMIN",active:true}});
+  const creator=await db.user.findUniqueOrThrow({where:{email:R24_ROLE_USERS.distributionLead}});
   const title=`${marker} audience ${randomUUID()}`;
   await login(page,creator.email);await page.goto("/ukoly/novy");
   const collaborators=page.getByLabel("Spoluřešitelé");
