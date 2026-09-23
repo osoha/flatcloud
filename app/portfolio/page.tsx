@@ -49,13 +49,14 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   const propertyIds = activeProperties.map((property)=>property.id);
   const propertyWideIds = fullAccess ? propertyIds : activeProperties.filter((property)=>property.memberships.some((m)=>m.userId===user.id)).map((property)=>property.id);
   const visibleUnitIds = activeProperties.flatMap((property)=>property.units.map((unit)=>unit.id));
-  const taskScope = { AND: [taskAccessWhere(user), selection.mode === "ALL" ? {} : { OR: [{ propertyId: { in: propertyIds } }, { propertyId: null }] }] };
+  const taskScope = fullAccess ? { propertyId: { in: propertyIds } } : taskAccessWhere(user);
+  const taskVisibilityScope = { AND: [taskAccessWhere(user), selection.mode === "ALL" ? (fullAccess ? { OR: [taskScope, { propertyId: null }] } : {}) : { OR: [{ propertyId: { in: propertyIds } }, { propertyId: null }] }] };
   const revisionScope = fullAccess ? { propertyId: { in: propertyIds } } : { propertyId: { in: propertyWideIds } };
   const revisionHorizon = new Date(Date.now()+60*86_400_000);
 
   const [rawTasks, taskCount, announcements, revisions, revisionCount, overdueRevisionCount] = await Promise.all([
-    prisma.task.findMany({ where: { AND: [taskScope, { status: { in: openTaskStatuses } }, { NOT: { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } }] }, include: { property: true, assignee: true, userStates: { where: { userId: user.id } } }, take:60 }),
-    prisma.task.count({ where: { AND: [taskScope, { status: { in: openTaskStatuses } }] } }),
+    prisma.task.findMany({ where: { AND: [taskVisibilityScope, { status: { in: openTaskStatuses } }, { NOT: { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } }] }, include: { property: true, assignee: true, userStates: { where: { userId: user.id } } }, take:60 }),
+    prisma.task.count({ where: { AND: [taskVisibilityScope, { status: { in: openTaskStatuses } }] } }),
     prisma.announcement.findMany({ where: { AND: [activeAnnouncementWhere(user), { NOT: { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } }] }, orderBy: [{ severity: "desc" }, { startsAt: "desc" }], take:10 }),
     prisma.complianceItem.findMany({ where: { ...revisionScope, active:true, nextDueAt:{lte:revisionHorizon} }, include:{property:true}, orderBy:{nextDueAt:"asc"}, take:30 }),
     prisma.complianceItem.count({ where: { ...revisionScope, active:true, nextDueAt:{lte:revisionHorizon} } }),
