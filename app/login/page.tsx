@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { PREVIEW_COOKIE } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
+import Link from "next/link";
 export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const params = await searchParams;
   const preview = (await cookies()).has(PREVIEW_COOKIE);
@@ -16,7 +17,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
           <div className="field"><label htmlFor="login-password">Heslo</label><input id="login-password" name="password" type="password" autoComplete="current-password" required /></div>
           <button className="primary" type="submit">Přihlásit se</button>
         </form>}
-        <div className="demo-note">Přístupové údaje nastavuje administrátor při prvním nasazení.</div>
+        {process.env.PUBLIC_REGISTRATION_ENABLED === "true" ? <p className="demo-note"><Link href="/registrace">Jsem vlastník – vytvořit účet</Link></p> : <div className="demo-note">Přístupové údaje nastavuje administrátor při prvním nasazení.</div>}
       </div>
     </main>
   );

@@ -41,7 +41,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const user = preview ? context.actor! : contentUser;
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
-  const canAddProperty = canSeeAll(user.role);
+  const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");
   const taskWhere = taskAccessWhere(user);
   const revisionWhere = fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } };
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);

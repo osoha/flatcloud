@@ -15,7 +15,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { TaskThreadComposer } from "@/components/TaskThreadComposer";
 import { documentAccessWhere } from "@/lib/documents/access";
 import { DocumentAttachments } from "@/components/documents/DocumentAttachments";
-import { canEditTask, taskEntryVisibilityWhere } from "@/lib/task-access";
+import { canEditTask, taskEntryVisibilityWhere,taskParticipantWhere,authoritativeTaskUnitId } from "@/lib/task-access";
 import { TaskReadMarker } from "@/components/TaskReadMarker";
 import { TaskAttachments } from "@/components/TaskAttachments";
 
@@ -33,7 +33,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   if(property&&!propertyWide&&(!task.unitId||!property.units.some((unit)=>unit.id===task.unitId)))notFound();
   const canManage=await canEditTask(user,task);
   const [documents,taskAttachments]=await Promise.all([task.propertyId?prisma.document.findMany({where:{AND:[documentAccessWhere(user),{taskId:id}]},orderBy:{createdAt:"desc"},include:{fileAsset:true,property:{select:{name:true}},unit:{select:{label:true}},lease:{select:{contractNumber:true}},task:{select:{title:true}},complianceRecord:{select:{id:true}}}}):Promise.resolve([]),!task.propertyId?prisma.taskAttachment.findMany({where:{taskId:id},orderBy:{createdAt:"desc"},include:{fileAsset:true}}):Promise.resolve([])]);
-  const managers=canManage?await prisma.user.findMany({where:task.propertyId?{active:true,OR:[{allProperties:true},{role:{in:["SUPER_ADMIN","MANAGER"]}},{memberships:{some:{propertyId:task.propertyId,permission:{in:["EDIT","ADMIN"]}}}}]}:{active:true},select:{id:true,name:true,role:true,flatcloudMember:true}}):[];
+  const managers=canManage?await prisma.user.findMany({where:task.propertyId?taskParticipantWhere(task.propertyId,authoritativeTaskUnitId(task)):{active:true},select:{id:true,name:true,role:true,flatcloudMember:true}}):[];
   managers.sort((a,b)=>Number(b.role==="SUPER_ADMIN"||b.flatcloudMember)-Number(a.role==="SUPER_ADMIN"||a.flatcloudMember)||a.name.localeCompare(b.name,"cs"));
   const debt=task.lease?.charges.reduce((sum,charge)=>sum+overdueDebtCents(charge),0)??0;
   const latestPromise=task.entries.find((entry)=>entry.kind==="PROMISE");

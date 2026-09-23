@@ -121,7 +121,7 @@ export async function loadPortfolioSaleBenchmarks(propertyIds:string[]){
   const ids=[...new Set(propertyIds)].filter(Boolean);if(!ids.length)return [];
   const properties=await prisma.property.findMany({where:{id:{in:ids}},select:{id:true,name:true,mfRentLocation:{select:{territoryCode:true,territoryName:true}},units:{where:{type:"APARTMENT",operationalStatus:{not:"INACTIVE"}},select:{id:true,label:true,areaM2:true}}}});
   const territoryCodes=[...new Set(properties.map(property=>property.mfRentLocation?.territoryCode).filter((value):value is string=>Boolean(value)))];
-  const snapshots=territoryCodes.length?await prisma.saleBenchmarkSnapshot.findMany({where:{territoryCode:{in:territoryCodes},mappingQuality:{not:"UNMAPPED"}},orderBy:[{marketYear:"desc"},{marketQuarter:"desc"},{retrievedAt:"desc"}]}):[];
+  const snapshots=territoryCodes.length?await prisma.saleBenchmarkSnapshot.findMany({where:{territoryCode:{in:territoryCodes},mappingQuality:{not:"UNMAPPED"},source:{not:"MANUAL_REFERENCE"}},orderBy:[{marketYear:"desc"},{marketQuarter:"desc"},{retrievedAt:"desc"}]}):[];
   return properties.map(property=>propertyBenchmark(property,snapshots.filter(snapshot=>snapshot.territoryCode===property.mfRentLocation?.territoryCode)));
 }
 
