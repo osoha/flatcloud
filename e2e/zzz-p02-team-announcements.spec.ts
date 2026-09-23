@@ -24,6 +24,23 @@ test("P02 general thread isolates participants and preserves collaborator/watche
   const outsiderPage=await browser.newPage();await login(outsiderPage,outsider.email);const denied=await outsiderPage.goto(`/ukoly/${task.id}`);expect(denied?.status()).toBe(404);
 });
 
+test("P02 general task expands explicit audience groups and lists FlatCloud team first",async({page})=>{
+  const creator=await db.user.findUniqueOrThrow({where:{email:R24_ROLE_USERS.distributionLead}});
+  const title=`${marker} audience ${randomUUID()}`;
+  await login(page,creator.email);await page.goto("/ukoly/novy");
+  const collaborators=page.getByLabel("Spoluřešitelé");
+  await expect(collaborators.locator("optgroup").first()).toHaveAttribute("label","Tým FlatCloud");
+  await expect(collaborators.locator('optgroup[label="Ostatní uživatelé"]')).toHaveCount(1);
+  await page.getByLabel("Název *").fill(title);
+  await page.getByLabel("Všichni členové týmu FlatCloud").check();
+  await page.getByRole("button",{name:"Vytvořit úkol"}).click();
+  await expect(page.getByText("Úkol byl vytvořen.")).toBeVisible();
+  const task=await db.task.findFirstOrThrow({where:{title},include:{members:true}});
+  const expected=await db.user.findMany({where:{active:true,id:{not:creator.id},OR:[{flatcloudMember:true},{role:"SUPER_ADMIN"}]},select:{id:true}});
+  expect(new Set(task.members.map(member=>member.userId))).toEqual(new Set(expected.map(person=>person.id)));
+  expect(task.members.every(member=>member.role==="WATCHER")).toBe(true);
+});
+
 test("P02 favorite and dashboard dismissal are personal and reversible",async({page})=>{
   const actor=await db.user.findUniqueOrThrow({where:{email:R24_ROLE_USERS.internalAssistant}}),creator=await db.user.findFirstOrThrow({where:{role:"SUPER_ADMIN",active:true}});
   const task=await db.task.create({data:{title:`${marker} personal ${randomUUID()}`,category:"GENERAL",createdById:creator.id,members:{create:{userId:actor.id,role:"COLLABORATOR"}}}});

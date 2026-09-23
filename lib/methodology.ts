@@ -76,7 +76,8 @@ export const methodologyChapters: MethodologyChapter[] = [
     summary: "Jak vést auditované pracovní vlákno, cílit provozní sdělení a přitom neplést osobní skrytí se stavem společného úkolu.",
     audience: "Všichni uživatelé; správci a super-administrátor",
     steps: [
-      "Obecný týmový úkol použijte pro postřehy z testování nebo práci napříč portfoliem. Určete odpovědného, spoluřešitele a sledující; do vlákna lze přikládat screenshoty a dokumenty.",
+      "Obecný týmový úkol použijte pro postřehy z testování nebo práci napříč portfoliem. Určete odpovědného, spoluřešitele a sledující; publikum lze při založení rozšířit na všechny aktivní uživatele, tým FlatCloud nebo všechny správce.",
+      "Skupinová volba přidává její současné členy jako sledující. Nepřiřazuje jim odpovědnost ani sama neposílá e-mail; konkrétní spoluřešitel má před sledujícím přednost.",
       "Oblíbená hvězdička, stav přečtení a volba Už nezobrazovat jsou osobní. Nemění stav úkolu ani zobrazení ostatních lidí; skrytý úkol lze obnovit ve filtru Skryté.",
       "Úkol uzavírejte až závěrečným záznamem. Historie komentářů, změn účastníků a znovuotevření zůstává dohledatelná.",
       "Oznámení vytváří super-administrátor pro všechny, členy FlatCloud, roli, nemovitost nebo jednotlivce. Trvalé oznámení nemá datum konce; dočasnému nastavte exspiraci.",

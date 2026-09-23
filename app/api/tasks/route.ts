@@ -4,7 +4,7 @@ import { dateValue, text } from "@/lib/forms";
 import { hasPropertyPermission } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { prepareDocumentFiles,documentCategory } from "@/lib/documents/upload";
-import { DocumentPhotoStage } from "@prisma/client";
+import { DocumentPhotoStage, UserRole, type Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepareDocumentBatch, storePreparedDocumentBatch } from "@/lib/documents/batch-service";
 import { cleanupTaskAttachments, createTaskAttachmentsInTransaction, storeTaskAttachments } from "@/lib/task-attachments";
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     const tenantId = text(form, "tenantId");
     const collaboratorIds = form.getAll("collaboratorIds").filter((value): value is string => typeof value === "string" && Boolean(value));
     const watcherIds = form.getAll("watcherIds").filter((value): value is string => typeof value === "string" && Boolean(value) && !collaboratorIds.includes(value));
+    const audienceKinds = [form.get("audienceAllUsers") === "on" ? "ALL_USERS" : null, form.get("audienceFlatcloudMembers") === "on" ? "FLATCLOUD_MEMBERS" : null, form.get("audienceManagers") === "on" ? "MANAGERS" : null].filter((value): value is string => Boolean(value));
     let resolvedUnitId = unitId;
     let resolvedTenantId = tenantId;
     if (categoryRaw === "COLLECTION" && !leaseId) throw new Error("Upomínkový případ musí být navázaný na konkrétní smlouvu.");
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
     if (!priorities.has(priorityRaw)) throw new Error("Neplatná priorita úkolu.");
 
     if (!propertyId && (unitId || leaseId || tenantId)) throw new Error("Obecný úkol nelze navázat na jednotku, smlouvu ani nájemníka.");
+    if (propertyId && (collaboratorIds.length || watcherIds.length || audienceKinds.length)) throw new Error("Týmové účastníky lze při založení přidat pouze k obecnému úkolu.");
     if (unitId) {
       const unit = await prisma.unit.findFirst({ where: { id: unitId, propertyId }, select: { id: true } });
       if (!unit) throw new Error("Vybraná jednotka nepatří k této nemovitosti.");
@@ -80,7 +82,18 @@ export async function POST(request: Request) {
       if (!assignee) throw new Error("Vybraný řešitel nemá přístup k této nemovitosti.");
     }
 
-    const memberIds = [...new Set([...collaboratorIds, ...watcherIds])].filter((id) => id !== user.id && id !== assigneeId);
+    let audienceUserIds:string[]=[];
+    if (!propertyId&&audienceKinds.length) {
+      const audienceWhere:Prisma.UserWhereInput={active:true};
+      if(!audienceKinds.includes("ALL_USERS"))audienceWhere.OR=[
+        ...(audienceKinds.includes("FLATCLOUD_MEMBERS")?[{flatcloudMember:true},{role:UserRole.SUPER_ADMIN}]:[]),
+        ...(audienceKinds.includes("MANAGERS")?[{role:{in:[UserRole.SUPER_ADMIN,UserRole.MANAGER,UserRole.PROPERTY_MANAGER]}}]:[]),
+      ];
+      const audienceUsers=await prisma.user.findMany({where:audienceWhere,select:{id:true}});
+      audienceUserIds=audienceUsers.map(person=>person.id);
+    }
+    const resolvedWatcherIds=[...new Set([...watcherIds,...audienceUserIds])].filter(id=>!collaboratorIds.includes(id));
+    const memberIds = [...new Set([...collaboratorIds, ...resolvedWatcherIds])].filter((id) => id !== user.id && id !== assigneeId);
     if (memberIds.length) {
       const activeMembers = await prisma.user.count({ where: { id: { in: memberIds }, active: true } });
       if (activeMembers !== memberIds.length) throw new Error("Některý vybraný účastník není aktivní.");
@@ -108,14 +121,14 @@ export async function POST(request: Request) {
         tenantId: resolvedTenantId || undefined,
         members: { create: [
           ...collaboratorIds.filter((id) => memberIds.includes(id)).map((userId) => ({ userId, role: "COLLABORATOR" as const })),
-          ...watcherIds.filter((id) => memberIds.includes(id)).map((userId) => ({ userId, role: "WATCHER" as const })),
+          ...resolvedWatcherIds.filter((id) => memberIds.includes(id)).map((userId) => ({ userId, role: "WATCHER" as const })),
         ] },
         entries: { create: { authorId: user.id, kind: "SYSTEM", body: "Úkol byl založen." } },
       },
     });
     await createStoredDocumentsInTransaction(tx,storedBatch);
     if(taskAttachmentBatch)await createTaskAttachmentsInTransaction(tx,taskAttachmentBatch,task.id);
-    await tx.auditLog.create({data:{userId:user.id,propertyId:propertyId||null,action:"TASK_CREATED",entityType:"Task",entityId:task.id,details:{title,category:categoryRaw,priority:priorityRaw,memberIds,attachmentCount:preparedFiles.length}}});
+    await tx.auditLog.create({data:{userId:user.id,propertyId:propertyId||null,action:"TASK_CREATED",entityType:"Task",entityId:task.id,details:{title,category:categoryRaw,priority:priorityRaw,memberIds,audienceKinds,attachmentCount:preparedFiles.length}}});
     return task;});}catch(error){await cleanupStoredDocumentBatch(storedBatch);if(taskAttachmentBatch)await cleanupTaskAttachments(taskAttachmentBatch);throw error;}
     return goWithMessage(request, `/ukoly/${created.id}`, "ok", "Úkol byl vytvořen.");
   } catch (error) {

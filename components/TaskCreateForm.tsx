@@ -4,11 +4,18 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 
 type Manager = { id: string; name: string };
+type Person = Manager & { role: string; flatcloudMember: boolean };
 type Lease = { id: string; tenantId: string; tenantName: string; contractNumber: string | null; status: string };
 type Unit = { id: string; label: string; leases: Lease[] };
 type PropertyOption = { id: string; name: string; managerId: string | null; managers: Manager[]; units: Unit[] };
 
-export function TaskCreateForm({ properties, people = [], allowGeneral = false, initialPropertyId = "", initialLeaseId = "" }: { properties: PropertyOption[]; people?: Manager[]; allowGeneral?: boolean; initialPropertyId?: string; initialLeaseId?: string }) {
+function PersonOptions({people}:{people:Person[]}) {
+  const team=people.filter(person=>person.role==="SUPER_ADMIN"||person.flatcloudMember);
+  const others=people.filter(person=>person.role!=="SUPER_ADMIN"&&!person.flatcloudMember);
+  return <>{team.length>0&&<optgroup label="Tým FlatCloud">{team.map(person=><option value={person.id} key={person.id}>{person.name}</option>)}</optgroup>}{others.length>0&&<optgroup label="Ostatní uživatelé">{others.map(person=><option value={person.id} key={person.id}>{person.name}</option>)}</optgroup>}</>;
+}
+
+export function TaskCreateForm({ properties, people = [], allowGeneral = false, initialPropertyId = "", initialLeaseId = "" }: { properties: PropertyOption[]; people?: Person[]; allowGeneral?: boolean; initialPropertyId?: string; initialLeaseId?: string }) {
   const initialProperty = properties.find((property) => property.id === initialPropertyId);
   const initialLease = initialProperty?.units.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unitId: unit.id }))).find((lease) => lease.id === initialLeaseId);
   const [propertyId, setPropertyId] = useState(initialProperty?.id || "");
@@ -41,8 +48,8 @@ export function TaskCreateForm({ properties, people = [], allowGeneral = false, 
       <label className="field"><span>{category === "COLLECTION" ? "Smlouva / nájemník *" : "Smlouva / nájemník"}</span><select aria-label={category === "COLLECTION" ? "Smlouva / nájemník *" : "Smlouva / nájemník"} name="leaseId" value={leaseId} onChange={(event) => changeLease(event.target.value)} required={category === "COLLECTION"}><option value="">Bez vazby na smlouvu</option>{leases.filter((lease) => !unitId || lease.unitId === unitId).map((lease) => <option key={lease.id} value={lease.id}>{lease.unitLabel} · {lease.tenantName}{lease.contractNumber ? ` · ${lease.contractNumber}` : ""}</option>)}</select>{category === "COLLECTION" && <small>Upomínkový případ musí být navázaný na konkrétní smlouvu, aby ukazoval aktuální dluh a mohl se po úhradě automaticky uzavřít.</small>}</label>
       <input type="hidden" name="tenantId" value={selectedLease?.tenantId || ""}/>
       <label className="field"><span>Priorita</span><select name="priority" defaultValue="NORMAL"><option value="LOW">Nízká</option><option value="NORMAL">Běžná</option><option value="HIGH">Vysoká</option><option value="URGENT">Urgentní</option></select></label>
-      <label className="field"><span>Odpovědný</span><select key={property?.id || "general"} name="assigneeId" defaultValue={property?.managerId || ""} disabled={!property && !allowGeneral}><option value="">Nepřiřazen</option>{(property?.managers||people).map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}</select></label>
-      {allowGeneral&&<><label className="field"><span>Spoluřešitelé</span><select name="collaboratorIds" multiple size={Math.min(5,Math.max(2,people.length))}>{people.map((person)=><option value={person.id} key={person.id}>{person.name}</option>)}</select><small>Mohou psát do vlákna a upravovat obecný úkol.</small></label><label className="field"><span>Sledující</span><select name="watcherIds" multiple size={Math.min(5,Math.max(2,people.length))}>{people.map((person)=><option value={person.id} key={person.id}>{person.name}</option>)}</select><small>Vidí průběh, ale úkol neupravují.</small></label></>}
+      <label className="field"><span>Odpovědný</span><select key={property?.id || "general"} name="assigneeId" defaultValue={property?.managerId || ""} disabled={!property && !allowGeneral}><option value="">Nepřiřazen</option>{property?property.managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>):<PersonOptions people={people}/>}</select></label>
+      {allowGeneral&&!property&&<><fieldset className="field field-full announcement-audience task-audience"><legend>Zpřístupnit skupinám</legend><label><input type="checkbox" name="audienceAllUsers"/> Všichni aktivní uživatelé</label><label><input type="checkbox" name="audienceFlatcloudMembers"/> Všichni členové týmu FlatCloud</label><label><input type="checkbox" name="audienceManagers"/> Všichni správci</label><small>Členové vybraných skupin se při založení přidají jako sledující. Nejde o přiřazení odpovědnosti ani o odeslání e-mailu.</small></fieldset><label className="field"><span>Spoluřešitelé</span><select name="collaboratorIds" multiple size={Math.min(7,Math.max(3,people.length))}><PersonOptions people={people}/></select><small>Mohou psát do vlákna a upravovat obecný úkol.</small></label><label className="field"><span>Sledující</span><select name="watcherIds" multiple size={Math.min(7,Math.max(3,people.length))}><PersonOptions people={people}/></select><small>Vidí průběh, ale úkol neupravují.</small></label></>}
       <label className="field"><span>Termín</span><input name="dueAt" type="date"/></label>
       <label className="field field-full"><span>Popis / zadání</span><textarea name="description" rows={4} placeholder="Co je potřeba vyřešit, jaký je další krok a případně co už proběhlo."/></label>
       <label className="field field-full"><span>Přílohy / fotografie</span><input name="files" type="file" multiple/><small>Nejvýše 10 souborů.{property?" Fotografie závady se označí jako stav před opravou.":" Vhodné také pro screenshoty z testování."}</small></label>
