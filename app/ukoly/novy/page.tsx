@@ -22,7 +22,8 @@ export default async function NewTaskPage({ searchParams }: { searchParams: Prom
     },
   });
   const globalManagers = await prisma.user.findMany({ where: { active: true, OR: [{ allProperties: true }, { role: { in: ["SUPER_ADMIN", "MANAGER"] } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } });
-  const people = (["SUPER_ADMIN", "MANAGER"] as string[]).includes(user.role) ? await prisma.user.findMany({ where: { active: true, id: { not: user.id } }, select: { id: true, name: true }, orderBy: { name: "asc" } }) : [];
+  const people = (["SUPER_ADMIN", "MANAGER"] as string[]).includes(user.role) ? await prisma.user.findMany({ where: { active: true, id: { not: user.id } }, select: { id: true, name: true, role: true, flatcloudMember: true } }) : [];
+  people.sort((a,b)=>Number(b.role==="SUPER_ADMIN"||b.flatcloudMember)-Number(a.role==="SUPER_ADMIN"||a.flatcloudMember)||a.name.localeCompare(b.name,"cs"));
   const options = properties.map((property) => {
     const managerMap = new Map(globalManagers.map((manager) => [manager.id, manager]));
     if (property.manager) managerMap.set(property.manager.id, property.manager);

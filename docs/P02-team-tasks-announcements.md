@@ -8,6 +8,9 @@ P02 přidává obecná týmová vlákna bez povinné vazby na nemovitost, cílen
 
 - obecný úkol může založit `SUPER_ADMIN` nebo `MANAGER`;
 - role ve vlákně jsou odpovědný, spoluřešitel a sledující;
+- při založení lze jedním zaškrtnutím přidat jako sledující všechny aktivní uživatele, členy týmu FlatCloud nebo všechny správce; překryvy se deduplikují a výslovný spoluřešitel má přednost;
+- skupinová volba je bezpečný snímek aktivních členů v okamžiku založení, nikoli dynamická distribuční skupina ani automatický e-mail;
+- výběry konkrétních osob řadí tým FlatCloud před ostatní uživatele a v každé skupině abecedně;
 - tvůrce, odpovědný a spoluřešitel mohou zapisovat, sledující pouze čte;
 - přílohy obecných vláken používají `TaskAttachment` a soukromé úložiště `99_Interní/Týmové úkoly`; přílohy objektových úkolů zůstávají v evidenci dokumentů nemovitosti;
 - oblíbenost, skrytí z dashboardu a poslední přečtení jsou osobní stav `TaskUserState` a nemění společný stav úkolu;
