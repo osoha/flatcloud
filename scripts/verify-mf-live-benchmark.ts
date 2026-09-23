@@ -199,8 +199,11 @@ check("live report is read-only and shows period, coverage and source provenance
   assert.doesNotMatch(page, /<details className="card quality-panel" open=/);
   assert.ok(page.includes("<MfBenchmarkTable"));
   const drilldown = read("components/MfBenchmarkTable.tsx");
-  for (const token of ["aria-expanded", "mf-unit-drilldown", "Kategorie MF", "Potenciál / měsíc", "Volná", "Obsazená", "Doplnit dispozici"])
+  for (const token of ["aria-expanded", "mf-unit-drilldown", "Kategorie MF", "Potenciál / měsíc", "Volná", "Obsazená", "Doplnit dispozici", "- cenový benchmark na základě sběrných dat Ministerstva financí ČR"])
     assert.ok(drilldown.includes(token), token);
+  const flatberryCss = read("app/flatberry.css");
+  assert.match(flatberryCss, /input\[type="file"\]::file-selector-button/);
+  assert.match(flatberryCss, /attention-dismiss-button/);
   assert.ok(liveService.includes("const mfUnits = reportingUnits.map"));
   assert.ok(liveService.includes('operational.status === "STANDARD"'));
   assert.doesNotMatch(read("lib/reporting/mf-rent/live-benchmark.ts"), /servicesCents|charge|update\(|create\(|delete\(/);

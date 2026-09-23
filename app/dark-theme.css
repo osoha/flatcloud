@@ -475,6 +475,9 @@ html[data-theme="dark"] .flatberry-shell .topbar{background:#192536}
 html[data-theme="dark"] .flatberry-shell .global-search{background:#202e42;color:#a9b9cf}
 html[data-theme="dark"] .flatberry-shell .secondary{background:#192536;color:#a9b9cf;border:1px solid #34445c}
 html[data-theme="dark"] .flatberry-shell .secondary:hover{background:#192536;border-color:#34445c}
+html[data-theme="dark"] .flatberry-shell input[type="file"]{background:#192536;color:#a9b9cf;border-color:#34445c}
+html[data-theme="dark"] .flatberry-shell input[type="file"]::file-selector-button{background:#202e42;color:#c9d5e7;border-color:#3f5270}
+html[data-theme="dark"] .flatberry-shell input[type="file"]::file-selector-button:hover{background:#263750;color:#8cb6f7;border-color:#5876a0}
 html[data-theme="dark"] .flatberry-shell .card{background:#192536}
 html[data-theme="dark"] .flatberry-shell :is(.page-title,.property-header,.unit-hero){background:#192536}
 html[data-theme="dark"] .flatberry-shell h1.flatberry-page-heading{color:#e3ebf8}
@@ -482,6 +485,7 @@ html[data-theme="dark"] .flatberry-shell .flatberry-page-heading>.flatberry-head
 html[data-theme="dark"] .flatberry-shell :is(.page-title,.property-header) p{color:#a9b9cf}
 html[data-theme="dark"] .flatberry-shell .breadcrumb{color:#a9b9cf}
 html[data-theme="dark"] .flatberry-shell h2{color:#8cb6f7}
+html[data-theme="dark"] .flatberry-shell .mf-benchmark-heading-note{color:#a9b9cf}
 html[data-theme="dark"] .flatberry-shell :is(.muted-copy,.owner-sub,.table-toolbar p){color:#a9b9cf}
 html[data-theme="dark"] .flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){border:1px solid #34445c;border-top:3px solid #34445c;background:#192536}
 html[data-theme="dark"] .flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{color:#a9b9cf}
