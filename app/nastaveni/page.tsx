@@ -1,7 +1,7 @@
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, CheckCircle2, Database, HardDrive, Mail, Settings2, ShieldCheck, Users } from "lucide-react";
+import { BarChart3, CheckCircle2, Database, HardDrive, Mail, Megaphone, Settings2, ShieldCheck, Users } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { AdminSubnav } from "@/components/admin/AdminSubnav";
 import { requireUser } from "@/lib/auth";
@@ -39,6 +39,8 @@ export default async function AdminOverviewPage() {
       <Module icon={<Settings2/>} title="Integrace a automatizace" text="Bankovní schránka, Drive, SMTP, upomínky a zdroje dat." href="/nastaveni/system" cta="Spravovat nastavení"/>
       <Module icon={<BarChart3/>} title="Reporting" text={`${templates} šablon · skupiny, verzované šablony a publikované výstupy.`} href="/reporty/sablony" cta="Otevřít reporting"/>
       <Module icon={<Users/>} title="Uživatelé a přístupy" text={`${activeUsers} aktivních uživatelů · role, pozvánky a oprávnění.`} href="/uzivatele" cta="Spravovat uživatele"/>
+      <Module icon={<Megaphone/>} title="Oznámení" text="Globální a místní sdělení, časová platnost a cílové skupiny." href="/nastaveni/oznameni" cta="Spravovat oznámení"/>
+      <Module icon={<CheckCircle2/>} title="Automatické úkoly" text="Globální katalog spouštěčů, předstihy a místní výjimky objektů." href="/nastaveni/automaticke-ukoly" cta="Spravovat automatizace"/>
       <Module icon={<Database/>} title="Data a importy" text="Cenová mapa MF a stav posledního načtení zdrojových dat." href="/nastaveni/system" cta="Otevřít datové zdroje"/>
       <Module icon={<ShieldCheck/>} title="Audit a údržba" text="Bezpečné ruční kontroly, retenční úlohy a provozní diagnostika." href="/nastaveni/system" cta="Otevřít údržbu"/>
       <Module icon={<HardDrive/>} title="Dokumenty" text="Centrální katalog dokumentů a kontrola uložených podkladů." href="/dokumenty" cta="Otevřít dokumenty"/>

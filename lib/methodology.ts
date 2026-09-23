@@ -70,6 +70,38 @@ export const methodologyGuides: MethodologyGuide[] = [
 
 export const methodologyChapters: MethodologyChapter[] = [
   {
+    slug: "tymova-prace-a-oznameni",
+    category: "Začínáme",
+    title: "Týmové úkoly, oznámení a osobní pracovní plocha",
+    summary: "Jak vést auditované pracovní vlákno, cílit provozní sdělení a přitom neplést osobní skrytí se stavem společného úkolu.",
+    audience: "Všichni uživatelé; správci a super-administrátor",
+    steps: [
+      "Obecný týmový úkol použijte pro postřehy z testování nebo práci napříč portfoliem. Určete odpovědného, spoluřešitele a sledující; do vlákna lze přikládat screenshoty a dokumenty.",
+      "Oblíbená hvězdička, stav přečtení a volba Už nezobrazovat jsou osobní. Nemění stav úkolu ani zobrazení ostatních lidí; skrytý úkol lze obnovit ve filtru Skryté.",
+      "Úkol uzavírejte až závěrečným záznamem. Historie komentářů, změn účastníků a znovuotevření zůstává dohledatelná.",
+      "Oznámení vytváří super-administrátor pro všechny, členy FlatCloud, roli, nemovitost nebo jednotlivce. Trvalé oznámení nemá datum konce; dočasnému nastavte exspiraci.",
+      "Skrytí oznámení je opět jen osobní. Aktivní i skrytá sdělení jsou dostupná v sekci Oznámení, odkud je lze vrátit na hlavní stránku.",
+    ],
+    check: "Každé vlákno má jasného vlastníka a účastníky, osobní skrytí nezměnilo společný stav a oznámení vidí jen zamýšlené publikum.",
+    href: "/ukoly",
+  },
+  {
+    slug: "automaticke-ukoly",
+    category: "Provoz",
+    title: "Automatické úkoly a lokální výjimky",
+    summary: "Centrální katalog událostí s bezpečným globálním řízením, nastavením po objektech a ochranou proti duplicitám.",
+    audience: "Super-administrátor a správce nemovitosti",
+    steps: [
+      "Super-administrátor v Nastavení určuje globální zapnutí, předstih, prioritu a výchozí chování pravidla. Nové katalogové události zůstávají vypnuté, dokud pro ně není hotový datový zdroj.",
+      "Správce v nastavení nemovitosti volí Zdědit, Zapnout nebo Vypnout. Lokální volba se uplatní po globálním povolení pravidla; vypnuté globální pravidlo lokální výjimka nespustí.",
+      "Aktivní první sada sleduje výročí nájmu, blížící se konec a evidované ukončení. Plánovač vytváří jen dnešní nebo budoucí události, takže po nasazení nevznikne historická lavina.",
+      "Každá událost má stabilní deduplikační klíč. Opakovaný běh plánovače proto nevytvoří druhý úkol pro stejnou smlouvu, pravidlo a datum.",
+      "Po změně nastavení použijte náhled kandidátů; ruční Spustit kontrolu používá stejná pravidla jako hodinový plánovač.",
+    ],
+    check: "Náhled odpovídá globálním a lokálním volbám, opakovaný běh nevytváří duplicity a nové pravidlo se aktivuje až vědomým rozhodnutím.",
+    href: "/nastaveni/automaticke-ukoly",
+  },
+  {
     slug: "osobni-vzhled-portfolia",
     category: "Začínáme",
     title: "Oblíbené objekty, fotografie a vlastní barvy",

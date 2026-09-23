@@ -3,6 +3,8 @@ import Link from "next/link";
 const items = [
   { key: "overview", href: "/nastaveni", label: "Přehled" },
   { key: "system", href: "/nastaveni/system", label: "Integrace a automatizace" },
+  { key: "announcements", href: "/nastaveni/oznameni", label: "Oznámení" },
+  { key: "automation", href: "/nastaveni/automaticke-ukoly", label: "Automatické úkoly" },
   { key: "reporting", href: "/reporty/sablony", label: "Reporting" },
   { key: "users", href: "/uzivatele", label: "Uživatelé" },
 ] as const;
