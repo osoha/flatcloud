@@ -488,7 +488,11 @@ async function main() {
     () => {
       assert.equal(
         hash("lib/documents/service.ts"),
-        "b5ac5edd49891ba3dbaf6d93540086367d3f837fe9e8b905c98b65fcd0737c76",
+        "c28743c196b549b243ee23d9967b5ec65400e17da34897ed31d6d3ebd1949f52",
+      );
+      assert.match(
+        read("lib/documents/service.ts"),
+        /General team tasks cannot own property documents/,
       );
       assert.equal(
         hash("lib/documents/access.ts"),
