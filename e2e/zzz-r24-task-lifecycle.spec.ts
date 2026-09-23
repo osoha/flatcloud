@@ -81,11 +81,11 @@ test("R24 souběh příslibu a uzavření nezanechá znovuotevřený hotový př
 
 test("R24 CAPEX nepřijme příslib ani obecné znovuotevření", async ({ page }) => {
   const task = await setup(page, "DONE");
-  const unit = await db.unit.findFirstOrThrow({ where: { propertyId: task.propertyId } });
+  const unit = await db.unit.findFirstOrThrow({ where: { propertyId: task.propertyId! } });
   const assessment = await db.unitConditionAssessment.create({ data: { unitId: unit.id, rating: "B_GOOD", investmentUrgency: "MONITOR", assessedAt: new Date(), createdById: task.createdById! } });
-  const cost = await db.propertyCost.create({ data: { propertyId: task.propertyId, title: "R24 CAPEX fixture", kind: "CAPEX", amountCents: 10000, effectiveAt: new Date() } });
-  const budget = await db.propertyBudgetLine.create({ data: { propertyId: task.propertyId, year: 2026, kind: "CAPEX", title: "R24 CAPEX fixture", amountCents: 10000 } });
-  await db.unitConditionPlanExecution.create({ data: { taskId: task.id, propertyId: task.propertyId, propertyCostId: cost.id, budgetLineId: budget.id, assessmentId: assessment.id, createdById: task.createdById! } });
+  const cost = await db.propertyCost.create({ data: { propertyId: task.propertyId!, title: "R24 CAPEX fixture", kind: "CAPEX", amountCents: 10000, effectiveAt: new Date() } });
+  const budget = await db.propertyBudgetLine.create({ data: { propertyId: task.propertyId!, year: 2026, kind: "CAPEX", title: "R24 CAPEX fixture", amountCents: 10000 } });
+  await db.unitConditionPlanExecution.create({ data: { taskId: task.id, propertyId: task.propertyId!, propertyCostId: cost.id, budgetLineId: budget.id, assessmentId: assessment.id, createdById: task.createdById! } });
   expect((await post(page, `/api/tasks/${task.id}/reopen`, { form: { reason: "R24 CAPEX reopen", expectedStatus: "DONE", expectedUpdatedAt: task.updatedAt.toISOString() } })).get("error")).toContain("Stav CAPEX");
   expect((await post(page, `/api/tasks/${task.id}/entries`, { form: { kind: "PROMISE", body: "R24 CAPEX promise", promiseDate: "2026-09-15", promiseAmount: "100" } })).get("error")).toContain("Příslib nelze přidat");
   const result = await db.task.findUniqueOrThrow({ where: { id: task.id }, include: { entries: true } });

@@ -7,6 +7,7 @@ import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepare
 import { authoritativeTaskUnitId, canEditTask, parseTaskEntryVisibility } from "@/lib/task-access";
 import { randomUUID } from "node:crypto";
 import { serializableTransaction } from "@/lib/serializable";
+import { cleanupTaskAttachments, createTaskAttachmentsInTransaction, storeTaskAttachments } from "@/lib/task-attachments";
 
 const kinds = new Set(["COMMENT", "CALL", "EMAIL", "PROMISE", "STATUS", "SYSTEM"]);
 
@@ -35,10 +36,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (promiseAmountRaw && (!promiseAmountCents || promiseAmountCents <= 0)) throw new Error("Přislíbená částka musí být vyšší než 0 Kč.");
 
     const entryId=randomUUID(),unitId=authoritativeTaskUnitId(task);
-    const documentInputs=preparedFiles.map(file=>({propertyId:task.propertyId,unitId:unitId||undefined,leaseId:task.leaseId||undefined,taskId:id,taskEntryId:entryId,...file,category:documentCategory(null,file),title:file.originalName}));
-    const documentScope=unitId?{mode:"UNIT" as const,propertyId:task.propertyId,unitId}:{mode:"PROPERTY" as const,propertyId:task.propertyId};
+    const documentInputs=task.propertyId?preparedFiles.map(file=>({propertyId:task.propertyId!,unitId:unitId||undefined,leaseId:task.leaseId||undefined,taskId:id,taskEntryId:entryId,...file,category:documentCategory(null,file),title:file.originalName})):[];
+    const documentScope=unitId?{mode:"UNIT" as const,propertyId:task.propertyId!,unitId}:{mode:"PROPERTY" as const,propertyId:task.propertyId!};
     const preparedBatch=await prepareDocumentBatch(user,documentInputs,documentInputs.map(()=>documentScope));
     const storedBatch=await storePreparedDocumentBatch(preparedBatch);
+    const taskAttachmentBatch=!task.propertyId&&preparedFiles.length?await storeTaskAttachments(user,preparedFiles):null;
     try{await serializableTransaction(async tx=>{
     if (kindRaw === "PROMISE") {
       const claim = await tx.task.updateMany({ where: { id, status: { notIn: ["DONE", "CANCELLED"] }, conditionPlanExecution: { is: null } }, data: { status: "WAITING", closedAt: null, ...(promiseDate && visibility === "OWNER_VISIBLE" ? { dueAt: promiseDate } : {}) } });
@@ -55,12 +57,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         promisedAmountCents: kindRaw === "PROMISE" ? promiseAmountCents : null,
       },
     });
+    await tx.task.update({ where: { id }, data: { updatedAt: new Date() } });
     if (kindRaw === "PROMISE") {
       if (task.leaseId && visibility === "OWNER_VISIBLE") await tx.lease.update({ where: { id: task.leaseId }, data: { promisedPaymentDate: promiseDate, promisedAmountCents: promiseAmountCents && promiseAmountCents > 0 ? promiseAmountCents : null, collectionNote: body } });
     }
     await createStoredDocumentsInTransaction(tx,storedBatch);
-    await tx.auditLog.create({data:{userId:user.id,propertyId:task.propertyId,action:"TASK_ENTRY_ADDED",entityType:"TaskEntry",entityId:entry.id,details:{taskId:id,kind:kindRaw,visibility,promiseDate:promiseDate?.toISOString(),promiseAmountCents}}});
-    });}catch(error){await cleanupStoredDocumentBatch(storedBatch);throw error;}
+    if(taskAttachmentBatch)await createTaskAttachmentsInTransaction(tx,taskAttachmentBatch,id,entry.id);
+    await tx.auditLog.create({data:{userId:user.id,propertyId:task.propertyId,action:"TASK_ENTRY_ADDED",entityType:"TaskEntry",entityId:entry.id,details:{taskId:id,kind:kindRaw,visibility,promiseDate:promiseDate?.toISOString(),promiseAmountCents,attachmentCount:preparedFiles.length}}});
+    });}catch(error){await cleanupStoredDocumentBatch(storedBatch);if(taskAttachmentBatch)await cleanupTaskAttachments(taskAttachmentBatch);throw error;}
     return goWithMessage(request, `/ukoly/${id}`, "ok", "Záznam byl přidán do vlákna.");
   } catch (error) {
     return goWithMessage(request, `/ukoly/${id}`, "error", error instanceof Error ? error.message : "Záznam se nepodařilo přidat.");

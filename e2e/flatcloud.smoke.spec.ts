@@ -109,7 +109,7 @@ test("R28 sidebar skupiny a kompaktní rail nemají mrtvé ovládací prvky", as
   await expect(page.locator("html")).toHaveClass(/fc-sidebar-collapsed/);
   await expect(operations.locator(".nav-group-toggle")).toBeHidden();
   await expect(finance.locator(".nav-group-toggle")).toBeHidden();
-  await expect(sidebar.getByTitle("Úkoly")).toBeVisible();
+  await expect(sidebar.getByTitle("Úkoly", { exact: true })).toBeVisible();
   await expect(sidebar.getByTitle("Předpisy")).toBeVisible();
 });
 
@@ -1001,7 +1001,7 @@ test("administrátor vytvoří úkol přes skutečný formulář", async ({ page
   const taskTitle = "V23-A automatický smoke úkol";
   await login(page);
   await page.goto("/ukoly/novy");
-  await page.getByLabel("Nemovitost *").selectOption({ label: "Moskevská" });
+  await page.getByLabel("Kontext úkolu *").selectOption({ label: "Moskevská" });
   await page.getByLabel("Kategorie *").selectOption("GENERAL");
   await page.getByLabel("Název *").fill(taskTitle);
   await page.getByLabel("Popis / zadání").fill("Deterministický zápis vytvořený browser-smoke testem V23-A.");

@@ -5,6 +5,7 @@ import { runRentNotifications } from "../lib/rent-notifications";
 import { runChargeAutomation } from "../lib/charge-automation";
 import { syncLifecycleCaches } from "../lib/lease-lifecycle";
 import { syncMfRentDatasets } from "../lib/reporting/mf-rent/service";
+import { runTaskAutomation } from "../lib/task-automation";
 
 type StepResult = { name: string; status: "ok" | "skipped" | "failed"; summary: string };
 
@@ -58,6 +59,14 @@ async function main() {
     steps.push({ name: "notifications", status: "ok", summary: notifications.summary });
   } catch (error) {
     steps.push({ name: "notifications", status: "failed", summary: messageOf(error) });
+    hardFailure = true;
+  }
+
+  try {
+    const tasks = await runTaskAutomation();
+    steps.push({ name: "task-automation", status: "ok", summary: tasks.summary });
+  } catch (error) {
+    steps.push({ name: "task-automation", status: "failed", summary: messageOf(error) });
     hardFailure = true;
   }
 

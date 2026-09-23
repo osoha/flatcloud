@@ -10,11 +10,11 @@ import { documentStoragePlacement } from "../storage/locations";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
 export type DocumentContext = { propertyId: string; unitId?: string; leaseId?: string; taskId?: string; taskEntryId?: string; complianceRecordId?: string; propertyCostId?: string };
-type ResolvedTask = { id: string; propertyId: string; unitId: string | null; leaseId: string | null; lease: { unitId: string } | null };
+type ResolvedTask = { id: string; propertyId: string | null; unitId: string | null; leaseId: string | null; lease: { unitId: string } | null };
 export type ResolvedDocumentContext = { unit?: { propertyId: string } | null; lease?: { unitId: string; unit: { propertyId: string } } | null; task?: ResolvedTask | null; entry?: { taskId: string; task: ResolvedTask } | null; record?: { complianceItem: { propertyId: string } } | null; cost?: { propertyId: string; unitId: string | null } | null };
 export type AuthoritativeDocumentScope = { mode: "PROPERTY"; propertyId: string } | { mode: "UNIT"; propertyId: string; unitId: string };
 
-function taskScope(task: ResolvedTask): AuthoritativeDocumentScope { if (task.unitId && task.lease?.unitId && task.unitId !== task.lease.unitId) throw new Error("Document task has inconsistent unit and lease parents."); const unitId = task.unitId || task.lease?.unitId; return unitId ? { mode: "UNIT", propertyId: task.propertyId, unitId } : { mode: "PROPERTY", propertyId: task.propertyId }; }
+function taskScope(task: ResolvedTask): AuthoritativeDocumentScope { if (!task.propertyId) throw new Error("General team tasks cannot own property documents."); if (task.unitId && task.lease?.unitId && task.unitId !== task.lease.unitId) throw new Error("Document task has inconsistent unit and lease parents."); const unitId = task.unitId || task.lease?.unitId; return unitId ? { mode: "UNIT", propertyId: task.propertyId, unitId } : { mode: "PROPERTY", propertyId: task.propertyId }; }
 function sameScope(a: AuthoritativeDocumentScope, b: AuthoritativeDocumentScope) { return a.mode === b.mode && a.propertyId === b.propertyId && (a.mode === "PROPERTY" || (b.mode === "UNIT" && a.unitId === b.unitId)); }
 
 /** Parent priority is task entry, task, compliance record, property cost, lease, unit, then bare property. Every supplied parent must resolve to that same scope. */

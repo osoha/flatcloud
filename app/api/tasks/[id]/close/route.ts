@@ -7,6 +7,7 @@ import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepare
 import { authoritativeTaskUnitId, canEditTask, parseTaskEntryVisibility } from "@/lib/task-access";
 import { serializableTransaction } from "@/lib/serializable";
 import { randomUUID } from "node:crypto";
+import { cleanupTaskAttachments, createTaskAttachmentsInTransaction, storeTaskAttachments } from "@/lib/task-attachments";
 
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){
   const user=await currentUser();if(!user)return new Response("Unauthorized",{status:401});
@@ -22,10 +23,11 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
     const visibility=parseTaskEntryVisibility(form);
     const hasFiles=form.getAll("files").some(value=>value instanceof File&&value.size>0),files=hasFiles?await prepareDocumentFiles(form):[];
     const entryId=randomUUID(),unitId=authoritativeTaskUnitId(task);
-    const documentInputs=files.map(file=>({propertyId:task.propertyId,unitId:unitId||undefined,leaseId:task.leaseId||undefined,taskId:id,taskEntryId:entryId,...file,category:documentCategory(null,file),photoStage:task.category==="MAINTENANCE"&&file.mimeType.startsWith("image/")?DocumentPhotoStage.AFTER:undefined,title:file.originalName}));
-    const documentScope=unitId?{mode:"UNIT" as const,propertyId:task.propertyId,unitId}:{mode:"PROPERTY" as const,propertyId:task.propertyId};
+    const documentInputs=task.propertyId?files.map(file=>({propertyId:task.propertyId!,unitId:unitId||undefined,leaseId:task.leaseId||undefined,taskId:id,taskEntryId:entryId,...file,category:documentCategory(null,file),photoStage:task.category==="MAINTENANCE"&&file.mimeType.startsWith("image/")?DocumentPhotoStage.AFTER:undefined,title:file.originalName})):[];
+    const documentScope=unitId?{mode:"UNIT" as const,propertyId:task.propertyId!,unitId}:{mode:"PROPERTY" as const,propertyId:task.propertyId!};
     const stored=await storePreparedDocumentBatch(await prepareDocumentBatch(user,documentInputs,documentInputs.map(()=>documentScope)));
-    try{await serializableTransaction(async tx=>{const claim=await tx.task.updateMany({where:{id,status:{notIn:["DONE","CANCELLED"]}},data:{status:"DONE",closedAt:new Date()}});if(claim.count!==1)throw new Error("Úkol už byl mezitím uzavřen nebo zrušen.");const entry=await tx.taskEntry.create({data:{id:entryId,taskId:id,authorId:user.id,kind:"STATUS",body,visibility}});await createStoredDocumentsInTransaction(tx,stored);await tx.auditLog.create({data:{userId:user.id,propertyId:task.propertyId,action:"TASK_CLOSED",entityType:"Task",entityId:id,details:{entryId:entry.id,visibility,attachmentCount:files.length}}});});}catch(error){await cleanupStoredDocumentBatch(stored);throw error;}
+    const taskAttachmentBatch=!task.propertyId&&files.length?await storeTaskAttachments(user,files):null;
+    try{await serializableTransaction(async tx=>{const claim=await tx.task.updateMany({where:{id,status:{notIn:["DONE","CANCELLED"]}},data:{status:"DONE",closedAt:new Date()}});if(claim.count!==1)throw new Error("Úkol už byl mezitím uzavřen nebo zrušen.");const entry=await tx.taskEntry.create({data:{id:entryId,taskId:id,authorId:user.id,kind:"STATUS",body,visibility}});await createStoredDocumentsInTransaction(tx,stored);if(taskAttachmentBatch)await createTaskAttachmentsInTransaction(tx,taskAttachmentBatch,id,entry.id);await tx.auditLog.create({data:{userId:user.id,propertyId:task.propertyId,action:"TASK_CLOSED",entityType:"Task",entityId:id,details:{entryId:entry.id,visibility,attachmentCount:files.length}}});});}catch(error){await cleanupStoredDocumentBatch(stored);if(taskAttachmentBatch)await cleanupTaskAttachments(taskAttachmentBatch);throw error;}
     return goWithMessage(request,`/ukoly/${id}`,"ok","Případ byl uzavřen.");
   }catch(error){return goWithMessage(request,`/ukoly/${id}`,"error",error instanceof Error?error.message:"Případ se nepodařilo uzavřít.")}
 }

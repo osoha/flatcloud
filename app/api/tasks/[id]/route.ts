@@ -35,12 +35,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         where: {
           id: assigneeId,
           active: true,
-          OR: [
+          OR: task.propertyId ? [
             { role: { in: ["SUPER_ADMIN", "MANAGER"] } },
             { allProperties: true },
             { memberships: { some: { propertyId: task.propertyId } } },
             { unitMemberships: { some: { unit: { propertyId: task.propertyId } } } },
-          ],
+          ] : undefined,
         },
         select: { id: true },
       });
