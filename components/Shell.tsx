@@ -120,6 +120,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>
           <Nav href="/nastaveni/oznameni" icon={<Megaphone size={17}/>} label="Správa oznámení"/>
           <Nav href="/nastaveni/automaticke-ukoly" icon={<ListChecks size={17}/>} label="Automatické úkoly"/>
+          <Nav href="/nastaveni/cenovy-benchmark" icon={<BarChart3 size={17}/>} label="Cenový benchmark"/>
           <Nav href="/dovednosti" icon={<Compass size={17}/>} label="Dovednosti"/>
           {operations && <AdminOperationsPanel initial={operations}/>}
         </CollapsibleNavGroup>}
