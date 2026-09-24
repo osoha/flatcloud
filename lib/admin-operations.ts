@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/db";
-import { ONLINE_WINDOW_MS } from "@/lib/user-activity-policy";
+import { prisma } from "./db";
+import { ONLINE_WINDOW_MS } from "./user-activity-policy";
 
 const DAY = 86_400_000;
 export async function loadSystemCounts(now = new Date()) {
