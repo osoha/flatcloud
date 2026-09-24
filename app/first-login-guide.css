@@ -1,0 +1,54 @@
+/* Approved guide C: clean speech card and cutout character, deliberately no halo. */
+[data-guide] { scroll-margin-top: 24px; }
+.first-guide { position: fixed; inset: 0; z-index: 1200; pointer-events: none; color: #172d52; }
+.guide-scrim { position: fixed; background: rgb(20 39 65 / 53%); pointer-events: auto; }
+.guide-spotlight { position: fixed; border: 2px solid #739eff; border-radius: 10px; box-shadow: 0 0 0 3px rgb(255 255 255 / 70%); pointer-events: none; }
+.guide-arrow { position: fixed; inset: 0; overflow: visible; color: #8bb2ff; pointer-events: none; }
+.guide-arrow > path { stroke-dasharray: 9 5; animation: guide-arrow-flow 1.8s linear infinite; }
+@keyframes guide-arrow-flow { to { stroke-dashoffset: -28; } }
+.guide-panel { position: fixed; bottom: max(28px, env(safe-area-inset-bottom)); right: max(28px, env(safe-area-inset-right)); width: min(750px, calc(100vw - 48px)); display: flex; align-items: flex-end; pointer-events: none; }
+.guide-character { width: 230px; height: 320px; flex: 0 0 230px; object-fit: contain; object-position: bottom; margin-right: -18px; z-index: 1; filter: none; background: none; border: 0; }
+.guide-bubble { position: relative; background: #fff; border: 2px solid #3575de; border-radius: 26px; padding: 28px; flex: 1; min-width: 0; box-shadow: 0 12px 36px rgb(12 30 60 / 16%); pointer-events: auto; max-height: calc(100dvh - 64px); overflow-y: auto; }
+.guide-panel::after { content: ""; position: absolute; left: 203px; top: 75px; z-index: 2; width: 18px; height: 18px; background: #fff; border-left: 2px solid #3575de; border-bottom: 2px solid #3575de; transform: rotate(45deg); }
+.guide-eyebrow { display: block; color: #526b8e; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin: 0 20px 12px 0; }
+.guide-bubble h2 { font-size: clamp(20px, 2vw, 26px); line-height: 1.25; color: inherit; margin: 0 0 13px; letter-spacing: -.025em; outline: none; }
+.guide-bubble p { color: inherit; font-size: 16px; line-height: 1.6; margin: 0 0 16px; }
+.guide-bubble .guide-hint { font-size: 12px; color: #60728b; line-height: 1.45; }
+.guide-close { position: absolute; right: 9px; top: 9px; width: 34px; height: 34px; border: 0; background: transparent; color: #526b8e; display: grid; place-items: center; cursor: pointer; border-radius: 8px; }
+.guide-progress { display: flex; justify-content: center; gap: 8px; margin: 19px 0; }
+.guide-progress span { width: 7px; height: 7px; background: #cfdaeb; border-radius: 50%; }
+.guide-progress span.current { background: #1967d9; width: 22px; border-radius: 5px; }
+.guide-progress span.done { background: #809ecd; }
+.guide-actions { display: flex; gap: 10px; }
+.guide-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: 12px; cursor: pointer; }
+.guide-actions .primary { flex: 1; background: #1967d9; color: #fff; border: 1px solid #1967d9; font-size: 15px; font-weight: 650; padding: 10px 14px; }
+.guide-actions .secondary { background: #f4f7fc; border: 1px solid #dce5f2; color: #26446d; padding: 10px 13px; }
+.guide-dismiss-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 18px; margin-top: 12px; }
+.guide-dismiss-actions button, .guide-link { border: 0; background: transparent; color: #436389; padding: 8px 3px; min-height: 36px; font-size: 12px; cursor: pointer; }
+.guide-dismiss-actions button:hover, .guide-link:hover { text-decoration: underline; }
+.first-guide button:disabled { opacity: .55; cursor: wait; }
+.first-guide button:focus-visible, .guide-resume button:focus-visible { outline: 3px solid #efae42; outline-offset: 3px; }
+.guide-resume { position: fixed; bottom: 20px; right: 20px; z-index: 80; display: flex; align-items: center; gap: 12px; max-width: min(680px, calc(100vw - 40px)); padding: 14px 18px; border: 1px solid #b7cae6; background: #fff; border-radius: 16px; box-shadow: 0 5px 24px rgb(15 40 75 / 12%); }
+.guide-resume strong, .guide-resume span { display: block; }
+.guide-resume span { font-size: 12px; color: #526b8e; margin-top: 3px; }
+.guide-launcher { display: inline-flex; align-items: center; gap: 8px; }
+.guide-error { background: #fff0ee; color: #8b2929; padding: 10px; font-size: 13px; border-radius: 8px; margin: 10px 0; }
+.guide-error button { display: block; border: 0; background: none; color: inherit; text-decoration: underline; padding: 8px 0; }
+[data-theme="dark"] .guide-bubble, [data-theme="dark"] .guide-resume { background: #182740; color: #eef4ff; border-color: #79a8ff; }
+[data-theme="dark"] .guide-panel::after { background: #182740; border-color: #79a8ff; }
+[data-theme="dark"] .guide-eyebrow, [data-theme="dark"] .guide-bubble .guide-hint, [data-theme="dark"] .guide-dismiss-actions button, [data-theme="dark"] .guide-close, [data-theme="dark"] .guide-resume span, [data-theme="dark"] .guide-link { color: #b9cde9; }
+@media (max-width: 699px) {
+  .guide-panel { width: calc(100vw - 24px); right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); display: block; }
+  .guide-character { position: absolute; width: 90px; height: 114px; left: 9px; top: -88px; margin: 0; object-position: top; z-index: 2; }
+  .guide-bubble { padding: 22px 20px 14px; border-radius: 20px; max-height: calc(100dvh - 150px); }
+  .guide-panel::after { display: none; }
+  .guide-eyebrow { padding-left: 77px; min-height: 20px; margin-bottom: 10px; font-size: 10px; }
+  .guide-bubble h2 { font-size: 21px; }
+  .guide-bubble p { font-size: 14px; line-height: 1.5; margin-bottom: 12px; }
+  .guide-progress { margin: 12px 0; }
+  .guide-dismiss-actions { margin-top: 4px; }
+  .guide-resume { bottom: 12px; right: 12px; max-width: calc(100vw - 24px); flex-wrap: wrap; gap: 8px; }
+  .guide-resume > div { flex: 1; }
+}
+@media (max-height: 540px) { .guide-character, .guide-panel::after { display: none; } .guide-panel { width: min(510px, calc(100vw - 24px)); bottom: 12px; } .guide-bubble { max-height: calc(100dvh - 24px); padding: 18px; } .guide-eyebrow { padding-left: 0; } }
+@media (prefers-reduced-motion: reduce) { .guide-arrow > path { animation: none; } }

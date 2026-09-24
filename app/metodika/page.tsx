@@ -1,3 +1,4 @@
+import { GuideLauncher } from "@/components/GuideLauncher";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
@@ -92,8 +93,9 @@ export default async function MethodologyPage({
               slovník a interní znalostní osnovy.
             </p>
           </div>
+          <GuideLauncher/>
         </div>
-        <nav className="methodology-hub" aria-label="Rozcestník metodiky">
+        <nav data-guide="help" className="methodology-hub" aria-label="Rozcestník metodiky">
           <Hub
             href="/metodika?view=guides"
             active={view === "guides"}
