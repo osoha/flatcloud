@@ -218,6 +218,11 @@ enum UnitValuationSource {
   TRANSACTION
 }
 
+enum PersonalValueKind {
+  LOCAL_MARKET_REFERENCE
+  OFFICIAL_APPRAISAL
+}
+
 enum SaleBenchmarkSource {
   SREALITY_PRICE_MAP
   SREALITY_LISTINGS
@@ -569,6 +574,8 @@ model User {
   unitConditionPlanExecutionsCreated   UnitConditionPlanExecution[]   @relation("UnitConditionPlanExecutionCreator")
   unitConditionExecutionEventsCreated  UnitConditionExecutionEvent[]  @relation("UnitConditionExecutionEventCreator")
   unitValuationsCreated                UnitValuationSnapshot[]        @relation("UnitValuationCreator")
+  personalValueCheckpoints             PersonalValueCheckpoint[]
+  personalOwner                        Owner?                          @relation("SelfRegisteredOwner")
   distributionProspectsCreated         DistributionProspect[]         @relation("DistributionProspectCreator")
   distributionOpportunitiesCreated     DistributionOpportunity[]      @relation("DistributionOpportunityCreator")
   distributionOpportunityEventsCreated DistributionOpportunityEvent[] @relation("DistributionOpportunityEventCreator")
@@ -585,6 +592,8 @@ model User {
 
 model Owner {
   id                                 String                      @id @default(cuid())
+  userId                             String?                     @unique
+  user                               User?                       @relation("SelfRegisteredOwner", fields: [userId], references: [id], onDelete: SetNull)
   name                               String
   type                               OwnerType                   @default(COMPANY)
   affiliation                        OwnerAffiliation            @default(UNCLASSIFIED)
@@ -606,6 +615,19 @@ model Owner {
   updatedAt                          DateTime                    @updatedAt
 
   @@index([affiliation])
+}
+
+/// Email verification before a public account becomes active.
+model RegistrationRequest {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  @@index([expiresAt])
 }
 
 model OwnerBankAccount {
@@ -650,6 +672,7 @@ model Property {
   ownershipMode                     PropertyOwnershipMode           @default(WHOLE_OBJECT)
   communicationOwnerId              String?
   communicationOwner                Owner?                          @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  selfManaged                       Boolean                         @default(false)
   managerId                         String?
   manager                           User?                           @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
   managementScope                   PropertyManagementScope         @default(FULL_MANAGEMENT)
@@ -1177,6 +1200,7 @@ model Unit {
   settlementAllocationRows  SettlementAllocationRow[]
   conditionAssessments      UnitConditionAssessment[]
   valuationSnapshots        UnitValuationSnapshot[]
+  personalValueCheckpoints  PersonalValueCheckpoint[]
   distributionOpportunities DistributionOpportunity[]
   ownershipPeriods          OwnershipPeriod[]
   createdAt                 DateTime                     @default(now())
@@ -1278,6 +1302,58 @@ model UnitValuationSnapshot {
 
   @@index([unitId, valuationDate])
   @@index([source, valuationDate])
+}
+
+/// User-owned estimate only. Never included in corporate distribution or shared benchmark queries.
+model PersonalValueCheckpoint {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unitId            String
+  unit              Unit              @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  kind              PersonalValueKind
+  valueCents        BigInt
+  pricePerSqmCents  BigInt?
+  asOfDate          DateTime
+  windowFrom        DateTime?
+  windowTo          DateTime?
+  transactionCount  Int?
+  sourceName        String
+  sourceUrl         String?
+  reference         String?
+  note              String?
+  createdAt         DateTime          @default(now())
+
+  @@index([userId, unitId, asOfDate])
+}
+
+/// Official ČSÚ apartment price index, shared across users. Never accepts user estimates.
+model CsuApartmentPriceIndex {
+  id              String   @id @default(cuid())
+  territoryCode   String
+  marketYear      Int
+  marketQuarter   Int
+  indexBasisPoints Int
+  sourceUpdatedAt DateTime
+  sourceHash      String
+  importedAt      DateTime @default(now())
+
+  @@unique([territoryCode, marketYear, marketQuarter])
+  @@index([marketYear, marketQuarter])
+}
+
+/// Official ČSÚ realized apartment average (CZK per square metre), by district/region/country.
+model CsuApartmentAverage {
+  id              String   @id @default(cuid())
+  territoryCode   String
+  sourcePeriod    String
+  pricePerSqmCents BigInt
+  sourceUpdatedAt DateTime
+  sourceHash      String
+  importedAt      DateTime @default(now())
+
+  @@unique([territoryCode, sourcePeriod])
+  @@index([territoryCode, sourcePeriod])
 }
 
 model DistributionProspect {

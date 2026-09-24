@@ -1,6 +1,6 @@
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { canEditTask } from "@/lib/task-access";
+import { canEditTask, taskParticipantWhere, authoritativeTaskUnitId } from "@/lib/task-access";
 import { go, goWithMessage } from "@/lib/route-response";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -18,12 +18,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } else {
     const role = String(form.get("role") || "COLLABORATOR");
     if (!["COLLABORATOR", "WATCHER"].includes(role)) return goWithMessage(request, `/ukoly/${id}`, "error", "Neplatná role účastníka.");
-    const target = await prisma.user.findFirst({ where: { id: userId, active: true, OR: task.propertyId ? [
-      { role: { in: ["SUPER_ADMIN", "MANAGER"] } },
-      { allProperties: true },
-      { memberships: { some: { propertyId: task.propertyId } } },
-      { unitMemberships: { some: { unit: { propertyId: task.propertyId } } } },
-    ] : undefined }, select: { id: true } });
+    const target = await prisma.user.findFirst({ where: { id:userId,...(task.propertyId?taskParticipantWhere(task.propertyId,authoritativeTaskUnitId(task)):{active:true}) }, select: { id: true } });
     if (!target) return goWithMessage(request, `/ukoly/${id}`, "error", task.propertyId ? "Uživatel nemá přístup k této nemovitosti." : "Uživatel není aktivní.");
     await prisma.taskMember.upsert({ where: { taskId_userId: { taskId: id, userId } }, create: { taskId: id, userId, role: role as "COLLABORATOR" | "WATCHER" }, update: { role: role as "COLLABORATOR" | "WATCHER" } });
   }

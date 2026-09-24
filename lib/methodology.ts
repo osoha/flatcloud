@@ -260,6 +260,22 @@ export const methodologyChapters: MethodologyChapter[] = [
     href: "/nastaveni/cenovy-benchmark",
   },
   {
+    slug: "osobni-oceneni-jednotky",
+    category: "Asset management",
+    title: "Osobní orientační hodnota a kontrolní ocenění jednotky",
+    summary: "Jak čtvrtletně zaznamenat vlastní tržní odhad a oddělit ho od oficiálního ocenění a plánovaného exitu.",
+    audience: "Vlastník a uživatel s přístupem k jednotce",
+    steps: [
+      "Na kartě jednotky otevřete Sreality, Reas nebo jiný zdroj ve vlastním prohlížeči; ověřte přesné území, zda jde o realizované či nabídkové ceny a jakou plochu průměr zahrnuje.",
+      "Při čtvrtletním zápisu uveďte datum odečtu, období trhu (například předchozí 3 nebo 12 měsíců), cenu za m², počet transakcí, zdrojový odkaz a případné omezení srovnatelnosti.",
+      "Dvanáctiměsíční klouzavé okno odečtené každé čtvrtletí není cena obchodů uskutečněných pouze v jednom čtvrtletí. Při malém počtu transakcí se údaj může výrazně měnit; výsledek je hrubý orientační odhad, nikoliv přesná cena vašeho bytu.",
+      "Bankovní nebo odborné ocenění zapište zvlášť jako datovaný checkpoint s identifikací podkladu. Zůstává poslední potvrzenou osobní hodnotou, dokud nezadáte nový checkpoint; pozdější mapový údaj jej automaticky nenahradí.",
+      "Osobní údaje vidíte jen vy; nepřepisují společný index ČSÚ, KPI jiných uživatelů ani ručně zadaný plánovaný exit v distribučních reportech FlatCloud.",
+    ],
+    check:"Zdroj, rozsah, stáří a nejistota jsou čitelné; orientační místní cena a kontrolní ocenění jsou dvě oddělené historie.",
+    href:"/portfolio",
+  },
+  {
     slug: "valuace-jednotek",
     category: "Asset management",
     title: "Valuace jednotek pro distribuci",

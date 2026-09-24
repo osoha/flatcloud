@@ -6,8 +6,8 @@ import Link from "next/link";
 type Manager = { id: string; name: string };
 type Person = Manager & { role: string; flatcloudMember: boolean };
 type Lease = { id: string; tenantId: string; tenantName: string; contractNumber: string | null; status: string };
-type Unit = { id: string; label: string; leases: Lease[] };
-type PropertyOption = { id: string; name: string; managerId: string | null; managers: Manager[]; units: Unit[] };
+type Unit = { id: string; label: string; members: Manager[]; leases: Lease[] };
+type PropertyOption = { id: string; name: string; managerId: string | null; managers: Manager[]; members: Manager[]; units: Unit[] };
 
 function PersonOptions({people}:{people:Person[]}) {
   const team=people.filter(person=>person.role==="SUPER_ADMIN"||person.flatcloudMember);
@@ -25,6 +25,7 @@ export function TaskCreateForm({ properties, people = [], allowGeneral = false, 
   const property = properties.find((item) => item.id === propertyId);
   const leases = useMemo(() => property?.units.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unitId: unit.id, unitLabel: unit.label }))) || [], [property]);
   const selectedLease = leases.find((lease) => lease.id === leaseId);
+  const availableMembers=property?[...new Map([...property.members,...(unitId?property.units.find(unit=>unit.id===unitId)?.members||[]:[])].map(person=>[person.id,person])).values()]:[];
 
   function changeProperty(next: string) {
     setPropertyId(next);
@@ -49,7 +50,7 @@ export function TaskCreateForm({ properties, people = [], allowGeneral = false, 
       <input type="hidden" name="tenantId" value={selectedLease?.tenantId || ""}/>
       <label className="field"><span>Priorita</span><select name="priority" defaultValue="NORMAL"><option value="LOW">Nízká</option><option value="NORMAL">Běžná</option><option value="HIGH">Vysoká</option><option value="URGENT">Urgentní</option></select></label>
       <label className="field"><span>Odpovědný</span><select key={property?.id || "general"} name="assigneeId" defaultValue={property?.managerId || ""} disabled={!property && !allowGeneral}><option value="">Nepřiřazen</option>{property?property.managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>):<PersonOptions people={people}/>}</select></label>
-      {allowGeneral&&!property&&<><fieldset className="field field-full announcement-audience task-audience"><legend>Zpřístupnit skupinám</legend><label><input type="checkbox" name="audienceAllUsers"/> Všichni aktivní uživatelé</label><label><input type="checkbox" name="audienceFlatcloudMembers"/> Všichni členové týmu FlatCloud</label><label><input type="checkbox" name="audienceManagers"/> Všichni správci</label><small>Členové vybraných skupin se při založení přidají jako sledující. Nejde o přiřazení odpovědnosti ani o odeslání e-mailu.</small></fieldset><label className="field"><span>Spoluřešitelé</span><select name="collaboratorIds" multiple size={Math.min(7,Math.max(3,people.length))}><PersonOptions people={people}/></select><small>Mohou psát do vlákna a upravovat obecný úkol.</small></label><label className="field"><span>Sledující</span><select name="watcherIds" multiple size={Math.min(7,Math.max(3,people.length))}><PersonOptions people={people}/></select><small>Vidí průběh, ale úkol neupravují.</small></label></>}
+      {(property||allowGeneral)&&<>{!property&&<fieldset className="field field-full announcement-audience task-audience"><legend>Zpřístupnit skupinám</legend><label><input type="checkbox" name="audienceAllUsers"/> Všichni aktivní uživatelé</label><label><input type="checkbox" name="audienceFlatcloudMembers"/> Všichni členové týmu FlatCloud</label><label><input type="checkbox" name="audienceManagers"/> Všichni správci</label><small>Členové vybraných skupin se při založení přidají jako sledující. Nejde o přiřazení odpovědnosti ani o odeslání e-mailu.</small></fieldset>}<label className="field"><span>Spoluřešitelé</span><select key={`${propertyId}:${unitId}:collaborators`} name="collaboratorIds" multiple size={Math.min(7,Math.max(3,property?availableMembers.length:people.length))}>{property?availableMembers.map(person=><option key={person.id} value={person.id}>{person.name}</option>):<PersonOptions people={people}/>}</select><small>Účastníci musí mít přístup k příslušnému domu nebo jednotce.</small></label><label className="field"><span>Sledující</span><select key={`${propertyId}:${unitId}:watchers`} name="watcherIds" multiple size={Math.min(7,Math.max(3,property?availableMembers.length:people.length))}>{property?availableMembers.map(person=><option key={person.id} value={person.id}>{person.name}</option>):<PersonOptions people={people}/>}</select><small>Vidí průběh úkolu ve svém přístupovém rozsahu.</small></label></>}
       <label className="field"><span>Termín</span><input name="dueAt" type="date"/></label>
       <label className="field field-full"><span>Popis / zadání</span><textarea name="description" rows={4} placeholder="Co je potřeba vyřešit, jaký je další krok a případně co už proběhlo."/></label>
       <label className="field field-full"><span>Přílohy / fotografie</span><input name="files" type="file" multiple/><small>Nejvýše 10 souborů.{property?" Fotografie závady se označí jako stav před opravou.":" Vhodné také pro screenshoty z testování."}</small></label>

@@ -1,7 +1,6 @@
 import { PropertyPermission } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePropertyAdmin, audit } from "@/lib/management";
-import { canSeeAll } from "@/lib/auth";
 import { go, goWithMessage } from "@/lib/route-response";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; userId: string }> }) {
@@ -12,14 +11,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const form = await request.formData();
     const mode = String(form.get("mode") || "save");
     if (mode === "remove") {
-      if (!canSeeAll(access.user.role) && userId === access.user.id) throw new Error("Nemůžete odebrat vlastní administrátorský přístup.");
+      if (userId === access.user.id) throw new Error("Nemůžete odebrat vlastní administrátorský přístup.");
       await prisma.userProperty.delete({ where: { userId_propertyId: { userId, propertyId: id } } });
       await audit(access.user.id, "PROPERTY_ACCESS_REMOVED", "UserProperty", `${userId}:${id}`, { propertyId: id, userId }, id);
       return goWithMessage(request, `/nemovitosti/${id}/uzivatele`, "ok", "Přístup uživatele byl odebrán.");
     }
     const raw = String(form.get("permission") || "VIEW") as PropertyPermission;
-    let selected = Object.values(PropertyPermission).includes(raw) ? raw : PropertyPermission.VIEW;
-    if (!canSeeAll(access.user.role) && selected === PropertyPermission.ADMIN) selected = PropertyPermission.EDIT;
+    const selected = Object.values(PropertyPermission).includes(raw) ? raw : PropertyPermission.VIEW;
+    if (userId === access.user.id && selected !== PropertyPermission.ADMIN) throw new Error("Nemůžete snížit vlastní administrátorské oprávnění.");
     await prisma.userProperty.update({ where: { userId_propertyId: { userId, propertyId: id } }, data: { permission: selected } });
     await audit(access.user.id, "PROPERTY_ACCESS_UPDATED", "UserProperty", `${userId}:${id}`, { propertyId: id, userId, permission: selected }, id);
     return goWithMessage(request, `/nemovitosti/${id}/uzivatele`, "ok", "Oprávnění bylo změněno.");

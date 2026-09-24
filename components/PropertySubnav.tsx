@@ -29,5 +29,5 @@ const unitSections = [
 
 export function PropertySubnav({ propertyId, active, unitLimited=false }: { propertyId: string; active: string; unitLimited?: boolean }) {
   const sections=unitLimited?unitSections:fullSections;
-  return <nav className="section-nav v21-section-nav property-subnav">{sections.map(([slug,label])=><Link className={active===slug?"active":""} key={slug} href={`/nemovitosti/${propertyId}/${slug}`}><span>{label}</span></Link>)}</nav>;
+  return <nav className="section-nav v21-section-nav property-subnav">{sections.map(([slug,label])=><Link className={(active===slug||(active==="uzivatele"&&slug==="nastaveni"))?"active":""} key={slug} href={`/nemovitosti/${propertyId}/${slug}`}><span>{label}</span></Link>)}</nav>;
 }

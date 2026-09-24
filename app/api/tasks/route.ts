@@ -8,6 +8,7 @@ import { DocumentPhotoStage, UserRole, type Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepareDocumentBatch, storePreparedDocumentBatch } from "@/lib/documents/batch-service";
 import { cleanupTaskAttachments, createTaskAttachmentsInTransaction, storeTaskAttachments } from "@/lib/task-attachments";
+import { taskParticipantWhere } from "@/lib/task-access";
 
 const categories = new Set(["COLLECTION", "MAINTENANCE", "LEASE", "COMPLIANCE", "GENERAL"]);
 const priorities = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     if (!priorities.has(priorityRaw)) throw new Error("Neplatná priorita úkolu.");
 
     if (!propertyId && (unitId || leaseId || tenantId)) throw new Error("Obecný úkol nelze navázat na jednotku, smlouvu ani nájemníka.");
-    if (propertyId && (collaboratorIds.length || watcherIds.length || audienceKinds.length)) throw new Error("Týmové účastníky lze při založení přidat pouze k obecnému úkolu.");
+    if (propertyId && audienceKinds.length) throw new Error("Skupinové publikum není dostupné u úkolu nemovitosti.");
     if (unitId) {
       const unit = await prisma.unit.findFirst({ where: { id: unitId, propertyId }, select: { id: true } });
       if (!unit) throw new Error("Vybraná jednotka nepatří k této nemovitosti.");
@@ -65,18 +66,10 @@ export async function POST(request: Request) {
       const tenantInProperty = await prisma.lease.findFirst({ where: { tenantId, unit: { propertyId } }, select: { id: true } });
       if (!tenantInProperty) throw new Error("Vybraný nájemník nemá v této nemovitosti evidovanou smlouvu.");
     }
+    const participantScope=propertyId?taskParticipantWhere(propertyId,resolvedUnitId||null):null;
     if (assigneeId) {
       const assignee = await prisma.user.findFirst({
-        where: {
-          id: assigneeId,
-          active: true,
-          OR: propertyId ? [
-            { role: { in: ["SUPER_ADMIN", "MANAGER"] } },
-            { allProperties: true },
-            { memberships: { some: { propertyId } } },
-            { unitMemberships: { some: { unit: { propertyId } } } },
-          ] : undefined,
-        },
+        where: {id:assigneeId,...(participantScope||{active:true})},
         select: { id: true },
       });
       if (!assignee) throw new Error("Vybraný řešitel nemá přístup k této nemovitosti.");
@@ -95,7 +88,7 @@ export async function POST(request: Request) {
     const resolvedWatcherIds=[...new Set([...watcherIds,...audienceUserIds])].filter(id=>!collaboratorIds.includes(id));
     const memberIds = [...new Set([...collaboratorIds, ...resolvedWatcherIds])].filter((id) => id !== user.id && id !== assigneeId);
     if (memberIds.length) {
-      const activeMembers = await prisma.user.count({ where: { id: { in: memberIds }, active: true } });
+      const activeMembers = await prisma.user.count({ where: { id: { in: memberIds }, ...(participantScope||{active:true}) } });
       if (activeMembers !== memberIds.length) throw new Error("Některý vybraný účastník není aktivní.");
     }
 

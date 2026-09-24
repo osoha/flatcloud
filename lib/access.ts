@@ -85,11 +85,10 @@ export function leaseAccessWhere(user:{id:string;role:string;allProperties?:bool
 export function taskAccessWhere(user: { id: string; role: string; allProperties?: boolean }): Prisma.TaskWhereInput {
   if (hasAllPropertyAccess(user)) return {};
   return { OR: [
-    { createdById: user.id },
-    { assigneeId: user.id },
-    { members: { some: { userId: user.id } } },
+    { propertyId: null, OR: [{ createdById: user.id }, { assigneeId: user.id }, { members: { some: { userId: user.id } } }] },
     { property: { memberships: { some: { userId: user.id } } } },
     { unit: { userAccesses: { some: { userId: user.id } } } },
+    { unitId: null, lease: { unit: { userAccesses: { some: { userId: user.id } } } } },
   ] };
 }
 
