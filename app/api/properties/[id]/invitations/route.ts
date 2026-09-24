@@ -1,3 +1,4 @@
+import { collaboratorScope } from "@/lib/collaborator-search";
 import { PropertyPermission, UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requirePropertyAdmin, audit } from "@/lib/management";
@@ -13,8 +14,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!access) return go(request, "/login");
   try {
     const form = await request.formData();
-    const email = String(form.get("email") || "").trim().toLowerCase();
-    const name = String(form.get("name") || "").trim() || null;
+    let email = String(form.get("email") || "").trim().toLowerCase();
+    let name = String(form.get("name") || "").trim() || null;
+    const selectedId=String(form.get("existingUserId")||"");
+    if(selectedId){
+      const selected=await prisma.user.findFirst({where:{AND:[await collaboratorScope(access.user),{id:selectedId}]},select:{name:true,email:true}});
+      if(!selected)throw new Error("Vybraný účet není dostupný. Vyhledejte jej znovu.");
+      email=selected.email;name=selected.name;
+    }
     const permission = Object.values(PropertyPermission).includes(form.get("permission") as PropertyPermission) ? form.get("permission") as PropertyPermission : PropertyPermission.VIEW;
     if (!/^\S+@\S+\.\S+$/.test(email)) throw new Error("Zadejte platný e-mail.");
     const [property, existing] = await Promise.all([prisma.property.findUnique({ where: { id }, select: { id: true, name: true } }), prisma.user.findUnique({ where: { email }, select: { id: true, role: true, allProperties: true, active: true } })]);

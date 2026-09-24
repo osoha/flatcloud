@@ -43,6 +43,7 @@ jobs:
       - run: npm run verify:valorizace-v3
       - run: npx prisma generate
       - run: node --import tsx scripts/verify-p01b-bank-costs.ts
+      - run: node --import tsx scripts/verify-september-blocks.ts
       - run: node --import tsx scripts/verify-p07a-prospect-overview.ts
       - run: npm run verify:p02d-sale-benchmark
       - run: npm run verify:csu-personal-value
@@ -218,6 +219,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: node --import tsx scripts/verify-p01b-bank-costs.ts
+      - run: node --import tsx scripts/verify-september-blocks.ts
       - run: node --import tsx scripts/verify-p07a-prospect-overview.ts
       - run: npm run verify:p02d-sale-benchmark
       - run: npm run verify:csu-personal-value
