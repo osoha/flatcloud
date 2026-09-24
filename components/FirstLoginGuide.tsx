@@ -97,6 +97,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
     if (!open || !step) return;
     let frame = 0;
     let scrolled: HTMLElement | null = null;
+    let scrolledWidth = 0;
     const started = Date.now();
     const measure = () => {
       cancelAnimationFrame(frame);
@@ -107,13 +108,20 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
         const candidates = [document.querySelector<HTMLElement>(step.target), document.querySelector<HTMLElement>(step.fallback)];
         const element = candidates.find(el => el && el.getClientRects().length && getComputedStyle(el).visibility !== "hidden") || null;
         target.current = element;
-        if (element && scrolled !== element) {
+        const topbar = document.querySelector<HTMLElement>(".topbar");
+        const belowTopbar = Boolean(topbar && element && !topbar.contains(element));
+        const headerBottom = belowTopbar ? Math.max(0, topbar!.getBoundingClientRect().bottom) : 0;
+        if (element && (scrolled !== element || scrolledWidth !== width)) {
           scrolled = element;
+          scrolledWidth = width;
+          const previousMargin = element.style.scrollMarginTop;
+          element.style.scrollMarginTop = `${headerBottom + 16}px`;
           element.scrollIntoView({ behavior: "instant", block: "start", inline: "nearest" });
+          element.style.scrollMarginTop = previousMargin;
         }
         if (element) {
           const r = element.getBoundingClientRect();
-          const x = Math.max(8, r.left - 6), y = Math.max(8, r.top - 6);
+          const x = Math.max(8, r.left - 6), y = Math.max(8, headerBottom + (belowTopbar ? 8 : 0), r.top - 6);
           const right = Math.min(width - 8, r.right + 6);
           // For large sections spotlight the heading, leaving space for the explanation.
           const bottom = Math.min(height - 8, r.top + Math.min(r.height, width < 700 ? 76 : 150) + 6);

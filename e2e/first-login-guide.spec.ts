@@ -7,12 +7,19 @@ import { guideTransition, guideSteps, normalizeGuideState, type GuideState } fro
 
 const password = "Guide-E2E-Only-Password-2026";
 test.setTimeout(90_000);
+const createdEmails: string[] = [];
+test.afterEach(async () => {
+  // Keep this suite isolated from reporting/team selectors in subsequent tests.
+  if (createdEmails.length) await prisma.user.updateMany({ where: { email: { in: createdEmails.splice(0) } }, data: { active: false } });
+});
 test.beforeAll(() => {
   if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname)) throw new Error("Isolated DB required");
 });
 test.afterAll(async () => prisma.$disconnect());
 async function fixture(status = "pending", role: "OWNER_VIEWER" | "MANAGER" = "OWNER_VIEWER") {
-  return prisma.user.create({ data: { name: "První přihlášení", email: `guide-${randomUUID()}@example.invalid`, passwordHash: await bcrypt.hash(password, 4), role, isTestIdentity: true, onboardingStatus: status } });
+  const email = `guide-${randomUUID()}@example.invalid`;
+  createdEmails.push(email);
+  return prisma.user.create({ data: { name: "První přihlášení", email, passwordHash: await bcrypt.hash(password, 4), role, isTestIdentity: true, onboardingStatus: status } });
 }
 async function login(page: Page, email: string) {
   await page.goto("/login");
@@ -45,6 +52,7 @@ test("průvodce: přechody, role a neznámá verze", () => {
 test("potvrzená registrace otevře portfolio s prvním krokem bez vytvoření domu", async ({ page }) => {
   const token = randomBytes(32).toString("base64url");
   const email = `registration-guide-${randomUUID()}@example.invalid`;
+  createdEmails.push(email);
   await prisma.registrationRequest.create({ data: { email, name: "Nový vlastník", passwordHash: await bcrypt.hash(password, 4), tokenHash: hashInvitationToken(token), expiresAt: new Date(Date.now() + 60_000) } });
   await page.goto(`/registrace/potvrdit/${token}`);
   await page.getByRole("button", { name: "Potvrdit registraci" }).click();
@@ -133,7 +141,7 @@ test("chybějící cíl a chyba uložení průvodce nezablokují aplikaci", asyn
   await expect(page.getByText("Tento prvek teď není dostupný.", { exact: false })).toBeVisible();
   await page.route("**/api/account/guide", route => route.request().method() === "POST" ? route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Spojení se nezdařilo." }) }) : route.continue());
   await page.getByRole("button", { name: "Později", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Spojení se nezdařilo.");
+  await expect(page.getByRole("dialog").getByRole("alert")).toContainText("Spojení se nezdařilo.");
   await page.getByRole("button", { name: "Zavřít bez uložení" }).click();
   await expect(page.getByTestId("first-login-guide")).toHaveCount(0);
 });
@@ -160,7 +168,8 @@ test("bublina a cíl zůstávají oddělené na mobilu i desktopu v obou režime
       await expect.poll(() => page.locator(".guide-character").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       await expect.poll(async () => {
         const bubble = await page.locator(".guide-bubble").boundingBox(), spot = await page.getByTestId("guide-spotlight").boundingBox();
-        return Boolean(bubble && spot && spot.y + spot.height < bubble.y);
+        const header = await page.locator(".topbar").boundingBox();
+        return Boolean(bubble && spot && header && spot.y >= header.y + header.height && spot.y + spot.height < bubble.y);
       }).toBe(true);
       await page.screenshot({ path: info.outputPath(`guide-${size.width}-${theme}.png`) });
     }
