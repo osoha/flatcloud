@@ -1,3 +1,5 @@
+import { prisma } from "@/lib/db";
+import { notificationDefaults, notificationFields } from "@/lib/task-discussion-shared";
 import { PageHeading } from "@/components/PageHeading";
 import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
@@ -11,6 +13,9 @@ type Search = { changed?: string; error?: string; ok?: string };
 export default async function AccountPage({ searchParams }: { searchParams: Promise<Search> }) {
   const user = await requireUser();
   const query = await searchParams;
+  const preference = await prisma.taskNotificationPreference.findUnique({ where: { userId: user.id } }) || notificationDefaults;
+  const deliveries = await prisma.taskNotification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, status: true } });
+  const deliveryLabels: Record<string, string> = { PENDING: "Ve frontě", SENDING: "Odesílání", SENT: "Odesláno", RETRY: "Čeká na opakování", SKIPPED: "Neodesláno dle nastavení nebo přístupu", FAILED: "Odeslání selhalo", UNKNOWN: "Odeslání nepotvrzeno" };
   const messages: Record<string, string> = {
     current: "Současné heslo není správné.",
     length: "Nové heslo musí mít alespoň 12 znaků.",
@@ -30,6 +35,17 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         </div>
 
         <Flash ok={query.ok} error={query.error && !passwordError ? query.error : undefined}/>
+
+        <section id="upozorneni" className="card account-card notification-settings">
+          <h2>Upozornění</h2>
+          <p>E-maily z úkolů a diskusí můžete kdykoli vypnout. Upozornění uvnitř aplikace zůstanou zachována. Reakce e-maily neposílají.</p>
+          <form action="/api/account/notifications" method="post">
+            {notificationFields.map(([key,label]) => <label className="checkbox-field" key={key}><input type="checkbox" name={key} defaultChecked={preference[key]}/><span>{label}</span></label>)}
+            <small>Přímé zmínky a komentáře zpracováváme po uložení. Přiřazení, změny stavu a termíny kontroluje hodinový plánovač. U termínu posíláme nejvýše jedno upozornění předem a jedno po termínu.</small>
+            <button className="primary" type="submit">Uložit upozornění</button>
+          </form>
+          {deliveries.length > 0 && <details><summary>Poslední e-mailová upozornění</summary><ul>{deliveries.map(row => <li key={row.id}>{row.createdAt.toLocaleString("cs-CZ")} · {deliveryLabels[row.status] || row.status}</li>)}</ul></details>}
+        </section>
 
         <div className="card account-card account-avatar-card">
           <div className="card-head"><div><h2>Profilová fotografie</h2><p className="muted-copy">Fotografie se automaticky ořízne na čtverec a uloží v optimalizované velikosti pro ostré zobrazení v aplikaci.</p></div></div>
