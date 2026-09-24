@@ -86,8 +86,16 @@ export async function processTaskNotifications(options: { taskId?: string; now?:
       if (result.sent) { await finish("SENT", "Odesláno."); sent++; }
       else { await prisma.taskNotification.update({ where: { id: row.id }, data: { status: row.attempts >= 2 ? "FAILED" : "RETRY", detail: result.reason || "Odeslání se nezdařilo.", nextAttemptAt: new Date(now.getTime() + 3600000) } }); failed++; }
     } catch (error) {
-      // An SMTP/network exception can mean an ambiguous delivery; retain for review.
-      await finish("UNKNOWN", "Odeslání nebylo potvrzeno. Zpráva se automaticky neopakuje.");
+      const smtp = error as { code?: string; responseCode?: number; command?: string };
+      const rejected = typeof smtp.responseCode === "number" && smtp.responseCode >= 400;
+      const beforeDelivery = smtp.code === "ECONNECTION" || smtp.code === "EDNS" || smtp.code === "EAUTH" || smtp.command === "CONN";
+      if (rejected || beforeDelivery) {
+        const permanent = smtp.code === "EAUTH" || (smtp.responseCode || 0) >= 500 || row.attempts >= 2;
+        await prisma.taskNotification.update({ where: { id: row.id }, data: { status: permanent ? "FAILED" : "RETRY", detail: "Poštovní služba odeslání odmítla nebo není dostupná.", nextAttemptAt: new Date(now.getTime() + 3600000) } });
+      } else {
+        // An SMTP/network exception can mean an ambiguous delivery; retain for review.
+        await finish("UNKNOWN", "Odeslání nebylo potvrzeno. Zpráva se automaticky neopakuje.");
+      }
       console.error("task-notification delivery failed", row.id, error instanceof Error ? error.name : "Error");
       failed++;
     }

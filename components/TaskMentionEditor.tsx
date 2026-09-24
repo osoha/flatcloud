@@ -21,7 +21,7 @@ export function TaskMentionEditor({ people, placeholder }: { people: DiscussionP
     if (start < 0) return;
     const token = `@${person.name}`;
     const next = body.slice(0, start) + token + " " + body.slice(cursor);
-    const shifted = updateMentionRanges(body, next, mentions);
+    const shifted = updateMentionRanges(body, next, mentions.filter(m => m.end <= start || m.start >= cursor));
     setMentions([...shifted, { userId: person.id, label: person.name, start, end: start + token.length }].sort((a,b) => a.start - b.start));
     setBody(next); setOpen(false);
     const position = start + token.length + 1;
@@ -30,7 +30,7 @@ export function TaskMentionEditor({ people, placeholder }: { people: DiscussionP
   }
   return <div className="mention-editor">
     <input type="hidden" name="mentions" value={JSON.stringify(mentions)}/>
-    <label className="field composer-body"><span>Nový záznam</span><textarea ref={input} name="body" rows={4} required value={body} placeholder={placeholder} aria-autocomplete="list" aria-controls={visible ? "task-mention-options" : undefined} aria-expanded={visible} aria-activedescendant={visible ? `mention-option-${Math.min(selected, suggestions.length - 1)}` : undefined}
+    <label className="field composer-body"><span>Nový záznam</span><textarea ref={input} name="body" rows={4} maxLength={50000} required value={body} placeholder={placeholder} aria-autocomplete="list" aria-controls={visible ? "task-mention-options" : undefined} aria-expanded={visible} aria-activedescendant={visible ? `mention-option-${Math.min(selected, suggestions.length - 1)}` : undefined}
       onChange={event => { const next = event.target.value; setMentions(updateMentionRanges(body, next, mentions)); setBody(next); setCursor(event.target.selectionStart); setOpen(true); setSelected(0); }}
       onClick={event => { setCursor(event.currentTarget.selectionStart); setOpen(true); setSelected(0); }}
       onBlur={() => setOpen(false)}

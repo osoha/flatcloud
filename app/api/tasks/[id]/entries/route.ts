@@ -53,7 +53,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const people = (await discussionParticipants(id, tx)).filter(person => visibility === "OWNER_VISIBLE" || person.internal);
     if (mentions.some(m => !people.some(person => person.id === m.userId && person.name === m.label))) throw new Error("Jméno označené osoby se změnilo. Vyberte ji znovu.");
     if ([...mentions.map(m => m.userId), ...recipientIds].some(personId => !people.some(person => person.id === personId))) throw new Error("Některý označený příjemce nemá přístup k tomuto záznamu. Obnovte stránku a vyberte ho znovu.");
-    if (!await canEditTask(user, task, tx)) throw new Error("Oprávnění k zápisu se změnilo.");
+    const freshTask = await tx.task.findUnique({ where: { id }, include: { lease: { select: { unitId: true } } } });
+    if (!freshTask || !await canEditTask(user, freshTask, tx)) throw new Error("Oprávnění k zápisu se změnilo.");
     if (kindRaw === "PROMISE") {
       const claim = await tx.task.updateMany({ where: { id, status: { notIn: ["DONE", "CANCELLED"] }, conditionPlanExecution: { is: null } }, data: { status: "WAITING", closedAt: null, ...(promiseDate && visibility === "OWNER_VISIBLE" ? { dueAt: promiseDate } : {}) } });
       if (claim.count !== 1) throw new Error("Příslib nelze přidat k uzavřenému případu ani řízené CAPEX realizaci. Nejprve znovu otevřete případ příslušným postupem.");
