@@ -1,3 +1,4 @@
+import { FirstLoginGuide } from "@/components/FirstLoginGuide";
 import { DisplayPreferences } from "@/components/DisplayPreferences";
 import { ReadOnlyPreview } from "@/components/admin/ReadOnlyPreview";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
@@ -73,6 +74,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
 
   return <div className="app-shell v21-shell flatberry-shell">
     {superAdmin && <AdminOperationsPanel/>}
+    {!preview && <FirstLoginGuide userId={user.id}/>}
     <NativeDetailsEscape/>
     <ActiveTabVisibility/>
     <UserActivityHeartbeat/>
@@ -139,8 +141,8 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         <div className="top-actions">
           <DisplayPreferences userId={user.id} mobile/>
           {!preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
-          {!preview && canAddTask && <Link className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
-          {!preview && canAddProperty && <Link className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
+          {!preview && canAddTask && <Link data-guide="add-task" className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
+          {!preview && canAddProperty && <Link data-guide="add-property" className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
           <Link className="account-chip" href="/ucet" aria-label="Můj účet"><UserRound size={15}/><span>{context.target?.name || user.name}</span></Link>
         </div>
       </header>

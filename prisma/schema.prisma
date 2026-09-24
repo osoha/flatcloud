@@ -503,6 +503,10 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  onboardingStatus String @default("available")
+  onboardingStep String @default("welcome")
+  onboardingVersion Int @default(1)
+  onboardingRevision Int @default(0)
   notificationPreferences TaskNotificationPreference?
   taskReactions TaskEntryReaction[]
   taskNotifications TaskNotification[]
