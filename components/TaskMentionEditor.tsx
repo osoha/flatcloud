@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { DiscussionPerson, Mention } from "@/lib/task-discussion-shared";
 import { updateMentionRanges } from "@/lib/task-discussion-shared";
 
 export function TaskMentionEditor({ people, placeholder }: { people: DiscussionPerson[]; placeholder: string }) {
+  const inputId = useId();
   const [body, setBody] = useState("");
   const [mentions, setMentions] = useState<Mention[]>([]);
   const [cursor, setCursor] = useState(0);
@@ -30,7 +31,7 @@ export function TaskMentionEditor({ people, placeholder }: { people: DiscussionP
   }
   return <div className="mention-editor">
     <input type="hidden" name="mentions" value={JSON.stringify(mentions)}/>
-    <label className="field composer-body"><span>Nový záznam</span><textarea ref={input} name="body" rows={4} maxLength={50000} required value={body} placeholder={placeholder} aria-autocomplete="list" aria-controls={visible ? "task-mention-options" : undefined} aria-expanded={visible} aria-activedescendant={visible ? `mention-option-${Math.min(selected, suggestions.length - 1)}` : undefined}
+    <div className="field composer-body"><label htmlFor={inputId}>Nový záznam</label><textarea id={inputId} ref={input} name="body" rows={4} maxLength={50000} required value={body} placeholder={placeholder} aria-autocomplete="list" aria-controls={visible ? "task-mention-options" : undefined} aria-expanded={visible} aria-activedescendant={visible ? `mention-option-${Math.min(selected, suggestions.length - 1)}` : undefined}
       onChange={event => { const next = event.target.value; setMentions(updateMentionRanges(body, next, mentions)); setBody(next); setCursor(event.target.selectionStart); setOpen(true); setSelected(0); }}
       onClick={event => { setCursor(event.currentTarget.selectionStart); setOpen(true); setSelected(0); }}
       onBlur={() => setOpen(false)}
@@ -39,7 +40,7 @@ export function TaskMentionEditor({ people, placeholder }: { people: DiscussionP
         if (event.key === "Escape") { event.preventDefault(); setOpen(false); }
         if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); setSelected(index => (index + (event.key === "ArrowDown" ? 1 : -1) + suggestions.length) % suggestions.length); }
         if (event.key === "Enter" || event.key === "Tab") { event.preventDefault(); choose(suggestions[Math.min(selected, suggestions.length - 1)]); }
-      }}/></label>
+      }}/></div>
     {visible && <div className="mention-options" id="task-mention-options" role="listbox" aria-label="Účastníci k označení">{suggestions.map((person,index) => <button type="button" role="option" aria-selected={selected === index} id={`mention-option-${index}`} key={person.id} onMouseDown={event => event.preventDefault()} onClick={() => choose(person)}><strong>{person.name}</strong><small>{person.email}</small></button>)}</div>}
     <small>Napište @ a vyberte účastníka. Zmínka upozorní podle jeho nastavení e-mailů.</small>
     {mentions.length > 0 && <div className="mention-selection" aria-label="Označení účastníci">{[...new Set(mentions.map(m => m.userId))].map(id => <span key={id}>@{mentions.find(m => m.userId === id)?.label}<button type="button" aria-label={`Zrušit označení ${mentions.find(m => m.userId === id)?.label}`} onClick={() => setMentions(items => items.filter(m => m.userId !== id))}>×</button></span>)}</div>}

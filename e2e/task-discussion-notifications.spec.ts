@@ -15,6 +15,13 @@ async function login(page: Page, email: string) {
   await page.getByLabel("Heslo", { exact: true }).fill(process.env.E2E_ROLE_PASSWORD || R24_ROLE_PASSWORD);
   await page.getByRole("button", { name: "Přihlásit se", exact: true }).click(); await expect(page).toHaveURL(/\/portfolio/);
 }
+// Use Chromium's secure loopback session, just like the application's fetch.
+async function post(page: Page, path: string, form: Record<string, string>) {
+  return page.evaluate(async ({ path, form }) => {
+    const response = await fetch(path, { method: "POST", body: new URLSearchParams(form) });
+    return { status: response.status, url: response.url };
+  }, { path, form });
+}
 async function fixture() {
   const [author, member, outsider] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { email: R24_ROLE_USERS.internalAssistant } }),
@@ -58,9 +65,9 @@ test("@našeptávač, tiché reakce a oprávnění v obou režimech", async ({ b
   expect(await prisma.taskNotification.count({ where: { taskId: f.task.id } })).toBe(mailCount);
   const memberPage = await browser.newPage(); await login(memberPage, f.member.email);
   const reactionPath = `/api/tasks/${f.task.id}/entries/${entry.id}/reaction`;
-  expect((await memberPage.request.post(reactionPath, { form: { reaction: "LOVE" } })).status()).toBe(200);
+  expect((await post(memberPage, reactionPath, { reaction: "LOVE" })).status).toBe(200);
   const outsiderPage = await browser.newPage(); await login(outsiderPage, f.outsider.email);
-  expect((await outsiderPage.request.post(reactionPath, { form: { reaction: "LIKE" } })).status()).toBe(404);
+  expect((await post(outsiderPage, reactionPath, { reaction: "LIKE" })).status).toBe(404);
   await page.getByRole("button", { name: "Tmavý režim", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   const remove = page.getByRole("button", { name: "Odebrat", exact: true });
@@ -75,7 +82,9 @@ test("@našeptávač, tiché reakce a oprávnění v obou režimech", async ({ b
 test("podvržená zmínka se neuloží a preference lze vypnout", async ({ page }) => {
   const f = await fixture(); await login(page, f.author.email);
   const body = `@${f.outsider.name}`;
-  await page.request.post(`/api/tasks/${f.task.id}/entries`, { form: { body, kind: "COMMENT", visibility: "INTERNAL", mentions: JSON.stringify([{ userId: f.outsider.id, label: f.outsider.name, start: 0, end: body.length }]) } });
+  const rejected = await post(page, `/api/tasks/${f.task.id}/entries`, { body, kind: "COMMENT", visibility: "INTERNAL", mentions: JSON.stringify([{ userId: f.outsider.id, label: f.outsider.name, start: 0, end: body.length }]) });
+  expect(new URL(rejected.url).pathname).toBe(`/ukoly/${f.task.id}`);
+  expect(new URL(rejected.url).searchParams.has("error")).toBe(true);
   expect(await prisma.taskEntry.count({ where: { taskId: f.task.id } })).toBe(0);
   await page.goto("/ucet#upozorneni");
   await page.getByLabel("E-mailová upozornění z úkolů a diskusí", { exact: true }).uncheck();
@@ -119,9 +128,9 @@ test("čtenář domu nemůže reagovat na interní záznam ani dostat jeho obsah
   const task = await prisma.task.create({ data: { title: "Pouze interní", propertyId: property.id, createdById: f.author.id } });
   const entry = await prisma.taskEntry.create({ data: { taskId: task.id, body: "Interní informace", visibility: "INTERNAL" } });
   await login(page, f.outsider.email);
-  expect((await page.request.post(`/api/tasks/${task.id}/entries/${entry.id}/reaction`, { form: { reaction: "LIKE" } })).status()).toBe(404);
+  expect((await post(page, `/api/tasks/${task.id}/entries/${entry.id}/reaction`, { reaction: "LIKE" })).status).toBe(404);
   await prisma.taskEntry.update({ where: { id: entry.id }, data: { visibility: "OWNER_VISIBLE" } });
-  expect((await page.request.post(`/api/tasks/${task.id}/entries/${entry.id}/reaction`, { form: { reaction: "LIKE" } })).status()).toBe(200);
+  expect((await post(page, `/api/tasks/${task.id}/entries/${entry.id}/reaction`, { reaction: "LIKE" })).status).toBe(200);
 });
 
 test("termín má jeden e-mail předem a jeden po termínu; zrušený termín se neodesílá", async () => {
