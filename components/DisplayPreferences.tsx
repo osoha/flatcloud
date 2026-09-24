@@ -11,6 +11,7 @@ export function DisplayPreferences({ userId, mobile = false }: { userId: string;
       let saved: Partial<Preferences> = {};
       try { saved = JSON.parse(localStorage.getItem(key) || "{}"); } catch { /* Private browsing keeps defaults. */ }
       const next: Preferences = { theme: saved.theme === "dark" ? "dark" : "light" };
+      if ("width" in saved) try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* Private browsing keeps the display setting in memory. */ }
       setValue(next); document.documentElement.dataset.theme = next.theme; delete document.documentElement.dataset.contentWidth;
     }
     sync(); window.addEventListener("flatberry-display", sync); window.addEventListener("storage", sync);

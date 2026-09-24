@@ -36,6 +36,10 @@ test("formulář úkolu drží záhlaví, pole a výběr souboru pohromadě v ob
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await expect(page.locator("html")).not.toHaveAttribute("data-content-width", /standard/);
+  expect(await page.evaluate(() => {
+    const key = Object.keys(localStorage).find(name => name.startsWith("flatberry-display-"));
+    return key ? JSON.parse(localStorage.getItem(key) || "{}").width : undefined;
+  })).toBeUndefined();
   await expect(page.getByRole("button", { name: "Široký obsah" })).toHaveCount(0);
   const legend = page.locator(".task-audience legend");
   await expect(legend).toBeVisible();
