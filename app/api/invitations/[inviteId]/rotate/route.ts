@@ -21,7 +21,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ inv
   try {
     const edit = form.get("mode") === "edit";
     let permission = edit && Object.values(PropertyPermission).includes(form.get("permission") as PropertyPermission) ? form.get("permission") as PropertyPermission : old.permission;
-    if (!global && permission === PropertyPermission.ADMIN) permission = PropertyPermission.EDIT;
     const role = global && edit && Object.values(UserRole).includes(form.get("role") as UserRole) ? form.get("role") as UserRole : old.role;
     if (!global && (role === UserRole.MANAGER || role === UserRole.SUPER_ADMIN)) throw new Error("Nemáte oprávnění udělit globální roli.");
     const propertyIds = global && edit ? form.getAll("propertyIds").map(String).filter(Boolean) : old.propertyIds;

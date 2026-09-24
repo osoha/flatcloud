@@ -39,6 +39,13 @@ export async function documentStoragePlacement(storage: FileStorage, propertyId:
   return { folderId: provisioned.folders[DOCUMENT_CATEGORY_FOLDER[category]], displayName: originalName, variantFolderId: await variantsFolder(storage) };
 }
 
+export async function taskAttachmentStoragePlacement(storage: FileStorage, originalName: string): Promise<StoragePlacement> {
+  if (!(storage instanceof GoogleDriveFileStorage)) return { displayName: originalName };
+  await validateCanonicalDriveFolders(storage);
+  const internal = await storage.ensureFolder("99_Interní", envFolder("GOOGLE_DRIVE_ROOT_FOLDER_ID"));
+  return { folderId: await storage.ensureFolder("Týmové úkoly", internal), displayName: originalName, variantFolderId: await variantsFolder(storage) };
+}
+
 export async function templateStoragePlacement(storage: FileStorage, version: number, role: string, originalName: string): Promise<StoragePlacement> {
   if (!(storage instanceof GoogleDriveFileStorage)) return { displayName: originalName };
   await validateCanonicalDriveFolders(storage);

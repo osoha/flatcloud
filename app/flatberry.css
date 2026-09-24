@@ -45,6 +45,10 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .primary:hover{background:#195cdb}
 .flatberry-shell .secondary{background:#fff;color:#3f516e;border:1px solid #dfe7f2}
 .flatberry-shell .secondary:hover{background:#f6f9ff;border-color:#bcd2fb}
+.flatberry-shell .attention-dismiss-button{min-height:34px;padding:6px 10px;font-size:12px;white-space:nowrap}
+.flatberry-shell input[type="file"]{box-sizing:border-box;display:block;width:100%;min-width:0;max-width:100%;height:auto;min-height:48px;padding:5px 6px;color:#71829b;line-height:36px;white-space:nowrap;text-overflow:ellipsis;cursor:pointer}
+.flatberry-shell input[type="file"]::file-selector-button{min-height:36px;margin:0 10px 0 0;padding:7px 12px;border:1px solid #d8e2f0;border-radius:8px;background:#f7f9fd;color:#314562;font:inherit;font-weight:600;line-height:1.4;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.flatberry-shell input[type="file"]::file-selector-button:hover{background:#edf4ff;border-color:#b8cdf1;color:#175dcc}
 .flatberry-shell .top-action{font-size:12px;min-height:36px;padding:8px 10px}
 .flatberry-shell .card{background:#fff;border-color:var(--line);border-radius:16px;box-shadow:none}
 .flatberry-shell :is(.page-title,.property-header,.unit-hero){background:#fff;background-image:none;border:1px solid var(--line);border-radius:20px;padding:26px;box-shadow:none}
@@ -57,8 +61,10 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell :is(.page-title,.property-header) p{color:#71829b;font-size:13px;font-weight:400;margin:10px 0 0;line-height:1.6}
 .flatberry-shell .breadcrumb{font-size:12px;color:#7b89a0;margin-bottom:16px}
 .flatberry-shell h2{font-size:17px;font-weight:600;letter-spacing:-.2px;color:#263c5b}
+.flatberry-shell .mf-benchmark-heading-note{display:inline;font-size:13px;font-weight:400;letter-spacing:0;color:#71829b;margin-left:5px}
 .flatberry-shell h3{font-weight:600}
 .flatberry-shell :is(.muted-copy,.owner-sub,.table-toolbar p){font-size:12px;color:#71829b;line-height:1.6}
+@media(max-width:760px){.flatberry-shell .mf-benchmark-heading-note{display:block;margin:5px 0 0;line-height:1.5}}
 /* Original A: one stable row, softly attached to the white identity box. */
 .flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav){display:flex;align-items:center;flex-wrap:nowrap;gap:4px;width:100%;max-width:100%;min-width:0;margin:0 0 20px;padding:12px 14px 14px;border:1px solid #e3ebf7;border-top:3px solid #79a8fb;border-radius:0 0 17px 17px;background:#fff;box-shadow:none;overflow-x:auto;overflow-y:hidden;scrollbar-width:thin;scrollbar-color:#cfddf1 transparent;overscroll-behavior-inline:contain}
 .flatberry-shell :is(.section-nav,.v21-section-nav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a{flex:0 0 auto;min-width:max-content;min-height:41px;display:inline-flex;align-items:center;justify-content:center;padding:10px 14px!important;margin:0!important;border:0!important;border-radius:9px;background:transparent;color:#62748f;font-size:13px;font-weight:500;line-height:1.45;white-space:nowrap;box-shadow:none}

@@ -9,13 +9,14 @@ test("R33: dark mode persists, wide layout and important portfolio content prece
  expect((await attention.boundingBox())!.y).toBeLessThan((await objects.boundingBox())!.y);
  const theme=page.locator(".sidebar").getByRole("button",{name:"Tmavý režim",exact:true});await theme.click();await expect(page.locator("html")).toHaveAttribute("data-theme","dark");await page.reload();await expect(page.locator("html")).toHaveAttribute("data-theme","dark");
  for(const route of ["/portfolio","/reporty","/distribuce","/revize","/nastaveni"]){await page.goto(route);await expect(page.locator("h1")).toBeVisible();await expect(page.locator("html")).toHaveAttribute("data-theme","dark");expect(await page.locator(".page").evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(2000);if(route==="/reporty")await expect(page.locator(".report-tabs a.active")).toHaveCSS("background-color","rgb(36, 104, 239)");await page.screenshot({path:test.info().outputPath(`dark-${route.slice(1)}.png`),fullPage:false});}
- await page.locator(".sidebar").getByRole("button",{name:"Široký obsah",exact:true}).click();expect(await page.locator(".page").evaluate(el=>el.getBoundingClientRect().width)).toBeLessThanOrEqual(1440);
+ await expect(page.locator(".sidebar").getByRole("button",{name:"Široký obsah",exact:true})).toHaveCount(0);
+ await page.goto("/portfolio");expect(await page.locator(".page").evaluate(el=>el.getBoundingClientRect().width)).toBeGreaterThan(2000);
  await page.setViewportSize({width:390,height:844});await expect(page.locator(".top-actions").getByRole("button",{name:"Tmavý režim",exact:true})).toBeVisible();await page.locator(".top-actions").getByRole("button",{name:"Tmavý režim",exact:true}).click();await expect(page.locator("html")).toHaveAttribute("data-theme","light");
 });
 test("R33: merged tenancy, actionable settings and contact directory",async({page})=>{
  await login(page);await page.goto("/reporty?view=contracts");await expect(page.getByRole("heading",{name:"Nájemní vztahy",exact:true})).toBeVisible();await expect(page.locator(".report-tabs").getByRole("link",{name:"Smlouvy",exact:true})).toHaveCount(0);await expect(page.getByRole("button",{name:"Stáhnout CSV"})).toBeVisible();await expect(page.locator(".report-tabs").getByRole("link",{name:"KPIs",exact:true})).toBeVisible();
  await page.goto("/nastaveni");const link=page.locator(".admin-health-card").filter({hasText:"Bankovní schránka"}).getByRole("link");await link.click();await expect(page).toHaveURL(/#bankovni-schranka$/);await expect(page.locator("#bankovni-schranka")).toBeVisible();
- await page.goto("/distribuce/zajemci");await expect(page.getByRole("heading",{name:"Adresář zájemců"})).toBeVisible();
+ await page.goto("/distribuce/zajemci");await expect(page.getByRole("heading",{name:"Přehled zájemců"})).toBeVisible();
 });
 test("R33: unit editor without house grant owns meters and private avatar; cross-unit writes rejected",async({page})=>{
  test.skip(Boolean(process.env.E2E_BASE_URL),"Isolated fixtures only");const {prisma:db}=await import("../lib/db");const admin=await db.user.findUniqueOrThrow({where:{email}}),stamp=Date.now();

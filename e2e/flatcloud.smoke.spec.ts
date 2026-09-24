@@ -109,7 +109,7 @@ test("R28 sidebar skupiny a kompaktní rail nemají mrtvé ovládací prvky", as
   await expect(page.locator("html")).toHaveClass(/fc-sidebar-collapsed/);
   await expect(operations.locator(".nav-group-toggle")).toBeHidden();
   await expect(finance.locator(".nav-group-toggle")).toBeHidden();
-  await expect(sidebar.getByTitle("Úkoly")).toBeVisible();
+  await expect(sidebar.getByTitle("Úkoly", { exact: true })).toBeVisible();
   await expect(sidebar.getByTitle("Předpisy")).toBeVisible();
 });
 
@@ -246,7 +246,8 @@ test("roční podklady vedou od vlastníka ke zdrojům a bezpečnému exportu", 
   await page.getByLabel("Vlastník *").selectOption({ index: 1 });
   await page.getByRole("button", { name: "Načíst podklady", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Přijaté úhrady", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Skutečné výdaje", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Evidované náklady", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Bankovní úhrady nákladů", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Úvěry a úroky", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Historická vlastnická struktura", exact: true })).toBeVisible();
   await expect(page.getByText(/Nejde o automatické stanovení základu daně/)).toBeVisible();
@@ -648,6 +649,7 @@ test("MF benchmark se otevře jako read-only LIVE report", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Reporty", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "MF benchmark", exact: true })).toBeVisible();
   await expect(page.getByText("Datové období MF", { exact: true })).toBeVisible();
+  await expect(page.getByText("- cenový benchmark na základě sběrných dat Ministerstva financí ČR", { exact: true })).toBeVisible();
   await expect(page.getByText(/Srovnání je pouze ke čtení/)).toBeVisible();
   const property = page.locator("tr.mf-property-toggle").first();
   await expect(property).toBeVisible();
@@ -1000,7 +1002,7 @@ test("administrátor vytvoří úkol přes skutečný formulář", async ({ page
   const taskTitle = "V23-A automatický smoke úkol";
   await login(page);
   await page.goto("/ukoly/novy");
-  await page.getByLabel("Nemovitost *").selectOption({ label: "Moskevská" });
+  await page.getByLabel("Kontext úkolu *").selectOption({ label: "Moskevská" });
   await page.getByLabel("Kategorie *").selectOption("GENERAL");
   await page.getByLabel("Název *").fill(taskTitle);
   await page.getByLabel("Popis / zadání").fill("Deterministický zápis vytvořený browser-smoke testem V23-A.");

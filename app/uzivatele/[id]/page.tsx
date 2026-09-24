@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { userPropertyOverview } from "@/lib/user-property-overview";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -21,6 +23,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
     searchParams,
   ]);
   if (!edited) notFound();
+  const relationships=(await userPropertyOverview())(id);
   const online = isUserOnline(edited.active, edited.activity?.lastSeenAt);
 
   const activeSuperAdminCount = await prisma.user.count({ where: { active: true, role: "SUPER_ADMIN" } });
@@ -38,6 +41,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
 
   return <Shell user={admin}><FormPage title={`Uživatel: ${edited.name}`} description="Kontaktní profil a srozumitelné nastavení rozsahu i úrovně oprávnění." backHref="/uzivatele">
     <Flash ok={query.ok} error={query.error}/>
+    <section className="card" id="nemovitosti"><h2>Vztah uživatele k nemovitostem</h2><p>Aktivní domy a jednotky. Zakladatel je doložen historií vytvoření; chybějící záznam neurčujeme podle vlastníka ani oprávnění. Globální přístup se do osobních počtů nezapočítává.</p><div className="table-wrap"><table><thead><tr><th>Dům</th><th>Vztah</th><th>Jednotky domu</th><th>Jednotky s výslovným přístupem</th></tr></thead><tbody>{relationships.map(p=><tr key={p.id}><td><Link href={`/nemovitosti/${p.id}`}>{p.name}</Link></td><td>{p.roles.join(" · ")}</td><td>{p.units}</td><td>{p.accessibleUnits}</td></tr>)}{!relationships.length&&<tr><td colSpan={4}>Bez doloženého osobního vztahu k aktivním domům.</td></tr>}</tbody></table></div></section>
     {online && <p className="user-activity-online">Online · viditelná karta aplikace během posledních 2 minut</p>}
     <section className={`card ${styles.accessOverview}`} data-testid="user-access-overview">
       <div className={styles.overviewHead}><div><h2>Aktuální přístup</h2><p>Rychlý přehled toho, co uživatel právě vidí a v jakém rozsahu může pracovat.</p></div><span className={styles.overviewBadge}>{edited.active ? "Aktivní účet" : "Deaktivovaný účet"}</span></div>

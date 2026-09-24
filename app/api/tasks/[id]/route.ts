@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { dateValue, text } from "@/lib/forms";
 import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
-import { canEditTask } from "@/lib/task-access";
+import { canEditTask, taskParticipantWhere, authoritativeTaskUnitId } from "@/lib/task-access";
 import { serializableTransaction } from "@/lib/serializable";
 import { taskStatuses, taskPriorities } from "@/lib/labels";
 
@@ -32,16 +32,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const description = text(form, "description");
     if (assigneeId) {
       const assignee = await prisma.user.findFirst({
-        where: {
-          id: assigneeId,
-          active: true,
-          OR: [
-            { role: { in: ["SUPER_ADMIN", "MANAGER"] } },
-            { allProperties: true },
-            { memberships: { some: { propertyId: task.propertyId } } },
-            { unitMemberships: { some: { unit: { propertyId: task.propertyId } } } },
-          ],
-        },
+        where: {id:assigneeId,...(task.propertyId?taskParticipantWhere(task.propertyId,authoritativeTaskUnitId(task)):{active:true})},
         select: { id: true },
       });
       if (!assignee) throw new Error("Vybraný řešitel nemá přístup k této nemovitosti.");

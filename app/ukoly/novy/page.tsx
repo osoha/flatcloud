@@ -18,16 +18,22 @@ export default async function NewTaskPage({ searchParams }: { searchParams: Prom
     include: {
       manager: { select: { id: true, name: true } },
       memberships: { include: { user: { select: { id: true, name: true, active: true } } } },
-      units: { orderBy: { label: "asc" }, include: { leases: { orderBy: { startDate: "desc" }, include: { tenant: { select: { id: true, name: true } } } } } },
+      units: { orderBy: { label: "asc" }, include: { userAccesses:{include:{user:{select:{id:true,name:true,active:true}}}}, leases: { orderBy: { startDate: "desc" }, include: { tenant: { select: { id: true, name: true } } } } } },
     },
   });
   const globalManagers = await prisma.user.findMany({ where: { active: true, OR: [{ allProperties: true }, { role: { in: ["SUPER_ADMIN", "MANAGER"] } }] }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+  const people = (["SUPER_ADMIN", "MANAGER"] as string[]).includes(user.role) ? await prisma.user.findMany({ where: { active: true, id: { not: user.id } }, select: { id: true, name: true, role: true, flatcloudMember: true } }) : [];
+  people.sort((a,b)=>Number(b.role==="SUPER_ADMIN"||b.flatcloudMember)-Number(a.role==="SUPER_ADMIN"||a.flatcloudMember)||a.name.localeCompare(b.name,"cs"));
   const options = properties.map((property) => {
     const managerMap = new Map(globalManagers.map((manager) => [manager.id, manager]));
     if (property.manager) managerMap.set(property.manager.id, property.manager);
     for (const membership of property.memberships) if (membership.user.active && membership.permission !== "VIEW") managerMap.set(membership.user.id, { id: membership.user.id, name: membership.user.name });
-    return { id: property.id, name: property.name, managerId: property.managerId, managers: [...managerMap.values()].sort((a,b)=>a.name.localeCompare(b.name,"cs")), units: property.units.map((unit) => ({ id: unit.id, label: unit.label, leases: unit.leases.map((lease) => ({ id: lease.id, tenantId: lease.tenantId, tenantName: lease.tenant.name, contractNumber: lease.contractNumber, status: leaseStatusAt(lease) })) })) };
+    const wholeMembers=new Map<string,{id:string;name:string}>();
+    for(const manager of globalManagers)wholeMembers.set(manager.id,manager);
+    if(property.manager)wholeMembers.set(property.manager.id,property.manager);
+    for(const membership of property.memberships)if(membership.user.active)wholeMembers.set(membership.user.id,membership.user);
+    return { id: property.id, name: property.name, managerId: property.managerId, managers: [...managerMap.values()].sort((a,b)=>a.name.localeCompare(b.name,"cs")), members:[...wholeMembers.values()],units: property.units.map((unit) => ({ id: unit.id, label: unit.label, members:unit.userAccesses.filter(access=>access.user.active).map(access=>({id:access.user.id,name:access.user.name})), leases: unit.leases.map((lease) => ({ id: lease.id, tenantId: lease.tenantId, tenantName: lease.tenant.name, contractNumber: lease.contractNumber, status: leaseStatusAt(lease) })) })) };
   });
 
-  return <Shell user={user}><FormPage title="Nový úkol" description="Založte provozní úkol nebo případ. Pokud úkol vzniká z detailu nemovitosti, objekt lze předvyplnit odkazem." backHref="/ukoly"><Flash ok={query.ok} error={query.error}/><TaskCreateForm key={`${query.propertyId || ""}:${query.leaseId || ""}`} properties={options} initialPropertyId={query.propertyId} initialLeaseId={query.leaseId}/></FormPage></Shell>;
+  return <Shell user={user}><FormPage title="Nový úkol" description="Založte provozní případ nebo obecné týmové vlákno. Účast ve vlákně sama neuděluje přístup k nemovitostem." backHref="/ukoly"><Flash ok={query.ok} error={query.error}/><TaskCreateForm key={`${query.propertyId || ""}:${query.leaseId || ""}`} properties={options} people={people} allowGeneral={people.length>0} initialPropertyId={query.propertyId} initialLeaseId={query.leaseId}/></FormPage></Shell>;
 }

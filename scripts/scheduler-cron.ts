@@ -5,6 +5,10 @@ import { runRentNotifications } from "../lib/rent-notifications";
 import { runChargeAutomation } from "../lib/charge-automation";
 import { syncLifecycleCaches } from "../lib/lease-lifecycle";
 import { syncMfRentDatasets } from "../lib/reporting/mf-rent/service";
+import { runTaskAutomation } from "../lib/task-automation";
+import { syncCsuApartmentAverage, syncCsuApartmentIndex } from "../lib/reporting/csu-apartment-index";
+
+import { captureSystemDailySnapshot } from "../lib/admin-operations";
 
 type StepResult = { name: string; status: "ok" | "skipped" | "failed"; summary: string };
 
@@ -46,6 +50,13 @@ async function main() {
   }
 
   try {
+    const expired = await prisma.registrationRequest.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+    steps.push({ name: "registration-retention", status: "ok", summary: `Smazáno ${expired.count} propadlých registrací.` });
+  } catch (error) {
+    steps.push({ name: "registration-retention", status: "failed", summary: messageOf(error) });
+  }
+
+  try {
     const charges = await runChargeAutomation();
     steps.push({ name: "charges", status: "ok", summary: charges.summary });
   } catch (error) {
@@ -62,10 +73,40 @@ async function main() {
   }
 
   try {
+    const tasks = await runTaskAutomation();
+    steps.push({ name: "task-automation", status: "ok", summary: tasks.summary });
+  } catch (error) {
+    steps.push({ name: "task-automation", status: "failed", summary: messageOf(error) });
+    hardFailure = true;
+  }
+
+  try {
     const mf = await syncMfRentDatasets();
     steps.push({ name: "mf-rent", status: mf.status === "skipped" ? "skipped" : "ok", summary: mf.summary });
   } catch (error) {
     steps.push({ name: "mf-rent", status: "failed", summary: `${messageOf(error)} Předchozí platná data zůstávají aktivní.` });
+  }
+
+  try {
+    const csu = await syncCsuApartmentIndex();
+    steps.push({ name: "csu-apartment-index", status: "ok", summary: `ČSÚ ${csu.latestQuarter.marketYear} Q${csu.latestQuarter.marketQuarter}: ${csu.newRows} nových a ${csu.correctedRows} opravených údajů.` });
+  } catch (error) {
+    steps.push({ name: "csu-apartment-index", status: "failed", summary: `${messageOf(error)} Starší ověřené údaje zůstávají aktivní.` });
+  }
+
+  try {
+    const csu = await syncCsuApartmentAverage();
+    steps.push({ name: "csu-apartment-average", status: "ok", summary: `ČSÚ ${csu.latestPeriod||"bez období"}: ${csu.newRows} nových a ${csu.correctedRows} opravených cen.` });
+  } catch (error) {
+    steps.push({ name: "csu-apartment-average", status: "failed", summary: `${messageOf(error)} Starší ověřené údaje zůstávají aktivní.` });
+  }
+
+  try {
+    await captureSystemDailySnapshot();
+    steps.push({ name: "system-statistics", status: "ok", summary: "Denní měření systému uloženo." });
+  } catch (error) {
+    steps.push({ name: "system-statistics", status: "failed", summary: messageOf(error) });
+    hardFailure = true;
   }
 
   const summary = steps.map((step) => `${step.name}: ${step.status} – ${step.summary}`).join(" | ");

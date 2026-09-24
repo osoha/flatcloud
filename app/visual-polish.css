@@ -1,15 +1,18 @@
 /* R33: shared dimensions and user display preferences. */
 :root{--card-blue:#eef4ff;--card-green:#eef8f3;--card-amber:#fff8e9;--card-pink:#fcf0f4}
-html[data-theme="dark"]{color-scheme:dark;--blue:#80afff;--blue-soft:#243c60;--text:#e3ebf8;--muted:#a9b9cf;--line:#34445c;--bg:#101925;--green:#72d4ac;--red:#ff9c96;--card-blue:#223958;--card-green:#213c34;--card-amber:#413925;--card-pink:#422e3c}
+html[data-theme="dark"]{color-scheme:dark;--blue:#80afff;--blue-soft:#243c60;--text:#e3ebf8;--muted:#a9b9cf;--line:#34445c;--bg:#101925;--surface:#202e42;--green:#72d4ac;--red:#ff9c96;--card-blue:#223958;--card-green:#213c34;--card-amber:#413925;--card-pink:#422e3c}
 .display-preferences{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
 .display-preferences button{display:flex;align-items:center;gap:8px;border:0;background:transparent;color:var(--muted);padding:8px;border-radius:8px;min-height:36px;cursor:pointer;font-size:11px}
 .display-preferences button:hover{background:var(--blue-soft);color:var(--blue)}
 .display-preferences-mobile{display:none}
 html.fc-sidebar-collapsed .sidebar .display-preferences{justify-content:center}
 html.fc-sidebar-collapsed .sidebar .display-preferences span{display:none}
-html[data-content-width="standard"] .flatberry-shell .page{width:100%;max-width:1440px;margin-inline:auto}
-html[data-content-width="wide"] .flatberry-shell .page{width:100%;max-width:none;margin-inline:0}
-.flatberry-shell .page.form-page>.edit-form{max-width:960px;margin-inline:auto}
+.flatberry-shell .page{width:100%;max-width:none;margin-inline:0}
+.flatberry-shell .page:is(.distribution-page,.distribution-crm-page,.distribution-reporting-page,.distribution-welcome-page,.distribution-welcome-detail){max-width:none!important}
+.flatberry-shell .page.form-page{max-width:1180px;margin-inline:auto}
+.flatberry-shell .page.form-page>.edit-form{width:100%;max-width:none;margin-inline:0}
+.flatberry-shell .page.form-page>.edit-form>.form-grid{align-items:start}
+.flatberry-shell .page.form-page>.edit-form>.form-grid>.field{align-content:start;min-width:0}
 .flatberry-shell .page>.ownership-history{width:100%;box-sizing:border-box}
 .fb-modal{padding:0;border:1px solid var(--line);border-radius:16px;background:var(--bg);color:var(--text);width:min(760px,calc(100vw - 32px));max-height:calc(100dvh - 48px);overflow:auto;margin:auto}
 .fb-modal::backdrop{background:rgb(8 18 34 / .5)}
@@ -35,9 +38,6 @@ html[data-content-width="wide"] .flatberry-shell .page{width:100%;max-width:none
 .crm-directory-toolbar{display:flex;align-items:end;gap:12px;flex-wrap:wrap;margin:16px 0}
 @media(max-width:700px){.display-preferences-mobile{display:flex;margin:0}.display-preferences-mobile span{display:none}.condition-assessment-form{grid-template-columns:1fr}.fb-modal{max-height:calc(100dvh - 20px);width:calc(100vw - 20px)}}
 @media print{.display-preferences{display:none}}
-/* Legacy sections used !important fixed maxima; the shared preference owns width. */
-html[data-content-width="wide"] .flatberry-shell .page{max-width:none!important}
-html[data-content-width="standard"] .flatberry-shell .page{max-width:1440px!important}
 .fb-modal .field :is(input,select,textarea){font:inherit;border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);background:var(--bg)}
 .fb-modal :is(.primary,.secondary){border-radius:10px;min-height:40px;padding:10px 14px;cursor:pointer}
 .fb-modal .primary{background:#2168f5;color:#fff;border:1px solid #2168f5}

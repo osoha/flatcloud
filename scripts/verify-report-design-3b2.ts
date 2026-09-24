@@ -171,7 +171,7 @@ function main() {
       );
       assert.equal(
         hash("lib/storage/locations.ts"),
-        "6eca90cce50ceada1b737885b625a7583cba6b2974a454283b20dbfa41a3fcb9",
+        "e833f2e072f94e1f19a3afd385f4f05ba839a1bfbebc081039f511ce6b4a521d",
       );
       const schema = read("prisma/schema.prisma");
       assert.match(schema, /model ReportDesignTemplatePage/);

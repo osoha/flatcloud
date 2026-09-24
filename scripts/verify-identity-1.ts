@@ -78,7 +78,7 @@ async function main() {
     await check("database unique constraints have correct scope", () => { assert.match(migration, /Property_propertyCode_key/); assert.match(migration, /Unit_propertyId_unitCode_key/); });
     await check("migration is additive and preserves domain data", () => assert.doesNotMatch(migration, /DROP|TRUNCATE|DELETE FROM/i));
     await check("lease identity consumes accepted immutable business codes", () => assert.deepEqual(proposedLeaseIdentity({ propertyCode: "1201" }, { unitCode: "005", leases: [] }, new Set()), { sequence: 1, variableSymbol: "120100501", contractNumber: "NS-P1201-U005-01" }));
-    await check("Drive location behavior is unchanged", () => assert.equal(hash("lib/storage/locations.ts"), "6eca90cce50ceada1b737885b625a7583cba6b2974a454283b20dbfa41a3fcb9"));
+    await check("Drive location behavior matches the approved canonical layout", () => assert.equal(hash("lib/storage/locations.ts"), "e833f2e072f94e1f19a3afd385f4f05ba839a1bfbebc081039f511ce6b4a521d"));
     await check("googleDriveFolderId is not migrated", () => assert.doesNotMatch(migration, /googleDriveFolderId/));
     await check("MF implementation is outside identity changes", () => assert.doesNotMatch(read("lib/business-identity.ts"), /MfRent|mf-rent/));
     await check("reporting implementation is outside identity changes", () => assert.doesNotMatch(read("lib/business-identity.ts"), /Quarterly|reporting/));

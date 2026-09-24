@@ -212,9 +212,40 @@ enum UnitConditionExecutionEventKind {
 
 enum UnitValuationSource {
   INTERNAL_COMPARABLES
+  MARKET_BENCHMARK
   EXTERNAL_APPRAISAL
   OFFER_PRICE
   TRANSACTION
+}
+
+enum PersonalValueKind {
+  LOCAL_MARKET_REFERENCE
+  OFFICIAL_APPRAISAL
+}
+
+enum SaleBenchmarkSource {
+  SREALITY_PRICE_MAP
+  SREALITY_LISTINGS
+  MANUAL_REFERENCE
+}
+
+enum SaleBenchmarkMetric {
+  REALIZED_AVERAGE
+  OFFER_MEDIAN
+}
+
+enum SaleBenchmarkConfidence {
+  HIGH
+  MEDIUM
+  LOW
+  INSUFFICIENT
+}
+
+enum SaleBenchmarkMappingQuality {
+  EXACT
+  ONE_TO_MANY
+  APPROXIMATE
+  UNMAPPED
 }
 
 enum DistributionOpportunityStage {
@@ -259,13 +290,11 @@ enum MeterType {
   GAS
 }
 
-
 enum MeterScope {
   UNIT
   HOUSE_MAIN
   HOUSE_SUBMETER
 }
-
 
 enum SettlementAllocationMethod {
   METER_CONSUMPTION
@@ -274,7 +303,6 @@ enum SettlementAllocationMethod {
   EXTERNAL_RESULT
   MANUAL
 }
-
 
 enum ServiceSettlementWorkflowStatus {
   WORKING
@@ -475,19 +503,20 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
-  flatcloudMember Boolean @default(false)
-  privateToolSettings UserPrivateToolSettings?
-  activity UserActivity?
-  entityAppearances UserEntityAppearance[]
-  authoredMeterReadings MeterReading[] @relation("ReadingAuthor")
-  settlementSourcesCreated SettlementSource[] @relation("SourceCreator")
-  settlementSourcesConfirmed SettlementSource[] @relation("SourceConfirmer")
-  settlementAllocationRulesCreated SettlementAllocationRule[]
+  expenseRules BankExpenseRule[] @relation("ExpenseRuleCreator")
+  flatcloudMember                      Boolean                        @default(false)
+  privateToolSettings                  UserPrivateToolSettings?
+  activity                             UserActivity?
+  entityAppearances                    UserEntityAppearance[]
+  authoredMeterReadings                MeterReading[]                 @relation("ReadingAuthor")
+  settlementSourcesCreated             SettlementSource[]             @relation("SourceCreator")
+  settlementSourcesConfirmed           SettlementSource[]             @relation("SourceConfirmer")
+  settlementAllocationRulesCreated     SettlementAllocationRule[]
   settlementAllocationBatchesConfirmed SettlementAllocationBatch[]
-  settlementWorkflowsClosed ServiceSettlementWorkflow[] @relation("SettlementWorkflowCloser")
-  settlementWorkflowsApproved ServiceSettlementWorkflow[] @relation("SettlementWorkflowApprover")
-  settlementWorkflowsDelivered ServiceSettlementWorkflow[] @relation("SettlementWorkflowDeliverer")
-  settlementWorkflowsSettled ServiceSettlementWorkflow[] @relation("SettlementWorkflowSettler")
+  settlementWorkflowsClosed            ServiceSettlementWorkflow[]    @relation("SettlementWorkflowCloser")
+  settlementWorkflowsApproved          ServiceSettlementWorkflow[]    @relation("SettlementWorkflowApprover")
+  settlementWorkflowsDelivered         ServiceSettlementWorkflow[]    @relation("SettlementWorkflowDeliverer")
+  settlementWorkflowsSettled           ServiceSettlementWorkflow[]    @relation("SettlementWorkflowSettler")
   isTestIdentity                       Boolean                        @default(false)
   id                                   String                         @id @default(cuid())
   email                                String                         @unique
@@ -509,6 +538,12 @@ model User {
   tasksCreated                         Task[]                         @relation("TaskCreator")
   tasksAssigned                        Task[]                         @relation("TaskAssignee")
   taskEntries                          TaskEntry[]
+  taskMemberships                      TaskMember[]
+  taskStates                           TaskUserState[]
+  taskAttachmentsUploaded              TaskAttachment[]               @relation("TaskAttachmentUploader")
+  announcementsCreated                 Announcement[]                 @relation("AnnouncementCreator")
+  announcementAudiences                AnnouncementAudience[]         @relation("AnnouncementAudienceUser")
+  announcementStates                   AnnouncementUserState[]
   complianceRecordsCreated             ComplianceRecord[]             @relation("ComplianceRecordCreator")
   securityDepositTermsCreated          SecurityDepositTerm[]          @relation("SecurityDepositTermCreator")
   securityDepositMovementsCreated      SecurityDepositMovement[]      @relation("SecurityDepositMovementCreator")
@@ -528,6 +563,7 @@ model User {
   quarterlyPropertyReportMediaCreated  QuarterlyPropertyReportMedia[] @relation("QuarterlyPropertyReportMediaCreator")
   mfRentDatasetReleasesImported        MfRentDatasetRelease[]         @relation("MfRentDatasetImporter")
   mfRentLocationsConfirmed             PropertyMfRentLocation[]       @relation("MfRentLocationConfirmer")
+  saleBenchmarkSnapshotsImported       SaleBenchmarkSnapshot[]        @relation("SaleBenchmarkImporter")
   propertyValuationsCreated            PropertyValuationSnapshot[]    @relation("PropertyValuationCreator")
   rentForecastPlansCreated             RentForecastPlan[]             @relation("RentForecastPlanCreator")
   rentForecastPlansApproved            RentForecastPlan[]             @relation("RentForecastPlanApprover")
@@ -539,6 +575,8 @@ model User {
   unitConditionPlanExecutionsCreated   UnitConditionPlanExecution[]   @relation("UnitConditionPlanExecutionCreator")
   unitConditionExecutionEventsCreated  UnitConditionExecutionEvent[]  @relation("UnitConditionExecutionEventCreator")
   unitValuationsCreated                UnitValuationSnapshot[]        @relation("UnitValuationCreator")
+  personalValueCheckpoints             PersonalValueCheckpoint[]
+  personalOwner                        Owner?                          @relation("SelfRegisteredOwner")
   distributionProspectsCreated         DistributionProspect[]         @relation("DistributionProspectCreator")
   distributionOpportunitiesCreated     DistributionOpportunity[]      @relation("DistributionOpportunityCreator")
   distributionOpportunityEventsCreated DistributionOpportunityEvent[] @relation("DistributionOpportunityEventCreator")
@@ -555,6 +593,8 @@ model User {
 
 model Owner {
   id                                 String                      @id @default(cuid())
+  userId                             String?                     @unique
+  user                               User?                       @relation("SelfRegisteredOwner", fields: [userId], references: [id], onDelete: SetNull)
   name                               String
   type                               OwnerType                   @default(COMPANY)
   affiliation                        OwnerAffiliation            @default(UNCLASSIFIED)
@@ -576,6 +616,19 @@ model Owner {
   updatedAt                          DateTime                    @updatedAt
 
   @@index([affiliation])
+}
+
+/// Email verification before a public account becomes active.
+model RegistrationRequest {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  tokenHash    String    @unique
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+
+  @@index([expiresAt])
 }
 
 model OwnerBankAccount {
@@ -600,28 +653,32 @@ model OwnerBankAccount {
 }
 
 model Property {
-  settlementSources SettlementSource[]
-  settlementAllocationRules SettlementAllocationRule[]
+  sourceExpenseRules BankExpenseRule[] @relation("ExpenseRuleSource")
+  targetExpenseRules BankExpenseRule[] @relation("ExpenseRuleTarget")
+  bankExpenseAllocations      BankExpenseAllocation[]
+  settlementSources           SettlementSource[]
+  settlementAllocationRules   SettlementAllocationRule[]
   settlementAllocationBatches SettlementAllocationBatch[]
 
-  id                                String                       @id @default(cuid())
-  propertyCode                      String                       @unique @default(dbgenerated())
+  id                                String                          @id @default(cuid())
+  propertyCode                      String                          @unique @default(dbgenerated())
   name                              String
-  googleDriveFolderId               String?                      @unique
+  googleDriveFolderId               String?                         @unique
   address                           String
   city                              String
   postalCode                        String?
   note                              String?
   technicalData                     Json?
-  active                            Boolean                      @default(true)
+  active                            Boolean                         @default(true)
   ownerId                           String
-  owner                             Owner                        @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  ownershipMode                     PropertyOwnershipMode        @default(WHOLE_OBJECT)
+  owner                             Owner                           @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownershipMode                     PropertyOwnershipMode           @default(WHOLE_OBJECT)
   communicationOwnerId              String?
-  communicationOwner                Owner?                       @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  communicationOwner                Owner?                          @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  selfManaged                       Boolean                         @default(false)
   managerId                         String?
-  manager                           User?                        @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
-  managementScope                   PropertyManagementScope      @default(FULL_MANAGEMENT)
+  manager                           User?                           @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
+  managementScope                   PropertyManagementScope         @default(FULL_MANAGEMENT)
   flatcloudConsolidationBasisPoints Int?
   ownerships                        PropertyOwnership[]
   units                             Unit[]
@@ -633,6 +690,8 @@ model Property {
   inboxPayments                     InboxPayment[]
   paymentAccounts                   PropertyPaymentAccount[]
   tasks                             Task[]
+  announcementAudiences             AnnouncementAudience[]
+  taskAutomationSettings            TaskAutomationPropertySetting[]
   contacts                          PropertyContact[]
   complianceItems                   ComplianceItem[]
   costs                             PropertyCost[]
@@ -651,8 +710,8 @@ model Property {
   distributionWelcomeLetters        DistributionWelcomeLetter[]
   ownershipPeriods                  OwnershipPeriod[]
   mfRentLocation                    PropertyMfRentLocation?
-  createdAt                         DateTime                     @default(now())
-  updatedAt                         DateTime                     @updatedAt
+  createdAt                         DateTime                        @default(now())
+  updatedAt                         DateTime                        @updatedAt
 
   @@index([ownerId])
   @@index([communicationOwnerId])
@@ -662,6 +721,7 @@ model Property {
 }
 
 model PropertyCost {
+  bankSettlements        BankExpenseAllocation[]
   budgetLineId           String?
   budgetLine             PropertyBudgetLine?         @relation(fields: [budgetLineId], references: [id], onDelete: Restrict)
   id                     String                      @id @default(cuid())
@@ -1075,7 +1135,48 @@ model PropertyMfRentLocation {
   @@index([territoryCode])
 }
 
+model SaleBenchmarkSnapshot {
+  id                    String                      @id @default(cuid())
+  source                SaleBenchmarkSource
+  metric                SaleBenchmarkMetric
+  sourceLocalityType    String
+  sourceLocalityId      String
+  sourceLocalityName    String
+  sourceSeoName         String?
+  territoryCode         String
+  ruianCadastralCode    String?
+  cadastralName         String
+  municipalityName      String?
+  marketYear            Int
+  marketQuarter         Int
+  windowFrom            DateTime
+  windowTo              DateTime
+  pricePerSqmCents      BigInt
+  sampleCount           Int
+  confidence            SaleBenchmarkConfidence
+  mappingQuality        SaleBenchmarkMappingQuality
+  baselinePartial       Boolean                     @default(false)
+  acceptedSampleCount   Int?
+  rejectedSampleCount   Int                         @default(0)
+  rejectionSummary      Json?
+  sourceUrl             String?
+  rawHash               String
+  parserVersion         String
+  methodVersion         String
+  retrievedAt           DateTime
+  importedById          String?
+  importedBy            User?                       @relation("SaleBenchmarkImporter", fields: [importedById], references: [id], onDelete: SetNull)
+  createdAt             DateTime                    @default(now())
+  updatedAt             DateTime                    @updatedAt
+
+  @@unique([source, metric, sourceLocalityType, sourceLocalityId, territoryCode, marketYear, marketQuarter])
+  @@index([territoryCode, marketYear, marketQuarter])
+  @@index([source, metric, retrievedAt])
+  @@index([mappingQuality, confidence])
+}
+
 model Unit {
+  expenseRules BankExpenseRule[]
   id                        String                       @id @default(cuid())
   unitCode                  String                       @default(dbgenerated())
   label                     String
@@ -1103,6 +1204,7 @@ model Unit {
   settlementAllocationRows  SettlementAllocationRow[]
   conditionAssessments      UnitConditionAssessment[]
   valuationSnapshots        UnitValuationSnapshot[]
+  personalValueCheckpoints  PersonalValueCheckpoint[]
   distributionOpportunities DistributionOpportunity[]
   ownershipPeriods          OwnershipPeriod[]
   createdAt                 DateTime                     @default(now())
@@ -1204,6 +1306,58 @@ model UnitValuationSnapshot {
 
   @@index([unitId, valuationDate])
   @@index([source, valuationDate])
+}
+
+/// User-owned estimate only. Never included in corporate distribution or shared benchmark queries.
+model PersonalValueCheckpoint {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unitId            String
+  unit              Unit              @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  kind              PersonalValueKind
+  valueCents        BigInt
+  pricePerSqmCents  BigInt?
+  asOfDate          DateTime
+  windowFrom        DateTime?
+  windowTo          DateTime?
+  transactionCount  Int?
+  sourceName        String
+  sourceUrl         String?
+  reference         String?
+  note              String?
+  createdAt         DateTime          @default(now())
+
+  @@index([userId, unitId, asOfDate])
+}
+
+/// Official ČSÚ apartment price index, shared across users. Never accepts user estimates.
+model CsuApartmentPriceIndex {
+  id              String   @id @default(cuid())
+  territoryCode   String
+  marketYear      Int
+  marketQuarter   Int
+  indexBasisPoints Int
+  sourceUpdatedAt DateTime
+  sourceHash      String
+  importedAt      DateTime @default(now())
+
+  @@unique([territoryCode, marketYear, marketQuarter])
+  @@index([marketYear, marketQuarter])
+}
+
+/// Official ČSÚ realized apartment average (CZK per square metre), by district/region/country.
+model CsuApartmentAverage {
+  id              String   @id @default(cuid())
+  territoryCode   String
+  sourcePeriod    String
+  pricePerSqmCents BigInt
+  sourceUpdatedAt DateTime
+  sourceHash      String
+  importedAt      DateTime @default(now())
+
+  @@unique([territoryCode, sourcePeriod])
+  @@index([territoryCode, sourcePeriod])
 }
 
 model DistributionProspect {
@@ -1452,7 +1606,7 @@ model Lease {
   rentChangeProposals         RentChangeProposal[]
   serviceSettlementProtocols  ServiceSettlementProtocol[]
   occupancyPeriods            LeaseOccupancyPeriod[]
-  settlementAllocationRows     SettlementAllocationRow[]
+  settlementAllocationRows    SettlementAllocationRow[]
   documents                   Document[]
   createdAt                   DateTime                    @default(now())
   updatedAt                   DateTime                    @updatedAt
@@ -1499,19 +1653,19 @@ model Occupant {
 }
 
 model Meter {
-  tariffs MeterTariff[]
-  id              String       @id @default(cuid())
+  tariffs         MeterTariff[]
+  id              String         @id @default(cuid())
   propertyId      String
-  property        Property     @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property        Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   unitId          String?
-  unit            Unit?        @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  scope           MeterScope   @default(UNIT)
+  unit            Unit?          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  scope           MeterScope     @default(UNIT)
   parentId        String?
-  parent          Meter?       @relation("MeterHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
-  children        Meter[]      @relation("MeterHierarchy")
-  replacementOfId String?      @unique
-  replacementOf   Meter?       @relation("MeterReplacement", fields: [replacementOfId], references: [id], onDelete: Restrict)
-  replacedBy      Meter?       @relation("MeterReplacement")
+  parent          Meter?         @relation("MeterHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children        Meter[]        @relation("MeterHierarchy")
+  replacementOfId String?        @unique
+  replacementOf   Meter?         @relation("MeterReplacement", fields: [replacementOfId], references: [id], onDelete: Restrict)
+  replacedBy      Meter?         @relation("MeterReplacement")
   type            MeterType
   label           String?
   serialNumber    String?
@@ -1519,10 +1673,10 @@ model Meter {
   unitOfMeasure   String
   installedAt     DateTime?
   removedAt       DateTime?
-  active          Boolean      @default(true)
+  active          Boolean        @default(true)
   readings        MeterReading[]
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   @@index([propertyId, scope, type])
   @@index([unitId, type])
@@ -1530,17 +1684,17 @@ model Meter {
 }
 
 model MeterReading {
-  method String @default("LEGACY")
-  unitOfMeasure String?
-  createdById String?
-  createdBy User? @relation("ReadingAuthor", fields: [createdById], references: [id], onDelete: Restrict)
-  correctsId String? @unique
-  corrects MeterReading? @relation("ReadingCorrection", fields: [correctsId], references: [id], onDelete: Restrict)
-  correction MeterReading? @relation("ReadingCorrection")
-  correctionReason String?
+  method             String        @default("LEGACY")
+  unitOfMeasure      String?
+  createdById        String?
+  createdBy          User?         @relation("ReadingAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  correctsId         String?       @unique
+  corrects           MeterReading? @relation("ReadingCorrection", fields: [correctsId], references: [id], onDelete: Restrict)
+  correction         MeterReading? @relation("ReadingCorrection")
+  correctionReason   String?
   evidenceDocumentId String?
-  evidenceDocument Document? @relation("ReadingEvidence", fields: [evidenceDocumentId], references: [id], onDelete: Restrict)
-  evidenceSnapshot Json?
+  evidenceDocument   Document?     @relation("ReadingEvidence", fields: [evidenceDocumentId], references: [id], onDelete: Restrict)
+  evidenceSnapshot   Json?
 
   id        String   @id @default(cuid())
   meterId   String
@@ -1594,7 +1748,7 @@ model Charge {
   updatedAt                 DateTime                   @updatedAt
   notifications             RentNotification[]
   serviceSettlementProtocol ServiceSettlementProtocol?
-  settlementWorkflowDebit ServiceSettlementWorkflow? @relation("SettlementWorkflowCharge")
+  settlementWorkflowDebit   ServiceSettlementWorkflow? @relation("SettlementWorkflowCharge")
 
   @@unique([leaseId, period])
   @@index([leaseId, dueDate])
@@ -1613,6 +1767,7 @@ model ChargeItem {
 }
 
 model BankAccount {
+  expenseRules BankExpenseRule[]
   id                String             @id @default(cuid())
   propertyId        String
   property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -1660,6 +1815,11 @@ model BankMatchingRule {
 }
 
 model BankTransaction {
+  expenseIgnoredAt DateTime?
+  expenseIgnoreReason String?
+  expenseSuggestedRuleId String?
+  expenseRevision         Int                       @default(0)
+  expenseAllocations      BankExpenseAllocation[]
   id                      String                    @id @default(cuid())
   bankAccountId           String
   bankAccount             BankAccount               @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
@@ -1740,15 +1900,15 @@ model LeaseCredit {
   createdAt                 DateTime                   @default(now())
   applications              LeaseCreditApplication[]
   serviceSettlementProtocol ServiceSettlementProtocol?
-  settlementWorkflowCredit ServiceSettlementWorkflow? @relation("SettlementWorkflowCredit")
+  settlementWorkflowCredit  ServiceSettlementWorkflow? @relation("SettlementWorkflowCredit")
 
   @@index([leaseId, effectiveAt])
 }
 
 model ServiceSettlementProtocol {
-  id               String       @id @default(cuid())
+  id               String                     @id @default(cuid())
   leaseId          String
-  lease            Lease        @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  lease            Lease                      @relation(fields: [leaseId], references: [id], onDelete: Restrict)
   periodFrom       DateTime
   periodTo         DateTime
   advancesCents    Int
@@ -1756,13 +1916,13 @@ model ServiceSettlementProtocol {
   balanceCents     Int
   dueDate          DateTime?
   snapshot         Json
-  chargeId         String?      @unique
-  charge           Charge?      @relation(fields: [chargeId], references: [id], onDelete: Restrict)
-  creditId         String?      @unique
-  credit           LeaseCredit? @relation(fields: [creditId], references: [id], onDelete: Restrict)
+  chargeId         String?                    @unique
+  charge           Charge?                    @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+  creditId         String?                    @unique
+  credit           LeaseCredit?               @relation(fields: [creditId], references: [id], onDelete: Restrict)
   issuedById       String
-  issuedBy         User         @relation("ServiceSettlementProtocolIssuer", fields: [issuedById], references: [id], onDelete: Restrict)
-  issuedAt         DateTime     @default(now())
+  issuedBy         User                       @relation("ServiceSettlementProtocolIssuer", fields: [issuedById], references: [id], onDelete: Restrict)
+  issuedAt         DateTime                   @default(now())
   workflow         ServiceSettlementWorkflow?
 
   @@unique([leaseId, periodFrom, periodTo])
@@ -1869,8 +2029,8 @@ model Task {
   category               TaskCategory                @default(GENERAL)
   status                 TaskStatus                  @default(OPEN)
   priority               TaskPriority                @default(NORMAL)
-  propertyId             String
-  property               Property                    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  propertyId             String?
+  property               Property?                   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   unitId                 String?
   unit                   Unit?                       @relation(fields: [unitId], references: [id], onDelete: SetNull)
   leaseId                String?
@@ -1885,15 +2045,169 @@ model Task {
   closedAt               DateTime?
   dedupeKey              String?                     @unique
   entries                TaskEntry[]
+  members                TaskMember[]
+  userStates             TaskUserState[]
+  attachments            TaskAttachment[]
   documents              Document[]
   costs                  PropertyCost[]
   conditionPlanExecution UnitConditionPlanExecution?
+  automationRuleId       String?
+  automationRule         TaskAutomationRule?         @relation(fields: [automationRuleId], references: [id], onDelete: SetNull)
+  automationEventKey     String?
   createdAt              DateTime                    @default(now())
   updatedAt              DateTime                    @updatedAt
 
   @@index([propertyId, status, dueAt])
   @@index([assigneeId, status, dueAt])
   @@index([leaseId, category, status])
+  @@index([automationRuleId, automationEventKey])
+}
+
+enum TaskAutomationEvent {
+  PROPERTY_ONBOARDING
+  LEASE_START
+  LEASE_EXPIRY
+  LEASE_ANNIVERSARY
+  LEASE_TERMINATION
+  UNIT_HANDOVER_OUT
+  COST_DUE
+  BANK_UNMATCHED
+  COMPLIANCE_DUE
+  SUPPLIER_CONTRACT_DECISION
+}
+
+enum TaskAutomationOverrideMode {
+  INHERIT
+  ENABLED
+  DISABLED
+}
+
+model TaskAutomationRule {
+  id             String                          @id
+  code           String                          @unique
+  name           String
+  description    String
+  event          TaskAutomationEvent
+  category       TaskCategory                    @default(GENERAL)
+  priority       TaskPriority                    @default(NORMAL)
+  leadDays       Int                             @default(0)
+  globalEnabled  Boolean                         @default(true)
+  defaultEnabled Boolean                         @default(true)
+  templateBody   String
+  checklist      Json?
+  overrides      TaskAutomationPropertySetting[]
+  tasks          Task[]
+  createdAt      DateTime                        @default(now())
+  updatedAt      DateTime                        @updatedAt
+
+  @@index([globalEnabled, event])
+}
+
+model TaskAutomationPropertySetting {
+  ruleId     String
+  rule       TaskAutomationRule         @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  propertyId String
+  property   Property                   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  mode       TaskAutomationOverrideMode @default(INHERIT)
+  updatedAt  DateTime                   @updatedAt
+
+  @@id([ruleId, propertyId])
+  @@index([propertyId, mode])
+}
+
+enum TaskMemberRole {
+  COLLABORATOR
+  WATCHER
+}
+
+model TaskMember {
+  taskId    String
+  task      Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      TaskMemberRole @default(COLLABORATOR)
+  createdAt DateTime       @default(now())
+
+  @@id([taskId, userId])
+  @@index([userId, role])
+}
+
+model TaskUserState {
+  taskId      String
+  task        Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorite    Boolean   @default(false)
+  dismissedAt DateTime?
+  lastReadAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@id([taskId, userId])
+  @@index([userId, favorite, dismissedAt])
+}
+
+enum AnnouncementSeverity {
+  INFO
+  IMPORTANT
+  CRITICAL
+}
+
+enum AnnouncementAudienceKind {
+  ALL_USERS
+  FLATCLOUD_MEMBERS
+  ROLE
+  PROPERTY
+  USER
+}
+
+model Announcement {
+  id          String                  @id @default(cuid())
+  title       String
+  body        String
+  severity    AnnouncementSeverity    @default(INFO)
+  startsAt    DateTime                @default(now())
+  expiresAt   DateTime?
+  active      Boolean                 @default(true)
+  createdById String
+  createdBy   User                    @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  audiences   AnnouncementAudience[]
+  userStates  AnnouncementUserState[]
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([active, startsAt, expiresAt])
+}
+
+model AnnouncementAudience {
+  id             String                   @id @default(cuid())
+  announcementId String
+  announcement   Announcement             @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  kind           AnnouncementAudienceKind
+  role           UserRole?
+  propertyId     String?
+  property       Property?                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?                    @relation("AnnouncementAudienceUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime                 @default(now())
+
+  @@index([announcementId, kind])
+  @@index([propertyId])
+  @@index([userId])
+}
+
+model AnnouncementUserState {
+  announcementId String
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dismissedAt    DateTime?
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@id([announcementId, userId])
+  @@index([userId, dismissedAt])
 }
 
 enum TaskEntryVisibility {
@@ -1903,20 +2217,37 @@ enum TaskEntryVisibility {
 
 model TaskEntry {
   visibility          TaskEntryVisibility @default(INTERNAL)
-  id                  String        @id @default(cuid())
+  id                  String              @id @default(cuid())
   taskId              String
-  task                Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task                Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
   authorId            String?
-  author              User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  kind                TaskEntryKind @default(COMMENT)
+  author              User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  kind                TaskEntryKind       @default(COMMENT)
   body                String
   promisedPaymentDate DateTime?
   promisedAmountCents Int?
-  createdAt           DateTime      @default(now())
+  createdAt           DateTime            @default(now())
   documents           Document[]
+  attachments         TaskAttachment[]
 
   @@index([taskId, createdAt])
   @@index([authorId, createdAt])
+}
+
+model TaskAttachment {
+  id           String     @id @default(cuid())
+  taskId       String
+  task         Task       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskEntryId  String?
+  taskEntry    TaskEntry? @relation(fields: [taskEntryId], references: [id], onDelete: Cascade)
+  fileAssetId  String     @unique
+  fileAsset    FileAsset  @relation(fields: [fileAssetId], references: [id], onDelete: Restrict)
+  uploadedById String
+  uploadedBy   User       @relation("TaskAttachmentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt    DateTime   @default(now())
+
+  @@index([taskId, createdAt])
+  @@index([taskEntryId])
 }
 
 model PropertyContact {
@@ -2231,6 +2562,7 @@ model FileAsset {
   uploadedById                 String
   uploadedBy                   User                           @relation("FileAssetUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   documents                    Document[]
+  taskAttachments              TaskAttachment[]
   publishedReports             QuarterlyReport[]              @relation("QuarterlyReportPublishedAsset")
   publishedAnnualReports       AnnualReport[]                 @relation("AnnualReportPublishedAsset")
   quarterlyPropertyReportMedia QuarterlyPropertyReportMedia[]
@@ -2242,8 +2574,8 @@ model FileAsset {
 }
 
 model Document {
-  meterReadingEvidence MeterReading[] @relation("ReadingEvidence")
-  settlementSources SettlementSource[]
+  meterReadingEvidence MeterReading[]     @relation("ReadingEvidence")
+  settlementSources    SettlementSource[]
 
   id                                   String                                @id @default(cuid())
   propertyId                           String
@@ -2319,98 +2651,97 @@ model AuditLog {
   createdAt  DateTime  @default(now())
 
   @@index([userId, createdAt])
+  @@index([action, createdAt])
   @@index([propertyId, createdAt])
 }
 
 // Source evidence only: never a charge or tenant settlement.
 model SettlementSource {
-  id String @id @default(cuid())
-  propertyId String
-  property Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
-  documentId String?
-  document Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
-  identityKey String
-  version Int @default(1)
-  previousId String? @unique
-  previous SettlementSource? @relation("SourceRevisions", fields: [previousId], references: [id], onDelete: Restrict)
-  next SettlementSource? @relation("SourceRevisions")
-  payload Json
-  createdById String
-  createdBy User @relation("SourceCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt DateTime @default(now())
-  confirmedById String?
-  confirmedBy User? @relation("SourceConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
-  confirmedAt DateTime?
-  confirmation Json?
+  id                String                      @id @default(cuid())
+  propertyId        String
+  property          Property                    @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  documentId        String?
+  document          Document?                   @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  identityKey       String
+  version           Int                         @default(1)
+  previousId        String?                     @unique
+  previous          SettlementSource?           @relation("SourceRevisions", fields: [previousId], references: [id], onDelete: Restrict)
+  next              SettlementSource?           @relation("SourceRevisions")
+  payload           Json
+  createdById       String
+  createdBy         User                        @relation("SourceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt         DateTime                    @default(now())
+  confirmedById     String?
+  confirmedBy       User?                       @relation("SourceConfirmer", fields: [confirmedById], references: [id], onDelete: Restrict)
+  confirmedAt       DateTime?
+  confirmation      Json?
   allocationBatches SettlementAllocationBatch[]
 
   @@unique([propertyId, identityKey, version])
   @@index([propertyId, createdAt])
 }
 
-
 model SettlementAllocationRule {
-  id          String                     @id @default(cuid())
+  id          String                      @id @default(cuid())
   propertyId  String
-  property    Property                   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property    Property                    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   service     String
   method      SettlementAllocationMethod
   validFrom   DateTime
   validTo     DateTime?
   meterType   MeterType?
   note        String?
-  active      Boolean                    @default(true)
+  active      Boolean                     @default(true)
   createdById String
-  createdBy   User                       @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt   DateTime                   @default(now())
+  createdBy   User                        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime                    @default(now())
   batches     SettlementAllocationBatch[]
 
   @@index([propertyId, service, validFrom])
 }
 
 model LeaseOccupancyPeriod {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   leaseId     String
-  lease       Lease    @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  lease       Lease     @relation(fields: [leaseId], references: [id], onDelete: Cascade)
   validFrom   DateTime
   validTo     DateTime?
   personCount Int
   note        String?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
 
   @@index([leaseId, validFrom])
 }
 
 model UnitAreaPeriod {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   unitId    String
-  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  unit      Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
   validFrom DateTime
   validTo   DateTime?
   areaM2    Float
   note      String?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([unitId, validFrom])
 }
 
-
 model SettlementAllocationBatch {
-  id            String                   @id @default(cuid())
+  id            String                     @id @default(cuid())
   propertyId    String
-  property      Property                 @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property      Property                   @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   sourceId      String
-  source        SettlementSource         @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  source        SettlementSource           @relation(fields: [sourceId], references: [id], onDelete: Restrict)
   lineKey       String
   ruleId        String?
-  rule          SettlementAllocationRule? @relation(fields: [ruleId], references: [id], onDelete: Restrict)
+  rule          SettlementAllocationRule?  @relation(fields: [ruleId], references: [id], onDelete: Restrict)
   method        SettlementAllocationMethod
   totalCents    Int
   basisSnapshot Json
   rows          SettlementAllocationRow[]
   confirmedById String
-  confirmedBy   User                     @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
-  confirmedAt   DateTime                 @default(now())
+  confirmedBy   User                       @relation(fields: [confirmedById], references: [id], onDelete: Restrict)
+  confirmedAt   DateTime                   @default(now())
 
   @@unique([sourceId, lineKey])
   @@index([propertyId, confirmedAt])
@@ -2423,87 +2754,148 @@ model SettlementAllocationRow {
   unitId           String
   unit             Unit                      @relation(fields: [unitId], references: [id], onDelete: Restrict)
   leaseId          String?
-  lease             Lease?                   @relation(fields: [leaseId], references: [id], onDelete: Restrict)
-  basis             Float
+  lease            Lease?                    @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  basis            Float
   shareBasisPoints Int
   amountCents      Int
-  label             String
+  label            String
 
   @@index([unitId, leaseId])
 }
 
-
 model ServiceSettlementWorkflow {
-  id                String                          @id @default(cuid())
-  protocolId        String                          @unique
-  protocol          ServiceSettlementProtocol       @relation(fields: [protocolId], references: [id], onDelete: Restrict)
-  status            ServiceSettlementWorkflowStatus @default(WORKING)
-  paymentSnapshot   Json?
-  paymentClosedById String?
-  paymentClosedBy   User?                           @relation("SettlementWorkflowCloser", fields: [paymentClosedById], references: [id], onDelete: Restrict)
-  paymentClosedAt   DateTime?
-  approvedById      String?
-  approvedBy        User?                           @relation("SettlementWorkflowApprover", fields: [approvedById], references: [id], onDelete: Restrict)
-  approvedAt        DateTime?
-  deliveredById     String?
-  deliveredBy       User?                           @relation("SettlementWorkflowDeliverer", fields: [deliveredById], references: [id], onDelete: Restrict)
-  deliveredAt       DateTime?
-  deliveryMethod    String?
-  deliveryReference String?
-  objectionUntil    DateTime?
-  objectionNote     String?
-  objectionRaisedAt DateTime?
+  id                  String                          @id @default(cuid())
+  protocolId          String                          @unique
+  protocol            ServiceSettlementProtocol       @relation(fields: [protocolId], references: [id], onDelete: Restrict)
+  status              ServiceSettlementWorkflowStatus @default(WORKING)
+  paymentSnapshot     Json?
+  paymentClosedById   String?
+  paymentClosedBy     User?                           @relation("SettlementWorkflowCloser", fields: [paymentClosedById], references: [id], onDelete: Restrict)
+  paymentClosedAt     DateTime?
+  approvedById        String?
+  approvedBy          User?                           @relation("SettlementWorkflowApprover", fields: [approvedById], references: [id], onDelete: Restrict)
+  approvedAt          DateTime?
+  deliveredById       String?
+  deliveredBy         User?                           @relation("SettlementWorkflowDeliverer", fields: [deliveredById], references: [id], onDelete: Restrict)
+  deliveredAt         DateTime?
+  deliveryMethod      String?
+  deliveryReference   String?
+  objectionUntil      DateTime?
+  objectionNote       String?
+  objectionRaisedAt   DateTime?
   objectionResolvedAt DateTime?
   objectionResolution String?
-  chargeId          String?                         @unique
-  charge            Charge?                         @relation("SettlementWorkflowCharge", fields: [chargeId], references: [id], onDelete: Restrict)
-  creditId          String?                         @unique
-  credit            LeaseCredit?                    @relation("SettlementWorkflowCredit", fields: [creditId], references: [id], onDelete: Restrict)
-  settledById       String?
-  settledBy         User?                           @relation("SettlementWorkflowSettler", fields: [settledById], references: [id], onDelete: Restrict)
-  settledAt         DateTime?
-  createdAt         DateTime                        @default(now())
-  updatedAt         DateTime                        @updatedAt
+  chargeId            String?                         @unique
+  charge              Charge?                         @relation("SettlementWorkflowCharge", fields: [chargeId], references: [id], onDelete: Restrict)
+  creditId            String?                         @unique
+  credit              LeaseCredit?                    @relation("SettlementWorkflowCredit", fields: [creditId], references: [id], onDelete: Restrict)
+  settledById         String?
+  settledBy           User?                           @relation("SettlementWorkflowSettler", fields: [settledById], references: [id], onDelete: Restrict)
+  settledAt           DateTime?
+  createdAt           DateTime                        @default(now())
+  updatedAt           DateTime                        @updatedAt
 }
 
 // Personal presentation only. Entity access is always checked against the original object.
 model UserEntityAppearance {
-  avatarData Bytes?
+  avatarData     Bytes?
   avatarMimeType String?
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  entityKey String
-  favorite  Boolean  @default(false)
-  color     String?
-  photoId   String?
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entityKey      String
+  favorite       Boolean  @default(false)
+  color          String?
+  photoId        String?
+  updatedAt      DateTime @updatedAt
 
   @@unique([userId, entityKey])
 }
 
 model UserActivity {
-  userId String @id
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String   @id
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   lastSeenAt DateTime
+
   @@index([lastSeenAt])
 }
 
 model UserPrivateToolSettings {
-  userId String @id
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String   @id
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   mapsKeyEncrypted String?
-  updatedAt DateTime @updatedAt
+  updatedAt        DateTime @updatedAt
 }
 
 model MeterTariff {
-  id String @id @default(cuid())
-  meterId String
-  meter Meter @relation(fields: [meterId], references: [id], onDelete: Cascade)
-  validFrom DateTime
-  priceCentsPerUnit Decimal @db.Decimal(14, 4)
+  id                  String   @id @default(cuid())
+  meterId             String
+  meter               Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  validFrom           DateTime
+  priceCentsPerUnit   Decimal  @db.Decimal(14, 4)
   monthlyAdvanceCents Int
-  unitOfMeasure String
-  createdAt DateTime @default(now())
+  unitOfMeasure       String
+  createdAt           DateTime @default(now())
+
   @@unique([meterId, validFrom])
+}
+
+// Append-only settlement ledger. Corrections void a row and retain its author/reason.
+model BankExpenseAllocation {
+  id             String          @id @default(cuid())
+  transactionId  String
+  transaction    BankTransaction @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+  propertyCostId String?
+  propertyCost   PropertyCost?   @relation(fields: [propertyCostId], references: [id], onDelete: Restrict)
+  propertyId     String
+  property       Property        @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  kind           String
+  amountCents    Int
+  reason         String
+  createdById    String
+  createdAt      DateTime        @default(now())
+  voidedAt       DateTime?
+  voidedById     String?
+  voidReason     String?
+
+  @@index([transactionId, voidedAt])
+  @@index([propertyCostId, voidedAt])
+  @@index([propertyId, createdAt])
+}
+
+/// First successful daily measurement in UTC; no inferred historical values.
+model SystemDailySnapshot {
+  day         DateTime @id @db.Date
+  capturedAt  DateTime @default(now())
+  users       Int
+  activeUsers Int
+  testUsers   Int
+  properties  Int
+  units       Int
+}
+
+model BankExpenseRule {
+  sourceProperty Property @relation("ExpenseRuleSource", fields:[sourcePropertyId], references:[id], onDelete:Cascade)
+  targetProperty Property @relation("ExpenseRuleTarget", fields:[targetPropertyId], references:[id], onDelete:Cascade)
+  bankAccount BankAccount @relation(fields:[bankAccountId], references:[id], onDelete:Cascade)
+  unit Unit? @relation(fields:[unitId], references:[id], onDelete:SetNull)
+  createdBy User @relation("ExpenseRuleCreator", fields:[createdById], references:[id], onDelete:Restrict)
+  id String @id @default(cuid())
+  sourcePropertyId String
+  bankAccountId String
+  name String
+  active Boolean @default(true)
+  conditions Json
+  action String
+  targetPropertyId String
+  unitId String?
+  category PropertyCostCategory @default(OTHER)
+  costKind PropertyCostKind @default(OPEX)
+  createdById String
+  usedCount Int @default(0)
+  lastUsedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([sourcePropertyId, active])
+  @@index([bankAccountId, active])
 }

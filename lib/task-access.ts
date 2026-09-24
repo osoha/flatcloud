@@ -3,12 +3,26 @@ import { hasAllPropertyAccess } from "./auth";
 import { prisma } from "./db";
 
 type User = { id: string; role: string; allProperties?: boolean };
-export type TaskAuthorizationTarget = { propertyId: string; unitId: string | null; leaseId?: string | null; lease?: { unitId: string } | null };
+export type TaskAuthorizationTarget = { id?: string; propertyId: string | null; unitId: string | null; leaseId?: string | null; lease?: { unitId: string } | null; createdById?: string | null; assigneeId?: string | null };
 export function authoritativeTaskUnitId(task: TaskAuthorizationTarget) { return task.unitId || task.lease?.unitId || null; }
-export function taskEditScope(task:TaskAuthorizationTarget){const unitId=authoritativeTaskUnitId(task);return unitId?{mode:"UNIT" as const,propertyId:task.propertyId,unitId}:{mode:"PROPERTY" as const,propertyId:task.propertyId}}
-export function canEditTaskFromGrants(scope:ReturnType<typeof taskEditScope>,grants:{wholePropertyIds:string[];unitIds:string[]},allProperties=false){return allProperties||grants.wholePropertyIds.includes(scope.propertyId)||(scope.mode==="UNIT"&&grants.unitIds.includes(scope.unitId))}
+/** A task participant must be able to open the exact property or unit in its context. */
+export function taskParticipantWhere(propertyId:string,unitId:string|null):Prisma.UserWhereInput {
+  return {active:true,OR:[
+    {role:{in:["SUPER_ADMIN","MANAGER"]}},
+    {allProperties:true},
+    {memberships:{some:{propertyId}}},
+    ...(unitId?[{unitMemberships:{some:{unitId,unit:{propertyId}}}}]:[]),
+  ]};
+}
+export function taskEditScope(task:TaskAuthorizationTarget){const unitId=authoritativeTaskUnitId(task);return task.propertyId ? (unitId?{mode:"UNIT" as const,propertyId:task.propertyId,unitId}:{mode:"PROPERTY" as const,propertyId:task.propertyId}) : {mode:"GENERAL" as const,propertyId:null}}
+export function canEditTaskFromGrants(scope:ReturnType<typeof taskEditScope>,grants:{wholePropertyIds:string[];unitIds:string[]},allProperties=false){return allProperties||(scope.mode!=="GENERAL"&&grants.wholePropertyIds.includes(scope.propertyId))||(scope.mode==="UNIT"&&grants.unitIds.includes(scope.unitId))}
 export async function canEditTask(user: User, task: TaskAuthorizationTarget, client: Prisma.TransactionClient | typeof prisma = prisma) {
   if (hasAllPropertyAccess(user)) return true;
+  if (!task.propertyId) {
+    if (task.createdById === user.id || task.assigneeId === user.id) return true;
+    if (!task.id) return false;
+    return Boolean(await client.taskMember.findFirst({ where: { taskId: task.id, userId: user.id, role: "COLLABORATOR" }, select: { taskId: true } }));
+  }
   const unitId = authoritativeTaskUnitId(task);
   const propertyGrant=await client.userProperty.findFirst({ where: { userId: user.id, propertyId: task.propertyId, permission: { in: ["EDIT", "ADMIN"] } }, select: { propertyId: true } });
   if(propertyGrant)return true;
@@ -21,15 +35,28 @@ export function taskEditWhere(user: User): Prisma.TaskWhereInput {
   if (hasAllPropertyAccess(user)) return {};
   const permission = { userId: user.id, permission: { in: ["EDIT", "ADMIN"] as ("EDIT" | "ADMIN")[] } };
   return { OR: [
+    { createdById: user.id },
+    { assigneeId: user.id },
+    { members: { some: { userId: user.id, role: "COLLABORATOR" } } },
     { property: { memberships: { some: permission } } },
     { unit: { userAccesses: { some: permission } } },
     { unitId: null, lease: { unit: { userAccesses: { some: permission } } } },
   ] };
 }
 
+export function taskViewWhere(user: User): Prisma.TaskWhereInput {
+  if (hasAllPropertyAccess(user)) return {};
+  return { OR: [
+    { propertyId: null, OR: [{ createdById: user.id }, { assigneeId: user.id }, { members: { some: { userId: user.id } } }] },
+    { property: { memberships: { some: { userId: user.id } } } },
+    { unit: { userAccesses: { some: { userId: user.id } } } },
+    { unitId: null, lease: { unit: { userAccesses: { some: { userId: user.id } } } } },
+  ] };
+}
+
 /** Apply inside an already authorized task/document scope. */
 export function taskEntryVisibilityWhere(user: User): Prisma.TaskEntryWhereInput {
-  return hasAllPropertyAccess(user) ? {} : { OR: [{ visibility: "OWNER_VISIBLE" }, { task: taskEditWhere(user) }] };
+  return hasAllPropertyAccess(user) ? {} : { OR: [{ visibility: "OWNER_VISIBLE" }, { task: taskEditWhere(user) }, { task: { createdById: user.id } }, { task: { assigneeId: user.id } }, { task: { members: { some: { userId: user.id } } } }] };
 }
 
 export function parseTaskEntryVisibility(form: FormData) {

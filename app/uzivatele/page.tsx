@@ -1,3 +1,4 @@
+import { userPropertyOverview } from "@/lib/user-property-overview";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
@@ -47,6 +48,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     searchParams,
     prisma.auditLog.groupBy({ by: ["userId"], where: { action: "LOGIN", entityType: "User" }, _max: { createdAt: true } }),
   ]);
+  const propertyOverview=await userPropertyOverview();
   const now = new Date(), activityView = parseActivityView(query.activity);
   const loginDates = new Map(logins.map(row => [row.userId, row._max.createdAt]));
   const users = filterAndSortActivity(storedUsers.map(row => ({ ...row, lastActivityAt: latestActivityAt(row.activity?.lastSeenAt, loginDates.get(row.id)), online: isUserOnline(row.active, row.activity?.lastSeenAt, now) })), activityView, now);
@@ -100,9 +102,10 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     <p className="user-activity-note">Online = viditelná karta aplikace během posledních 2 minut. Stav k {now.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Prague" })}. Bez záznamu aktivity znamená, že zatím nemáme potvrzenou aktivitu ani historické přihlášení; nejde o deaktivovaný účet.</p>
       </div>
       <div className="table-wrap"><table>
-        <thead><tr><th>Uživatel</th><th>Role</th><th>Nemovitosti</th><th>Stav</th><th>Poslední aktivita</th><th></th></tr></thead>
+        <thead><tr><th>Uživatel</th><th>Role</th><th>Nemovitosti</th><th>Vztah k portfoliu</th><th>Stav</th><th>Poslední aktivita</th><th></th></tr></thead>
         <tbody>{users.length ? users.map((row) => {
           const href = `/uzivatele/${row.id}`;
+          const relations=propertyOverview(row.id);
           const accessLabel = row.allProperties || row.role === "SUPER_ADMIN" || row.role === "MANAGER"
             ? "Všechny současné i budoucí"
             : row.memberships.length
@@ -113,12 +116,12 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           return <tr className="clickable-table-row" key={row.id}>
             <td><Link className="row-cell-link" href={href}><div className="user-table-cell"><UserAvatar user={row} className={row.online ? "user-online" : ""}/><div><strong>{row.name}</strong><span className="owner-sub">{row.email}</span>{row.online && <span className="user-activity-online">Online</span>}</div></div></Link></td>
             <td><Link className="row-cell-link" href={href}>{userRoles[row.role]}<small className="owner-sub">{isFlatcloudMember(row)?"Skupina FlatCloud":"Externí prostředí"}</small></Link></td>
-            <td><Link className="row-cell-link" href={href}>{accessLabel}</Link></td>
+            <td><Link className="row-cell-link" href={href}>{accessLabel}</Link></td><td><Link className="row-cell-link" href={`${href}#nemovitosti`}>{relations.length} domů / {relations.reduce((n,p)=>n+(p.roles.some(r=>["Založil","Spravuje","Vlastník"].includes(r))?p.units:p.accessibleUnits),0)} jednotek<small className="owner-sub">Založil {relations.filter(p=>p.roles.includes("Založil")).length} · spravuje {relations.filter(p=>p.roles.includes("Spravuje")).length} · vlastník {relations.filter(p=>p.roles.includes("Vlastník")).length}</small></Link></td>
             <td><Link className="row-cell-link" href={href}><span className={`status ${row.active ? "ok" : "bad"}`}>{row.active ? "Aktivní" : "Deaktivovaný"}</span></Link></td>
             <td><Link className="row-cell-link" href={href}>{row.lastActivityAt ? <time dateTime={row.lastActivityAt.toISOString()}>{row.lastActivityAt.toLocaleString("cs-CZ", { timeZone: "Europe/Prague", dateStyle: "short", timeStyle: "short" })}</time> : "Dosud nezaznamenána"}</Link></td>
             <td><Link className="table-link" href={href}>Upravit</Link>{row.active && row.id !== user.id && <form action="/api/admin/user-preview" method="post"><input type="hidden" name="userId" value={row.id}/><button className="secondary">Pohled uživatele</button></form>}</td>
           </tr>;
-        }) : <tr><td colSpan={6} className="table-empty">Vybranému filtru neodpovídá žádný účet.</td></tr>}</tbody>
+        }) : <tr><td colSpan={7} className="table-empty">Vybranému filtru neodpovídá žádný účet.</td></tr>}</tbody>
       </table></div>
     </div>
 

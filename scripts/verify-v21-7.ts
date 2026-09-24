@@ -85,7 +85,7 @@ checks.push(["PROPERTY_MANAGER remains scoped", !propertyManagerScope.allPropert
 const unitUser = { id: "unit-user", role: "OWNER_VIEWER", allProperties: false };
 const taskScope = JSON.stringify(taskAccessWhere(unitUser));
 const bankScope = JSON.stringify(bankTransactionAccessWhere(unitUser));
-checks.push(["unit-only task scope excludes generic property tasks", taskScope.includes("memberships") && taskScope.includes("unit") && !taskScope.includes("propertyId")]);
+checks.push(["unit-only task scope excludes generic property tasks", taskScope.includes("memberships") && taskScope.includes("userAccesses") && taskAccessWhere(unitUser).OR!.every(branch => (!("createdById" in branch) && !("assigneeId" in branch) && !("members" in branch))) && taskAccessWhere(unitUser).OR!.some(branch => branch.propertyId === null && Array.isArray(branch.OR))]);
 checks.push(["unit-only bank scope uses visible unit relations", bankScope.includes("suggestedLease") && bankScope.includes("allocations") && bankScope.includes("userAccesses")]);
 checks.push(["deposit receipts included in bank scope", bankScope.includes("securityDepositReceipts")]);
 checks.push(["global search uses shared transaction/task scopes", search.includes("taskAccessWhere(user)") && search.includes("bankTransactionAccessWhere(user)") && !search.includes("bankAccount: { propertyId: { in: propertyIds }")]);

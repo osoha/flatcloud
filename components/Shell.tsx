@@ -3,7 +3,7 @@ import { ReadOnlyPreview } from "@/components/admin/ReadOnlyPreview";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { ActiveTabVisibility } from "@/components/ActiveTabVisibility";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, LayoutDashboard, Library, ListChecks, LogOut, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, LayoutDashboard, Library, ListChecks, LogOut, Megaphone, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess, previewContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
@@ -11,6 +11,8 @@ import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
 import { UserAvatar } from "@/components/UserAvatar";
 import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { leaseAccessWhere } from "@/lib/access";
+import { taskAccessWhere } from "@/lib/access";
+import { activeAnnouncementWhere } from "@/lib/announcements";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
 import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
@@ -20,7 +22,6 @@ import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
 import { SidebarCollapseToggle } from "@/components/SidebarCollapseToggle";
 import { UserActivityHeartbeat } from "@/components/UserActivityHeartbeat";
 import { AdminOperationsPanel } from "@/components/admin/AdminOperationsPanel";
-import { loadAdminOperations } from "@/lib/admin-operations";
 
 type ShellUser = {
   id: string;
@@ -39,12 +40,13 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const user = preview ? context.actor! : contentUser;
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
-  const canAddProperty = canSeeAll(user.role);
-  const taskWhere = fullAccess ? {} : { OR: [{ property: { memberships: { some: { userId: user.id } } } }, { unit: { userAccesses: { some: { userId: user.id } } } }] };
+  const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");
+  const taskWhere = taskAccessWhere(user);
   const revisionWhere = fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } };
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
-  const [openTasks, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
+  const [openTasks, announcementCount, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
     prisma.task.count({ where: { ...taskWhere, status: { in: openTaskStatuses } } }),
+    prisma.announcement.count({ where: { AND: [activeAnnouncementWhere(user), { NOT: { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } }] } }),
     prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
     superAdmin ? Promise.all([
       prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
@@ -68,9 +70,9 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     select: { _count: { select: { memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } }, unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } } } } },
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
-  const operations = superAdmin ? await loadAdminOperations() : null;
 
   return <div className="app-shell v21-shell flatberry-shell">
+    {superAdmin && <AdminOperationsPanel/>}
     <NativeDetailsEscape/>
     <ActiveTabVisibility/>
     <UserActivityHeartbeat/>
@@ -82,10 +84,10 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
         {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
-        {canAddProperty && isFlatcloudMember(user) && <Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/>}
+        {canAddProperty && isFlatcloudMember(user) && <><Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/><Nav href="/distribuce/zajemci" icon={<UsersRound size={17}/>} label="Zájemci"/></>}
 
-        <CollapsibleNavGroup id="operations" label="Provoz" activeRoots={["/ukoly","/portfolio/kvalita","/revize"]} forceOpen={openTasks > 0 || dueRevisions > 0}>
-          <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
+        <CollapsibleNavGroup id="operations" label="Provoz" activeRoots={["/ukoly","/portfolio/kvalita","/revize"]} forceOpen={openTasks > 0 || dueRevisions > 0 || announcementCount > 0}>
+          <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
           <Nav href="/portfolio/kvalita" icon={<Hammer size={17}/>} label="Kvalita a CAPEX"/>
           <Nav href="/revize" icon={<ClipboardCheck size={17}/>} label="Revize" count={dueRevisions}/>
         </CollapsibleNavGroup>
@@ -114,8 +116,10 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         {superAdmin && <CollapsibleNavGroup id="administration" label="Správa" activeRoots={["/uzivatele", "/nastaveni", "/dovednosti"]}>
           <Nav href="/uzivatele" icon={<Users size={17}/>} label="Uživatelé"/>
           <Nav href="/nastaveni" icon={<Settings size={17}/>} label="Administrace"/>
+          <Nav href="/nastaveni/oznameni" icon={<Megaphone size={17}/>} label="Správa oznámení"/>
+          <Nav href="/nastaveni/automaticke-ukoly" icon={<ListChecks size={17}/>} label="Automatické úkoly"/>
+          <Nav href="/nastaveni/cenovy-benchmark" icon={<BarChart3 size={17}/>} label="Cenový benchmark"/>
           <Nav href="/dovednosti" icon={<Compass size={17}/>} label="Dovednosti"/>
-          {operations && <AdminOperationsPanel initial={operations}/>}
         </CollapsibleNavGroup>}
       </nav>
       <div className="sidebar-footer">
@@ -145,6 +149,6 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   </div>;
 }
 
-function Nav({href,icon,label,count=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;activeQuery?:Record<string,string>}){
-  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
+function Nav({href,icon,label,count=0,noticeCount=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;noticeCount?:number;activeQuery?:Record<string,string>}){
+  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}{noticeCount>0&&<i className="nav-announcement-dot" title={`${noticeCount} aktivních oznámení`} aria-label={`${noticeCount} aktivních oznámení`}/>}</ScopeAwareLink>;
 }

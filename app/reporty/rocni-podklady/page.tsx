@@ -60,7 +60,7 @@ export default async function AnnualOwnerPackagePage({
               {data.periodMode === "CLOSED"
                 ? `Uzavřený kalendářní rok ${year}.`
                 : `Průběžné podklady ${year} do ${date(new Date(`${data.dataThrough}T12:00:00Z`))}; rok ještě není uzavřený.`}{" "}
-              Příjmy, skutečné výdaje, doklady a kontrola úvěrů.
+              Příjmy, evidované náklady, bankovní úhrady, doklady a kontrola úvěrů.
             </p>
           </div>
           {exportHref && (
@@ -156,7 +156,7 @@ export default async function AnnualOwnerPackagePage({
                 icon={<Landmark />}
               />
               <Stat
-                label="Skutečné výdaje"
+                label="Evidované náklady"
                 value={money(data.totals.expenseCents)}
                 icon={<ReceiptText />}
               />
@@ -171,8 +171,7 @@ export default async function AnnualOwnerPackagePage({
               <span>
                 Cash příjmy vycházejí z data bankovní transakce a přiřazené
                 částky. Kauce ({money(data.totals.depositIncomeCents)}) jsou z
-                pracovního rozdílu vyloučené. Výdaje obsahují jen stav
-                Skutečnost. Nejde o automatické stanovení základu daně.
+                pracovního rozdílu vyloučené. Náklady obsahují jen stav Skutečnost podle data vzniku, nikoli podle zaplacení. Pracovní rozdíl není bankovní cashflow. Úhrady nákladů jsou uvedeny samostatně níže a v CSV. Nejde o automatické stanovení základu daně.
               </span>
             </div>
             <section className="card annual-evidence-editor">
@@ -397,10 +396,11 @@ export default async function AnnualOwnerPackagePage({
                 </table>
               </div>
             </section>
+            <section className="card portfolio-table-card"><h2>Bankovní úhrady nákladů</h2><p>Pohyby podle data bankovní úhrady v tomto roce, včetně nákladů vzniklých v jiném roce. Poměrná část používá vlastnictví a rozdělení při vzniku nákladu; skutečného plátce ověřte proti účtu. Převody, zálohy a jistinu kontrolujte v bankovních výdajích domu.</p><div className="table-wrap"><table><thead><tr><th>Datum úhrady</th><th>Datum nákladu</th><th>Nemovitost / náklad</th><th>Pohyb</th><th>Celá úhrada</th><th>Poměrná část vlastníka</th></tr></thead><tbody>{data.costPaymentRows.map(row=><tr key={row.id}><td>{date(row.bookedAt)}</td><td>{date(row.effectiveAt)}</td><td>{row.propertyName} · {row.title}</td><td>{row.kind==="COST_REFUND"?"Vratka":"Úhrada"}</td><td>{money(row.amountCents)}</td><td>{money(row.ownerAmountCents)}</td></tr>)}</tbody></table></div>{!data.costPaymentRows.length&&<p>Za období nejsou doložené úhrady nákladů. Neznamená to nulové výdaje.</p>}</section>
             <section className="card portfolio-table-card">
               <div className="table-toolbar">
                 <div>
-                  <h2>Skutečné výdaje</h2>
+                  <h2>Evidované náklady</h2>
                   <p>
                     Účetní doklady pokrývají{" "}
                     {money(data.totals.documentedExpenseCents)} z{" "}
