@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { expenseRuleMatches } from "../lib/bank-expense-rule-policy";
+import { geocodeCandidates } from "../lib/skills/geocode";
+const bank={amountCents:-15000,counterpartyIban:"CZ6508000000192000145399",counterpartyName:"  Dodavatel  ",variableSymbol:"123",message:"Servis domu"};
+assert(expenseRuleMatches({direction:"OUT",counterpartyAccount:"19-2000145399/0800",counterpartyName:"dodavatel",message:"SERVIS",minCents:15000,maxCents:15000},bank));
+assert(!expenseRuleMatches({direction:"IN",counterpartyName:"Dodavatel"},bank));
+assert(!expenseRuleMatches({direction:"OUT",variableSymbol:"1234"},bank));
+assert(!expenseRuleMatches({direction:"OUT"},bank));
+assert(!expenseRuleMatches({direction:"OUT",message:"Servis",minCents:200,maxCents:100},bank));
+const results=geocodeCandidates([{formattedAddress:"Veská",location:{latitude:49,longitude:13}},{formattedAddress:"Veská 137/7, Plzeň",location:{latitude:49,longitude:13},granularity:"ROOFTOP",addressComponents:[{types:["country"],shortText:"CZ"}]},{formattedAddress:"Other",location:{latitude:49,longitude:13},addressComponents:[{types:["country"],shortText:"DE"}]}],"Veská 137/7, Plzeň");
+assert.equal(results.length,2);assert.equal(results[0].rank,0);assert.equal(results[1].rank,2);
+console.log("September blocks: account normalization, combined criteria, direction, bounds and address candidates passed.");

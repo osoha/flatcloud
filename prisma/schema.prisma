@@ -503,6 +503,7 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  expenseRules BankExpenseRule[] @relation("ExpenseRuleCreator")
   flatcloudMember                      Boolean                        @default(false)
   privateToolSettings                  UserPrivateToolSettings?
   activity                             UserActivity?
@@ -652,6 +653,8 @@ model OwnerBankAccount {
 }
 
 model Property {
+  sourceExpenseRules BankExpenseRule[] @relation("ExpenseRuleSource")
+  targetExpenseRules BankExpenseRule[] @relation("ExpenseRuleTarget")
   bankExpenseAllocations      BankExpenseAllocation[]
   settlementSources           SettlementSource[]
   settlementAllocationRules   SettlementAllocationRule[]
@@ -1173,6 +1176,7 @@ model SaleBenchmarkSnapshot {
 }
 
 model Unit {
+  expenseRules BankExpenseRule[]
   id                        String                       @id @default(cuid())
   unitCode                  String                       @default(dbgenerated())
   label                     String
@@ -1763,6 +1767,7 @@ model ChargeItem {
 }
 
 model BankAccount {
+  expenseRules BankExpenseRule[]
   id                String             @id @default(cuid())
   propertyId        String
   property          Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -1810,6 +1815,9 @@ model BankMatchingRule {
 }
 
 model BankTransaction {
+  expenseIgnoredAt DateTime?
+  expenseIgnoreReason String?
+  expenseSuggestedRuleId String?
   expenseRevision         Int                       @default(0)
   expenseAllocations      BankExpenseAllocation[]
   id                      String                    @id @default(cuid())
@@ -2864,4 +2872,30 @@ model SystemDailySnapshot {
   testUsers   Int
   properties  Int
   units       Int
+}
+
+model BankExpenseRule {
+  sourceProperty Property @relation("ExpenseRuleSource", fields:[sourcePropertyId], references:[id], onDelete:Cascade)
+  targetProperty Property @relation("ExpenseRuleTarget", fields:[targetPropertyId], references:[id], onDelete:Cascade)
+  bankAccount BankAccount @relation(fields:[bankAccountId], references:[id], onDelete:Cascade)
+  unit Unit? @relation(fields:[unitId], references:[id], onDelete:SetNull)
+  createdBy User @relation("ExpenseRuleCreator", fields:[createdById], references:[id], onDelete:Restrict)
+  id String @id @default(cuid())
+  sourcePropertyId String
+  bankAccountId String
+  name String
+  active Boolean @default(true)
+  conditions Json
+  action String
+  targetPropertyId String
+  unitId String?
+  category PropertyCostCategory @default(OTHER)
+  costKind PropertyCostKind @default(OPEX)
+  createdById String
+  usedCount Int @default(0)
+  lastUsedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([sourcePropertyId, active])
+  @@index([bankAccountId, active])
 }

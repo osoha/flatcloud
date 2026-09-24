@@ -101,7 +101,13 @@ test("P01B CSV opakovaný import, konflikt ID rollback a změna souboru bez dupl
     const form=page.locator(`form[action="${url}"]`);
     await form.getByLabel("Účet vlastníka").selectOption(oa.id);
     await form.getByLabel("CSV výpis").setInputFiles({name,mimeType:"text/csv",buffer:Buffer.from(text)});
-    await form.getByRole("checkbox").check();await form.getByRole("button",{name:"Importovat CSV",exact:true}).click();
+    await form.getByRole("button",{name:"Zkontrolovat a zobrazit náhled"}).click();
+    await expect(form.getByText("Kontrola",{exact:true})).toBeVisible();
+    if(await form.getByText("Konflikt ID – import blokován",{exact:true}).count()){
+      await expect(form.getByRole("button",{name:"Potvrdit import"})).toBeDisabled();
+      return new URLSearchParams({error:"jinými údaji"});
+    }
+    await form.getByRole("checkbox").check();await form.getByRole("button",{name:"Potvrdit import",exact:true}).click();
     await expect(page.getByRole("status").or(page.getByRole("alert").filter({hasText:"jinými údaji"}))).toBeVisible();
     return new URL(page.url()).searchParams;
   };

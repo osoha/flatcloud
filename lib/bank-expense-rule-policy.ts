@@ -1,0 +1,13 @@
+import { z } from "zod";
+import { expenseAccountIdentity } from "./bank-expense-values";
+const optionalText=z.string().trim().max(200).default("");
+export const expenseConditionSchema=z.object({direction:z.enum(["OUT","IN"]),fromDay:z.string().regex(/^$|^\d{4}-\d{2}-\d{2}$/).default(""),toDay:z.string().regex(/^$|^\d{4}-\d{2}-\d{2}$/).default(""),counterpartyAccount:optionalText,counterpartyName:optionalText,variableSymbol:optionalText,message:optionalText,minCents:z.number().int().min(0).max(2147483647).nullable().default(null),maxCents:z.number().int().min(0).max(2147483647).nullable().default(null)}).refine(c=>!c.fromDay||!c.toDay||c.fromDay<=c.toDay,"Neplatné období.").refine(c=>Boolean(c.counterpartyAccount||c.counterpartyName||c.variableSymbol||c.message),"Vyplňte alespoň účet, protistranu, VS nebo text zprávy.").refine(c=>c.minCents===null||c.maxCents===null||c.minCents<=c.maxCents,"Neplatné rozmezí částky.");
+export type ExpenseConditions=z.infer<typeof expenseConditionSchema>;
+export const expenseRuleActions={ASSIGN:"Navrhnout přiřazení domu / jednotky",MATCH:"Spárovat s existujícím nákladem podle čísla dokladu / VS",CREATE_COST:"Vytvořit návrh nákladu a připojit úhradu",IGNORE:"Ignorovat pohyb"} as const;
+const normalize=(s:string|null|undefined)=>(s||"").trim().toLocaleLowerCase("cs").replace(/\s+/g," ");
+export function normalizeExpenseAccount(value:string) {try{return expenseAccountIdentity(value.includes("/")?{accountNumber:value.split("/")[0],bankCode:value.split("/")[1]}:{iban:value});}catch{return value.replace(/\s/g,"").toUpperCase();}}
+export function expenseRuleMatches(raw:unknown,bank:{bookedAt?:Date;amountCents:number;counterpartyIban:string|null;counterpartyName:string|null;variableSymbol:string|null;message:string|null}) {
+  const parsed=expenseConditionSchema.safeParse(raw);if(!parsed.success)return false;const c=parsed.data;
+  const day=bank.bookedAt?.toISOString().slice(0,10);
+  return (!c.fromDay||Boolean(day&&day>=c.fromDay))&&(!c.toDay||Boolean(day&&day<=c.toDay))&&(c.direction==="OUT"?bank.amountCents<0:bank.amountCents>0)&&(!c.counterpartyAccount||normalizeExpenseAccount(c.counterpartyAccount)===normalizeExpenseAccount(bank.counterpartyIban||""))&&(!c.counterpartyName||normalize(c.counterpartyName)===normalize(bank.counterpartyName))&&(!c.variableSymbol||c.variableSymbol===bank.variableSymbol)&&(!c.message||normalize(bank.message).includes(normalize(c.message)))&&(c.minCents===null||Math.abs(bank.amountCents)>=c.minCents)&&(c.maxCents===null||Math.abs(bank.amountCents)<=c.maxCents);
+}

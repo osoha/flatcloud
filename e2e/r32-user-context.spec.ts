@@ -162,7 +162,7 @@ test("R32D: synthetic capture crops the confirmed square, retains source strip, 
   await page.route("https://maps.googleapis.com/**",route=>route.fulfill({contentType:"application/javascript",body:`
     class FakeMap extends HTMLElement {
       constructor(opts){super();Object.assign(this,opts);this.style.cssText='display:block;width:100%;height:100%;background:rgb(30,70,200)'}
-      flyCameraTo({endCamera}){Object.assign(this,endCamera);setTimeout(()=>{this.dispatchEvent(new Event('gmp-animationend'));const event=new Event('gmp-steadychange');event.isSteady=true;this.dispatchEvent(event)},20)}
+      flyCameraTo({endCamera}){Object.assign(this,endCamera);setTimeout(()=>{const event=new Event('gmp-steadychange');event.isSteady=true;this.dispatchEvent(event)},20)}
     }
     customElements.define('r32-test-map',FakeMap);
     window.google={maps:{importLibrary:async()=>({Map3DElement:FakeMap,AltitudeMode:{RELATIVE_TO_GROUND:'RELATIVE',ABSOLUTE:'ABSOLUTE'},MapMode:{SATELLITE:'SATELLITE'},GestureHandling:{COOPERATIVE:'COOPERATIVE'}})}};

@@ -1,4 +1,4 @@
-import { PropertyCostCategory, PropertyCostKind } from "@prisma/client";
+import { Prisma, PropertyCostCategory, PropertyCostKind } from "@prisma/client";
 import { serializableTransaction } from "./serializable";
 import { expenseAccountIdentity, expenseKinds, bankRemainder, settledCents, type ExpenseKind } from "./bank-expense-values";
 import { bankAccountMatches } from "./inbound-bank/bank-email";
@@ -10,11 +10,12 @@ export type ExpenseCommand = {
   newCost?: {title:string;amountCents:number;effectiveAt:Date;unitId?:string;kind:PropertyCostKind;category:PropertyCostCategory;vendor?:string;documentNumber?:string};
 };
 // Both properties must already be authorized by the caller. Account identity is checked again here.
-export async function applyExpense(input:ExpenseCommand) {
+export async function applyExpense(input:ExpenseCommand, client?:Prisma.TransactionClient) {
   if(!input.reason.trim()||input.reason.length>2000)throw new Error("Vyplňte důvod (nejvýše 2 000 znaků).");
   if(!Number.isSafeInteger(input.expectedRevision)||input.expectedRevision<0)throw new Error("Obnovte stránku s aktuální verzí pohybu.");
-  return serializableTransaction(async tx=>{
+  const work = async (tx:Prisma.TransactionClient)=>{
     const bank=await tx.bankTransaction.findFirst({where:{id:input.transactionId,bankAccount:{propertyId:input.sourcePropertyId}},include:{bankAccount:true,expenseAllocations:true,allocations:true,securityDepositReceipts:true}});
+    if(bank?.expenseIgnoredAt)throw new Error("Nejprve vraťte ignorovaný pohyb do fronty.");
     if(!bank||bank.currency!=="CZK"||!bank.amountCents)throw new Error("Bankovní pohyb nebyl nalezen nebo nemá podporovanou měnu.");
     if(bank.allocations.length||bank.securityDepositReceipts.length)throw new Error("Pohyb již patří k nájmu nebo kauci; nelze jej započítat znovu.");
     if(bank.amountCents>0 && bank.source!=="expense-statement" && !bank.expenseAllocations.length)throw new Error("Vratky importujte výpisem výdajů; příjem nájemného nelze převést automaticky.");
@@ -67,5 +68,6 @@ export async function applyExpense(input:ExpenseCommand) {
     // Expense state is derived from the ledger; rental match status is never used as proof of payment.
     await tx.bankTransaction.update({where:{id:bank.id},data:{status:"IGNORED",suggestedLeaseId:null,matchNote:"Bankovní výdaje: stav a zůstatek jsou v evidenci úhrad nákladů."}});
     return {costId};
-  });
+  };
+  return client ? work(client) : serializableTransaction(work);
 }
