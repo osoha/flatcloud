@@ -208,3 +208,25 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .reaction-count>summary::-webkit-details-marker{display:none}
 .flatberry-shell .reaction-people{position:absolute;z-index:10;left:0;top:100%;display:grid;gap:7px;max-width:100%;padding:12px;background:var(--surface,#fff);color:var(--text);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 12px #0002}
 @media(max-width:600px){.flatberry-shell .task-case-page .discussion-thread{padding:4px 8px}.flatberry-shell .task-case-page .thread-composer-v211{padding:14px 8px}.flatberry-shell .task-case-page .discussion-entry{grid-template-columns:28px minmax(0,1fr);gap:8px}.flatberry-shell .reaction-picker{width:100%}}
+
+/* Portfolio: compact status above a full-width priority queue. */
+.flatberry-shell .portfolio-status-strip{padding:14px 20px;margin-bottom:20px}
+.flatberry-shell .portfolio-status-header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.flatberry-shell .portfolio-status-header h2{margin:0;font-size:15px}
+.flatberry-shell .portfolio-status-toggle{display:inline-flex;align-items:center;gap:8px;min-height:36px;padding:6px 10px;border-radius:9px;color:var(--muted)}
+.flatberry-shell .portfolio-status-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
+.flatberry-shell .portfolio-status-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px 20px;margin:14px 0 2px;padding-top:14px;border-top:1px solid var(--line)}
+.flatberry-shell .portfolio-status-metrics>div{min-width:0}
+.flatberry-shell .portfolio-status-metrics dt{color:var(--muted);font-size:12px;line-height:1.5}
+.flatberry-shell .portfolio-status-metrics dd{margin:4px 0 0;font-size:20px;font-weight:600;color:var(--text);font-variant-numeric:tabular-nums}
+.flatberry-shell .portfolio-attention-card{grid-column:1/-1;container-type:inline-size}
+.flatberry-shell .portfolio-attention-list{display:grid;grid-template-columns:minmax(0,1fr)}
+.flatberry-shell .portfolio-attention-list .attention-item{min-width:0;align-self:stretch}
+.flatberry-shell .portfolio-attention-list .attention-item>:nth-child(2){min-width:0;overflow-wrap:anywhere}
+@container (min-width:1000px){
+  .flatberry-shell .portfolio-attention-list.is-multicolumn{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:28px}
+}
+@media(max-width:600px){
+  .flatberry-shell .portfolio-status-strip{padding:12px 16px}
+  .flatberry-shell .portfolio-status-metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+}
