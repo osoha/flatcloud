@@ -172,3 +172,39 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .onboarding-checklist .onboarding-footer{padding-bottom:16px}
 
 .flatberry-shell .section-nav > a > .nav-count{display:inline-flex;align-items:center;justify-content:center;position:static;margin-left:8px;flex:0 0 auto;padding:0 5px;line-height:1}
+
+/* Task discussions: shared controls, mentions and quiet reactions. */
+.flatberry-shell .task-case-page button:not(.primary){border:1px solid var(--line);border-radius:10px;font:inherit;cursor:pointer}
+.flatberry-shell .task-case-page :is(button,summary):focus-visible,.flatberry-shell .mention-options button:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.flatberry-shell .task-case-page button:disabled{opacity:.55;cursor:wait}
+.flatberry-shell .task-case-page .composer-tabs button{height:auto;min-height:36px;padding:7px 12px;background:var(--surface,#fff);color:var(--text)}
+.flatberry-shell .task-case-page .composer-tabs button.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.flatberry-shell .task-case-page .participant-remove{min-height:34px;padding:6px 10px;white-space:nowrap;color:var(--red)}
+.flatberry-shell .task-case-page .case-sidebar .summary-list>div{gap:10px;flex-wrap:wrap}
+.flatberry-shell .task-case-page .discussion-content{min-width:0}
+.flatberry-shell .task-case-page .discussion-content>p{overflow-wrap:anywhere}
+.flatberry-shell .task-case-page .discussion-head{flex-wrap:wrap}
+.flatberry-shell .task-case-page .discussion-entry{scroll-margin-top:115px}
+.flatberry-shell .mention-editor{position:relative;margin-bottom:14px;min-width:0}
+.flatberry-shell .mention-options{position:absolute;left:0;right:0;top:100%;z-index:20;max-height:280px;overflow:auto;background:var(--surface,#fff);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #0002;padding:6px}
+.flatberry-shell .mention-options button{display:flex;flex-direction:column;align-items:flex-start;width:100%;padding:9px 12px;border:0!important;border-radius:8px;background:transparent;color:var(--text);text-align:left;overflow-wrap:anywhere}
+.flatberry-shell .mention-options button[aria-selected=true],.flatberry-shell .mention-options button:hover{background:var(--blue-soft)}
+.flatberry-shell .mention-options small{color:var(--muted)}
+.flatberry-shell .task-mention,.flatberry-shell .mention-selection>span{background:var(--blue-soft);color:var(--blue);border-radius:6px;padding:1px 5px}
+.flatberry-shell .mention-selection{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:12px}
+.flatberry-shell .mention-selection button{margin-left:5px;background:transparent;color:var(--text);min-width:24px}
+.flatberry-shell .notification-recipients{border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;display:grid;gap:8px;color:var(--text)}
+.flatberry-shell .notification-recipients legend{color:var(--text);padding:0 5px}
+.flatberry-shell .notification-settings{scroll-margin-top:110px}
+.flatberry-shell .notification-settings form{display:grid;gap:14px}
+.flatberry-shell .notification-settings form>button{justify-self:start}
+.flatberry-shell .notification-settings details{margin-top:18px}
+.flatberry-shell .entry-reactions{position:relative;display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:12px;font-size:12px}
+.flatberry-shell .entry-reactions .reaction-picker-toggle{min-height:32px;padding:5px 9px;font-size:12px;background:transparent;color:var(--muted)}
+.flatberry-shell .reaction-picker{display:flex;gap:4px;flex-wrap:wrap;padding:5px;background:var(--surface,#fff);border:1px solid var(--line);border-radius:14px;box-shadow:0 4px 14px #0001}
+.flatberry-shell .reaction-picker button{min-width:36px;min-height:36px;padding:4px;background:transparent;font-size:22px;border-color:transparent!important}
+.flatberry-shell .reaction-picker button:is(:hover,[aria-pressed=true]){background:var(--blue-soft)}
+.flatberry-shell .reaction-count>summary{cursor:pointer;list-style:none;padding:5px 9px;border-radius:12px;border:1px solid var(--line);background:var(--surface,#fff);color:var(--text)}
+.flatberry-shell .reaction-count>summary::-webkit-details-marker{display:none}
+.flatberry-shell .reaction-people{position:absolute;z-index:10;left:0;top:100%;display:grid;gap:7px;max-width:100%;padding:12px;background:var(--surface,#fff);color:var(--text);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 12px #0002}
+@media(max-width:600px){.flatberry-shell .task-case-page .discussion-thread{padding:4px 8px}.flatberry-shell .task-case-page .thread-composer-v211{padding:14px 8px}.flatberry-shell .task-case-page .discussion-entry{grid-template-columns:28px minmax(0,1fr);gap:8px}.flatberry-shell .reaction-picker{width:100%}}

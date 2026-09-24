@@ -503,6 +503,9 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  notificationPreferences TaskNotificationPreference?
+  taskReactions TaskEntryReaction[]
+  taskNotifications TaskNotification[]
   expenseRules BankExpenseRule[] @relation("ExpenseRuleCreator")
   flatcloudMember                      Boolean                        @default(false)
   privateToolSettings                  UserPrivateToolSettings?
@@ -2023,6 +2026,8 @@ model RentNotification {
 }
 
 model Task {
+  notificationSnapshot TaskNotificationSnapshot?
+  notifications TaskNotification[]
   id                     String                      @id @default(cuid())
   title                  String
   description            String?
@@ -2216,6 +2221,9 @@ enum TaskEntryVisibility {
 }
 
 model TaskEntry {
+  mentions Json?
+  reactions TaskEntryReaction[]
+  notifications TaskNotification[]
   visibility          TaskEntryVisibility @default(INTERNAL)
   id                  String              @id @default(cuid())
   taskId              String
@@ -2898,4 +2906,56 @@ model BankExpenseRule {
   updatedAt DateTime @updatedAt
   @@index([sourcePropertyId, active])
   @@index([bankAccountId, active])
+}
+
+model TaskEntryReaction {
+  entryId String
+  userId String
+  reaction String
+  entry TaskEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt DateTime @updatedAt
+  @@id([entryId, userId])
+}
+
+model TaskNotificationPreference {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailEnabled Boolean @default(true)
+  mentions Boolean @default(true)
+  assignments Boolean @default(true)
+  comments Boolean @default(false)
+  deadlines Boolean @default(true)
+  statusChanges Boolean @default(false)
+  updatedAt DateTime @updatedAt
+}
+
+model TaskNotification {
+  id String @id @default(cuid())
+  dedupeKey String @unique
+  taskId String
+  entryId String?
+  userId String
+  kind String
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  entry TaskEntry? @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status String @default("PENDING")
+  attempts Int @default(0)
+  nextAttemptAt DateTime @default(now())
+  claimedAt DateTime?
+  sentAt DateTime?
+  detail String?
+  createdAt DateTime @default(now())
+  @@index([status, nextAttemptAt])
+  @@index([userId, createdAt])
+}
+
+model TaskNotificationSnapshot {
+  taskId String @id
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  assigneeId String?
+  status String
+  observedAt DateTime
+  trackingSince DateTime @default(now())
 }
