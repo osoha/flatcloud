@@ -170,3 +170,5 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .onboarding-chevron{flex:none;color:#7890ac}.flatberry-shell .onboarding-checklist[open] .onboarding-chevron{transform:rotate(180deg)}
 .flatberry-shell .onboarding-checklist .onboarding-progress-track>i{background:#79a8fb}
 .flatberry-shell .onboarding-checklist .onboarding-footer{padding-bottom:16px}
+
+.flatberry-shell .section-nav > a > .nav-count{display:inline-flex;align-items:center;justify-content:center;position:static;margin-left:8px;flex:0 0 auto;padding:0 5px;line-height:1}

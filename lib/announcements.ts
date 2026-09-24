@@ -26,3 +26,12 @@ export function activeAnnouncementWhere(user: User, now = new Date()): Prisma.An
     ...announcementAudienceWhere(user),
   };
 }
+
+/** Read and hidden states are independent; neither belongs in the unread badge. */
+export function unreadAnnouncementWhere(user: User): Prisma.AnnouncementWhereInput {
+  return { AND: [activeAnnouncementWhere(user), {
+    NOT: { userStates: { some: { userId: user.id, OR: [
+      { readAt: { not: null } }, { dismissedAt: { not: null } },
+    ] } } },
+  }] };
+}
