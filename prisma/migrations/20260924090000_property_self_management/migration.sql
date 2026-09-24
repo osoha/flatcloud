@@ -1,0 +1,1 @@
+ALTER TABLE "Property" ADD COLUMN "selfManaged" BOOLEAN NOT NULL DEFAULT false;

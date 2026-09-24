@@ -672,6 +672,7 @@ model Property {
   ownershipMode                     PropertyOwnershipMode           @default(WHOLE_OBJECT)
   communicationOwnerId              String?
   communicationOwner                Owner?                          @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
+  selfManaged                       Boolean                         @default(false)
   managerId                         String?
   manager                           User?                           @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
   managementScope                   PropertyManagementScope         @default(FULL_MANAGEMENT)
