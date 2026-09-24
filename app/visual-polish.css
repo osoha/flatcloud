@@ -8,6 +8,7 @@ html[data-theme="dark"]{color-scheme:dark;--blue:#80afff;--blue-soft:#243c60;--t
 html.fc-sidebar-collapsed .sidebar .display-preferences{justify-content:center}
 html.fc-sidebar-collapsed .sidebar .display-preferences span{display:none}
 .flatberry-shell .page{width:100%;max-width:none;margin-inline:0}
+.flatberry-shell .page:is(.distribution-page,.distribution-crm-page,.distribution-reporting-page,.distribution-welcome-page,.distribution-welcome-detail){max-width:none!important}
 .flatberry-shell .page.form-page{max-width:1180px;margin-inline:auto}
 .flatberry-shell .page.form-page>.edit-form{width:100%;max-width:none;margin-inline:0}
 .flatberry-shell .page.form-page>.edit-form>.form-grid{align-items:start}
