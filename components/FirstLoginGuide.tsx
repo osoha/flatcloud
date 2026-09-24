@@ -18,6 +18,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [hidden, setHidden] = useState(false);
+  const [startRequested, setStartRequested] = useState(false);
   const [box, setBox] = useState<Box | null>(null);
   const [missing, setMissing] = useState(false);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -35,7 +36,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
     const load = async () => {
       if (document.visibilityState === "hidden" || saving.current) return;
       try {
-        const response = await fetch("/api/account/guide", { cache: "no-store", signal: controller.signal });
+        const response = await fetch("/api/account/guide", { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]) });
         if (response.ok) {
           const data: Payload = await response.json();
           if (!saving.current) setPayload(current => !current || data.state.revision >= current.state.revision ? data : current);
@@ -61,13 +62,14 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/account/guide", { method: "POST", headers: { "Content-Type": "application/json" },
+      const response = await fetch("/api/account/guide", { method: "POST", signal: AbortSignal.timeout(10000), headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, revision: current.state.revision, version: GUIDE_VERSION }) });
       const data = await response.json();
       if (data.state) setPayload(value => value ? { ...value, state: data.state } : value);
       if (!response.ok) throw new Error(data.error || "Uložení se nepodařilo. Zkuste to znovu.");
       setHidden(false);
       try { sessionStorage.removeItem(`flatberry:guide-hidden:${userId}`); } catch { /* storage is optional */ }
+      if (data.state.status === "completed") router.push("/portfolio");
       if (["start", "resume", "next", "back"].includes(action) && data.state.status === "active") {
         const next = guideSteps(current.capabilities).find(item => item.id === data.state.step)!;
         router.push(next.href, { scroll: true });
@@ -78,10 +80,14 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
   }, [router, userId]);
 
   useEffect(() => {
-    const start = () => { void act("start"); };
+    const start = () => { setStartRequested(true); };
     window.addEventListener("flatberry:guide-start", start);
     return () => window.removeEventListener("flatberry:guide-start", start);
   }, [act]);
+
+  useEffect(() => {
+    if (startRequested && payload) { setStartRequested(false); void act("start"); }
+  }, [startRequested, payload, act]);
 
   // Observe real DOM targets; layout changes, scrolling, mobile and collapsed navigation
   // all use the same geometry. Missing targets never leave a stale spotlight behind.
@@ -155,7 +161,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
 
   if (!payload || !step) return null;
   const resumable = ["paused", "active", "pending"].includes(payload.state.status);
-  const showBanner = !open && (resumable || Boolean(error)) && ["/portfolio", "/ucet", "/metodika"].includes(pathname);
+  const showBanner = !open && (resumable || Boolean(error)) && ["/portfolio", "/ucet", "/metodika", "/ukoly", "/smlouvy", "/reporty"].includes(pathname);
   const hideLocally = () => {
     setHidden(true);
     try { sessionStorage.setItem(`flatberry:guide-hidden:${userId}`, "1"); } catch { /* optional */ }
