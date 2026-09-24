@@ -6,6 +6,7 @@ import { hashInvitationToken } from "../lib/invitations";
 import { guideTransition, guideSteps, normalizeGuideState, type GuideState } from "../lib/first-login-guide";
 
 const password = "Guide-E2E-Only-Password-2026";
+test.setTimeout(90_000);
 test.beforeAll(() => {
   if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname)) throw new Error("Isolated DB required");
 });
@@ -67,6 +68,7 @@ test("odložení, reload, jiné zařízení, zpět a dokončení bez opakování
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   await login(page, user.email);
   await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
+  await expect.poll(() => page.locator(".guide-character").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await page.screenshot({ path: info.outputPath("guide-desktop-light.png") });
   await page.getByRole("button", { name: "Pojďme na to" }).click();
   await expect(page.locator("#guide-title")).toContainText("první nemovitostí");
@@ -146,4 +148,21 @@ test("API průvodce vyžaduje přihlášení a neumožní přepsat cizí ani nov
   expect((await post(page, { action: "next", version: 1, revision: current.revision })).status).toBe(409);
   expect((await post(page, { action: "next", version: 99, revision: current.revision + 1 })).status).toBe(400);
   expect((await post(page, { action: "hacked", version: 1, revision: 1 })).status).toBe(400);
+});
+
+test("bublina a cíl zůstávají oddělené na mobilu i desktopu v obou režimech", async ({ page }, info) => {
+  const user = await fixture(); await login(page, user.email);
+  for (const size of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
+    await page.setViewportSize(size);
+    for (const theme of ["light", "dark"]) {
+      await page.evaluate(theme => { document.documentElement.dataset.theme = theme; }, theme);
+      await expect(page.locator(".guide-character")).toBeVisible();
+      await expect.poll(() => page.locator(".guide-character").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+      await expect.poll(async () => {
+        const bubble = await page.locator(".guide-bubble").boundingBox(), spot = await page.getByTestId("guide-spotlight").boundingBox();
+        return Boolean(bubble && spot && spot.y + spot.height < bubble.y);
+      }).toBe(true);
+      await page.screenshot({ path: info.outputPath(`guide-${size.width}-${theme}.png`) });
+    }
+  }
 });
