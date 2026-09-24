@@ -33,6 +33,7 @@ html[data-theme="dark"] .notice{color:#8cb6f7}
 html[data-theme="dark"] .success-notice{border-color:#34445c;background:#202e42;color:#72d4ac}
 html[data-theme="dark"] .nav a{color:#a9b9cf}
 html[data-theme="dark"] .field>span{color:#e3ebf8}
+html[data-theme="dark"] .announcement-audience legend{color:var(--text)}
 html[data-theme="dark"] .field input,html[data-theme="dark"] .field select,html[data-theme="dark"] .field textarea{background:#192536}
 html[data-theme="dark"] .success-flash{color:#72d4ac;border:1px solid #34445c}
 html[data-theme="dark"] .error-flash{border:1px solid #34445c}

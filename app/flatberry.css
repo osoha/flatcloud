@@ -46,7 +46,7 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .secondary{background:#fff;color:#3f516e;border:1px solid #dfe7f2}
 .flatberry-shell .secondary:hover{background:#f6f9ff;border-color:#bcd2fb}
 .flatberry-shell .attention-dismiss-button{min-height:34px;padding:6px 10px;font-size:12px;white-space:nowrap}
-.flatberry-shell input[type="file"]{height:auto;min-height:48px;padding:5px 6px;color:#71829b;line-height:36px;cursor:pointer}
+.flatberry-shell input[type="file"]{box-sizing:border-box;display:block;width:100%;min-width:0;max-width:100%;height:auto;min-height:48px;padding:5px 6px;color:#71829b;line-height:36px;white-space:nowrap;text-overflow:ellipsis;cursor:pointer}
 .flatberry-shell input[type="file"]::file-selector-button{min-height:36px;margin:0 10px 0 0;padding:7px 12px;border:1px solid #d8e2f0;border-radius:8px;background:#f7f9fd;color:#314562;font:inherit;font-weight:600;line-height:1.4;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
 .flatberry-shell input[type="file"]::file-selector-button:hover{background:#edf4ff;border-color:#b8cdf1;color:#175dcc}
 .flatberry-shell .top-action{font-size:12px;min-height:36px;padding:8px 10px}
