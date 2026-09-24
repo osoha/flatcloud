@@ -11,11 +11,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!announcement) return goWithMessage(request, "/portfolio", "error", "Oznámení nebylo nalezeno.");
   const form = await request.formData();
   const action = String(form.get("action") || "dismiss");
-  if (!["dismiss", "restore"].includes(action)) return goWithMessage(request, "/portfolio", "error", "Neplatná akce.");
+  if (!["dismiss", "restore", "read"].includes(action)) return goWithMessage(request, "/portfolio", "error", "Neplatná akce.");
   await prisma.announcementUserState.upsert({
     where: { announcementId_userId: { announcementId: id, userId: user.id } },
     create: { announcementId: id, userId: user.id, dismissedAt: action === "dismiss" ? new Date() : null, readAt: new Date() },
-    update: { dismissedAt: action === "dismiss" ? new Date() : null, readAt: new Date() },
+    update: { ...(action === "read" ? {} : { dismissedAt: action === "dismiss" ? new Date() : null }), readAt: new Date() },
   });
+  if (action === "read") return Response.json({ ok: true });
   return goWithMessage(request, safeInternalReturnPath(form.get("returnTo"), "/portfolio"), "ok", action === "dismiss" ? "Oznámení už se na hlavní stránce nezobrazuje." : "Oznámení bylo vráceno.");
 }

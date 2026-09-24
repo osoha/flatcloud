@@ -46,14 +46,21 @@ test("P02 favorite and dashboard dismissal are personal and reversible",async({p
   const task=await db.task.create({data:{title:`${marker} personal ${randomUUID()}`,category:"GENERAL",createdById:creator.id,members:{create:{userId:actor.id,role:"COLLABORATOR"}}}});
   await login(page,actor.email);await page.goto(`/ukoly/${task.id}`);
   await page.getByRole("button",{name:"☆ Přidat do oblíbených"}).click();expect((await db.taskUserState.findUniqueOrThrow({where:{taskId_userId:{taskId:task.id,userId:actor.id}}})).favorite).toBe(true);
-  await page.getByRole("button",{name:"Už nezobrazovat na hlavní stránce"}).click();expect((await db.taskUserState.findUniqueOrThrow({where:{taskId_userId:{taskId:task.id,userId:actor.id}}})).dismissedAt).not.toBeNull();
+  await page.getByRole("button",{name:"Skrýt na hlavní stránce"}).click();expect((await db.taskUserState.findUniqueOrThrow({where:{taskId_userId:{taskId:task.id,userId:actor.id}}})).dismissedAt).not.toBeNull();
   await page.goto("/ukoly?view=hidden");await expect(page.getByText(task.title,{exact:true})).toBeVisible();await page.getByRole("button",{name:"Vrátit do přehledu"}).click();expect((await db.taskUserState.findUniqueOrThrow({where:{taskId_userId:{taskId:task.id,userId:actor.id}}})).dismissedAt).toBeNull();
 });
 
 test("P02 targeted announcement appears only to its property audience and can be hidden",async({browser})=>{
   const creator=await db.user.findFirstOrThrow({where:{role:"SUPER_ADMIN",active:true}}),target=await db.user.findUniqueOrThrow({where:{email:R24_ROLE_USERS.technicalManager}}),outsider=await db.user.findUniqueOrThrow({where:{email:R24_ROLE_USERS.novice}}),membership=await db.userProperty.findFirstOrThrow({where:{userId:target.id}});
   const announcement=await db.announcement.create({data:{title:`${marker} notice ${randomUUID()}`,body:"Plánovaná provozní odstávka",severity:"IMPORTANT",createdById:creator.id,audiences:{create:{kind:"PROPERTY",propertyId:membership.propertyId}}}});
-  const targetPage=await browser.newPage();await login(targetPage,target.email);await targetPage.goto("/portfolio");await expect(targetPage.getByText(announcement.title,{exact:true})).toBeVisible();await targetPage.locator("article",{hasText:announcement.title}).getByRole("button",{name:"Už nezobrazovat"}).click();expect((await db.announcementUserState.findUniqueOrThrow({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}})).dismissedAt).not.toBeNull();
+  const targetPage=await browser.newPage();await login(targetPage,target.email);await targetPage.goto("/portfolio");await expect(targetPage.getByText(announcement.title,{exact:true})).toBeVisible();expect(await db.announcementUserState.findUnique({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}})).toBeNull();
+  await targetPage.goto(`/ukoly/oznameni#oznameni-${announcement.id}`);
+  const article=targetPage.locator(`[id="oznameni-${announcement.id}"]`);
+  await article.getByRole("button",{name:"Skrýt",exact:true}).scrollIntoViewIfNeeded();
+  await expect.poll(async()=>Boolean((await db.announcementUserState.findUnique({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}}))?.readAt)).toBe(true);
+  expect((await db.announcementUserState.findUniqueOrThrow({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}})).dismissedAt).toBeNull();
+  await expect(article).toBeVisible();
+  await article.getByRole("button",{name:"Skrýt",exact:true}).click();expect((await db.announcementUserState.findUniqueOrThrow({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}})).dismissedAt).not.toBeNull();
   const outsiderPage=await browser.newPage();await login(outsiderPage,outsider.email);await outsiderPage.goto("/portfolio");await expect(outsiderPage.getByText(announcement.title,{exact:true})).toHaveCount(0);
 });
 

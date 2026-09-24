@@ -12,7 +12,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { leaseAccessWhere } from "@/lib/access";
 import { taskAccessWhere } from "@/lib/access";
-import { activeAnnouncementWhere } from "@/lib/announcements";
+import { unreadAnnouncementWhere } from "@/lib/announcements";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
 import { hasReportingBackofficeAccess } from "@/lib/reporting/backoffice-access";
@@ -46,7 +46,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
   const [openTasks, announcementCount, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
     prisma.task.count({ where: { ...taskWhere, status: { in: openTaskStatuses } } }),
-    prisma.announcement.count({ where: { AND: [activeAnnouncementWhere(user), { NOT: { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } }] } }),
+    prisma.announcement.count({ where: unreadAnnouncementWhere(user) }),
     prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
     superAdmin ? Promise.all([
       prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
@@ -150,5 +150,5 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
 }
 
 function Nav({href,icon,label,count=0,noticeCount=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;noticeCount?:number;activeQuery?:Record<string,string>}){
-  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}{noticeCount>0&&<i className="nav-announcement-dot" title={`${noticeCount} aktivních oznámení`} aria-label={`${noticeCount} aktivních oznámení`}/>}</ScopeAwareLink>;
+  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}{noticeCount>0&&<i className="nav-announcement-dot" title={`${noticeCount} nepřečtených oznámení`} aria-label={`${noticeCount} nepřečtených oznámení`}/>}</ScopeAwareLink>;
 }
