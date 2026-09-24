@@ -79,12 +79,10 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const currentVariance = currentCondition ? unitConditionCapexVariance(currentCondition.estimatedCapexCents, currentActualAmount) : null;
 
   const district=csuDistrictForCity(property.city);
-  const [photos, appearances, personalValues, csuAverages] = await Promise.all([loadEntityPhotos(user, [id]), loadEntityAppearances(user.id),inPreview?Promise.resolve([]):prisma.personalValueCheckpoint.findMany({where:{userId:user.id,unitId},orderBy:[{asOfDate:"desc"},{createdAt:"desc"}],take:20}),prisma.csuApartmentAverage.findMany({where:{territoryCode:{in:["CZ",...(district?[district,district.slice(0,5)]:[])]}},select:{territoryCode:true,sourcePeriod:true,pricePerSqmCents:true}})]);
+  const [photos, appearances, personalValues, csuAverages, selectedValue] = await Promise.all([loadEntityPhotos(user, [id]), loadEntityAppearances(user.id),inPreview?Promise.resolve([]):prisma.personalValueCheckpoint.findMany({where:{userId:user.id,unitId,asOfDate:{lte:new Date()}},orderBy:[{asOfDate:"desc"},{createdAt:"desc"}],take:20}),prisma.csuApartmentAverage.findMany({where:{territoryCode:{in:["CZ",...(district?[district,district.slice(0,5)]:[])]}},select:{territoryCode:true,sourcePeriod:true,pricePerSqmCents:true}}),inPreview?Promise.resolve(null):prisma.personalValueCheckpoint.findFirst({where:{userId:user.id,unitId,asOfDate:{lte:new Date()}},orderBy:[{kind:"desc"},{asOfDate:"desc"},{createdAt:"desc"}]})]);
   const appearance = appearances[`unit:${unitId}`];
-  const officialValue=personalValues.find(value=>value.kind==="OFFICIAL_APPRAISAL"),localValue=personalValues.find(value=>value.kind==="LOCAL_MARKET_REFERENCE");
-  const selectedValue=officialValue||localValue;
   const csuAverage=selectCsuAverage(csuAverages,district,new Date().getUTCFullYear());
-  const csuValue=csuAverage&&unit.areaM2?Math.round(Number(csuAverage.pricePerSqmCents)*unit.areaM2):null;
+  const csuValue=unit.type==="APARTMENT"&&csuAverage&&unit.areaM2&&unit.areaM2>0?Math.round(Number(csuAverage.pricePerSqmCents)*unit.areaM2):null;
   const sourceLinks=personalValueSources({city:property.city,name:property.name,cadastralArea:readPropertyTechnicalData(property.technicalData).cadastralArea});
   return <Shell user={user} taskPropertyId={id} taskLeaseId={activeLease?.id}><div className="page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><Link href={`/nemovitosti/${id}/jednotky`}>Jednotky</Link><span>›</span><span>{unit.label}</span></div>
