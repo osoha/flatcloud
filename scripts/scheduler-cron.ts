@@ -1,3 +1,4 @@
+import { collectTaskNotifications, processTaskNotifications } from "../lib/task-notifications";
 import { prisma } from "../lib/db";
 import { syncInboundMailbox } from "../lib/inbound-bank/sync";
 import { cleanupInboundMailbox } from "../lib/inbound-bank/retention";
@@ -78,6 +79,14 @@ async function main() {
   } catch (error) {
     steps.push({ name: "task-automation", status: "failed", summary: messageOf(error) });
     hardFailure = true;
+  }
+
+  try {
+    await collectTaskNotifications();
+    const result = await processTaskNotifications();
+    steps.push({ name: "task-notifications", status: result.failed ? "failed" : "ok", summary: `Odesláno ${result.sent}, přeskočeno ${result.skipped}, nepotvrzeno ${result.failed}.` });
+  } catch (error) {
+    steps.push({ name: "task-notifications", status: "failed", summary: messageOf(error) });
   }
 
   try {
