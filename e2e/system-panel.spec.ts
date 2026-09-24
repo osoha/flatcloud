@@ -72,6 +72,8 @@ test("pravý panel: fokus, mobil, tmavý režim, nedostupná data a oznámení p
   await panel.getByRole("button", { name: "Obnovit statistiky" }).click();
   await expect(panel.getByRole("status")).toContainText("poslední známý stav");
   await page.keyboard.press("Escape");
+  await expect(panel).toBeHidden();
+  await expect(trigger).toBeFocused();
   await page.unroute("**/api/admin/operations");
   await page.setViewportSize({ width: 390, height: 844 });
   await trigger.click();
