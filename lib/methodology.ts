@@ -36,6 +36,17 @@ export type MethodologyGuide = {
 };
 
 export const methodologyGuides: MethodologyGuide[] = [
+  { slug: "dokonceni-vyuctovani", title: "Dokončuji vyúčtování služeb", situation: "Od podkladů k vypořádání", audience: "Správce nájmů", outcome: "Podklady, rozdělení, skutečné úhrady, schválení a doručení tvoří dohledatelný celek.", steps: [
+    { label: "Potvrdit podklady a rozdělení", note: "V konkrétním domě otevřete Podklady vyúčtování, ověřte originály a potvrďte rozdělení domovních řádků.", href: "/portfolio" },
+    { label: "Otevřít vyúčtování smlouvy", note: "Vyberte smlouvu a období, zkontrolujte blokátory a uložte pracovní protokol.", href: "/smlouvy" },
+    { label: "Projít dokončení krok za krokem", note: "Uzavřete skutečné úhrady, schvalte výsledek a evidujte skutečné doručení. Návrh není pokyn k úhradě.", href: "/metodika?view=chapters&q=vyúčtování" },
+    { label: "Vyřídit námitky a vypořádat", note: "Na protokolu vyřešte námitky a po zadané lhůtě proveďte finanční vypořádání. Bankovní platba se sama neodešle.", href: "/smlouvy" },
+  ] },
+  { slug: "upozorneni-ukolu", title: "Nastavuji upozornění a komunikaci v úkolech", situation: "Týmová spolupráce", audience: "Všichni uživatelé úkolů", outcome: "Víte, koho zpráva upozorní a které e-maily si přejete dostávat.", steps: [
+    { label: "Vybrat e-mailová upozornění", note: "V profilu ponechte potřebné typy nebo e-maily vypněte hlavním přepínačem; oznámení v aplikaci zůstávají.", href: "/ucet#upozorneni" },
+    { label: "Ověřit účastníky a viditelnost", note: "V detailu úkolu nejprve zkontrolujte, kdo smí číst nový záznam a jeho přílohy.", href: "/ukoly" },
+    { label: "Použít @zmínku nebo tichou reakci", note: "Osobu vyberte z našeptávače. Reakce pod příspěvkem neposílá e-mail ani nepotvrzuje dokončení úkolu.", href: "/metodika?view=chapters&q=@zmínku" },
+  ] },
   { slug: "prevzeti-objektu", title: "Přebírám nový dům do správy", situation: "Nové aktivum", audience: "Portfolio a property manager", outcome: "Objekt má úplnou identitu, jednotky, odpovědnosti a finanční vstupy.", steps: [
     { label: "Založit vlastníka a nemovitost", note: "Ověřte právní subjekt, adresu a rozsah správy.", href: "/nemovitosti/nova" },
     { label: "Doplnit jednotky a přístupy", note: "Oddělte vlastnictví jednotek od uživatelských oprávnění.", href: "/portfolio" },
@@ -76,14 +87,19 @@ export const methodologyChapters: MethodologyChapter[] = [
     summary: "Jak vést auditované pracovní vlákno, cílit provozní sdělení a přitom neplést osobní skrytí se stavem společného úkolu.",
     audience: "Všichni uživatelé; správci a super-administrátor",
     steps: [
-      "Obecný týmový úkol použijte pro postřehy z testování nebo práci napříč portfoliem. Určete odpovědného, spoluřešitele a sledující; publikum lze při založení rozšířit na všechny aktivní uživatele, tým FlatCloud nebo všechny správce.",
+      "Obecný týmový úkol použijte pro práci napříč portfoliem. Určete odpovědného, spoluřešitele a sledující; publikum lze při založení rozšířit na všechny aktivní uživatele, tým FlatCloud nebo všechny správce.",
       "Skupinová volba přidává její současné členy jako sledující. Nepřiřazuje jim odpovědnost ani sama neposílá e-mail; konkrétní spoluřešitel má před sledujícím přednost.",
-      "Oblíbená hvězdička, stav přečtení a volba Už nezobrazovat jsou osobní. Nemění stav úkolu ani zobrazení ostatních lidí; skrytý úkol lze obnovit ve filtru Skryté.",
-      "Úkol uzavírejte až závěrečným záznamem. Historie komentářů, změn účastníků a znovuotevření zůstává dohledatelná.",
-      "Oznámení vytváří super-administrátor pro všechny, členy FlatCloud, roli, nemovitost nebo jednotlivce. Trvalé oznámení nemá datum konce; dočasnému nastavte exspiraci.",
-      "Skrytí oznámení je opět jen osobní. Aktivní i skrytá sdělení jsou dostupná v sekci Oznámení, odkud je lze vrátit na hlavní stránku.",
+      "Před přidáním záznamu ověřte jeho viditelnost. Interní poznámku vidí jen lidé s právem editace případu; zveřejnění vlastníkovi zvolte výslovně. Stejnou viditelnost mají přílohy.",
+      "Pro @zmínku napište @ a vyberte osobu z našeptávače. Samotné napsání jména nestačí. Nabídka respektuje účastníky i viditelnost záznamu; zmínka nikomu nepřidá přístup ani odpovědnost za úkol.",
+      "Chcete-li upozornit další účastníky, zaškrtněte Upozornit e-mailem další účastníky a vyberte příjemce. Zprávu nejprve uložte do vlákna. Odeslání respektuje nastavení a aktuální přístup příjemce; výběr příjemce není potvrzení doručeného e-mailu.",
+      "V profilu uživatele otevřete Upozornění. Výchozně jsou zapnuté e-maily pro přímé zmínky a adresná upozornění, přiřazení a termíny. Nové komentáře a změny stavu zapněte podle potřeby. Hlavním přepínačem vypnete všechny tyto e-maily; upozornění uvnitř aplikace zůstávají.",
+      "Zmínky a komentáře se zpracovávají po uložení. Přiřazení, změny stavu a termíny kontroluje hodinový plánovač, takže e-mail nemusí přijít hned. U termínu systém posílá nejvýše jedno upozornění předem a jedno po termínu.",
+      "Pod příspěvkem zvolte Reagovat a jeden ze šesti smajlíků. Máte jednu reakci na příspěvek; můžete ji změnit nebo odebrat a zobrazit, kdo reagoval. Reakce neposílá e-mail, nemění nepřečtený stav ani poslední aktivitu a neuzavírá úkol.",
+      "Oblíbená hvězdička, stav přečtení a volby Skrýt či Skrýt na hlavní stránce jsou osobní. Nemění stav úkolu ani zobrazení ostatních lidí; skrytý úkol obnovíte ve filtru Skryté tlačítkem Vrátit do přehledu. Úkol uzavírejte až závěrečným záznamem.",
+      "Oznámení vytváří super-administrátor pro vybrané publikum. Na portfoliu je jen zkrácený náhled; otevřete Celé oznámení a dojděte na konec textu, aby se označilo jako přečtené. Přečtení oznámení samo neskryje. Skrytá sdělení najdete v Úkoly → Oznámení → Skrytá a můžete je vrátit mezi aktivní.",
+      "Na portfoliu můžete Stav portfolia sbalit do nízké lišty. Volba se pamatuje pro váš účet v daném prohlížeči. Fronta Vyžaduje pozornost využívá celou šířku; při dostatku místa a alespoň čtyřech položkách se rozdělí do dvou sloupců.",
     ],
-    check: "Každé vlákno má jasného vlastníka a účastníky, osobní skrytí nezměnilo společný stav a oznámení vidí jen zamýšlené publikum.",
+    check: "Vlákno má jasného odpovědného, správné účastníky a viditelnost. Osobní skrytí ani reakce nezměnily společný stav; e-mailové preference odpovídají tomu, na co chcete být upozorňováni.",
     href: "/ukoly",
   },
   {
@@ -195,8 +211,20 @@ export const methodologyChapters: MethodologyChapter[] = [
     title: "Vyúčtování služeb",
     summary: "Podklady, odečty, pravidla rozúčtování a srozumitelný protokol pro nájemníka.",
     audience: "Správce nájmů",
-    steps: ["Otevřete vyúčtování přímo ze smlouvy a zvolte uzavřené období nejvýše 12 měsíců.", "Zkontrolujte předepsané zálohy odděleně od nájemného; inkaso celého předpisu není totéž jako výše zálohy.", "V nemovitosti otevřete Podklady vyúčtování, připojte originál faktury nebo externího výsledku a samostatně potvrďte přepis. Používejte náklad dodávky před odečtením záloh dodavateli.", "Pracovní náhled přebírá poslední potvrzené řádky smlouvy nebo jednotky s jedinou smlouvou v celém období řádku. Domovní náklady a přesahy vyžadují doložené rozdělení. Po prvním potvrzeném podkladu domu se OPEX náklady nepřičítají; potřebné podklady pro ostatní období doplňte také. Ověřte odečty i platnost smlouvy.", "V jednotce u měřidla zadejte osobní či dálkový odečet, nebo výslovně odůvodněný odhad. Fotografii či PDF protokol nejprve nahrajte do dokumentů jednotky a pak připojte ke konkrétnímu odečtu. Oprava zachovává původní záznam a vyžaduje důvod; datum původního odečtu se nemění. Vyřazená měřidla zůstávají v historii. Bez přesných odečtů na hranicích období aplikace spotřebu sama nedopočítává. Výměnu evidujte novým měřidlem; automatická návaznost výměn a domovní rozdělení jsou připravované části.", "Nejprve odstraňte všechny blokátory. Pracovní náhled nic nezaúčtuje; uložení pracovního protokolu rovněž nemění předpisy, kredity ani platby."],
-    check: "Každá částka má zdroj a uložený způsob rozdělení; pracovní náhled je read-only. Vystavení protokolu zmrazí podklady. Pracovní protokol zůstává neměnný. Po potvrzení podkladů a rozdělení uzavřete skutečné úhrady, vyřešte případné nejednoznačné částečné platby, vyúčtování schvalte, vytiskněte nebo uložte jako PDF, evidujte doručení a námitky a teprve poté proveďte samostatné finanční vypořádání.",
+    steps: [
+      "Otevřete vyúčtování přímo ze smlouvy a zvolte uzavřené období nejvýše 12 měsíců. Rozlišujte předepsané zálohy, skutečně uhrazené zálohy a náklady; inkaso celého předpisu není samo o sobě výše zálohy na služby.",
+      "V nemovitosti otevřete Podklady vyúčtování, připojte originál faktury nebo externího výsledku a samostatně potvrďte přepis. Používejte náklad dodávky před odečtením záloh dodavateli. Potvrzení podkladu nevytvoří předpis, kredit ani platbu.",
+      "Pro domovní náklady založte Pravidla rozúčtování podle služby a data platnosti. Aplikace podporuje rozdělení podle spotřeby měřidel, plochy × času a osobodnů. Externí výsledek nebo ruční doložené rozdělení zadejte samostatnými řádky konkrétních jednotek; tyto metody se automaticky nedopočítávají.",
+      "Na detailu potvrzeného domovního podkladu u nákladového řádku vyberte Pravidlo rozdělení a zvolte Spočítat a potvrdit rozdělení. Jde již o uložení rozdělení, nikoli pouhý náhled. Potvrzené částky a použitý základ se uchovají; opravu podkladu řešte novou verzí s důvodem.",
+      "Pro osobodny doplňte časovou evidenci osob, pro plochu údaje jednotek. Spotřební pravidlo vyžaduje podružná měřidla, právě jedno hlavní domovní měřidlo daného média a hraniční odečty. Součet podružných spotřeb nesmí překročit hlavní měřidlo. Při střídání nájemníků zkontrolujte použitý časový podíl; není náhradou předávacího odečtu.",
+      "V jednotce u měřidla zadejte osobní či dálkový odečet nebo výslovně odůvodněný odhad. Fotografii či PDF protokol nahrajte do dokumentů jednotky a připojte k odečtu. Oprava zachovává původní záznam a vyžaduje důvod. Bez přesných odečtů na hranicích období aplikace spotřebu pro vyúčtování sama nedopočítává. Výměnu evidujte novým měřidlem; automatické propojení spotřeb přes výměnu není součástí tohoto postupu.",
+      "Teplo se v tomto postupu nepřepočítává z ručních odečtů; přebírá se potvrzený odborný výsledek. U všech služeb ověřte zdroj, období a přiřazení. Po prvním potvrzeném podkladu domu se OPEX náklady do náhledu nepřičítají; doplňte proto potřebné podklady i pro ostatní období.",
+      "Zkontrolujte blokátory a uložte pracovní protokol. Pracovní náhled je read-only a pracovní protokol zůstává neměnný; jejich vytvoření nemění předpisy, kredity ani platby. Návrh označený NEURČENO K ÚHRADĚ není hotovým vyúčtováním k doručení.",
+      "Na protokolu zvolte 1. Uzavřít skutečné úhrady. Uzávěrka načte aktuální podklady a vytvoří samostatný snímek. Zkontrolujte potvrzeně uhrazené zálohy a blokátory; částečné bankovní platby a nebankovní zápočty mohou bránit schválení. Nevydávejte předepsané zálohy za zaplacené.",
+      "Po úspěšné kontrole zvolte 2. Schválit vyúčtování a Vytisknout / uložit PDF. Po skutečném doručení zvolte 3. Zaznamenat doručení, doplňte způsob, referenci a případný termín námitek. Záznam doručení sám neposílá e-mail ani datovou zprávu.",
+      "Námitku a její vyřízení zapište do protokolu. Dokud běží zadaná lhůta nebo zůstává nevyřešená námitka, finanční vypořádání je zablokované. Poté zvolte 4. Finančně vypořádat: vznikne samostatný předpis nedoplatku nebo evidence přeplatku, případně nulový výsledek. Tento krok neodesílá bankovní platbu.",
+    ],
+    check: "Každá částka má dohledatelný zdroj a rozdělení. Konečný výsledek vychází z potvrzeně uhrazených záloh; schválení, skutečné doručení, námitky a finanční vypořádání jsou doložené samostatně.",
     href: "/smlouvy",
   },
   {
