@@ -20,7 +20,7 @@ export async function expenseRuleAccess(tx:Prisma.TransactionClient,rule:Pick<Ba
   if(rule.unitId&&!await tx.unit.findFirst({where:{id:rule.unitId,propertyId:rule.targetPropertyId}}))throw new Error("Jednotka nepatří do cílového domu.");
 }
 // Executed only for freshly imported IDs or a user-confirmed preview; never during GET.
-export async function runExpenseRules(sourcePropertyId:string,ids:string[],actorId?:string) {
+export async function runExpenseRules(sourcePropertyId:string,ids:string[],actorId?:string,expectedRuleId?:string) {
   let applied=0,review=0;
   if(!await prisma.bankExpenseRule.count({where:{sourcePropertyId,active:true}}))return {applied,review:ids.length};
   for(const id of [...new Set(ids)].slice(0,1000)) {
@@ -29,7 +29,7 @@ export async function runExpenseRules(sourcePropertyId:string,ids:string[],actor
       if(!bank||!bank.amountCents||(bank.amountCents>0&&bank.source!=="expense-statement")||bank.expenseIgnoredAt||bank.expenseSuggestedRuleId||bank.expenseAllocations.some(a=>!a.voidedAt)||bank.allocations.length||bank.securityDepositReceipts.length)return false;
       const rules=(await tx.bankExpenseRule.findMany({where:{sourcePropertyId,bankAccountId:bank.bankAccountId,active:true}})).filter(r=>expenseRuleMatches(r.conditions,bank));
       // Overlapping rules are ambiguous, including ignore-versus-cost rules.
-      if(rules.length!==1)return false;
+      if(rules.length!==1||(expectedRuleId&&rules[0].id!==expectedRuleId))return false;
       const rule=rules[0];await expenseRuleAccess(tx,rule,rule.createdById);
       if(actorId)await expenseRuleAccess(tx,rule,actorId);
       const userId=actorId||rule.createdById,reason=`Pravidlo „${rule.name}“ (${rule.id})`;

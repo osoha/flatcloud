@@ -30,6 +30,7 @@ test("výdajová pravidla: souběh vytvoří jediný návrh, kolize nic nezaúč
  const overlap=await prisma.bankExpenseRule.create({data:{...f.rule,action:"IGNORE",name:"Kolize"}}),second=await f.bank();
  expect((await runExpenseRules(f.property.id,[second.id])).applied).toBe(0);
  await prisma.bankExpenseRule.update({where:{id:rule.id},data:{active:false}});
+ expect((await runExpenseRules(f.property.id,[second.id],f.actor.id,rule.id)).applied).toBe(0);
  await runExpenseRules(f.property.id,[second.id]);
  expect((await prisma.bankTransaction.findUniqueOrThrow({where:{id:second.id}})).expenseIgnoredAt).not.toBeNull();
  expect(await prisma.bankExpenseAllocation.count({where:{transactionId:second.id}})).toBe(0);

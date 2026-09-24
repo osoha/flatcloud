@@ -20,7 +20,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
    }
    if(body.confirmed!==true||!Array.isArray(body.ids)||body.ids.length>1000||!body.ids.every((x:unknown)=>typeof x==="string"))throw new Error("Potvrďte náhled vybraných pohybů.");
    const eligible=new Set((await previewExpenseRule(rule)).rows.map(r=>r.id));
-   return NextResponse.json(await runExpenseRules(id,body.ids.filter((x:string)=>eligible.has(x)),access.user.id));
+   return NextResponse.json(await runExpenseRules(id,body.ids.filter((x:string)=>eligible.has(x)),access.user.id,rule.id));
   }
   const data=schema.parse(body.rule),rule={...data,sourcePropertyId:id};
   if(["MATCH","CREATE_COST"].includes(rule.action)&&rule.conditions.direction!=="OUT")throw new Error("Automatické úhrady a nové náklady vyžadují odchozí pohyb.");
