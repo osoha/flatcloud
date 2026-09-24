@@ -38,7 +38,7 @@ test("R32A: online expiruje, deaktivovaný a budoucí čas nejsou online; filtry
   expect(filterAndSortActivity(rows, "unseen", now).map(r => r.id)).toEqual(["new"]);
 });
 
-test("R32A: super-admin vidí tři provozní údaje, online kroužek a filtrování skutečných účtů", async ({ page }) => {
+test("R32A: super-admin vidí pravý provozní panel, online kroužek a filtrování skutečných účtů", async ({ page }) => {
   test.skip(Boolean(process.env.E2E_BASE_URL), "Synthetic activity fixtures belong only to isolated CI.");
   const { prisma } = await import("../lib/db");
   const suffix = Date.now();
@@ -56,16 +56,19 @@ test("R32A: super-admin vidí tři provozní údaje, online kroužek a filtrová
     await login(page);
     await expect.poll(async () => (await prisma.userActivity.count({ where: { user: { email: adminEmail } } })) > 0).toBe(true);
     await page.goto("/uzivatele?activity=online");
-    const panel = page.getByRole("region", { name: "Provoz aplikace" });
+    await page.getByRole("button", { name: "Přehled systému", exact: true }).click();
+    const panel = page.getByRole("dialog", { name: "Přehled systému" });
     await expect(panel).toBeVisible();
-    await expect(panel.getByRole("link")).toHaveCount(3);
-    await expect(panel.getByRole("link", { name: /Uživatelé online/ })).toHaveAttribute("href", "/uzivatele?activity=online#seznam-uzivatelu");
+    await expect(panel.getByText("Aktivní uživatelé za 30 dní", { exact: true })).toBeVisible();
+    await expect(panel.getByRole("link", { name: /^Online/ })).toHaveAttribute("href", "/uzivatele?activity=online#seznam-uzivatelu");
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
     const live = page.locator("#seznam-uzivatelu tr").filter({ hasText: "R32 Online účet" });
     await expect(live.locator(".user-online")).toHaveCSS("outline-width", "3px");
     await expect(live.getByText("Online", { exact: true })).toBeVisible();
     await expect(page.locator("#seznam-uzivatelu tr").filter({ hasText: "R32 Deaktivovaný" }).locator(".user-online")).toHaveCount(0);
     const data = await page.request.get("/api/admin/operations", { headers: await apiHeaders(page) });
-    expect(data.status()).toBe(200); expect((await data.json()).online).toBeGreaterThanOrEqual(2);
+    expect(data.status()).toBe(200); expect((await data.json()).online).toBe(await prisma.userActivity.count({ where: { user: { active: true, isTestIdentity: false }, lastSeenAt: { gt: new Date(Date.now() - ONLINE_WINDOW_MS), lte: new Date() } } }));
     await page.getByLabel("Aktivita uživatelů").selectOption("inactive");
     await page.getByRole("button", { name: "Zobrazit účty" }).click();
     await expect(page).toHaveURL(/activity=inactive/);
@@ -80,7 +83,8 @@ test("R32A: super-admin vidí tři provozní údaje, online kroužek a filtrová
     await expect(page.locator(".avatar.user-online")).toBeVisible();
     await expect(page.getByTestId("user-access-form")).toBeVisible();
     await page.getByRole("button", { name: "Sbalit levé menu", exact: true }).click();
-    await expect(page.getByRole("region", { name: "Provoz aplikace" })).toBeHidden();
+    await page.getByRole("button", { name: "Přehled systému", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Přehled systému" })).toBeVisible();
   } finally { await prisma.user.deleteMany({ where: { id: { in: created } } }); }
 });
 
@@ -90,7 +94,7 @@ test("R32A: osobní heartbeat nelze přesměrovat na cizí účet a provozní ú
   expect((await page.request.post("/api/account/activity")).status()).toBe(401);
   expect((await page.request.get("/api/admin/operations")).status()).toBe(401);
   await login(page, R24_ROLE_USERS.externalOwner, process.env.E2E_ROLE_PASSWORD || R24_ROLE_PASSWORD);
-  await expect(page.getByRole("region", { name: "Provoz aplikace" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Přehled systému", exact: true })).toHaveCount(0);
   expect((await page.request.get("/api/admin/operations", { headers: await apiHeaders(page) })).status()).toBe(403);
   const admin = await prisma.user.findUniqueOrThrow({ where: { email: adminEmail }, include: { activity: true } });
   const before = admin.activity?.lastSeenAt.toISOString();
