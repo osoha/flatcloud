@@ -1,3 +1,4 @@
+import { GuideLauncher } from "@/components/GuideLauncher";
 import { prisma } from "@/lib/db";
 import { notificationDefaults, notificationFields } from "@/lib/task-discussion-shared";
 import { PageHeading } from "@/components/PageHeading";
@@ -32,11 +33,12 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <PageHeading>Můj účet</PageHeading>
             <p>{user.name} · {user.email}</p>
           </div>
+          <GuideLauncher/>
         </div>
 
         <Flash ok={query.ok} error={query.error && !passwordError ? query.error : undefined}/>
 
-        <section id="upozorneni" className="card account-card notification-settings">
+        <section id="upozorneni" data-guide="notifications" className="card account-card notification-settings">
           <h2>Upozornění</h2>
           <p>E-maily z úkolů a diskusí můžete kdykoli vypnout. Upozornění uvnitř aplikace zůstanou zachována. Reakce e-maily neposílají.</p>
           <form action="/api/account/notifications" method="post">
