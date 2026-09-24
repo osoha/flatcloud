@@ -67,7 +67,7 @@ test("pravidla: náhled, vytvoření a zpětné použití přes UI",async({page}
  await page.getByRole("button",{name:"Uložit pravidlo pro budoucí importy"}).click();await expect(page.getByRole("heading",{name:"Ignorovat testovací poplatek · Zapnuto"})).toBeVisible();
  await page.getByRole("button",{name:"Náhled zpětného použití"}).click();await expect(page.getByRole("button",{name:"Potvrdit použití na zobrazené pohyby"})).toBeVisible();await page.getByRole("button",{name:"Potvrdit použití na zobrazené pohyby"}).click();await expect(page.getByRole("status")).toContainText("Použito: 1");
  await page.screenshot({path:testInfo.outputPath("expense-rules.png"),fullPage:true});
- await page.goto(`/nemovitosti/${f.property.id}/bankovni-vydaje?year=2026&state=ignored`);await page.locator('details[id^="pohyb-"] summary').click();await page.getByLabel("Důvod",{exact:true}).fill("Vrácení do evidence");await page.getByRole("button",{name:"Vrátit do fronty"}).click();await expect(page.getByRole("status")).toContainText("Stav pohybu uložen");
+ await page.goto(`/nemovitosti/${f.property.id}/bankovni-vydaje?year=2026&state=ignored`);await page.locator('details[id^="pohyb-"] > summary').click();await page.getByLabel("Důvod",{exact:true}).fill("Vrácení do evidence");await page.getByRole("button",{name:"Vrátit do fronty"}).click();await expect(page.getByRole("status")).toContainText("Stav pohybu uložen");
 });
 
 test("uživatelé: vazby se nezaměňují a našeptávač vybere existující účet",async({page},testInfo)=>{

@@ -19,5 +19,7 @@ Financial changes are sensitive: automatic CREATE_COST is explicit, produces COM
 
 ## Validation
 - TypeScript and pure rule/geocoding policy checks passed before CI.
-- Prisma schema validate passed. Migration and database/browser tests pending CI.
-- Production build and actual visual verification must be recorded before release readiness.
+- Prisma validate, PostgreSQL 18 migration, production build and all static gates passed in CI.
+- Initial CI 35978895184: 199 browser tests passed. Final-review head 75c9435: 198 passed; one test locator was ambiguous after nested processing history was added. Selector narrowed to the movement’s direct summary, preserving all assertions; corrected-head CI pending.
+- New expense-rule and user-relationship screenshots inspected. Shared page/shell positioning still needs the explicitly deferred visual polish; this is not a claim of visual completion.
+- Actual authenticated Google/WebGL verification remains open; private tool is unavailable in the current unauthenticated browser. Sandbox acceptance can proceed, production readiness is not asserted.
