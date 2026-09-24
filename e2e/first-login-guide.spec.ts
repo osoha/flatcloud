@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { randomBytes, randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
+import { guideOriginMatches } from "../lib/guide-origin";
 import { prisma } from "../lib/db";
 import { hashInvitationToken } from "../lib/invitations";
 import { guideTransition, guideSteps, normalizeGuideState, type GuideState } from "../lib/first-login-guide";
@@ -39,6 +40,20 @@ async function post(page: Page, body: Record<string, unknown>) {
 }
 
 test("průvodce: přechody, role a neznámá verze", () => {
+  const previousAppUrl = process.env.APP_URL, previousRenderUrl = process.env.RENDER_EXTERNAL_URL;
+  try {
+    delete process.env.APP_URL;
+    process.env.RENDER_EXTERNAL_URL = "https://guide-sandbox.onrender.com";
+    const proxied = (origin: string) => new Request("http://localhost:10000/api/account/guide", { headers: { origin } });
+    expect(guideOriginMatches(proxied("https://guide-sandbox.onrender.com"))).toBe(true);
+    expect(guideOriginMatches(proxied("https://foreign.example.invalid"))).toBe(false);
+    process.env.APP_URL = "https://app.example.invalid/";
+    expect(guideOriginMatches(proxied("https://app.example.invalid"))).toBe(true);
+    expect(guideOriginMatches(proxied("https://guide-sandbox.onrender.com"))).toBe(false);
+  } finally {
+    if (previousAppUrl === undefined) delete process.env.APP_URL; else process.env.APP_URL = previousAppUrl;
+    if (previousRenderUrl === undefined) delete process.env.RENDER_EXTERNAL_URL; else process.env.RENDER_EXTERNAL_URL = previousRenderUrl;
+  }
   const initial: GuideState = { status: "pending", step: "welcome", revision: 0, version: 1 };
   expect(guideTransition(initial, "back")).toBeNull();
   expect(guideTransition({ ...initial, status: "completed" }, "next")).toBeNull();
@@ -151,6 +166,7 @@ test("API průvodce vyžaduje přihlášení a neumožní přepsat cizí ani nov
   const actor = await fixture(), other = await fixture();
   await login(page, actor.email);
   const current = await state(page);
+  expect((await page.request.post("/api/account/guide", { headers: { Origin: "https://foreign.example.invalid" }, data: { action: "start", version: 1, revision: current.revision } })).status()).toBe(403);
   expect((await post(page, { action: "start", version: 1, revision: current.revision, userId: other.id })).status).toBe(200);
   expect((await prisma.user.findUniqueOrThrow({ where: { id: other.id } })).onboardingRevision).toBe(0);
   expect((await post(page, { action: "next", version: 1, revision: current.revision })).status).toBe(409);

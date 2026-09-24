@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { guideOriginMatches } from "@/lib/guide-origin";
 import { currentUser, canSeeAll, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { GUIDE_VERSION, guideTransition, normalizeGuideState, type GuideAction } from "@/lib/first-login-guide";
@@ -23,8 +24,7 @@ export async function GET() {
 export async function POST(request: Request) {
   // JSON-only plus Origin check prevents cross-site form writes to personal progress.
   if (!request.headers.get("content-type")?.startsWith("application/json")) return json({ error: "Neplatný požadavek." }, 415);
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(request.url).origin && origin !== process.env.APP_URL?.replace(/\/$/, "")) return json({ error: "Neplatný původ požadavku." }, 403);
+  if (!guideOriginMatches(request)) return json({ error: "Neplatný původ požadavku." }, 403);
   const user = await currentUser();
   if (!user) return json({ error: "Přihlaste se prosím znovu." }, 401);
   let body: { action?: GuideAction; revision?: number; version?: number };
