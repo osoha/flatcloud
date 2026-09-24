@@ -80,4 +80,10 @@ test("pravý panel: fokus, mobil, tmavý režim, nedostupná data a oznámení p
   await page.screenshot({ path: testInfo.outputPath("system-panel-mobile.png") });
   await page.mouse.click(10, 420);
   await expect(panel).toBeHidden();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/uzivatele");
+  await trigger.click();
+  await panel.getByRole("link", { name: /^Uživatelé/ }).click();
+  await expect(panel).toBeHidden();
+  await expect(page).toHaveURL(/\/uzivatele#seznam-uzivatelu$/);
 });
