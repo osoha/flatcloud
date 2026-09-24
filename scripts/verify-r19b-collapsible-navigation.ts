@@ -13,7 +13,7 @@ check("overview navigation remains permanently visible", () => {
 
 check("operations and finance are intentional contextual collapsible groups", () => {
   const shell = read("components/Shell.tsx");
-  assert.match(shell, /id="operations" label="Provoz"[^\n]+forceOpen=\{openTasks > 0 \|\| dueRevisions > 0\}/);
+  assert.match(shell, /id="operations" label="Provoz"[^\n]+forceOpen=\{openTasks > 0 \|\| dueRevisions > 0 \|\| announcementCount > 0\}/);
   assert.match(shell, /id="finance" label="Finance"[^\n]+forceOpen=\{unmatchedCount > 0\}/);
   for (const marker of ['label="Úkoly"', 'label="Nespárované platby"', 'label="Předpisy"']) assert.match(shell, new RegExp(marker));
   assert.ok(shell.indexOf('id="operations"') < shell.indexOf('label="Úkoly"'));
