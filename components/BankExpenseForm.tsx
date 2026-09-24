@@ -4,7 +4,7 @@ import { expenseKinds } from "@/lib/bank-expense-values";
 import { propertyCostCategories } from "@/lib/asset-finance";
 
 type Target={id:string;name:string;units:{id:string;label:string}[];costs:{id:string;title:string;documentNumber:string|null;remaining:number}[]};
-export function BankExpenseForm({sourceId,transactionId,revision,remaining,incoming,targets,vendor,suggestedTargetId,suggestedUnitId}:{sourceId:string;transactionId:string;revision:number;remaining:number;incoming:boolean;targets:Target[];vendor:string;suggestedTargetId?:string;suggestedUnitId?:string}) {
+export function BankExpenseForm({sourceId,transactionId,revision,remaining,incoming,targets,vendor,suggestedTargetId,suggestedUnitId,suggestedCategory,suggestedCostKind}:{sourceId:string;transactionId:string;revision:number;remaining:number;incoming:boolean;targets:Target[];vendor:string;suggestedTargetId?:string;suggestedUnitId?:string;suggestedCategory?:string;suggestedCostKind?:string}) {
   const [targetId,setTargetId]=useState(targets.some(t=>t.id===suggestedTargetId)?suggestedTargetId!:sourceId),[mode,setMode]=useState("existing"),[kind,setKind]=useState(incoming?"COST_REFUND":"COST_PAYMENT");
   const target=targets.find(t=>t.id===targetId)||targets[0];
   const costKind=kind==="COST_PAYMENT"||kind==="COST_REFUND";
@@ -20,8 +20,8 @@ export function BankExpenseForm({sourceId,transactionId,revision,remaining,incom
       <label className="field"><span>Název nákladu</span><input name="title" required maxLength={200}/></label>
       <label className="field"><span>Celá částka faktury (Kč)</span><input name="costAmount" type="number" min="0.01" step="0.01" defaultValue={(remaining/100).toFixed(2)} required/></label>
       <label className="field"><span>Datum vzniku nákladu / období</span><input name="effectiveAt" type="date" required/></label>
-      <label className="field"><span>Typ nákladu</span><select name="costKind"><option value="OPEX">OPEX</option><option value="CAPEX">CAPEX</option></select></label>
-      <label className="field"><span>Kategorie</span><select name="category" defaultValue="OTHER">{Object.entries(propertyCostCategories).map(([k,label])=><option value={k} key={k}>{label}</option>)}</select></label>
+      <label className="field"><span>Typ nákladu</span><select name="costKind" defaultValue={suggestedCostKind||"OPEX"}><option value="OPEX">OPEX</option><option value="CAPEX">CAPEX</option></select></label>
+      <label className="field"><span>Kategorie</span><select name="category" defaultValue={suggestedCategory||"OTHER"}>{Object.entries(propertyCostCategories).map(([k,label])=><option value={k} key={k}>{label}</option>)}</select></label>
       <label className="field"><span>Jednotka</span><select name="unitId" key={targetId} defaultValue={suggestedUnitId||""}><option value="">Celý dům / rozdělit později</option>{target?.units.map(u=><option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
       <label className="field"><span>Dodavatel</span><input name="vendor" defaultValue={vendor}/></label>
       <label className="field"><span>Číslo faktury</span><input name="documentNumber"/></label>

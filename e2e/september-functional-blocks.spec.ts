@@ -34,6 +34,10 @@ test("výdajová pravidla: souběh vytvoří jediný návrh, kolize nic nezaúč
  expect((await prisma.bankTransaction.findUniqueOrThrow({where:{id:second.id}})).expenseIgnoredAt).not.toBeNull();
  expect(await prisma.bankExpenseAllocation.count({where:{transactionId:second.id}})).toBe(0);
  expect((await prisma.bankExpenseRule.findUniqueOrThrow({where:{id:overlap.id}})).usedCount).toBe(1);
+ await prisma.bankExpenseRule.update({where:{id:overlap.id},data:{conditions:{direction:"IN",counterpartyAccount:"123/0800"}}});
+ const rent=await prisma.bankTransaction.create({data:{bankAccountId:f.account.id,externalId:crypto.randomUUID(),bookedAt:new Date(),amountCents:10000,counterpartyIban:"123/0800",source:"bank-email"}});
+ expect((await runExpenseRules(f.property.id,[rent.id])).applied).toBe(0);
+ expect((await prisma.bankTransaction.findUniqueOrThrow({where:{id:rent.id}})).expenseIgnoredAt).toBeNull();
 });
 
 test("pravidla: existující faktura, cizí účet a odebrané oprávnění",async()=>{

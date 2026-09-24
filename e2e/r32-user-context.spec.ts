@@ -201,7 +201,7 @@ test("R32D: synthetic capture crops the confirmed square, retains source strip, 
   await page.locator("#confirmed").check();
   await page.getByRole("button",{name:"Vidím prostorové fasády a střechu",exact:true}).click();
   await page.getByRole("button",{name:"Použít tento pohled",exact:true}).click();
-  await page.getByRole("button",{name:"Připravit výřez (PNG)",exact:true}).click();
+  await page.getByRole("button",{name:"Připravit výřez",exact:true}).click();
   await expect(page.locator("#export-preview")).toBeVisible();
   const pixels=await page.locator("#export-preview").evaluate(async(img:HTMLImageElement)=>{
     await img.decode();const canvas=document.createElement("canvas");canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;

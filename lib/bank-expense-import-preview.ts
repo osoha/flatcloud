@@ -14,7 +14,7 @@ export async function expenseImportPreview(tx:Prisma.TransactionClient,records:R
   const similar=(e:typeof records[number])=>e.amountCents===r.amountCents&&e.currency===r.currency&&e.bookedAt.toISOString().slice(0,10)===r.bookedAt.toISOString().slice(0,10)&&((r.counterpartyIban&&normalizeExpenseAccount(e.counterpartyIban||"")===normalizeExpenseAccount(r.counterpartyIban))||(r.variableSymbol&&r.variableSymbol===e.variableSymbol)||(r.counterpartyName&&r.counterpartyName.toLowerCase()===(e.counterpartyName||"").toLowerCase()));
   const matches=existing.filter(e=>similar({...e,counterpartyIban:e.counterpartyIban||"",counterpartyName:e.counterpartyName||"",variableSymbol:e.variableSymbol||"",message:e.message||""})).map(e=>e.id);
   for(const previous of records.slice(0,index))if(similar(previous))matches.push("file:"+previous.externalId);
-  return {id:r.externalId,state:matches.length?"suspect":"new",matches};
+  return {id:r.externalId,state:matches.length?"suspect":"new",matches:matches.sort()};
  });
  const token=createHash("sha256").update(JSON.stringify({identity,ownerId,records,results})).digest("hex");
  return {token,rows:results.map((r,i)=>({id:r.id,state:r.state,date:records[i].bookedAt.toISOString().slice(0,10),amountCents:records[i].amountCents,label:records[i].counterpartyName||records[i].message,possibleMatches:r.matches.length}))};

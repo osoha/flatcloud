@@ -26,7 +26,7 @@ export async function runExpenseRules(sourcePropertyId:string,ids:string[],actor
   for(const id of [...new Set(ids)].slice(0,1000)) {
     try {const changed=await serializableTransaction(async tx=>{
       const bank=await tx.bankTransaction.findFirst({where:{id,bankAccount:{propertyId:sourcePropertyId}},include:{expenseAllocations:true,allocations:true,securityDepositReceipts:true}});
-      if(!bank||bank.expenseIgnoredAt||bank.expenseSuggestedRuleId||bank.expenseAllocations.some(a=>!a.voidedAt)||bank.allocations.length||bank.securityDepositReceipts.length)return false;
+      if(!bank||!bank.amountCents||(bank.amountCents>0&&bank.source!=="expense-statement")||bank.expenseIgnoredAt||bank.expenseSuggestedRuleId||bank.expenseAllocations.some(a=>!a.voidedAt)||bank.allocations.length||bank.securityDepositReceipts.length)return false;
       const rules=(await tx.bankExpenseRule.findMany({where:{sourcePropertyId,bankAccountId:bank.bankAccountId,active:true}})).filter(r=>expenseRuleMatches(r.conditions,bank));
       // Overlapping rules are ambiguous, including ignore-versus-cost rules.
       if(rules.length!==1)return false;
@@ -52,6 +52,6 @@ export async function runExpenseRules(sourcePropertyId:string,ids:string[],actor
   return {applied,review};
 }
 export async function previewExpenseRule(rule:Pick<BankExpenseRule,"sourcePropertyId"|"bankAccountId"|"conditions">) {
-  const rows=await prisma.bankTransaction.findMany({where:{bankAccountId:rule.bankAccountId,bankAccount:{propertyId:rule.sourcePropertyId},expenseIgnoredAt:null,expenseSuggestedRuleId:null,expenseAllocations:{none:{voidedAt:null}},allocations:{none:{}},securityDepositReceipts:{none:{}}},orderBy:{bookedAt:"desc"},take:1001});
+  const rows=await prisma.bankTransaction.findMany({where:{OR:[{amountCents:{lt:0}},{source:"expense-statement"}],bankAccountId:rule.bankAccountId,bankAccount:{propertyId:rule.sourcePropertyId},expenseIgnoredAt:null,expenseSuggestedRuleId:null,expenseAllocations:{none:{voidedAt:null}},allocations:{none:{}},securityDepositReceipts:{none:{}}},orderBy:{bookedAt:"desc"},take:1001});
   return {rows:rows.slice(0,1000).filter(r=>expenseRuleMatches(rule.conditions,r)).map(r=>({id:r.id,date:r.bookedAt.toISOString().slice(0,10),amountCents:r.amountCents,label:r.counterpartyName||r.message||r.externalId})),truncated:rows.length>1000};
 }
