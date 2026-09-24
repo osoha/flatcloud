@@ -8,6 +8,8 @@ import { syncMfRentDatasets } from "../lib/reporting/mf-rent/service";
 import { runTaskAutomation } from "../lib/task-automation";
 import { syncCsuApartmentAverage, syncCsuApartmentIndex } from "../lib/reporting/csu-apartment-index";
 
+import { captureSystemDailySnapshot } from "../lib/admin-operations";
+
 type StepResult = { name: string; status: "ok" | "skipped" | "failed"; summary: string };
 
 function messageOf(error: unknown) {
@@ -97,6 +99,14 @@ async function main() {
     steps.push({ name: "csu-apartment-average", status: "ok", summary: `ČSÚ ${csu.latestPeriod||"bez období"}: ${csu.newRows} nových a ${csu.correctedRows} opravených cen.` });
   } catch (error) {
     steps.push({ name: "csu-apartment-average", status: "failed", summary: `${messageOf(error)} Starší ověřené údaje zůstávají aktivní.` });
+  }
+
+  try {
+    await captureSystemDailySnapshot();
+    steps.push({ name: "system-statistics", status: "ok", summary: "Denní měření systému uloženo." });
+  } catch (error) {
+    steps.push({ name: "system-statistics", status: "failed", summary: messageOf(error) });
+    hardFailure = true;
   }
 
   const summary = steps.map((step) => `${step.name}: ${step.status} – ${step.summary}`).join(" | ");

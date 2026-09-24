@@ -2643,6 +2643,7 @@ model AuditLog {
   createdAt  DateTime  @default(now())
 
   @@index([userId, createdAt])
+  @@index([action, createdAt])
   @@index([propertyId, createdAt])
 }
 
@@ -2852,4 +2853,15 @@ model BankExpenseAllocation {
   @@index([transactionId, voidedAt])
   @@index([propertyCostId, voidedAt])
   @@index([propertyId, createdAt])
+}
+
+/// First successful daily measurement in UTC; no inferred historical values.
+model SystemDailySnapshot {
+  day         DateTime @id @db.Date
+  capturedAt  DateTime @default(now())
+  users       Int
+  activeUsers Int
+  testUsers   Int
+  properties  Int
+  units       Int
 }

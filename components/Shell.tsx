@@ -22,7 +22,6 @@ import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
 import { SidebarCollapseToggle } from "@/components/SidebarCollapseToggle";
 import { UserActivityHeartbeat } from "@/components/UserActivityHeartbeat";
 import { AdminOperationsPanel } from "@/components/admin/AdminOperationsPanel";
-import { loadAdminOperations } from "@/lib/admin-operations";
 
 type ShellUser = {
   id: string;
@@ -71,9 +70,9 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     select: { _count: { select: { memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } }, unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } } } } },
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
-  const operations = superAdmin ? await loadAdminOperations() : null;
 
   return <div className="app-shell v21-shell flatberry-shell">
+    {superAdmin && <AdminOperationsPanel/>}
     <NativeDetailsEscape/>
     <ActiveTabVisibility/>
     <UserActivityHeartbeat/>
@@ -83,13 +82,12 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
       <nav className="nav v21-nav">
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
-        <Nav href="/oznameni" icon={<Megaphone size={17}/>} label="Oznámení" count={announcementCount}/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
         {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
         {canAddProperty && isFlatcloudMember(user) && <><Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/><Nav href="/distribuce/zajemci" icon={<UsersRound size={17}/>} label="Zájemci"/></>}
 
-        <CollapsibleNavGroup id="operations" label="Provoz" activeRoots={["/ukoly","/portfolio/kvalita","/revize"]} forceOpen={openTasks > 0 || dueRevisions > 0}>
-          <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks}/>
+        <CollapsibleNavGroup id="operations" label="Provoz" activeRoots={["/ukoly","/portfolio/kvalita","/revize"]} forceOpen={openTasks > 0 || dueRevisions > 0 || announcementCount > 0}>
+          <Nav href="/ukoly" icon={<ListChecks size={17}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
           <Nav href="/portfolio/kvalita" icon={<Hammer size={17}/>} label="Kvalita a CAPEX"/>
           <Nav href="/revize" icon={<ClipboardCheck size={17}/>} label="Revize" count={dueRevisions}/>
         </CollapsibleNavGroup>
@@ -122,7 +120,6 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           <Nav href="/nastaveni/automaticke-ukoly" icon={<ListChecks size={17}/>} label="Automatické úkoly"/>
           <Nav href="/nastaveni/cenovy-benchmark" icon={<BarChart3 size={17}/>} label="Cenový benchmark"/>
           <Nav href="/dovednosti" icon={<Compass size={17}/>} label="Dovednosti"/>
-          {operations && <AdminOperationsPanel initial={operations}/>}
         </CollapsibleNavGroup>}
       </nav>
       <div className="sidebar-footer">
@@ -152,6 +149,6 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   </div>;
 }
 
-function Nav({href,icon,label,count=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;activeQuery?:Record<string,string>}){
-  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}</ScopeAwareLink>;
+function Nav({href,icon,label,count=0,noticeCount=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;noticeCount?:number;activeQuery?:Record<string,string>}){
+  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}{noticeCount>0&&<i className="nav-announcement-dot" title={`${noticeCount} aktivních oznámení`} aria-label={`${noticeCount} aktivních oznámení`}/>}</ScopeAwareLink>;
 }
