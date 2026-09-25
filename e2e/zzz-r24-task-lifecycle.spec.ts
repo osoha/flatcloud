@@ -65,6 +65,8 @@ for (const status of ["DONE", "CANCELLED"] as const) {
 
 test("R24 souběh příslibu a uzavření nezanechá znovuotevřený hotový případ", async ({ page }) => {
   const task = await setup(page);
+  const unit = await db.unit.findFirstOrThrow({ where: { propertyId: task.propertyId! } });
+  await db.task.update({ where: { id: task.id }, data: { category: "COLLECTION", unitId: unit.id } });
   const [promise, close] = await Promise.all([
     post(page, `/api/tasks/${task.id}/entries`, { form: { kind: "PROMISE", body: "R24 race promise", promiseDate: "2026-09-15", promiseAmount: "100" } }),
     post(page, `/api/tasks/${task.id}/close`, { form: { body: "R24 race close" } }),

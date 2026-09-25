@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { SmilePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { taskReactions } from "@/lib/task-discussion-shared";
 export function TaskEntryReactions({ taskId, entryId, userId, reactions }: { taskId: string; entryId: string; userId: string; reactions: { reaction: string; userId: string; user: { name: string } }[] }) {
@@ -17,7 +18,7 @@ export function TaskEntryReactions({ taskId, entryId, userId, reactions }: { tas
     finally { setBusy(false); }
   }
   return <div className="entry-reactions" onKeyDown={event => { if (event.key === "Escape") setOpen(false); }}>
-    <button type="button" className="secondary reaction-picker-toggle" aria-label="Přidat reakci" aria-expanded={open} onClick={() => setOpen(!open)}>☺ <span>Reagovat</span></button>
+    <button type="button" className="secondary reaction-picker-toggle" aria-label="Přidat reakci" aria-expanded={open} onClick={() => setOpen(!open)}><SmilePlus size={22} strokeWidth={1.8} aria-hidden="true"/> <span>Reagovat</span></button>
     {open && <div className="reaction-picker" role="group" aria-label="Vybrat reakci">{taskReactions.map(item => <button type="button" key={item.key} title={item.label} aria-label={item.label} aria-pressed={mine === item.key} disabled={busy} onClick={() => react(item.key)}>{item.emoji}</button>)}</div>}
     {taskReactions.map(item => { const matching = reactions.filter(r => r.reaction === item.key); return matching.length ? <details className="reaction-count" key={item.key}><summary aria-label={`${item.label}: ${matching.length}`} title={matching.map(r => r.user.name).join(", ")}>{item.emoji} {matching.length}</summary><div className="reaction-people">{matching.map(r => <span key={r.userId}>{r.user.name}</span>)}<button type="button" className="secondary" disabled={busy} onClick={() => react(item.key)}>{mine === item.key ? "Odebrat mou reakci" : "Také reagovat"}</button></div></details> : null; })}
     {error && <small role="alert">{error}</small>}

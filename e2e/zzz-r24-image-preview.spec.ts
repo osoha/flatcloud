@@ -38,7 +38,7 @@ for (const scenario of ["desktop", "mobile", "error-retry"] as const) {
     const editPanel = page.locator("details").filter({ has: page.locator("summary", { hasText: "Upravit případ" }) });
     await editPanel.locator("summary").click();
     await expect(editPanel).toHaveAttribute("open", "");
-    const draft = page.getByLabel("Nový záznam", { exact: true });
+    const draft = page.getByLabel("Nový komentář", { exact: true });
     await draft.fill(`${marker} unsaved draft`);
     const url = page.url();
     const trigger = page.getByRole("button", { name: `Otevřít náhled: ${title}` });
