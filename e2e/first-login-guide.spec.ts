@@ -28,6 +28,10 @@ async function login(page: Page, email: string) {
   await page.getByLabel("Heslo", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Přihlásit se", exact: true }).click();
   await expect(page).toHaveURL(/\/portfolio/);
+  if (await page.getByRole("group", { name: "Vyberte vzhled aplikace" }).isVisible()) {
+    await page.getByRole("button", { name: /Zvolit Profi/ }).click();
+    await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
+  }
 }
 async function state(page: Page) {
   return page.evaluate(async () => (await (await fetch("/api/account/guide")).json()).state as GuideState);
@@ -62,6 +66,11 @@ test("průvodce: přechody, role a neznámá verze", () => {
   expect(normalizeGuideState({ onboardingStatus: "completed", onboardingStep: "unknown", onboardingVersion: 99, onboardingRevision: 4 })).toMatchObject({ status: "available", step: "welcome" });
   expect(guideSteps({ hasProperties: false, canAddProperty: false, canAddTask: false })[4].target).toBe('[data-guide="tasks"]');
   expect(guideSteps({ hasProperties: true, canAddProperty: true, canAddTask: true })[1].body).not.toContain("první dům");
+  const basic = guideSteps({ hasProperties: false, canAddProperty: false, canAddTask: false }, "basic");
+  expect(basic.map(step => step.id)).toEqual(["welcome", "properties", "finance", "tasks", "help"]);
+  expect(basic[2].target).toBe('[data-guide="basic-payments"]');
+  expect(guideTransition({ ...initial, status: "active", step: "finance" }, "back", "basic")?.step).toBe("properties");
+  expect(normalizeGuideState({ onboardingStatus: "paused", onboardingStep: "contracts", onboardingVersion: 1, onboardingRevision: 4 }, "basic")).toMatchObject({ status: "paused", step: "finance", revision: 4 });
 });
 
 test("potvrzená registrace otevře portfolio s prvním krokem bez vytvoření domu", async ({ page }) => {
@@ -73,6 +82,8 @@ test("potvrzená registrace otevře portfolio s prvním krokem bez vytvoření d
   await page.getByRole("button", { name: "Potvrdit registraci" }).click();
   await expect(page).toHaveURL(/\/portfolio/);
   await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
+  await page.getByRole("button", { name: /Zvolit Profi/ }).click();
   const user = await prisma.user.findUniqueOrThrow({ where: { email }, include: { personalOwner: true } });
   expect(user.onboardingStatus).toBe("pending");
   expect(await prisma.property.count({ where: { ownerId: user.personalOwner!.id } })).toBe(0);
@@ -84,6 +95,31 @@ test("potvrzená registrace otevře portfolio s prvním krokem bez vytvoření d
   await expect(page).toHaveURL(/\/nemovitosti\/nova/);
   await expect(page.getByTestId("first-login-guide")).toHaveCount(0);
   expect((await state(page)).step).toBe("properties");
+});
+
+test("Berry vysvětlí vzhledy a ukáže skutečné karty Basic", async ({ page }) => {
+  const user = await fixture();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/login");
+  await page.getByLabel("E-mail", { exact: true }).fill(user.email);
+  await page.getByLabel("Heslo", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Přihlásit se", exact: true }).click();
+  await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
+  await expect.poll(() => page.locator(".guide-mode-berry").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await page.getByRole("button", { name: /Zvolit Basic/ }).click();
+  await expect(page.locator(".basic-portfolio")).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
+  await page.getByRole("button", { name: "Pojďme na to" }).click();
+  for (const [title, target] of [["Vaše nemovitosti a lidé", "properties"], ["Platby na první pohled", "basic-payments"], ["Co potřebuje pozornost", "basic-tasks"]]) {
+    await expect(page.locator("#guide-title")).toHaveText(title);
+    await expect(page.locator(`[data-guide="${target}"]`)).toBeVisible();
+    await expect(page.getByTestId("guide-spotlight")).toBeVisible();
+    await page.getByRole("button", { name: "Další", exact: true }).click();
+  }
+  await expect(page.locator("#guide-title")).toContainText("nablízku");
+  await page.reload();
+  await expect(page.locator("#guide-title")).toContainText("nablízku");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });
 
 test("odložení, reload, jiné zařízení, zpět a dokončení bez opakování", async ({ browser }, info) => {

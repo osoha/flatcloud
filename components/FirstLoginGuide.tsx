@@ -6,7 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Compass, X } from "lucide-react";
 import { GUIDE_VERSION, guideSteps, type GuideAction, type GuideCapabilities, type GuideState } from "@/lib/first-login-guide";
 
-type Payload = { state: GuideState; capabilities: GuideCapabilities };
+type Payload = { state: GuideState; capabilities: GuideCapabilities; mode: "basic" | "pro"; modeChosen: boolean };
 type Box = { x: number; y: number; width: number; height: number };
 const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]';
 
@@ -49,7 +49,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
     return () => { controller.abort(); document.removeEventListener("visibilitychange", load); };
   }, [pathname, userId]);
 
-  const steps = payload ? guideSteps(payload.capabilities) : [];
+  const steps = payload ? guideSteps(payload.capabilities, payload.mode) : [];
   const index = steps.findIndex(item => item.id === payload?.state.step);
   const step = steps[index];
   const routeMatches = Boolean(step && pathname === step.href.split("?")[0] && (!step.href.includes("?") || params.get("view") === "guides"));
@@ -71,7 +71,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
       try { sessionStorage.removeItem(`flatberry:guide-hidden:${userId}`); } catch { /* storage is optional */ }
       if (data.state.status === "completed") router.push("/portfolio");
       if (["start", "resume", "next", "back"].includes(action) && data.state.status === "active") {
-        const next = guideSteps(current.capabilities).find(item => item.id === data.state.step)!;
+        const next = guideSteps(current.capabilities, current.mode).find(item => item.id === data.state.step)!;
         router.push(next.href, { scroll: true });
       }
     } catch (reason) {
@@ -168,6 +168,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
   }, [open, step?.id, act]);
 
   if (!payload || !step) return null;
+  const choosingMode = open && step.id === "welcome" && !payload.modeChosen;
   const resumable = ["paused", "active", "pending"].includes(payload.state.status);
   const showBanner = !open && (resumable || Boolean(error)) && ["/portfolio", "/ucet", "/metodika", "/ukoly", "/smlouvy", "/reporty"].includes(pathname);
   const hideLocally = () => {
@@ -182,7 +183,22 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
       <button className="secondary" disabled={busy} onClick={() => void act("resume")}>Pokračovat v prohlídce</button>
       <button className="guide-link" disabled={busy} onClick={() => void act("dismiss")}>Ukončit průvodce</button>
     </aside>}
-    {open && createPortal(<div className="first-guide" data-testid="first-login-guide">
+    {choosingMode && createPortal(<div className="first-guide guide-choice" data-testid="first-login-guide">
+      <div className="guide-scrim" style={{ inset: 0 }}/>
+      <div className="guide-mode-panel" ref={panel} role="dialog" aria-labelledby="guide-title" aria-describedby="guide-copy" aria-busy={busy}>
+        <button type="button" className="guide-close" aria-label="Odložit průvodce" disabled={busy} onClick={() => void act("pause")}><X size={19}/></button>
+        <img className="guide-mode-berry" src="/guide/choose-mode.webp" alt="" width="280" height="330"/>
+        <div className="guide-mode-intro"><span className="guide-eyebrow">Berry vám pomůže začít</span><h2 ref={title} tabIndex={-1} id="guide-title">Vítejte ve FlatBerry</h2><p id="guide-copy">Vyberte si vzhled, který vám vyhovuje. Kdykoli jej můžete přepnout.</p></div>
+        <div className="guide-mode-cards" role="group" aria-label="Vyberte vzhled aplikace">
+          <form action="/api/display-mode" method="post"><input type="hidden" name="returnTo" value="/portfolio"/><button name="mode" value="basic" className={`guide-mode-card basic${payload.modeChosen && payload.mode === "basic" ? " selected" : ""}`} aria-pressed={payload.modeChosen && payload.mode === "basic"}><span className="guide-mode-name">Basic</span><strong>Nemovitosti pod kontrolou</strong><span>Domy, nájemníci, platby a úkoly v klidném přehledu. Vhodné pro vlastníka, který chce rychle vědět, co se děje.</span><em>{payload.modeChosen && payload.mode === "basic" ? "Vybráno ✓" : "Zvolit Basic →"}</em></button></form>
+          <form action="/api/display-mode" method="post"><input type="hidden" name="returnTo" value="/portfolio"/><button name="mode" value="pro" className={`guide-mode-card pro${payload.modeChosen && payload.mode === "pro" ? " selected" : ""}`} aria-pressed={payload.modeChosen && payload.mode === "pro"}><span className="guide-mode-name">Profi</span><strong>Podrobné nástroje správy</strong><span>Smlouvy, náklady, reporty a týmová práce v souvislostech celého portfolia. Vhodné pro správce a profesionály.</span><em>{payload.modeChosen && payload.mode === "pro" ? "Vybráno ✓" : "Zvolit Profi →"}</em></button></form>
+        </div>
+        <div className="guide-mode-bottom"><span>Volíte uspořádání aplikace, ne placený tarif. Po výběru vám prostředí krátce ukážu.</span></div>
+        <div className="guide-dismiss-actions"><button type="button" disabled={busy} onClick={() => void act("pause")}>Později</button><button type="button" disabled={busy} onClick={() => void act("dismiss")}>Ukončit průvodce</button></div>
+        {error && <div className="guide-error" role="alert">{error}<button type="button" onClick={hideLocally}>Zavřít bez uložení</button></div>}
+      </div>
+    </div>, document.body)}
+    {open && !choosingMode && createPortal(<div className="first-guide" data-testid="first-login-guide">
       {/* Four scrims leave the actual highlighted control clickable. */}
       {box ? <>
         <div className="guide-scrim" style={{ inset: `0 0 auto 0`, height: box.y }}/>
@@ -199,7 +215,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
           <span className="guide-eyebrow">Pan správce · {index + 1} / {steps.length}</span>
           <h2 ref={title} tabIndex={-1} id="guide-title">{step.title}</h2>
           <p id="guide-copy">{step.body}</p>
-          {index === 0 && <p className="guide-hint">7 zastavení · přibližně 2 minuty · kdykoli můžete skončit</p>}
+          {index === 0 && <p className="guide-hint">{steps.length} zastavení · přibližně 2 minuty · kdykoli můžete skončit</p>}
           {missing && <p className="guide-hint" role="status">Tento prvek teď není dostupný. Můžete pokračovat dalším krokem.</p>}
           <div className="guide-progress" aria-label={`Krok ${index + 1} ze ${steps.length}`}>{steps.map((item, i) => <span key={item.id} className={i === index ? "current" : i < index ? "done" : ""}/>)}</div>
           {error && <div className="guide-error" role="alert">{error}<button type="button" onClick={hideLocally}>Zavřít bez uložení</button></div>}
