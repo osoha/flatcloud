@@ -19,12 +19,12 @@
   font-display: swap;
 }
 .landing {
-  --u: 0.0625cqw;
+  --u: min(0.0625cqw, 1px);
   --ink: #102747;
   --muted: #53677f;
   --blue: #0867f2;
   container-type: inline-size;
-  max-width: 1600px;
+  width: 100%;
   margin: auto;
   background: #fcfcfd;
   color: var(--ink);
@@ -242,31 +242,6 @@
   color: #687b91;
   font-size: calc(13 * var(--u));
   padding-right: calc(50 * var(--u));
-}
-.hero::after,
-.perspectives::after,
-.features::after,
-.gallery::after,
-.guide::after,
-.faq::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    url("/landing/city.webp") calc(-220 * var(--u)) 95% / calc(690 * var(--u))
-      auto no-repeat,
-    url("/landing/city.webp") calc(100% + 220 * var(--u)) 95% /
-      calc(690 * var(--u)) auto no-repeat;
-  mask-image: linear-gradient(
-    90deg,
-    #000,
-    transparent 24%,
-    transparent 76%,
-    #000
-  );
-  opacity: 0.3;
 }
 .section {
   position: relative;
@@ -1332,14 +1307,6 @@
   .footerBottom > span {
     font-size: 11px;
   }
-  .hero::after,
-  .perspectives::after,
-  .features::after,
-  .gallery::after,
-  .guide::after,
-  .faq::after {
-    opacity: 0.12;
-  }
 }
 @media (max-width: 380px) {
   .header {
@@ -1364,5 +1331,73 @@
   }
   .legal h1 {
     font-size: 34px;
+  }
+}
+
+/* A continuous page canvas; content below the hero stays compact. */
+.header,
+.hero {
+  max-width: 1600px;
+  margin-inline: auto;
+}
+.compact {
+  max-width: 1280px;
+  margin-inline: auto;
+  container-type: inline-size;
+}
+.heroPhoto {
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 12%,
+    #000 88%,
+    transparent
+  );
+}
+.heroScreen {
+  border-color: transparent;
+  box-shadow: 0 18px 55px #1027470c;
+}
+.gallery {
+  background: radial-gradient(ellipse at center, #f0f5fb 50%, #fcfcfd 100%);
+}
+.closing {
+  background:
+    linear-gradient(90deg, #fcfcfd, #fcfcfd00 18%, #fcfcfd00 82%, #fcfcfd),
+    linear-gradient(180deg, #fcfcfd9e, #fcfcfddd 50%, #fcfcfd),
+    url("/landing/architecture.webp") center 68% / cover no-repeat;
+}
+.footerTop,
+.footerBottom {
+  max-width: 1280px;
+  margin-inline: auto;
+}
+.legal h3 {
+  font-size: 21px;
+  margin: 30px 0 12px;
+}
+.legal ul {
+  padding-left: 24px;
+  margin: 16px 0;
+  color: var(--muted);
+}
+.legal li {
+  margin: 10px 0;
+}
+.legal nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 22px;
+  margin: 24px 0;
+}
+@media (max-width: 900px) {
+  .heroPhoto {
+    mask-image: linear-gradient(
+      90deg,
+      transparent,
+      #000 5%,
+      #000 95%,
+      transparent
+    );
   }
 }
