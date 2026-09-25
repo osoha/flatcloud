@@ -166,6 +166,8 @@ test("ukončení, ruční restart, mobil, tmavý režim, klávesnice a omezený 
   await page.goto("/ucet");
   await page.getByRole("button", { name: "Tmavý režim", exact: true }).filter({ visible: true }).click();
   await page.getByRole("button", { name: "Průvodce aplikací", exact: true }).click();
+  await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
+  await page.getByRole("button", { name: /Zvolit Profi/ }).click();
   await expect(page.locator("#guide-title")).toBeFocused();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   const bubble = page.locator(".guide-bubble");
