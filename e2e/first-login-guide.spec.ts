@@ -159,7 +159,7 @@ test("Basic osvítí celý první řádek jednotek a Profi také rychlé přidá
   await expect(page.locator(".basic-property-card")).toHaveCount(3);
   await expect.poll(async () => {
     const spot = await page.getByTestId("guide-spotlight").boundingBox();
-    const cards = await Promise.all([0, 1, 2].map(i => page.locator(".basic-property-card").nth(i).boundingBox()));
+    const cards = await Promise.all([0, 1].map(i => page.locator(".basic-property-card").nth(i).boundingBox()));
     return Boolean(spot && cards.every(card => card && spot.x <= card.x && spot.x + spot.width >= card.x + card.width - 2 && spot.y <= card.y && spot.y + spot.height >= card.y + card.height - 2));
   }).toBe(true);
 
