@@ -1,13 +1,11 @@
 import type { Metadata } from "next";
 import {
-  ArrowRight,
-  FileText,
+  House,
   Wallet,
   ListChecks,
   Calculator,
   ChartNoAxesCombined,
   Users,
-  Check,
 } from "lucide-react";
 import s from "./landing.module.css";
 
@@ -28,11 +26,11 @@ const faq = [
   ],
   [
     "Co znamenají 3 bytové jednotky?",
-    "Počítají se jednotlivé byty. Dům se šesti samostatnými byty představuje šest jednotek. Během současného testování se tento limit neuplatňuje.",
+    "Počítají se jednotlivé byty. Dům se šesti samostatnými byty představuje šest jednotek. Během současného testování se tento limit neuplatňuje na testery.",
   ],
   [
     "Co mě čeká po registraci?",
-    "Po potvrzení e-mailu vás Berry provede prvními kroky. Průvodce můžete odložit, ukončit nebo znovu spustit v Mém účtu.",
+    "Po potvrzení e-mailu vás Berry provede sedmi krátkými zastaveními. Průvodce můžete odložit, ukončit nebo znovu spustit v Mém účtu.",
   ],
   [
     "Musím něco instalovat?",
@@ -61,34 +59,34 @@ const faq = [
 ];
 const features = [
   [
-    FileText,
+    House,
     "Nájmy a smlouvy",
-    "Nemovitosti, jednotky a nájemní vztahy propojené do přehledného celku.",
+    "Nájemníci, obsazenost, dokumenty a blížící se konce smluv.",
   ],
   [
     Wallet,
     "Platby a náklady",
-    "Víte, co přišlo, co chybí a jaké výdaje patří k jednotlivým nemovitostem.",
+    "Přijaté platby, nedoplatky a výdaje přiřazené k domům a jednotkám.",
   ],
   [
     ListChecks,
     "Úkoly a termíny",
-    "Jasná odpovědnost a další krok. Důležité věci nezůstávají jen v e-mailu.",
+    "Odpovědnost, revize a komunikace v souvislostech konkrétního případu.",
   ],
   [
     Calculator,
     "Vyúčtování služeb",
-    "Podklady, rozdělení nákladů a vypořádání v navazujících krocích.",
+    "Podklady, rozdělení nákladů, protokol a přehled následného vypořádání.",
   ],
   [
     ChartNoAxesCombined,
     "Reporty a scénáře",
-    "Přehledné souvislosti pro rozhodování o vašem portfoliu.",
+    "Výsledky portfolia a scénáře budoucího vývoje nájemného.",
   ],
   [
     Users,
     "Tým a spolupráce",
-    "Správce, kolegové i vlastníci spolupracují podle přiděleného přístupu.",
+    "Sdílená práce s nastavenými přístupy a praktickou metodikou po ruce.",
   ],
 ] as const;
 const nav = [
@@ -117,7 +115,6 @@ export default function Page() {
   const cta = (label = "Vyzkoušet zdarma") => (
     <a className={s.primary} href={signup}>
       {label}
-      <ArrowRight size={18} aria-hidden="true" />
     </a>
   );
   return (
@@ -156,12 +153,13 @@ export default function Page() {
         <section className={s.hero}>
           <div className={s.heroPhoto} />
           <div className={s.heroCopy}>
-            <span className={s.eyebrow}>VAŠE NEMOVITOSTI POD KONTROLOU</span>
+            <span className={s.eyebrow}>
+              SPRÁVA PRONÁJMŮ A PŘEHLED PORTFOLIA
+            </span>
             <h1>
               Profesionální správa.
               <br />
-              <em>Jasný přehled</em>
-              <br />o nemovitostech.
+              Jasný přehled o nemovitostech.
             </h1>
             <p>
               Nájmy, platby, náklady a týmová práce v souvislostech celého
@@ -174,7 +172,7 @@ export default function Page() {
             <div className={s.actions}>
               {cta()}
               <a className={s.secondary} href="#nahledy">
-                Prohlédnout aplikaci <ArrowRight size={18} />
+                Prohlédnout aplikaci
               </a>
             </div>
           </div>
@@ -183,7 +181,7 @@ export default function Page() {
               <span />
               <span />
               <span />
-              <small>FlatBerry · Přehled nemovitosti</small>
+              <small>FlatBerry</small>
             </div>
             <img
               src="/landing/app-detail.webp"
@@ -231,18 +229,24 @@ export default function Page() {
             loading="lazy"
           />
           <h3>Přehled pro vlastníka. Nástroje pro správce.</h3>
-          <a className={s.textLink} href="#nahledy">
-            Prohlédnout FlatBerry <ArrowRight size={18} />
+          <a className={s.primary} href="#nahledy">
+            Prohlédnout FlatBerry →
           </a>
         </section>
         <section id="funkce" className={`${s.section} ${s.features}`}>
           <div className={s.center}>
-            <span className={s.eyebrow}>KAŽDODENNÍ SPRÁVA V SOUVISLOSTECH</span>
+            <span className={s.eyebrow}>CO VÁM FLATBERRY USNADNÍ</span>
             <h2>
               Víte, co se děje.
               <br />A co je potřeba udělat.
             </h2>
-            <p>Od první smlouvy po přehled celého portfolia.</p>
+            <p>
+              Každodenní provoz a dlouhodobá rozhodnutí.
+              <br />
+              Důležité informace propojené s nemovitostí,
+              <br />
+              ke které patří.
+            </p>
           </div>
           <div className={s.featureGrid}>
             {features.map(([Icon, title, body]) => (
@@ -259,70 +263,93 @@ export default function Page() {
         <section id="nahledy" className={`${s.section} ${s.gallery}`}>
           <div className={s.center}>
             <span className={s.eyebrow}>PODÍVEJTE SE DOVNITŘ</span>
-            <h2>
-              Od každodenní správy
-              <br />k rozhodování.
-            </h2>
+            <h2>Od každodenní správy k rozhodování.</h2>
             <p>Vše podstatné k nemovitostem najdete na jednom místě.</p>
           </div>
-          {[
+          {(
             [
-              "portfolio",
-              "01",
-              "Portfolio v souvislostech",
-              "Domy, vlastníci a stav plateb. Rychle se zorientujete a snadno přejdete k detailu konkrétní nemovitosti.",
-              "Nemovitosti a vlastníci",
-              "Přehled plateb a obsazenosti",
-              904,
-              445,
-            ],
-            [
-              "tasks",
-              "02",
-              "Každý úkol má své místo.",
-              "Co je potřeba vyřešit, kdo se tomu věnuje a do kdy. Provozní agenda zůstává propojená s nemovitostí.",
-              "Odpovědnost a termíny",
-              "Společný přehled pro tým",
-              1014,
-              390,
-            ],
-            [
-              "reports",
-              "03",
-              "Podklady pro další rozhodnutí.",
-              "Podívejte se na své portfolio v širších souvislostech. Přehledy a scénáře pomáhají promýšlet další kroky.",
-              "Reporty na jednom místě",
-              "Souvislosti pro investory",
-              1014,
-              407,
-            ],
-          ].map(([file, n, title, body, a, b, w, h]) => (
+              [
+                "portfolio",
+                "01 / PLATBY A NÁKLADY",
+                <>
+                  Platby a stav objektů
+                  <br />v jednom přehledu.
+                </>,
+                <>
+                  Předpisy, dluhy a inkaso u nemovitostí.
+                  <br />
+                  Rychle poznáte, co je v pořádku
+                  <br />a čemu je potřeba věnovat pozornost.
+                </>,
+                "Od portfolia k jednotlivým objektům",
+                "Platby a stav objektů v jednom přehledu.",
+                904,
+                445,
+              ],
+              [
+                "tasks",
+                "02 / TÝMOVÁ PRÁCE",
+                <>
+                  Každý ví,
+                  <br />
+                  co má řešit.
+                </>,
+                <>
+                  Sledujte stav úkolů, odpovědnost
+                  <br />i priority na jednom místě.
+                  <br />
+                  Otevřete případ a pokračujte v řešení.
+                </>,
+                "Méně dohledávání v e-mailech",
+                "Každý ví, co má řešit.",
+                1014,
+                390,
+              ],
+              [
+                "reports",
+                "03 / REPORTY A PORTFOLIO",
+                <>
+                  Podklady pro vaše
+                  <br />
+                  další rozhodnutí.
+                </>,
+                <>
+                  Sledujte inkaso, dluhy a výsledky.
+                  <br />
+                  Od jednotlivých nemovitostí
+                  <br />
+                  až po souhrnný pohled na portfolio.
+                </>,
+                "",
+                "Podklady pro vaše další rozhodnutí.",
+                1014,
+                407,
+              ],
+            ] as const
+          ).map(([file, n, title, body, a, b, w, h]) => (
             <article className={s.galleryRow} key={file}>
               <div className={s.galleryText}>
                 <span className={s.number}>{n}</span>
                 <h3>{title}</h3>
                 <p>{body}</p>
-                <ul>
-                  <li>
-                    <Check size={16} />
-                    {a}
-                  </li>
-                  <li>
-                    <Check size={16} />
-                    {b}
-                  </li>
-                </ul>
+                {a && <span className={s.pill}>{a}</span>}
               </div>
               <a
                 className={s.galleryImage}
                 href={"/landing/app-" + file + ".webp"}
                 target="_blank"
                 rel="noreferrer"
-                aria-label={"Zvětšit náhled: " + title}
+                aria-label={"Zvětšit náhled: " + b}
               >
+                <div className={s.screenBar}>
+                  <span />
+                  <span />
+                  <span />
+                  <small>FlatBerry</small>
+                </div>
                 <img
                   src={"/landing/app-" + file + ".webp"}
-                  alt={String(title)}
+                  alt={String(b)}
                   width={Number(w)}
                   height={Number(h)}
                   loading="lazy"
@@ -333,11 +360,11 @@ export default function Page() {
         </section>
         <section id="jak-zacit" className={`${s.section} ${s.guide}`}>
           <div>
-            <span className={s.eyebrow}>PRVNÍ KROKY? SPOLU.</span>
+            <span className={s.eyebrow}>SROZUMITELNÝ ZAČÁTEK</span>
             <h2>
-              Seznamte se. Bernard.
+              Seznamte se.
               <br />
-              Pro vás <em>Berry.</em>
+              Bernard. Pro vás Berry.
             </h2>
             <p>
               Váš průvodce prvními kroky.
@@ -396,9 +423,6 @@ export default function Page() {
               Placené tarify představíme později.
             </p>
             {cta()}
-            {process.env.PUBLIC_REGISTRATION_ENABLED !== "true" && (
-              <small>O přístup do testování nám napište.</small>
-            )}
           </div>
           <div className={s.free}>
             <span>PŘIPRAVOVANÝ ZÁKLAD</span>
@@ -415,17 +439,14 @@ export default function Page() {
           <div>
             <span className={s.eyebrow}>ČASTÉ OTÁZKY</span>
             <h2>Než začnete.</h2>
-            <p>
-              To nejdůležitější
-              <br />o používání FlatBerry.
-            </p>
+            <p>To nejdůležitější o používání FlatBerry.</p>
           </div>
           <div>
             {faq.map(([q, a]) => (
-              <details key={q}>
+              <details key={q} open>
                 <summary>
                   {q}
-                  <span aria-hidden="true">+</span>
+                  <span aria-hidden="true" />
                 </summary>
                 <p>{a}</p>
               </details>
@@ -453,15 +474,9 @@ export default function Page() {
         <section className={s.closing}>
           <div>
             <span className={s.eyebrow}>VAŠE NEMOVITOSTI. VÁŠ PŘEHLED.</span>
-            <h2>
-              Méně dohledávání.
-              <br />
-              Více přehledu.
-            </h2>
+            <h2>Méně dohledávání. Více přehledu.</h2>
             <p>
-              Dejte každodenní správě řád a mějte
-              <br />
-              své portfolio v souvislostech.
+              Dejte každodenní správě řád a mějte své portfolio v souvislostech.
             </p>
             {cta()}
             <a className={s.textLink} href="/login">
@@ -484,6 +499,7 @@ export default function Page() {
             <a className={s.textLink} href="mailto:info@flatcloud.cz">
               info@flatcloud.cz
             </a>
+            <p className={s.footerClaim}>Vaše nemovitosti pod kontrolou.</p>
           </div>
           <nav aria-label="Navigace v patičce">
             <span className={s.eyebrow}>FLATBERRY</span>
@@ -514,6 +530,7 @@ export default function Page() {
           <span>© {new Date().getFullYear()} FlatBerry · Flat Cloud a.s.</span>
           <a href="/pravni-informace#osobni-udaje">Ochrana osobních údajů</a>
           <a href="/pravni-informace#cookies">Informace o cookies</a>
+          <a href="/pravni-informace#cookies">Nastavení cookies</a>
           <a href="/pravni-informace#podminky">Podmínky používání</a>
         </div>
       </footer>

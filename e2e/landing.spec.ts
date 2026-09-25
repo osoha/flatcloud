@@ -4,6 +4,7 @@ test.describe("Public FlatBerry landing", () => {
   test("guest can browse the landing, expand FAQ, and reach legal information", async ({
     page,
   }) => {
+    await page.setViewportSize({ width: 1600, height: 1000 });
     await page.goto("/");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Profesionální správa.",
@@ -23,6 +24,9 @@ test.describe("Public FlatBerry landing", () => {
     const question = page
       .locator("#faq details")
       .filter({ hasText: "Musím něco instalovat?" });
+    await expect(question.locator("p")).toBeVisible();
+    await question.locator("summary").click();
+    await expect(question.locator("p")).toBeHidden();
     await question.locator("summary").click();
     await expect(question.locator("p")).toBeVisible();
     await expect(page.locator('a[href^="tel:"]')).toHaveCount(0);
@@ -33,6 +37,27 @@ test.describe("Public FlatBerry landing", () => {
       "href",
       /^(\/registrace|mailto:info@flatcloud\.cz\?subject=)/,
     );
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCSS(
+      "text-align",
+      "center",
+    );
+    await expect(
+      page.getByRole("heading", {
+        name: "Méně dohledávání. Více přehledu.",
+        exact: true,
+      }),
+    ).toHaveCSS("text-align", "center");
+    for (const img of await page.locator("img").all()) {
+      await img.scrollIntoViewIfNeeded();
+      await expect
+        .poll(() =>
+          img.evaluate(
+            (el: HTMLImageElement) => el.complete && el.naturalWidth > 0,
+          ),
+        )
+        .toBe(true);
+    }
+    await page.evaluate(() => document.fonts.ready);
     await page.screenshot({
       path: "test-results/landing-desktop.png",
       fullPage: true,
@@ -59,6 +84,7 @@ test.describe("Public FlatBerry landing", () => {
       .getByRole("link", { name: "Funkce", exact: true })
       .click();
     await expect(page).toHaveURL(/#funkce$/);
+    await page.getByText("Menu", { exact: true }).click();
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
