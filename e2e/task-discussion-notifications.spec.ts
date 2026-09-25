@@ -149,9 +149,19 @@ test("termín má jeden e-mail předem a jeden po termínu; zrušený termín se
 });
 
 test("skupinové zmínky se deduplikují, editor skrývá příslib a FC našeptávání", async ({ page }, testInfo) => {
-  const f = await fixture(); await login(page, f.author.email);
-  await prisma.taskEntry.create({ data: { taskId: f.task.id, kind: "SYSTEM", body: "Systémový záznam" } });
+  const base = await fixture();
+  const author = await prisma.user.create({ data: {
+    name: "Avatar tester", email: `${randomUUID()}@flatcloud.test`, passwordHash: base.author.passwordHash,
+    role: base.author.role, allProperties: base.author.allProperties, flatcloudMember: base.author.flatcloudMember,
+    isTestIdentity: false, avatarData: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl1sAAAAASUVORK5CYII=", "base64"), avatarMimeType: "image/png",
+  } });
+  const task = await prisma.task.update({ where: { id: base.task.id }, data: { createdById: author.id } });
+  const f = { ...base, author, task };
+  await login(page, f.author.email);
+  const systemEntry = await prisma.taskEntry.create({ data: { taskId: f.task.id, authorId: f.author.id, kind: "SYSTEM", body: "Systémový záznam" } });
   await page.goto(`/ukoly/${f.task.id}`);
+  await expect(page.locator(".task-composer-row > .avatar img")).toHaveAttribute("src", new RegExp(`/api/users/${f.author.id}/avatar`));
+  await expect(page.locator(`#zaznam-${systemEntry.id} .discussion-avatar .avatar img`)).toBeVisible();
   await expect(page.getByRole("group", { name: "Typ záznamu" })).toHaveCount(0);
   const editor = page.getByLabel("Nový komentář", { exact: true });
   await editor.fill("@");

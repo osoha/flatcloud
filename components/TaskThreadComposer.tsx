@@ -5,7 +5,7 @@ import { TaskMentionEditor } from "./TaskMentionEditor";
 import { UserAvatar } from "./UserAvatar";
 import type { DiscussionPerson } from "@/lib/task-discussion-shared";
 const options = [["COMMENT", "Poznámka"], ["CALL", "Telefonát"], ["EMAIL", "E-mail / zpráva"], ["PROMISE", "Příslib úhrady"]] as const;
-export function TaskThreadComposer({ taskId, collection = false, showKinds = false, allowPromise = false, allowFiles = true, people = [], currentUserId, currentUserName = "" }: { taskId: string; collection?: boolean; showKinds?: boolean; allowPromise?: boolean; allowFiles?: boolean; people?: DiscussionPerson[]; currentUserId?: string; currentUserName?: string }) {
+export function TaskThreadComposer({ taskId, collection = false, showKinds = false, allowPromise = false, allowFiles = true, people = [], currentUserId, currentUserName = "", currentUserAvatarMimeType, currentUserUpdatedAt }: { taskId: string; collection?: boolean; showKinds?: boolean; allowPromise?: boolean; allowFiles?: boolean; people?: DiscussionPerson[]; currentUserId?: string; currentUserName?: string; currentUserAvatarMimeType?: string | null; currentUserUpdatedAt?: Date | string }) {
   const [kind, setKind] = useState<(typeof options)[number][0]>(collection && showKinds ? "CALL" : "COMMENT");
   const [submitting, setSubmitting] = useState(false), [visibility, setVisibility] = useState("INTERNAL"), [notify, setNotify] = useState(false);
   const [mentionIds, setMentionIds] = useState<string[]>([]), [selectedIds, setSelectedIds] = useState<string[]>([]), [files, setFiles] = useState<string[]>([]);
@@ -14,7 +14,7 @@ export function TaskThreadComposer({ taskId, collection = false, showKinds = fal
   const recipients = eligible.filter(p => p.participant !== false && p.id !== currentUserId);
   const recipientIds = new Set([...mentionIds, ...(notify ? selectedIds.filter(id => recipients.some(p => p.id === id)) : [])]);
   const placeholder = kind === "CALL" ? "Co bylo domluveno při telefonátu?" : kind === "EMAIL" ? "Shrnutí odeslané nebo přijaté zprávy…" : kind === "PROMISE" ? "Co nájemník slíbil a za jakých podmínek?" : "Napište komentář…";
-  return <div className="task-composer-row"><UserAvatar user={{ name: currentUserName }} size="sm"/><form className="thread-composer-v211" action={`/api/tasks/${taskId}/entries`} method="post" encType="multipart/form-data" onSubmit={() => setSubmitting(true)}>
+  return <div className="task-composer-row"><UserAvatar user={{ id: currentUserId, name: currentUserName, avatarMimeType: currentUserAvatarMimeType, updatedAt: currentUserUpdatedAt }} size="sm"/><form className="thread-composer-v211" action={`/api/tasks/${taskId}/entries`} method="post" encType="multipart/form-data" onSubmit={() => setSubmitting(true)}>
     <div className="composer-top">{showKinds ? <div className="composer-tabs" role="group" aria-label="Typ záznamu">{options.filter(([value]) => allowPromise || value !== "PROMISE").map(([value,label]) => <button key={value} className={kind===value?"active":""} type="button" onClick={()=>setKind(value)}>{label}</button>)}</div> : <span className="composer-title">Nový komentář</span>}
     <label className="composer-visibility"><LockKeyhole size={17} aria-hidden="true"/><select name="visibility" value={visibility} onChange={event => setVisibility(event.target.value)} aria-label="Viditelnost záznamu"><option value="INTERNAL">Interní</option><option value="OWNER_VISIBLE">Viditelné vlastníkovi</option></select></label></div>
     <input type="hidden" name="kind" value={showKinds ? kind : "COMMENT"}/>
