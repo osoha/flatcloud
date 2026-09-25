@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { requirePropertyAccess, unitAccessWhere } from "@/lib/access";
+import { requirePropertyAccess, tenantAccessWhere, unitAccessWhere } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
 import { TenantFields } from "@/components/TenantFields";
@@ -16,7 +16,7 @@ export default async function EditTenant({ params, searchParams }: { params: Pro
   const { id, tenantId } = await params;
   const [property, tenant, query] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.tenant.findFirst({ where: { id: tenantId, OR: [{ leases: { some: { unit: unitAccessWhere(user, id) } } }, { leaseParties: { some: { lease: { unit: unitAccessWhere(user, id) } } } }] } }),
+    prisma.tenant.findFirst({ where: { id: tenantId, AND: [tenantAccessWhere(user), { OR: [{ propertyLinks: { some: { propertyId: id } } }, { leases: { some: { unit: unitAccessWhere(user, id) } } }, { leaseParties: { some: { lease: { unit: unitAccessWhere(user, id) } } } }] }] } }),
     searchParams,
   ]);
   if (!property || !tenant) notFound();
