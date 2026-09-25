@@ -354,6 +354,8 @@ html.fc-sidebar-collapsed .display-mode-switch-mobile{display:grid}
 @media(max-width:800px){.basic-hero{grid-template-columns:minmax(0,1fr)}.basic-hero .basic-berry-note{display:none}.basic-attention-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.basic-summary-card{min-height:205px}.basic-summary-icon{width:60px;height:60px}.basic-summary-icon svg{width:33px;height:33px}.basic-overdue-chip{font-size:11px}.basic-attention-item.basic-debt-alert,.basic-attention-item.basic-task-alert{min-height:88px}}
 .entity-avatar-illustration{display:block;width:100%;height:100%;background-repeat:no-repeat}
+.flatberry-shell:not(.basic-shell) .entity-avatar-illustration{display:none}
+.basic-shell .entity-avatar-fallback-glyph{display:none}
 .illustration-picker{display:block;min-width:0;margin:8px 0 16px;padding:16px;border:1px solid #dde7f0;border-radius:16px}
 .illustration-picker legend{font-weight:700;color:#304660;padding:0 6px}
 .illustration-picker .muted-copy{margin:0 0 12px}
