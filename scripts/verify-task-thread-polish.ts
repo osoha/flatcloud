@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { withGroupMentions, mentionRecipientIds, taskComposerMode, type DiscussionPerson } from "../lib/task-discussion-shared";
 const people: DiscussionPerson[] = [
   { id: "member", name: "Jana", email: "jana@example.test", internal: true, participant: true },
@@ -21,4 +22,12 @@ assert.deepEqual(taskComposerMode({ category: "COLLECTION", propertyId: "p", uni
 assert.equal(taskComposerMode({ category: "COLLECTION", propertyId: "p", unitId: "u", status: "DONE" }).allowPromise, false);
 assert.equal(taskComposerMode({ category: "COLLECTION", propertyId: "p", unitId: "u", conditionPlanExecution: {} }).allowPromise, false);
 assert.equal(taskComposerMode({ category: "LEASE", propertyId: "p", leaseId: "l", automationRuleId: "rule" }).showKinds, false);
-console.log("Task polish: group parsing, deduplication and contextual composer rules passed.");
+const composer = readFileSync("components/TaskThreadComposer.tsx", "utf8");
+const taskPage = readFileSync("app/ukoly/[id]/page.tsx", "utf8");
+const flatberryCss = readFileSync("app/flatberry.css", "utf8");
+assert.match(composer, /id: currentUserId, name: currentUserName, avatarMimeType: currentUserAvatarMimeType, updatedAt: currentUserUpdatedAt/);
+assert.match(taskPage, /currentUserAvatarMimeType=\{user\.avatarMimeType\}/);
+assert.match(taskPage, /currentUserUpdatedAt=\{user\.updatedAt\}/);
+assert.doesNotMatch(flatberryCss, /kind-system,.kind-status\)[^}]*\.discussion-avatar>\*\{display:none\}/);
+assert.doesNotMatch(flatberryCss, /kind-system,.kind-status\)[^}]*\.discussion-avatar:after/);
+console.log("Task polish: mentions, contextual composer, avatars and system entries passed.");

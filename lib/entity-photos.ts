@@ -38,6 +38,16 @@ export async function loadEntityPhotos(user: User, propertyIds: string[]): Promi
     if (preferred === document.id) map[key] = document.id;
   }
   for (const [key, preference] of Object.entries(preferences)) {
+    if (preference.photoId === "icon") {
+      const [kind, id] = key.split(":");
+      if (kind === "property" && !propertyIds.includes(id)) continue;
+      (kind === "unit" ? result.units : result.properties)[id] = "icon";
+    }
+    if (preference.photoId?.startsWith("library:")) {
+      const [kind, id] = key.split(":");
+      if (kind === "property" && !propertyIds.includes(id)) continue;
+      (kind === "unit" ? result.units : result.properties)[id] = preference.photoId;
+    }
     if (preference.photoId !== "upload" || !preference.avatarMimeType) continue;
     const [kind, id] = key.split(":");
     if (kind === "property" && !propertyIds.includes(id)) continue;
