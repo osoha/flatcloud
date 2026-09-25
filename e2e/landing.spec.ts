@@ -62,6 +62,18 @@ test.describe("Public FlatBerry landing", () => {
       path: "test-results/landing-desktop.png",
       fullPage: true,
     });
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    const compact = await page.locator("#pro-koho").boundingBox();
+    expect(compact?.width).toBeLessThanOrEqual(1280);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    await page.screenshot({
+      path: "test-results/landing-wide.png",
+      fullPage: true,
+    });
     await page
       .getByRole("link", { name: "Ochrana osobních údajů", exact: true })
       .click();
@@ -72,6 +84,14 @@ test.describe("Public FlatBerry landing", () => {
         exact: true,
       }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "Kdo je správcem a kdo zpracovatelem",
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(page.locator("article")).toContainText("nájemníků");
+    await expect(page.locator("article")).toContainText("fc_session");
   });
   test("mobile navigation and layout stay within the viewport", async ({
     page,

@@ -29,3 +29,12 @@ Retain only requested differences: original supplied logos, remove hero tester-l
 Regression coverage checks centered hero/closing claims, FAQ toggle, original logos, disabled resources, legal navigation, mobile overflow, and loaded-image full-page screenshots at 1600 px and 390 px.
 
 Follow-up: use the uncropped approved composite on desktop, with feathered outer edges and its original continuous blue-white background behind the headings. Preserve the person/device positions and original pixels; mobile retains the compact crop with soft edges.
+
+
+## Compact layout and application-wide privacy (25 September 2026)
+
+Continuous full-width canvas, feathered architectural photo edges, no decorative city illustration layers. Content from the first Berry section through resources uses one 1280 px container; approved copy and composite remain intact. Screenshot checks cover 1600/1920 px desktops and 390 px mobile.
+
+Privacy notice now covers accounts, customer-managed property data, tenants, leases, payments, documents, tasks, CRM, audit and activity data; distinguishes controller/processor roles, purposes, lawful bases, recipients, international transfers, retention criteria, rights and application cookies/storage. Sources: GDPR articles 6, 12–14, 15–22, 28, 44–49; https://uoou.gov.cz/verejnost/zakladni-prirucka-k-ochrane-udaju ; https://uoou.gov.cz/poradna/poradna-gdpr/prava-subjektu-udaju . Implementation evidence: prisma/schema.prisma, lib/auth.ts, lib/storage/index.ts, lib/inbound-bank/retention.ts and local/session storage components.
+
+Deployment-specific processor contracts, regions, transfer safeguards, backup/log retention and DPA are not inferable from source. The test notice explicitly identifies these pending operational confirmations rather than inventing them. No security settings, retention tasks, user data, or terms-of-use paragraph are modified.

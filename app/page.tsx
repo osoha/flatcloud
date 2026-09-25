@@ -191,274 +191,276 @@ export default function Page() {
             />
           </div>
         </section>
-        <section id="pro-koho" className={`${s.section} ${s.perspectives}`}>
-          <span className={s.eyebrow}>DVĚ PERSPEKTIVY. JEDNA APLIKACE.</span>
-          <div className={s.dualHeading}>
-            <div>
-              <h2>
-                Jednoduché
-                <br /> pro vlastníky
-              </h2>
-              <p>
-                Víte, co přišlo, co se řeší a kdy je potřeba vaše rozhodnutí.
-              </p>
-            </div>
-            <span className={s.slash} aria-hidden="true">
-              /
-            </span>
-            <div>
-              <h2>
-                Propracované
-                <br /> pro správce
-              </h2>
-              <p>
-                Platby, náklady, smlouvy a týmové úkoly v souvislostech celého
-                portfolia.
-              </p>
-            </div>
-          </div>
-          <picture className={s.perspectiveImage}>
-            <source
-              media="(min-width: 901px)"
-              srcSet="/landing/two-perspectives-full.webp"
-            />
-            <img
-              src="/landing/two-perspectives.webp"
-              alt="Berry s přehledem na mobilu a profesionální správce s aplikací na notebooku"
-              width="1536"
-              height="500"
-              loading="lazy"
-            />
-          </picture>
-          <h3>Přehled pro vlastníka. Nástroje pro správce.</h3>
-          <a className={s.primary} href="#nahledy">
-            Prohlédnout FlatBerry →
-          </a>
-        </section>
-        <section id="funkce" className={`${s.section} ${s.features}`}>
-          <div className={s.center}>
-            <span className={s.eyebrow}>CO VÁM FLATBERRY USNADNÍ</span>
-            <h2>
-              Víte, co se děje.
-              <br /> A co je potřeba udělat.
-            </h2>
-            <p>
-              Každodenní provoz a dlouhodobá rozhodnutí.
-              <br /> Důležité informace propojené s nemovitostí,
-              <br /> ke které patří.
-            </p>
-          </div>
-          <div className={s.featureGrid}>
-            {features.map(([Icon, title, body]) => (
-              <article key={title}>
-                <div className={s.icon}>
-                  <Icon size={25} strokeWidth={1.6} />
-                </div>
-                <h3>{title}</h3>
-                <p>{body}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-        <section id="nahledy" className={`${s.section} ${s.gallery}`}>
-          <div className={s.center}>
-            <span className={s.eyebrow}>PODÍVEJTE SE DOVNITŘ</span>
-            <h2>Od každodenní správy k rozhodování.</h2>
-            <p>Vše podstatné k nemovitostem najdete na jednom místě.</p>
-          </div>
-          {(
-            [
-              [
-                "portfolio",
-                "01 / PLATBY A NÁKLADY",
-                <>
-                  Platby a stav objektů
-                  <br /> v jednom přehledu.
-                </>,
-                <>
-                  Předpisy, dluhy a inkaso u nemovitostí.
-                  <br /> Rychle poznáte, co je v pořádku
-                  <br /> a čemu je potřeba věnovat pozornost.
-                </>,
-                "Od portfolia k jednotlivým objektům",
-                "Platby a stav objektů v jednom přehledu.",
-                904,
-                445,
-              ],
-              [
-                "tasks",
-                "02 / TÝMOVÁ PRÁCE",
-                <>
-                  Každý ví,
-                  <br /> co má řešit.
-                </>,
-                <>
-                  Sledujte stav úkolů, odpovědnost
-                  <br /> i priority na jednom místě.
-                  <br /> Otevřete případ a pokračujte v řešení.
-                </>,
-                "Méně dohledávání v e-mailech",
-                "Každý ví, co má řešit.",
-                1014,
-                390,
-              ],
-              [
-                "reports",
-                "03 / REPORTY A PORTFOLIO",
-                <>
-                  Podklady pro vaše
-                  <br /> další rozhodnutí.
-                </>,
-                <>
-                  Sledujte inkaso, dluhy a výsledky.
-                  <br /> Od jednotlivých nemovitostí
-                  <br /> až po souhrnný pohled na portfolio.
-                </>,
-                "",
-                "Podklady pro vaše další rozhodnutí.",
-                1014,
-                407,
-              ],
-            ] as const
-          ).map(([file, n, title, body, a, b, w, h]) => (
-            <article className={s.galleryRow} key={file}>
-              <div className={s.galleryText}>
-                <span className={s.number}>{n}</span>
-                <h3>{title}</h3>
-                <p>{body}</p>
-                {a && <span className={s.pill}>{a}</span>}
+        <div className={s.compact}>
+          <section id="pro-koho" className={`${s.section} ${s.perspectives}`}>
+            <span className={s.eyebrow}>DVĚ PERSPEKTIVY. JEDNA APLIKACE.</span>
+            <div className={s.dualHeading}>
+              <div>
+                <h2>
+                  Jednoduché
+                  <br /> pro vlastníky
+                </h2>
+                <p>
+                  Víte, co přišlo, co se řeší a kdy je potřeba vaše rozhodnutí.
+                </p>
               </div>
-              <a
-                className={s.galleryImage}
-                href={"/landing/app-" + file + ".webp"}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={"Zvětšit náhled: " + b}
-              >
-                <div className={s.screenBar}>
-                  <span />
-                  <span />
-                  <span />
-                  <small>FlatBerry</small>
-                </div>
-                <img
-                  src={"/landing/app-" + file + ".webp"}
-                  alt={String(b)}
-                  width={Number(w)}
-                  height={Number(h)}
-                  loading="lazy"
-                />
-              </a>
-            </article>
-          ))}
-        </section>
-        <section id="jak-zacit" className={`${s.section} ${s.guide}`}>
-          <div>
-            <span className={s.eyebrow}>SROZUMITELNÝ ZAČÁTEK</span>
-            <h2>
-              Seznamte se.
-              <br /> Bernard. Pro vás Berry.
-            </h2>
-            <p>
-              Váš průvodce prvními kroky.
-              <br /> Začněte jednoduše a vlastním tempem.
-            </p>
-            <div className={s.berry}>
+              <span className={s.slash} aria-hidden="true">
+                /
+              </span>
+              <div>
+                <h2>
+                  Propracované
+                  <br /> pro správce
+                </h2>
+                <p>
+                  Platby, náklady, smlouvy a týmové úkoly v souvislostech celého
+                  portfolia.
+                </p>
+              </div>
+            </div>
+            <picture className={s.perspectiveImage}>
+              <source
+                media="(min-width: 901px)"
+                srcSet="/landing/two-perspectives-full.webp"
+              />
               <img
-                src="/landing/berry-guide.webp"
-                alt="Berry ukazuje seznam prvních kroků"
-                width="330"
-                height="400"
+                src="/landing/two-perspectives.webp"
+                alt="Berry s přehledem na mobilu a profesionální správce s aplikací na notebooku"
+                width="1536"
+                height="500"
                 loading="lazy"
               />
-              <blockquote>
-                „Projdeme to spolu.
-                <br /> Krok za krokem.“
-              </blockquote>
+            </picture>
+            <h3>Přehled pro vlastníka. Nástroje pro správce.</h3>
+            <a className={s.primary} href="#nahledy">
+              Prohlédnout FlatBerry →
+            </a>
+          </section>
+          <section id="funkce" className={`${s.section} ${s.features}`}>
+            <div className={s.center}>
+              <span className={s.eyebrow}>CO VÁM FLATBERRY USNADNÍ</span>
+              <h2>
+                Víte, co se děje.
+                <br /> A co je potřeba udělat.
+              </h2>
+              <p>
+                Každodenní provoz a dlouhodobá rozhodnutí.
+                <br /> Důležité informace propojené s nemovitostí,
+                <br /> ke které patří.
+              </p>
             </div>
-          </div>
-          <div className={s.steps}>
-            {[
-              ["Vytvořte účet", "Potvrďte svůj e-mail a přihlaste se."],
-              [
-                "Rozhlédněte se s Berrym",
-                "Krátký průvodce vám ukáže, kde co najdete.",
-              ],
-              [
-                "Přidejte první nemovitost",
-                "Domy, jednotky a nájmy doplníte postupně.",
-              ],
-            ].map(([title, body], i) => (
-              <article key={title}>
-                <span>0{i + 1}</span>
-                <div>
+            <div className={s.featureGrid}>
+              {features.map(([Icon, title, body]) => (
+                <article key={title}>
+                  <div className={s.icon}>
+                    <Icon size={25} strokeWidth={1.6} />
+                  </div>
                   <h3>{title}</h3>
                   <p>{body}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section id="nahledy" className={`${s.section} ${s.gallery}`}>
+            <div className={s.center}>
+              <span className={s.eyebrow}>PODÍVEJTE SE DOVNITŘ</span>
+              <h2>Od každodenní správy k rozhodování.</h2>
+              <p>Vše podstatné k nemovitostem najdete na jednom místě.</p>
+            </div>
+            {(
+              [
+                [
+                  "portfolio",
+                  "01 / PLATBY A NÁKLADY",
+                  <>
+                    Platby a stav objektů
+                    <br /> v jednom přehledu.
+                  </>,
+                  <>
+                    Předpisy, dluhy a inkaso u nemovitostí.
+                    <br /> Rychle poznáte, co je v pořádku
+                    <br /> a čemu je potřeba věnovat pozornost.
+                  </>,
+                  "Od portfolia k jednotlivým objektům",
+                  "Platby a stav objektů v jednom přehledu.",
+                  904,
+                  445,
+                ],
+                [
+                  "tasks",
+                  "02 / TÝMOVÁ PRÁCE",
+                  <>
+                    Každý ví,
+                    <br /> co má řešit.
+                  </>,
+                  <>
+                    Sledujte stav úkolů, odpovědnost
+                    <br /> i priority na jednom místě.
+                    <br /> Otevřete případ a pokračujte v řešení.
+                  </>,
+                  "Méně dohledávání v e-mailech",
+                  "Každý ví, co má řešit.",
+                  1014,
+                  390,
+                ],
+                [
+                  "reports",
+                  "03 / REPORTY A PORTFOLIO",
+                  <>
+                    Podklady pro vaše
+                    <br /> další rozhodnutí.
+                  </>,
+                  <>
+                    Sledujte inkaso, dluhy a výsledky.
+                    <br /> Od jednotlivých nemovitostí
+                    <br /> až po souhrnný pohled na portfolio.
+                  </>,
+                  "",
+                  "Podklady pro vaše další rozhodnutí.",
+                  1014,
+                  407,
+                ],
+              ] as const
+            ).map(([file, n, title, body, a, b, w, h]) => (
+              <article className={s.galleryRow} key={file}>
+                <div className={s.galleryText}>
+                  <span className={s.number}>{n}</span>
+                  <h3>{title}</h3>
+                  <p>{body}</p>
+                  {a && <span className={s.pill}>{a}</span>}
                 </div>
+                <a
+                  className={s.galleryImage}
+                  href={"/landing/app-" + file + ".webp"}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={"Zvětšit náhled: " + b}
+                >
+                  <div className={s.screenBar}>
+                    <span />
+                    <span />
+                    <span />
+                    <small>FlatBerry</small>
+                  </div>
+                  <img
+                    src={"/landing/app-" + file + ".webp"}
+                    alt={String(b)}
+                    width={Number(w)}
+                    height={Number(h)}
+                    loading="lazy"
+                  />
+                </a>
               </article>
             ))}
-            <p>Průvodce můžete odložit a kdykoliv znovu spustit.</p>
-          </div>
-        </section>
-        <section id="zdarma" className={s.offer}>
-          <div>
-            <span className={s.eyebrow}>NYNÍ PRO TESTERY</span>
-            <h2>
-              Vyzkoušejte FlatBerry.
-              <br /> Bez limitu jednotek.
-            </h2>
-            <p>
-              Pro testery je nyní počet jednotek otevřený.
-              <br /> Placené tarify představíme později.
-            </p>
-            {cta()}
-          </div>
-          <div className={s.free}>
-            <span>PŘIPRAVOVANÝ ZÁKLAD</span>
-            <strong>3 byty</strong>
-            <b>zdarma</b>
-            <p>
-              Počítají se jednotlivé
-              <br /> bytové jednotky, nikoli domy.
-            </p>
-          </div>
-        </section>
-        <section id="faq" className={`${s.section} ${s.faq}`}>
-          <div>
-            <span className={s.eyebrow}>ČASTÉ OTÁZKY</span>
-            <h2>Než začnete.</h2>
-            <p>To nejdůležitější o používání FlatBerry.</p>
-          </div>
-          <div>
-            {faq.map(([q, a]) => (
-              <details key={q} open>
-                <summary>
-                  {q}
-                  <span aria-hidden="true" />
-                </summary>
-                <p>{a}</p>
-              </details>
-            ))}
-          </div>
-        </section>
-        <section className={`${s.section} ${s.resources}`}>
-          <span className={s.eyebrow}>DALŠÍ POMOCNÍKY PŘIPRAVUJEME</span>
-          <div>
-            {[
-              ["Blog", "Články z praxe správy nemovitostí."],
-              ["Tipy", "Drobnosti, které usnadní práci."],
-              ["Vzory smluv", "Materiály pro každodenní agendu."],
-            ].map(([title, body]) => (
-              <button type="button" key={title} disabled>
-                <span>
-                  <b>{title}</b>
-                  <small>Připravujeme</small>
-                </span>
-                <p>{body}</p>
-              </button>
-            ))}
-          </div>
-        </section>
+          </section>
+          <section id="jak-zacit" className={`${s.section} ${s.guide}`}>
+            <div>
+              <span className={s.eyebrow}>SROZUMITELNÝ ZAČÁTEK</span>
+              <h2>
+                Seznamte se.
+                <br /> Bernard. Pro vás Berry.
+              </h2>
+              <p>
+                Váš průvodce prvními kroky.
+                <br /> Začněte jednoduše a vlastním tempem.
+              </p>
+              <div className={s.berry}>
+                <img
+                  src="/landing/berry-guide.webp"
+                  alt="Berry ukazuje seznam prvních kroků"
+                  width="330"
+                  height="400"
+                  loading="lazy"
+                />
+                <blockquote>
+                  „Projdeme to spolu.
+                  <br /> Krok za krokem.“
+                </blockquote>
+              </div>
+            </div>
+            <div className={s.steps}>
+              {[
+                ["Vytvořte účet", "Potvrďte svůj e-mail a přihlaste se."],
+                [
+                  "Rozhlédněte se s Berrym",
+                  "Krátký průvodce vám ukáže, kde co najdete.",
+                ],
+                [
+                  "Přidejte první nemovitost",
+                  "Domy, jednotky a nájmy doplníte postupně.",
+                ],
+              ].map(([title, body], i) => (
+                <article key={title}>
+                  <span>0{i + 1}</span>
+                  <div>
+                    <h3>{title}</h3>
+                    <p>{body}</p>
+                  </div>
+                </article>
+              ))}
+              <p>Průvodce můžete odložit a kdykoliv znovu spustit.</p>
+            </div>
+          </section>
+          <section id="zdarma" className={s.offer}>
+            <div>
+              <span className={s.eyebrow}>NYNÍ PRO TESTERY</span>
+              <h2>
+                Vyzkoušejte FlatBerry.
+                <br /> Bez limitu jednotek.
+              </h2>
+              <p>
+                Pro testery je nyní počet jednotek otevřený.
+                <br /> Placené tarify představíme později.
+              </p>
+              {cta()}
+            </div>
+            <div className={s.free}>
+              <span>PŘIPRAVOVANÝ ZÁKLAD</span>
+              <strong>3 byty</strong>
+              <b>zdarma</b>
+              <p>
+                Počítají se jednotlivé
+                <br /> bytové jednotky, nikoli domy.
+              </p>
+            </div>
+          </section>
+          <section id="faq" className={`${s.section} ${s.faq}`}>
+            <div>
+              <span className={s.eyebrow}>ČASTÉ OTÁZKY</span>
+              <h2>Než začnete.</h2>
+              <p>To nejdůležitější o používání FlatBerry.</p>
+            </div>
+            <div>
+              {faq.map(([q, a]) => (
+                <details key={q} open>
+                  <summary>
+                    {q}
+                    <span aria-hidden="true" />
+                  </summary>
+                  <p>{a}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+          <section className={`${s.section} ${s.resources}`}>
+            <span className={s.eyebrow}>DALŠÍ POMOCNÍKY PŘIPRAVUJEME</span>
+            <div>
+              {[
+                ["Blog", "Články z praxe správy nemovitostí."],
+                ["Tipy", "Drobnosti, které usnadní práci."],
+                ["Vzory smluv", "Materiály pro každodenní agendu."],
+              ].map(([title, body]) => (
+                <button type="button" key={title} disabled>
+                  <span>
+                    <b>{title}</b>
+                    <small>Připravujeme</small>
+                  </span>
+                  <p>{body}</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
         <section className={s.closing}>
           <div>
             <span className={s.eyebrow}>VAŠE NEMOVITOSTI. VÁŠ PŘEHLED.</span>
