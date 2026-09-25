@@ -158,8 +158,7 @@ export default function Page() {
             </span>
             <h1>
               Profesionální správa.
-              <br />
-              Jasný přehled o nemovitostech.
+              <br /> Jasný přehled o nemovitostech.
             </h1>
             <p>
               Nájmy, platby, náklady a týmová práce v souvislostech celého
@@ -198,8 +197,7 @@ export default function Page() {
             <div>
               <h2>
                 Jednoduché
-                <br />
-                pro vlastníky
+                <br /> pro vlastníky
               </h2>
               <p>
                 Víte, co přišlo, co se řeší a kdy je potřeba vaše rozhodnutí.
@@ -211,8 +209,7 @@ export default function Page() {
             <div>
               <h2>
                 Propracované
-                <br />
-                pro správce
+                <br /> pro správce
               </h2>
               <p>
                 Platby, náklady, smlouvy a týmové úkoly v souvislostech celého
@@ -243,14 +240,12 @@ export default function Page() {
             <span className={s.eyebrow}>CO VÁM FLATBERRY USNADNÍ</span>
             <h2>
               Víte, co se děje.
-              <br />A co je potřeba udělat.
+              <br /> A co je potřeba udělat.
             </h2>
             <p>
               Každodenní provoz a dlouhodobá rozhodnutí.
-              <br />
-              Důležité informace propojené s nemovitostí,
-              <br />
-              ke které patří.
+              <br /> Důležité informace propojené s nemovitostí,
+              <br /> ke které patří.
             </p>
           </div>
           <div className={s.featureGrid}>
@@ -278,13 +273,12 @@ export default function Page() {
                 "01 / PLATBY A NÁKLADY",
                 <>
                   Platby a stav objektů
-                  <br />v jednom přehledu.
+                  <br /> v jednom přehledu.
                 </>,
                 <>
                   Předpisy, dluhy a inkaso u nemovitostí.
-                  <br />
-                  Rychle poznáte, co je v pořádku
-                  <br />a čemu je potřeba věnovat pozornost.
+                  <br /> Rychle poznáte, co je v pořádku
+                  <br /> a čemu je potřeba věnovat pozornost.
                 </>,
                 "Od portfolia k jednotlivým objektům",
                 "Platby a stav objektů v jednom přehledu.",
@@ -296,14 +290,12 @@ export default function Page() {
                 "02 / TÝMOVÁ PRÁCE",
                 <>
                   Každý ví,
-                  <br />
-                  co má řešit.
+                  <br /> co má řešit.
                 </>,
                 <>
                   Sledujte stav úkolů, odpovědnost
-                  <br />i priority na jednom místě.
-                  <br />
-                  Otevřete případ a pokračujte v řešení.
+                  <br /> i priority na jednom místě.
+                  <br /> Otevřete případ a pokračujte v řešení.
                 </>,
                 "Méně dohledávání v e-mailech",
                 "Každý ví, co má řešit.",
@@ -315,15 +307,12 @@ export default function Page() {
                 "03 / REPORTY A PORTFOLIO",
                 <>
                   Podklady pro vaše
-                  <br />
-                  další rozhodnutí.
+                  <br /> další rozhodnutí.
                 </>,
                 <>
                   Sledujte inkaso, dluhy a výsledky.
-                  <br />
-                  Od jednotlivých nemovitostí
-                  <br />
-                  až po souhrnný pohled na portfolio.
+                  <br /> Od jednotlivých nemovitostí
+                  <br /> až po souhrnný pohled na portfolio.
                 </>,
                 "",
                 "Podklady pro vaše další rozhodnutí.",
@@ -368,13 +357,11 @@ export default function Page() {
             <span className={s.eyebrow}>SROZUMITELNÝ ZAČÁTEK</span>
             <h2>
               Seznamte se.
-              <br />
-              Bernard. Pro vás Berry.
+              <br /> Bernard. Pro vás Berry.
             </h2>
             <p>
               Váš průvodce prvními kroky.
-              <br />
-              Začněte jednoduše a vlastním tempem.
+              <br /> Začněte jednoduše a vlastním tempem.
             </p>
             <div className={s.berry}>
               <img
@@ -386,8 +373,7 @@ export default function Page() {
               />
               <blockquote>
                 „Projdeme to spolu.
-                <br />
-                Krok za krokem.“
+                <br /> Krok za krokem.“
               </blockquote>
             </div>
           </div>
@@ -419,13 +405,11 @@ export default function Page() {
             <span className={s.eyebrow}>NYNÍ PRO TESTERY</span>
             <h2>
               Vyzkoušejte FlatBerry.
-              <br />
-              Bez limitu jednotek.
+              <br /> Bez limitu jednotek.
             </h2>
             <p>
               Pro testery je nyní počet jednotek otevřený.
-              <br />
-              Placené tarify představíme později.
+              <br /> Placené tarify představíme později.
             </p>
             {cta()}
           </div>
@@ -435,8 +419,7 @@ export default function Page() {
             <b>zdarma</b>
             <p>
               Počítají se jednotlivé
-              <br />
-              bytové jednotky, nikoli domy.
+              <br /> bytové jednotky, nikoli domy.
             </p>
           </div>
         </section>
@@ -498,8 +481,7 @@ export default function Page() {
             </a>
             <p>
               Správa pronájmů a přehled portfolia.
-              <br />
-              Pro správce, investory a vlastníky.
+              <br /> Pro správce, investory a vlastníky.
             </p>
             <a className={s.textLink} href="mailto:info@flatcloud.cz">
               info@flatcloud.cz
@@ -519,15 +501,12 @@ export default function Page() {
             <h3>Flat Cloud a.s.</h3>
             <address>
               Houškova 561/4, Východní Předměstí
-              <br />
-              326 00 Plzeň
-              <br />
-              IČO: 23111780
+              <br /> 326 00 Plzeň
+              <br /> IČO: 23111780
             </address>
             <p>
               Krajský soud v Plzni
-              <br />
-              oddíl B, vložka 2257
+              <br /> oddíl B, vložka 2257
             </p>
           </div>
         </div>
