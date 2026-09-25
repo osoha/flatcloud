@@ -202,9 +202,12 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .entry-reactions{position:relative;display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:12px;font-size:12px}
 .flatberry-shell .entry-reactions .reaction-picker-toggle{min-height:32px;padding:5px 9px;font-size:12px;background:transparent;color:var(--muted)}
 .flatberry-shell .reaction-picker{display:flex;gap:4px;flex-wrap:wrap;padding:5px;background:var(--card,#fff);border:1px solid var(--line);border-radius:14px;box-shadow:0 4px 14px #0001}
-.flatberry-shell .reaction-picker button{min-width:36px;min-height:36px;padding:4px;background:transparent;font-size:22px;border-color:transparent!important}
+.flatberry-shell .reaction-picker button{display:inline-flex;align-items:center;justify-content:center;min-width:40px;min-height:40px;padding:4px;background:transparent;border-color:transparent!important}
+.flatberry-shell .reaction-picker .reaction-emoji{font-size:27px;line-height:1}
 .flatberry-shell .reaction-picker button:is(:hover,[aria-pressed=true]){background:var(--blue-soft)}
-.flatberry-shell .reaction-count>summary{cursor:pointer;list-style:none;padding:5px 9px;border-radius:12px;border:1px solid var(--line);background:var(--card,#fff);color:var(--text)}
+.flatberry-shell .reaction-count>summary{display:inline-flex;align-items:center;gap:6px;min-height:38px;cursor:pointer;list-style:none;padding:5px 10px;border-radius:12px;border:1px solid var(--line);background:var(--card,#fff);color:var(--text)}
+.flatberry-shell .reaction-count>summary .reaction-emoji{font-size:21px;line-height:1}
+.flatberry-shell .reaction-count>summary .reaction-total{font-size:13px;font-weight:600;line-height:1}
 .flatberry-shell .reaction-count>summary::-webkit-details-marker{display:none}
 .flatberry-shell .reaction-people{position:absolute;z-index:10;left:0;top:100%;display:grid;gap:7px;max-width:100%;padding:12px;background:var(--card,#fff);color:var(--text);border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 12px #0002}
 @media(max-width:600px){.flatberry-shell .task-case-page .discussion-thread{padding:4px 8px}.flatberry-shell .task-case-page .thread-composer-v211{padding:14px 8px}.flatberry-shell .task-case-page .discussion-entry{grid-template-columns:28px minmax(0,1fr);gap:8px}.flatberry-shell .reaction-picker{width:100%}}
