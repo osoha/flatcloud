@@ -76,6 +76,8 @@ test("průvodce: přechody, role a neznámá verze", () => {
 });
 
 test("potvrzená registrace otevře portfolio s prvním krokem bez vytvoření domu", async ({ page }) => {
+  await page.goto("/registrace");
+  await expect(page.getByText("Po potvrzení e-mailu si vyberete přehledný Basic nebo detailní Profi.", { exact: false })).toBeVisible();
   const token = randomBytes(32).toString("base64url");
   const email = `registration-guide-${randomUUID()}@example.invalid`;
   createdEmails.push(email);
