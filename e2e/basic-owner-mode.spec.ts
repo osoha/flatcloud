@@ -26,7 +26,8 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
     await expect(page.locator(".basic-property-card")).toContainText(visible.label);
     await expect(page.locator("main")).not.toContainText(hidden.label);
     await expect.poll(() => page.evaluate(() => { const sidebar = document.querySelector(".sidebar")!.getBoundingClientRect(); const content = document.querySelector(".basic-hero")!.getBoundingClientRect(); return content.left >= sidebar.right + 12 && document.documentElement.scrollWidth <= window.innerWidth + 1; }), { message: "Desktop Basic content remains clear of the fixed sidebar" }).toBe(true);
-    await page.screenshot({ path: testInfo.outputPath("basic-owner-desktop.png"), fullPage: true });
+    await page.waitForTimeout(250); // Let the sidebar width transition finish before capturing fixed elements.
+    await page.screenshot({ path: testInfo.outputPath("basic-owner-desktop.png") });
     await page.reload();
     await expect(page.locator(".basic-portfolio")).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
