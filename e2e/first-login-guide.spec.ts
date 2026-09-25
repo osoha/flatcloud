@@ -143,6 +143,9 @@ test("odložení, reload, jiné zařízení, zpět a dokončení bez opakování
   await expect(other.locator("#guide-title")).toContainText("první nemovitostí");
   await other.getByRole("button", { name: "Zpět", exact: true }).click();
   await expect(other.locator("#guide-title")).toHaveText("Vítejte ve FlatBerry");
+  // Mode is stored in a per-account cookie on this device, so a second browser chooses again.
+  await expect(other.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
+  await other.getByRole("button", { name: /Zvolit Profi/ }).click();
   await other.getByRole("button", { name: "Pojďme na to" }).click();
   for (const heading of ["Smlouvy a nájemníci pohromadě", "Mějte přehled o penězích", "Úkoly a týmová komunikace", "Upozornění podle vašich potřeb", "Když si nebudete jistí, jsem nablízku"]) {
     await other.getByRole("button", { name: "Další", exact: true }).click();
