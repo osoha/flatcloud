@@ -152,6 +152,16 @@ export default function LegalPage() {
           Konkrétní příjemci a rozsah předaných údajů závisejí na prostředí a
           zapojených službách.
         </p>
+        <p>
+          Mapový náhled adresy a nástroj pro avatary domů používají Google Maps.
+          Při jejich načtení prohlížeč navazuje spojení s poskytovatelem a
+          předává technické údaje, včetně IP adresy, a zobrazovanou nebo
+          hledanou adresu. Podle konfigurace reportů se adresy pro určení
+          souřadnic zpracovávají také přes službu Nominatim nad OpenStreetMap
+          nebo jiného nastaveného poskytovatele geokódování. Samotné zobrazení
+          mapy nevyžaduje odeslání smluv či platebních záznamů těmto mapovým
+          službám.
+        </p>
         <h3>Předávání mimo Evropský hospodářský prostor</h3>
         <p>
           Nelze obecně slíbit, že všechna data zůstávají v EHP: záleží i na
@@ -270,6 +280,15 @@ export default function LegalPage() {
           Zablokování nezbytných cookies může znemožnit přihlášení. Tento web
           nenabízí volbu marketingových ani analytických cookies, protože je
           nezavádí.
+        </p>
+        <p>
+          Externí mapy v aplikaci jsou odlišné od samotného onepageru: mohou
+          používat vlastní technické identifikátory či úložiště podle nastavení
+          poskytovatele a prohlížeče. Před veřejným spuštěním je nutné ověřit
+          jejich skutečné chování a odpovídající řízení souhlasu s případnými
+          nepovinnými technologiemi; nelze na ně automaticky vztáhnout
+          prohlášení o absenci analytických a reklamních cookies na úvodní
+          stránce.
         </p>
         <h2 id="podminky">Podmínky používání</h2>
         <p>
