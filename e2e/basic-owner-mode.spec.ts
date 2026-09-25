@@ -28,6 +28,14 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
     await expect.poll(() => page.evaluate(() => { const sidebar = document.querySelector(".sidebar")!.getBoundingClientRect(); const content = document.querySelector(".basic-hero")!.getBoundingClientRect(); return content.left >= sidebar.right + 12 && document.documentElement.scrollWidth <= window.innerWidth + 1; }), { message: "Desktop Basic content remains clear of the fixed sidebar" }).toBe(true);
     await page.waitForTimeout(250); // Let the sidebar width transition finish before capturing fixed elements.
     await page.screenshot({ path: testInfo.outputPath("basic-owner-desktop.png") });
+    await page.setViewportSize({ width: 1800, height: 1000 });
+    await expect.poll(() => page.evaluate(() => {
+      const hero = document.querySelector(".basic-hero")!.getBoundingClientRect();
+      const note = document.querySelector(".basic-berry-note")!.getBoundingClientRect();
+      const copy = document.querySelector(".basic-hero-copy")!.getBoundingClientRect();
+      return note.left > copy.right && note.right <= hero.right - 16 && hero.right - note.right < 90 && document.documentElement.scrollWidth <= innerWidth + 1;
+    }), { message: "Berry remains anchored to the hero at wide desktop widths" }).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("basic-owner-wide.png") });
     await page.reload();
     await expect(page.locator(".basic-portfolio")).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
