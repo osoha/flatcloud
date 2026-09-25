@@ -26,9 +26,9 @@ export default async function EntityAppearance({ params, searchParams }: { param
     <Flash ok={query.ok} error={query.error}/>
     <form className="card edit-form" action={`/api/properties/${id}/appearance`} method="post" encType="multipart/form-data">
       {unit && <input type="hidden" name="unitId" value={unit.id}/>}
-      <div className="appearance-identity"><EntityAvatar photoId={unit ? photos.units[unit.id] : photos.properties[id]} kind={unit ? "unit" : "property"} size="lg"/><div><h2>Fotografie a avatar</h2><p className="muted-copy">Vyberte obecnou ikonu, fotografii z dokumentů nebo nahrajte vlastní avatar.</p></div></div>
+      <div className="appearance-identity"><EntityAvatar photoId={unit ? photos.units[unit.id] : photos.properties[id]} kind={unit ? "unit" : "property"} identity={unit?.id || id} basic size="lg"/><div><h2>Fotografie a avatar</h2><p className="muted-copy">V Basic můžete vybrat ilustraci z knihovny. V Profi se bez vlastní fotografie zobrazuje jednoduchá ikona.</p></div></div>
       <div className="form-grid">
-        <EntityAvatarChoice selected={preference?.photoId || "icon"} photos={candidates.filter(photo => (photo.unitId || "") === (unit?.id || "")).map(photo => ({id:photo.id,title:photo.title}))}/>
+        <EntityAvatarChoice kind={unit ? "unit" : "house"} selected={preference?.photoId || "icon"} photos={candidates.filter(photo => (photo.unitId || "") === (unit?.id || "")).map(photo => ({id:photo.id,title:photo.title}))}/>
         <label className="field"><span>Barva karty v přehledu</span><select name="color" defaultValue={preference?.color || ""}>{Object.entries(appearanceColors).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       </div>
       <p className="muted-copy">Barva zvýrazní {unit ? "záhlaví jednotky" : "objekt na hlavní stránce portfolia"}. Oblíbené objekty označíte hvězdičkou přímo v portfoliu. Vaše volby se ukládají k účtu a nemění nastavení ostatních uživatelů.</p>

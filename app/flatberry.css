@@ -353,3 +353,22 @@ html.fc-sidebar-collapsed .display-mode-switch-mobile{display:grid}
 @media(max-width:1100px){.basic-hero{grid-template-columns:minmax(0,1fr) minmax(225px,34%);gap:16px}.basic-hero .basic-berry-note{min-height:160px;padding:12px}.basic-hero .basic-berry-note .basic-berry{width:75px;height:140px}.basic-attention-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:800px){.basic-hero{grid-template-columns:minmax(0,1fr)}.basic-hero .basic-berry-note{display:none}.basic-attention-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.basic-summary-card{min-height:205px}.basic-summary-icon{width:60px;height:60px}.basic-summary-icon svg{width:33px;height:33px}.basic-overdue-chip{font-size:11px}.basic-attention-item.basic-debt-alert,.basic-attention-item.basic-task-alert{min-height:88px}}
+.entity-avatar-illustration{display:block;width:100%;height:100%;background-repeat:no-repeat}
+.illustration-picker{display:block;min-width:0;margin:8px 0 16px;padding:16px;border:1px solid #dde7f0;border-radius:16px}
+.illustration-picker legend{font-weight:700;color:#304660;padding:0 6px}
+.illustration-picker .muted-copy{margin:0 0 12px}
+.illustration-picker-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.illustration-option{position:relative;display:block;aspect-ratio:1;border:2px solid transparent;border-radius:12px;overflow:hidden;cursor:pointer;background:#f2f5f8;transition:border-color .15s,box-shadow .15s}
+.illustration-option.selected,.illustration-option:focus-within{border-color:#3474db;box-shadow:0 0 0 2px #dce9ff}
+.illustration-option input{position:absolute;left:6px;top:6px;z-index:1;accent-color:#3474db}
+.illustration-tile{display:block;width:100%;height:100%;background-repeat:no-repeat}
+.avatar[style*="people.webp"],.tenant-avatar{background-repeat:no-repeat;border-radius:50%;overflow:hidden}
+.tenant-avatar{display:inline-flex;justify-content:center;align-items:center;flex:none;width:54px;height:54px;background-color:#e9f0f7;color:#50779e;font-size:28px}
+.tenant-avatar img{display:block;width:100%;height:100%;object-fit:cover}
+.basic-tenant .tenant-avatar{width:34px;height:34px;font-size:18px}
+.tenant-title,.tenant-avatar-current{display:flex;align-items:center;gap:14px}
+.tenant-title .tenant-avatar{width:64px;height:64px}
+.tenant-avatar-current{color:#718199;font-size:13px}
+@media(max-width:600px){.illustration-picker-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}}
+
+.tenant-registry-cell{display:flex;align-items:center;gap:10px}.tenant-registry-cell .tenant-avatar{width:40px;height:40px;font-size:20px}.tenant-registry-cell>div{min-width:0}

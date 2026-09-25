@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertCircle, ArrowRight, Bell, CheckCircle2, House, ListChecks, WalletCards } from "lucide-react";
 import { EntityAvatar } from "@/components/EntityAvatar";
+import { TenantAvatar } from "@/components/TenantAvatar";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
 import { currentLeaseForUnit } from "@/lib/lease-lifecycle-core";
 import { money } from "@/lib/format";
@@ -58,12 +59,12 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
         const unitPaid = due.reduce((sum, charge) => sum + paidCents(charge), 0);
         const unitDebt = charges.reduce((sum, charge) => sum + overdueDebtCents(charge), 0);
         const href = `/nemovitosti/${property.id}/jednotky/${unit.id}`;
-        return <article className="basic-property-card" key={unit.id}><Link className="basic-property-photo" href={href} aria-label={`Otevřít ${unit.label}`}><EntityAvatar photoId={photos.units[unit.id]} kind="unit" size="lg"/></Link>
+        return <article className="basic-property-card" key={unit.id}><Link className="basic-property-photo" href={href} aria-label={`Otevřít ${unit.label}`}><EntityAvatar photoId={photos.units[unit.id]} kind="unit" identity={unit.id} basic size="lg"/></Link>
           <div className="basic-property-body"><Link href={href} className="basic-property-name">{unit.label} <span className={`basic-unit-state${lease ? " is-occupied" : ""}`}>{lease ? "Pronajato" : "Volná"}</span></Link><p>{property.name} · {property.city}</p>
-            <div className="basic-tenant"><span className="basic-person-avatar" aria-hidden="true">{lease?.tenant.name.trim().slice(0, 1).toLocaleUpperCase("cs") || "–"}</span><strong>{lease?.tenant.name || "Zatím bez nájemníka"}</strong></div>
+            <div className="basic-tenant">{lease ? <TenantAvatar tenant={lease.tenant} className="basic-person-avatar"/> : <span className="basic-person-avatar" aria-hidden="true">–</span>}<strong>{lease?.tenant.name || "Zatím bez nájemníka"}</strong></div>
             <div className="basic-rent"><span>{unitExpected ? <><strong>{money(unitExpected)}</strong> / {month}</> : "Bez předpisu v tomto měsíci"}</span>{unitDebt > 0 ? <b className="basic-payment-late">Po splatnosti {money(unitDebt)}</b> : unitExpected > 0 ? <b className={unitPaid >= unitExpected ? "basic-payment-ok" : "basic-payment-pending"}>{unitPaid >= unitExpected ? "Uhrazeno" : `Zbývá ${money(Math.max(0, unitExpected - unitPaid))}`}</b> : null}</div>
           </div></article>;
-      }) : [<article className="basic-property-card" key={property.id}><Link className="basic-property-photo" href={`/nemovitosti/${property.id}/prehled`} aria-label={`Otevřít ${property.name}`}><EntityAvatar photoId={photos.properties[property.id]} size="lg"/></Link><div className="basic-property-body"><Link href={`/nemovitosti/${property.id}/prehled`} className="basic-property-name">{property.name} <ArrowRight size={17}/></Link><p>{property.address}, {property.city}</p><small>Zatím bez jednotek</small></div></article>])}{!activeRows.length && <div className="basic-empty-properties"><House size={30}/><strong>Zatím tu nejsou žádné aktivní nemovitosti.</strong><span>Vyberte jiné portfolio nebo otevřete profesionální přehled.</span></div>}</div>
+      }) : [<article className="basic-property-card" key={property.id}><Link className="basic-property-photo" href={`/nemovitosti/${property.id}/prehled`} aria-label={`Otevřít ${property.name}`}><EntityAvatar photoId={photos.properties[property.id]} identity={property.id} basic size="lg"/></Link><div className="basic-property-body"><Link href={`/nemovitosti/${property.id}/prehled`} className="basic-property-name">{property.name} <ArrowRight size={17}/></Link><p>{property.address}, {property.city}</p><small>Zatím bez jednotek</small></div></article>])}{!activeRows.length && <div className="basic-empty-properties"><House size={30}/><strong>Zatím tu nejsou žádné aktivní nemovitosti.</strong><span>Vyberte jiné portfolio nebo otevřete profesionální přehled.</span></div>}</div>
     </section>
   </div>;
 }

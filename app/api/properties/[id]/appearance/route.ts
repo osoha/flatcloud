@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { loadEntityPhotoCandidates } from "@/lib/entity-photos";
 import { appearanceColors, entityAppearanceKey } from "@/lib/entity-appearance-values";
 import { goWithMessage } from "@/lib/route-response";
+import { validIllustration } from "@/lib/illustration-library";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
@@ -36,6 +37,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         const previous = await prisma.userEntityAppearance.findUnique({where:{userId_entityKey:{userId:user.id,entityKey:entityAppearanceKey(id,unitId)}},select:{avatarMimeType:true}});
         if (uploaded) Object.assign(update, uploaded);
         else if (!previous?.avatarMimeType) throw new Error("Vyberte fotografii avatara.");
+      } else if (validIllustration(photoId, unitId ? "unit" : "house")) {
+        // Bundled illustration: no document access lookup required.
       } else if (photoId && photoId !== "icon") {
         const candidates = await loadEntityPhotoCandidates(user, [id]);
         if (!candidates.some(photo => photo.id === photoId && (photo.unitId || "") === unitId)) throw new Error("Tato fotografie není pro objekt dostupná.");

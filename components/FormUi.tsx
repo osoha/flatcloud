@@ -10,8 +10,8 @@ export function FormPage({ title, description, backHref, children }: { title: st
   return <div className="page form-page"><div className="breadcrumb"><Link href={backHref}>← Zpět</Link></div><div className="page-title"><div><PageHeading>{title}</PageHeading>{description&&<p>{description}</p>}</div></div>{children}</div>;
 }
 
-export function FormCard({ action, children, submitLabel = "Uložit", cancelHref, method = "post" }: { action: string; children: React.ReactNode; submitLabel?: string; cancelHref: string; method?: "post" }) {
-  return <form className="card edit-form" action={action} method={method}><div className="form-grid">{children}</div><div className="form-actions"><Link className="secondary" href={cancelHref}>Zrušit</Link><button className="primary" type="submit">{submitLabel}</button></div></form>;
+export function FormCard({ action, children, submitLabel = "Uložit", cancelHref, method = "post", encType }: { action: string; children: React.ReactNode; submitLabel?: string; cancelHref: string; method?: "post"; encType?: "multipart/form-data" }) {
+  return <form className="card edit-form" action={action} method={method} encType={encType}><div className="form-grid">{children}</div><div className="form-actions"><Link className="secondary" href={cancelHref}>Zrušit</Link><button className="primary" type="submit">{submitLabel}</button></div></form>;
 }
 
 export function Field({ label, name, defaultValue, required, type = "text", placeholder, min, max, step, full = false }: { label: string; name: string; defaultValue?: string | number | null; required?: boolean; type?: string; placeholder?: string; min?: string | number; max?: string | number; step?: string; full?: boolean }) {

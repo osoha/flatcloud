@@ -5,7 +5,7 @@ import { hasAllPropertyAccess } from "./auth";
 
 const publicUserSelect = {
   id: true, email: true, name: true, role: true, active: true, allProperties: true,
-  phone: true, title: true, avatarMimeType: true, createdAt: true, updatedAt: true,
+  phone: true, title: true, avatarMimeType: true, avatarChoice: true, createdAt: true, updatedAt: true,
 } satisfies Prisma.UserSelect;
 
 const propertyInclude = {
