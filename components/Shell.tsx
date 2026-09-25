@@ -1,10 +1,12 @@
 import { FirstLoginGuide } from "@/components/FirstLoginGuide";
 import { DisplayPreferences } from "@/components/DisplayPreferences";
+import { DisplayModeSwitch } from "@/components/DisplayModeSwitch";
+import { displayMode } from "@/lib/display-mode";
 import { ReadOnlyPreview } from "@/components/admin/ReadOnlyPreview";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { ActiveTabVisibility } from "@/components/ActiveTabVisibility";
 import Link from "next/link";
-import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, LayoutDashboard, Library, ListChecks, LogOut, Megaphone, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
+import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, ClipboardCheck, Compass, FileText, Hammer, Handshake, Headphones, House, LayoutDashboard, Library, ListChecks, LogOut, Megaphone, Plus, ReceiptText, Search, Settings, UserRound, Users, UsersRound, WalletCards } from "lucide-react";
 import { canSeeAll, hasAllPropertyAccess, previewContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
@@ -35,10 +37,11 @@ type ShellUser = {
   updatedAt?: Date | string;
 };
 
-export async function Shell({ user: contentUser, children, taskPropertyId, taskLeaseId }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string }) {
+export async function Shell({ user: contentUser, children, taskPropertyId, taskLeaseId, displayReturnTo }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string; displayReturnTo?: string }) {
   const context = await previewContext();
   const preview = context.requested && Boolean(context.actor);
   const user = preview ? context.actor! : contentUser;
+  const mode = preview ? "pro" : await displayMode(contentUser.id);
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");
@@ -72,7 +75,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
-  return <div className="app-shell v21-shell flatberry-shell">
+  return <div className={`app-shell v21-shell flatberry-shell${mode === "basic" ? " basic-shell" : ""}`}>
     {superAdmin && <AdminOperationsPanel/>}
     {!preview && <FirstLoginGuide userId={user.id}/>}
     <NativeDetailsEscape/>
@@ -82,6 +85,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     <aside className="sidebar">
       <SidebarCollapseToggle/>
       <nav className="nav v21-nav">
+        {mode === "pro" ? <>
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
@@ -123,8 +127,18 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           <Nav href="/nastaveni/cenovy-benchmark" icon={<BarChart3 size={17}/>} label="Cenový benchmark"/>
           <Nav href="/dovednosti" icon={<Compass size={17}/>} label="Dovednosti"/>
         </CollapsibleNavGroup>}
+        </> : <>
+          <div className="nav-label">Moje FlatBerry</div>
+          <Nav href="/portfolio" icon={<LayoutDashboard size={20}/>} label="Přehled"/>
+          <Nav href="/portfolio#nemovitosti" icon={<House size={20}/>} label="Nemovitosti"/>
+          <Nav href="/reporty?view=collections" icon={<WalletCards size={20}/>} label="Platby"/>
+          <Nav href="/ukoly" icon={<ListChecks size={20}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
+          <Nav href="/dokumenty" icon={<FileText size={20}/>} label="Dokumenty"/>
+          <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={20}/>} label="Průvodce"/>
+        </>}
       </nav>
       <div className="sidebar-footer">
+        {!preview && <DisplayModeSwitch mode={mode} returnTo={displayReturnTo}/>}
         <DisplayPreferences userId={user.id}/>
         <div className="user-card">
           <Link className="user-card-profile" href="/ucet" title="Můj účet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small className="user-card-meta">{userRoles[user.role]||user.role}</small></div></Link>
@@ -139,18 +153,20 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
+          {!preview && <DisplayModeSwitch mode={mode} mobile returnTo={displayReturnTo}/>}
           <DisplayPreferences userId={user.id} mobile/>
-          {!preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
-          {!preview && canAddTask && <Link data-guide="add-task" className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
-          {!preview && canAddProperty && <Link data-guide="add-property" className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
+          {mode === "pro" && !preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
+          {mode === "pro" && !preview && canAddTask && <Link data-guide="add-task" className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
+          {mode === "pro" && !preview && canAddProperty && <Link data-guide="add-property" className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
           <Link className="account-chip" href="/ucet" aria-label="Můj účet"><UserRound size={15}/><span>{context.target?.name || user.name}</span></Link>
         </div>
       </header>
+      {mode === "basic" && <nav className="basic-mobile-nav" aria-label="Základní navigace"><ScopeAwareLink href="/portfolio"><LayoutDashboard size={18}/>Přehled</ScopeAwareLink><ScopeAwareLink href="/portfolio#nemovitosti" aria-current={undefined}><House size={18}/>Nemovitosti</ScopeAwareLink><ScopeAwareLink href="/reporty?view=collections"><WalletCards size={18}/>Platby</ScopeAwareLink><ScopeAwareLink href="/ukoly"><ListChecks size={18}/>Úkoly</ScopeAwareLink><ScopeAwareLink href="/dokumenty"><FileText size={18}/>Dokumenty</ScopeAwareLink></nav>}
       {children}
     </main>
   </div>;
 }
 
 function Nav({href,icon,label,count=0,noticeCount=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;noticeCount?:number;activeQuery?:Record<string,string>}){
-  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}{noticeCount>0&&<i className="nav-announcement-dot" title={`${noticeCount} nepřečtených oznámení`} aria-label={`${noticeCount} nepřečtených oznámení`}/>}</ScopeAwareLink>;
+  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label} {...(href.includes("#") ? { "aria-current": undefined } : {})}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}{noticeCount>0&&<i className="nav-announcement-dot" title={`${noticeCount} nepřečtených oznámení`} aria-label={`${noticeCount} nepřečtených oznámení`}/>}</ScopeAwareLink>;
 }
