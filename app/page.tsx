@@ -220,14 +220,19 @@ export default function Page() {
               </p>
             </div>
           </div>
-          <img
-            className={s.perspectiveImage}
-            src="/landing/two-perspectives.webp"
-            alt="Berry s přehledem na mobilu a profesionální správce s aplikací na notebooku"
-            width="1536"
-            height="500"
-            loading="lazy"
-          />
+          <picture className={s.perspectiveImage}>
+            <source
+              media="(min-width: 901px)"
+              srcSet="/landing/two-perspectives-full.webp"
+            />
+            <img
+              src="/landing/two-perspectives.webp"
+              alt="Berry s přehledem na mobilu a profesionální správce s aplikací na notebooku"
+              width="1536"
+              height="500"
+              loading="lazy"
+            />
+          </picture>
           <h3>Přehled pro vlastníka. Nástroje pro správce.</h3>
           <a className={s.primary} href="#nahledy">
             Prohlédnout FlatBerry →

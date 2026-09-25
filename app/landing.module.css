@@ -302,18 +302,21 @@
 }
 .perspectiveImage {
   position: absolute;
-  top: calc(354 * var(--u));
+  top: 0;
+  z-index: -1;
   left: 0;
   width: 100%;
-  height: calc(521 * var(--u)) !important;
+  height: calc(1067 * var(--u)) !important;
   object-fit: contain;
-  mask-image: linear-gradient(
-    180deg,
-    transparent,
-    #000 6%,
-    #000 91%,
-    transparent
-  );
+  mask-image:
+    linear-gradient(180deg, transparent, #000 14%, #000 80%, transparent),
+    linear-gradient(90deg, transparent, #000 2%, #000 98%, transparent);
+  mask-composite: intersect;
+}
+.perspectiveImage img {
+  width: 100%;
+  height: 100% !important;
+  object-fit: contain;
 }
 .perspectives h3 {
   position: absolute;
@@ -958,13 +961,21 @@
     font-size: 50px;
   }
   .perspectiveImage {
+    display: block;
     position: relative;
+    z-index: auto;
+    mask-image:
+      linear-gradient(180deg, transparent, #000 6%, #000 88%, transparent),
+      linear-gradient(90deg, transparent, #000 2%, #000 98%, transparent);
     top: auto;
     left: -4.35%;
     width: 108.7%;
     max-width: none !important;
     height: auto !important;
     margin: 25px 0;
+  }
+  .perspectiveImage img {
+    height: auto !important;
   }
   .perspectives h3 {
     position: static;
