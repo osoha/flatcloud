@@ -161,13 +161,14 @@
   background:
     linear-gradient(0deg, #fff 0%, #ffffff00 48%),
     linear-gradient(
-      90deg,
+      270deg,
       #fff 9%,
       #fffffff2 30%,
       #ffffff75 62%,
       #ffffff05 90%
     ),
     url("/landing/architecture.webp") center right/cover no-repeat;
+  transform: scaleX(-1);
 }
 .heroCopy {
   max-width: 720px;
@@ -545,9 +546,9 @@
   color: #8793a0;
 }
 .closing {
-  background:
-    linear-gradient(90deg, #f3f7fc 10%, #f3f7fcf2 36%, #f3f7fc22 80%),
-    url("/landing/architecture.webp") center 55% / cover no-repeat;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   padding: 90px max(7%, calc((100vw - 1200px) / 2));
   min-height: 500px;
 }
@@ -972,5 +973,49 @@
     scroll-behavior: auto !important;
   }
 }
-.gallery {position:relative;isolation:isolate}
-.gallery::before {content:"";position:absolute;inset:0 -200px;z-index:-1;pointer-events:none;background:url('/landing/city.webp') left 65%/450px auto no-repeat;opacity:.06}
+.gallery {
+  position: relative;
+  isolation: isolate;
+}
+.gallery::before {
+  content: "";
+  position: absolute;
+  inset: 0 -200px;
+  z-index: -1;
+  pointer-events: none;
+  background: url("/landing/city.webp") left 65%/450px auto no-repeat;
+  opacity: 0.06;
+}
+
+.closing::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: scaleX(-1);
+  background:
+    linear-gradient(270deg, #f3f7fc 10%, #f3f7fcf2 36%, #f3f7fc22 80%),
+    url("/landing/architecture.webp") center 55% / cover no-repeat;
+}
+
+@media (max-width: 760px) {
+  .heroPhoto {
+    background:
+      linear-gradient(0deg, #fff 0%, #ffffff55 100%),
+      linear-gradient(270deg, #fffffff0, #ffffff70),
+      url("/landing/architecture.webp") center/cover;
+  }
+  .closing {
+    background: #f3f7fc;
+  }
+  .closing::before {
+    background:
+      linear-gradient(270deg, #f3f7fcfa, #f3f7fc8a),
+      url("/landing/architecture.webp") center/cover;
+  }
+}
+@media (max-width: 380px) {
+  .header {gap:12px;}
+  .header .logo {width:130px!important;}
+  .landing h1 {font-size:38px;}
+}
