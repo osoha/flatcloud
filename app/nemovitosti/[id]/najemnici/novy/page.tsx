@@ -12,6 +12,8 @@ import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 import { currentPeriod } from "@/lib/period";
 import { MethodologyCallout } from "@/components/MethodologyCallout";
 import Link from "next/link";
+import { IllustrationPicker } from "@/components/IllustrationPicker";
+import { suggestedIllustration } from "@/lib/illustration-library";
 
 export const dynamic = "force-dynamic";
 
@@ -31,19 +33,22 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
   const contractNumberProposals = Object.fromEntries(availableUnits.map((unit) => [unit.id, identities[unit.id]?.contractNumber ?? null]));
   const ownerAccountsByUnit = Object.fromEntries(availableUnits.map((unit) => { const account = unit.ownerships[0]?.ownerBankAccount; return [unit.id, account ? { id: account.id, label: ownerBankAccountLabel(account) } : null]; }));
   const withLease = query.mode === "lease";
+  const initialAvatar = suggestedIllustration("person", crypto.randomUUID());
 
   return <Shell user={user} taskPropertyId={id}><FormPage title={withLease ? "Nový nájemník a smlouva" : "Nový profil nájemníka"} description={withLease ? "V jednom kroku založíte profil i jeho první nájemní vztah." : "Profil můžete založit bez smlouvy a následně jej přidat jako spolunájemníka, plátce, kontakt nebo ručitele."} backHref={`/nemovitosti/${id}/najemnici`}>
     <Flash ok={query.ok} error={query.error}/>
     <div className="creation-mode-switch"><Link className={!withLease ? "primary" : "secondary"} href={`/nemovitosti/${id}/najemnici/novy`}>Pouze profil</Link><Link className={withLease ? "primary" : "secondary"} href={`/nemovitosti/${id}/najemnici/novy?mode=lease${query.unitId ? `&unitId=${query.unitId}` : ""}`}>Profil + první smlouva</Link></div>
     {withLease && <MethodologyCallout slug="najemni-smlouva"/>}
-    {!withLease ? <FormCard action={`/api/properties/${id}/tenants`} cancelHref={`/nemovitosti/${id}/najemnici`} submitLabel="Vytvořit profil">
+    {!withLease ? <FormCard action={`/api/properties/${id}/tenants`} cancelHref={`/nemovitosti/${id}/najemnici`} submitLabel="Vytvořit profil" encType="multipart/form-data">
       <input type="hidden" name="creationMode" value="PROFILE"/>
       <TenantFields/>
+      <IllustrationPicker kind="person" selected={initialAvatar} allowPhoto/>
       <Textarea label="Známé účty plátce" name="payerAccounts" placeholder="Jeden účet na řádek nebo oddělený čárkou"/>
       <div className="field field-full notice"><strong>Bez automatického nájemního vztahu</strong><span>Po uložení můžete profil vybrat v nové nebo existující smlouvě a nastavit jeho role.</span></div>
-    </FormCard> : availableUnits.length ? <FormCard action={`/api/properties/${id}/tenants`} cancelHref={`/nemovitosti/${id}/najemnici`} submitLabel="Vytvořit nájemníka a smlouvu">
+    </FormCard> : availableUnits.length ? <FormCard action={`/api/properties/${id}/tenants`} cancelHref={`/nemovitosti/${id}/najemnici`} submitLabel="Vytvořit nájemníka a smlouvu" encType="multipart/form-data">
       <h2 className="form-section-title field-full">Nájemník</h2>
       <TenantFields/>
+      <IllustrationPicker kind="person" selected={initialAvatar} allowPhoto/>
       <Textarea label="Známé účty plátce" name="payerAccounts" placeholder="Jeden účet na řádek nebo oddělený čárkou"/>
       <h2 className="form-section-title field-full">Nájemní smlouva</h2>
       <LeaseCoreFields propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, `${unit.label}${unit.floor ? ` · ${unit.floor}` : ""}`])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownerAccountsByUnit={ownerAccountsByUnit} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>

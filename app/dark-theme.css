@@ -547,3 +547,31 @@ html[data-theme="dark"] .fb-modal .dismissible-details-panel{background:#192536;
 /* Selected navigation stays unmistakable in both themes. */
 html[data-theme="dark"] .flatberry-shell :is(.section-nav,.v21-section-nav,.property-subnav,.unit-tabs,.report-tabs,.registry-tabs,.admin-subnav,.quality-subnav)>a:is(.active,[aria-current="page"]){background:#2468ef;color:#fff}
 html[data-theme="dark"] .flatberry-shell .v21-nav a:is(.active,[aria-current="page"]){background:#243c60;color:#a8caff}
+
+html[data-theme="dark"] .display-mode-switch>div{background:#263850}
+html[data-theme="dark"] .flatberry-shell .display-mode-switch button{color:#c0d0e5}
+html[data-theme="dark"] .flatberry-shell .display-mode-switch button.selected{color:#d6e9ff;background:#36547d}
+html[data-theme="dark"] .basic-hero{background:linear-gradient(110deg,#203d5e,#243a50,#244736);border-color:#364b63}
+html[data-theme="dark"] .basic-portfolio :is(.basic-hero h1,.basic-section-heading h2,.basic-property-name,.basic-rent strong){color:#e2ecfc!important}
+html[data-theme="dark"] .basic-portfolio :is(.basic-hero p,.basic-summary-card small,.basic-property-body>p,.basic-attention-item small,.basic-tenant strong){color:#adbed4}
+html[data-theme="dark"] .basic-portfolio :is(.basic-summary-card,.basic-attention-item,.basic-property-card){background:#192536;border-color:#34445c;color:#e3ebf8}
+html[data-theme="dark"] .basic-property-photo>.entity-avatar{background:#263850;color:#99b3cf}
+html[data-theme="dark"] .basic-unit-state.is-occupied{background:#244c40;color:#9ae1bf}
+html[data-theme="dark"] .basic-unit-state:not(.is-occupied){background:#4b3929;color:#f4cc99}
+html[data-theme="dark"] .basic-rent{border-color:#34445c}
+html[data-theme="dark"] .basic-debt-note{background:#46322c;color:#ffd3b1}
+html[data-theme="dark"] .basic-berry-note{background:#2c5274}
+html[data-theme="dark"] .basic-berry-note strong{color:#e2ecfc}
+html[data-theme="dark"] .basic-berry-note p{color:#c4d5e8}
+
+html[data-theme="dark"] .basic-hero{background:linear-gradient(105deg,#2b3240,#203a52,#233c39)}
+html[data-theme="dark"] .basic-hero .basic-berry-note{background:#294968}
+html[data-theme="dark"] .basic-summary-card.basic-homes{background:#20344d}
+html[data-theme="dark"] .basic-summary-card.basic-payments{background:#1d3a35}
+html[data-theme="dark"] .basic-summary-card.basic-tasks{background:#3a302b}
+html[data-theme="dark"] .basic-summary-card .basic-summary-title{color:#e2ecfc}
+html[data-theme="dark"] .basic-summary-card .basic-payment-remaining{color:#b6d0c9}
+html[data-theme="dark"] .basic-overdue-chip{background:#57332c;color:#ffd2b7}
+html[data-theme="dark"] .basic-attention-item.basic-debt-alert{background:#3c2f2c;border-color:#5d3c32}
+html[data-theme="dark"] .basic-debt-alert em{color:#ffb48b}
+html[data-theme="dark"] .basic-attention-item.basic-task-alert{background:#253950;border-color:#31537a}

@@ -4,6 +4,8 @@ import { stringArray, text } from "@/lib/forms";
 import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { processAvatarUpload } from "@/lib/avatar";
+import { validIllustration } from "@/lib/illustration-library";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; tenantId: string }> }) {
   const { id, tenantId } = await params;
@@ -13,13 +15,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const allowed = await prisma.tenant.findFirst({ where: { id: tenantId, OR: [{ propertyLinks: { some: { propertyId: id } } }, { leases: { some: { unit: { propertyId: id } } } }, { leaseParties: { some: { lease: { unit: { propertyId: id } } } } }] }, include: { leases: { where: { unit: { propertyId: id } }, orderBy: { startDate: "desc" }, take: 1 }, leaseParties: { where: { lease: { unit: { propertyId: id } } }, include: { lease: { select: { unitId: true } } }, orderBy: { createdAt: "desc" }, take: 1 } } });
     if (!allowed) throw new Error("Nájemník nebyl v této nemovitosti nalezen.");
     const form = await request.formData();
+    const choice = String(form.get("avatarChoice") || "");
+    if (choice && choice !== "upload" && !validIllustration(choice, "person")) throw new Error("Vyberte dostupný avatar.");
+    const uploadedAvatar = choice === "upload" ? await processAvatarUpload(form.get("avatar")) : null;
+    if (choice === "upload" && !uploadedAvatar && !allowed.avatarMimeType) throw new Error("Vyberte fotografii avatara.");
     const typeRaw = text(form, "type") || "PERSON";
     const type = Object.values(TenantType).includes(typeRaw as TenantType) ? typeRaw as TenantType : TenantType.PERSON;
     const permanentAddress = type === "PERSON" ? text(form, "permanentAddress") : null;
     const billingAddress = type === "COMPANY" ? text(form, "billingAddress") : null;
     const billingEmail = type === "COMPANY" ? text(form, "billingEmail") : null;
     const communicationEmail = type === "COMPANY" ? text(form, "communicationEmail") : text(form, "email");
-    const tenant = await prisma.tenant.update({ where: { id: tenantId }, data: { type, name: text(form, "name", true)!, email: communicationEmail || billingEmail, phone: text(form, "phone"), address: permanentAddress || billingAddress, ico: type === "COMPANY" ? text(form, "ico") : null, permanentAddress, correspondenceAddress: text(form, "correspondenceAddress"), billingAddress, billingEmail, communicationEmail, note: text(form, "note"), payerAccounts: Array.from(new Set(stringArray(form, "payerAccounts").map(normalizePayerAccount).filter(Boolean))) } });
+    const tenant = await prisma.tenant.update({ where: { id: tenantId }, data: { type, name: text(form, "name", true)!, email: communicationEmail || billingEmail, phone: text(form, "phone"), address: permanentAddress || billingAddress, ico: type === "COMPANY" ? text(form, "ico") : null, permanentAddress, correspondenceAddress: text(form, "correspondenceAddress"), billingAddress, billingEmail, communicationEmail, note: text(form, "note"), payerAccounts: Array.from(new Set(stringArray(form, "payerAccounts").map(normalizePayerAccount).filter(Boolean))), ...(uploadedAvatar ? { ...uploadedAvatar, avatarChoice: null } : choice && choice !== "upload" ? { avatarChoice: choice, avatarData: null, avatarMimeType: null } : {}) } });
     await audit(access.user.id, "TENANT_UPDATED", "Tenant", tenant.id, { propertyId: id, name: tenant.name }, id);
     const unitId = allowed.leases[0]?.unitId || allowed.leaseParties[0]?.lease.unitId;
     return goWithMessage(request, unitId ? `/nemovitosti/${id}/jednotky/${unitId}` : `/najemnici/${tenant.id}`, "ok", "Profil nájemníka byl upraven.");

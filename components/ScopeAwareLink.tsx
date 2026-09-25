@@ -23,6 +23,7 @@ function withPropertyScope(href: string, propertyScope: string) {
       (root) =>
         href === root ||
         href.startsWith(`${root}?`) ||
+        href.startsWith(`${root}#`) ||
         href.startsWith(`${root}/`),
     )
   )

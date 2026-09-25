@@ -537,6 +537,7 @@ model User {
   title                                String?
   avatarData                           Bytes?
   avatarMimeType                       String?
+  avatarChoice                         String?
   memberships                          UserProperty[]
   unitMemberships                      UserUnit[]
   invitationsSent                      UserInvitation[]               @relation("InvitationSender")
@@ -1530,6 +1531,9 @@ model UnitOwnership {
 
 model Tenant {
   id                    String           @id @default(cuid())
+  avatarChoice          String?
+  avatarData            Bytes?
+  avatarMimeType        String?
   type                  TenantType       @default(PERSON)
   name                  String
   email                 String?
