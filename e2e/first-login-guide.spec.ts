@@ -28,7 +28,9 @@ async function login(page: Page, email: string) {
   await page.getByLabel("Heslo", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Přihlásit se", exact: true }).click();
   await expect(page).toHaveURL(/\/portfolio/);
-  if (await page.getByRole("group", { name: "Vyberte vzhled aplikace" }).isVisible()) {
+  const account = await prisma.user.findUniqueOrThrow({ where: { email }, select: { onboardingStatus: true } });
+  if (account.onboardingStatus === "pending") {
+    await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
     await page.getByRole("button", { name: /Zvolit Profi/ }).click();
     await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
   }
