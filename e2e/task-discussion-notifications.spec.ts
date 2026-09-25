@@ -187,7 +187,7 @@ test("@flatcloud respektuje členství, interní viditelnost a ztrátu přístup
   const f = await fixture();
   const owner = await prisma.owner.create({ data: { name: `FC ${randomUUID()}` } });
   const property = await prisma.property.create({ data: { name: "FC test", address: "Test 1", city: "Praha", ownerId: owner.id, memberships: { create: { userId: f.author.id, permission: "EDIT" } } } });
-  const createPerson = (name: string, flatcloudMember: boolean, permission?: "EDIT" | "VIEW") => prisma.user.create({ data: { name, email: `${randomUUID()}@flatcloud.test`, passwordHash: f.author.passwordHash, role: "OWNER_VIEWER", isTestIdentity: true, flatcloudMember, ...(permission ? { memberships: { create: { propertyId: property.id, permission } } } : {}) } });
+  const createPerson = (name: string, flatcloudMember: boolean, permission?: "EDIT" | "VIEW") => prisma.user.create({ data: { name, email: `${randomUUID()}@flatcloud.test`, passwordHash: f.author.passwordHash, role: "OWNER_VIEWER", isTestIdentity: false, flatcloudMember, ...(permission ? { memberships: { create: { propertyId: property.id, permission } } } : {}) } });
   const [fcEditor, fcReader, fcNoAccess, externalEditor] = await Promise.all([createPerson("FC editor", true, "EDIT"), createPerson("FC reader", true, "VIEW"), createPerson("FC bez přístupu", true), createPerson("Externí editor", false, "EDIT")]);
   const task = await prisma.task.create({ data: { title: "FC scope", category: "MAINTENANCE", propertyId: property.id, createdById: f.author.id } });
   await login(page, f.author.email);
