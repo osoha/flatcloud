@@ -563,3 +563,15 @@ html[data-theme="dark"] .basic-debt-note{background:#46322c;color:#ffd3b1}
 html[data-theme="dark"] .basic-berry-note{background:#2c5274}
 html[data-theme="dark"] .basic-berry-note strong{color:#e2ecfc}
 html[data-theme="dark"] .basic-berry-note p{color:#c4d5e8}
+
+html[data-theme="dark"] .basic-hero{background:linear-gradient(105deg,#2b3240,#203a52,#233c39)}
+html[data-theme="dark"] .basic-hero .basic-berry-note{background:#294968}
+html[data-theme="dark"] .basic-summary-card.basic-homes{background:#20344d}
+html[data-theme="dark"] .basic-summary-card.basic-payments{background:#1d3a35}
+html[data-theme="dark"] .basic-summary-card.basic-tasks{background:#3a302b}
+html[data-theme="dark"] .basic-summary-card .basic-summary-title{color:#e2ecfc}
+html[data-theme="dark"] .basic-summary-card .basic-payment-remaining{color:#b6d0c9}
+html[data-theme="dark"] .basic-overdue-chip{background:#57332c;color:#ffd2b7}
+html[data-theme="dark"] .basic-attention-item.basic-debt-alert{background:#3c2f2c;border-color:#5d3c32}
+html[data-theme="dark"] .basic-debt-alert em{color:#ffb48b}
+html[data-theme="dark"] .basic-attention-item.basic-task-alert{background:#253950;border-color:#31537a}
