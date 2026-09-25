@@ -18,9 +18,9 @@ test("P02 general thread isolates participants and preserves collaborator/watche
     db.user.findUniqueOrThrow({where:{email:R24_ROLE_USERS.externalOwner}}),
   ]);
   const task=await db.task.create({data:{title:`${marker} ${randomUUID()}`,description:"Společné testovací vlákno",category:"GENERAL",createdById:creator.id,members:{create:[{userId:collaborator.id,role:"COLLABORATOR"},{userId:watcher.id,role:"WATCHER"}]},entries:{create:{authorId:creator.id,kind:"COMMENT",body:`${marker} first`,visibility:"INTERNAL"}}}});
-  const collaboratorPage=await browser.newPage();await login(collaboratorPage,collaborator.email);await collaboratorPage.goto(`/ukoly/${task.id}`);await expect(collaboratorPage.getByText(`${marker} first`,{exact:true})).toBeVisible();await expect(collaboratorPage.getByRole("button",{name:"Přidat do vlákna"})).toBeVisible();
-  await collaboratorPage.getByLabel("Nový záznam").fill(`${marker} collaborator`);await collaboratorPage.getByRole("button",{name:"Přidat do vlákna"}).click();await expect(collaboratorPage.getByText(`${marker} collaborator`,{exact:true})).toBeVisible();
-  const watcherPage=await browser.newPage();await login(watcherPage,watcher.email);await watcherPage.goto(`/ukoly/${task.id}`);await expect(watcherPage.getByText(`${marker} collaborator`,{exact:true})).toBeVisible();await expect(watcherPage.getByRole("button",{name:"Přidat do vlákna"})).toHaveCount(0);
+  const collaboratorPage=await browser.newPage();await login(collaboratorPage,collaborator.email);await collaboratorPage.goto(`/ukoly/${task.id}`);await expect(collaboratorPage.getByText(`${marker} first`,{exact:true})).toBeVisible();await expect(collaboratorPage.getByRole("button",{name:"Odeslat"})).toBeVisible();
+  await collaboratorPage.getByLabel("Nový komentář").fill(`${marker} collaborator`);await collaboratorPage.getByRole("button",{name:"Odeslat"}).click();await expect(collaboratorPage.getByText(`${marker} collaborator`,{exact:true})).toBeVisible();
+  const watcherPage=await browser.newPage();await login(watcherPage,watcher.email);await watcherPage.goto(`/ukoly/${task.id}`);await expect(watcherPage.getByText(`${marker} collaborator`,{exact:true})).toBeVisible();await expect(watcherPage.getByRole("button",{name:"Odeslat"})).toHaveCount(0);
   const outsiderPage=await browser.newPage();await login(outsiderPage,outsider.email);const denied=await outsiderPage.goto(`/ukoly/${task.id}`);expect(denied?.status()).toBe(404);
 });
 

@@ -1,6 +1,6 @@
 import { after } from "next/server";
 import { discussionParticipants } from "@/lib/task-discussion";
-import { parseMentions } from "@/lib/task-discussion-shared";
+import { parseMentions, withGroupMentions, mentionRecipientIds, taskComposerMode } from "@/lib/task-discussion-shared";
 import { enqueueEntryNotifications, processTaskNotifications } from "@/lib/task-notifications";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -13,7 +13,7 @@ import { randomUUID } from "node:crypto";
 import { serializableTransaction } from "@/lib/serializable";
 import { cleanupTaskAttachments, createTaskAttachmentsInTransaction, storeTaskAttachments } from "@/lib/task-attachments";
 
-const kinds = new Set(["COMMENT", "CALL", "EMAIL", "PROMISE", "STATUS", "SYSTEM"]);
+const kinds = new Set(["COMMENT", "CALL", "EMAIL", "PROMISE"]);
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const preparedFiles=hasFiles?await prepareDocumentFiles(form):[];
     const body = String(form.get("body") || "");
     if (!body.trim() || body.length > 50000) throw new Error("Vyplňte text záznamu (nejvýše 50 000 znaků).");
-    const mentions = parseMentions(JSON.parse(String(form.get("mentions") || "[]")), body);
+    const mentions = withGroupMentions(body, parseMentions(JSON.parse(String(form.get("mentions") || "[]")), body));
     const recipientIds = [...new Set(form.getAll("notificationRecipientIds").map(String))];
     if (recipientIds.length > 100) throw new Error("Příliš mnoho příjemců.");
     const kindRaw = text(form, "kind") || "COMMENT";
@@ -50,11 +50,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const storedBatch=await storePreparedDocumentBatch(preparedBatch);
     const taskAttachmentBatch=!task.propertyId&&preparedFiles.length?await storeTaskAttachments(user,preparedFiles):null;
     try{await serializableTransaction(async tx=>{
-    const people = (await discussionParticipants(id, tx)).filter(person => visibility === "OWNER_VISIBLE" || person.internal);
-    if (mentions.some(m => !people.some(person => person.id === m.userId && person.name === m.label))) throw new Error("Jméno označené osoby se změnilo. Vyberte ji znovu.");
-    if ([...mentions.map(m => m.userId), ...recipientIds].some(personId => !people.some(person => person.id === personId))) throw new Error("Některý označený příjemce nemá přístup k tomuto záznamu. Obnovte stránku a vyberte ho znovu.");
-    const freshTask = await tx.task.findUnique({ where: { id }, include: { lease: { select: { unitId: true } } } });
+    const people = (await discussionParticipants(id, tx, mentions.some(m => m.userId === "group:flatcloud"))).filter(person => visibility === "OWNER_VISIBLE" || person.internal);
+    if (mentions.some(m => !m.userId.startsWith("group:") && !people.some(person => person.participant !== false && person.id === m.userId && person.name === m.label))) throw new Error("Jméno označené osoby se změnilo. Vyberte ji znovu.");
+    if (recipientIds.some(personId => !people.some(person => person.participant !== false && person.id === personId))) throw new Error("Některý označený příjemce nemá přístup k tomuto záznamu. Obnovte stránku a vyberte ho znovu.");
+    const freshTask = await tx.task.findUnique({ where: { id }, include: { lease: { select: { unitId: true } }, conditionPlanExecution: { select: { id: true } } } });
     if (!freshTask || !await canEditTask(user, freshTask, tx)) throw new Error("Oprávnění k zápisu se změnilo.");
+    const mode = taskComposerMode(freshTask);
+    if (kindRaw === "PROMISE" && !mode.allowPromise) throw new Error("Příslib nelze přidat: vyžaduje otevřené vymáhání navázané na jednotku, nájemníka nebo smlouvu.");
+    if (kindRaw !== "COMMENT" && !mode.showKinds) throw new Error("Tento typ záznamu není pro daný úkol dostupný.");
+    if (kindRaw === "PROMISE" && !promiseDate) throw new Error("Vyplňte datum příslibu úhrady.");
     if (kindRaw === "PROMISE") {
       const claim = await tx.task.updateMany({ where: { id, status: { notIn: ["DONE", "CANCELLED"] }, conditionPlanExecution: { is: null } }, data: { status: "WAITING", closedAt: null, ...(promiseDate && visibility === "OWNER_VISIBLE" ? { dueAt: promiseDate } : {}) } });
       if (claim.count !== 1) throw new Error("Příslib nelze přidat k uzavřenému případu ani řízené CAPEX realizaci. Nejprve znovu otevřete případ příslušným postupem.");
@@ -70,7 +74,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         promisedAmountCents: kindRaw === "PROMISE" ? promiseAmountCents : null,
       },
     });
-    await enqueueEntryNotifications(tx, { taskId: id, entryId, authorId: user.id, visibility, mentionedIds: mentions.map(m => m.userId), recipientIds });
+    await enqueueEntryNotifications(tx, { taskId: id, entryId, authorId: user.id, visibility, mentionedIds: mentionRecipientIds(mentions, people), recipientIds });
     await tx.task.update({ where: { id }, data: { updatedAt: new Date() } });
     if (kindRaw === "PROMISE") {
       if (task.leaseId && visibility === "OWNER_VISIBLE") await tx.lease.update({ where: { id: task.leaseId }, data: { promisedPaymentDate: promiseDate, promisedAmountCents: promiseAmountCents && promiseAmountCents > 0 ? promiseAmountCents : null, collectionNote: body } });

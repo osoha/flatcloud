@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "./db";
 import { discussionParticipants, visibleTaskEntry, type DiscussionClient } from "./task-discussion";
-import { notificationDefaults } from "./task-discussion-shared";
+import { notificationDefaults, parseMentions } from "./task-discussion-shared";
 import { taskViewWhere } from "./task-access";
 import { sendMail, escapeHtml, type MailInput } from "./email";
 import { taskStatuses } from "./labels";
@@ -19,9 +19,9 @@ async function enqueue(client: DiscussionClient, taskId: string, userId: string,
 }
 
 export async function enqueueEntryNotifications(client: DiscussionClient, input: { taskId: string; entryId: string; authorId: string; visibility: string; mentionedIds: string[]; recipientIds: string[] }) {
-  const people = (await discussionParticipants(input.taskId, client)).filter(p => p.id !== input.authorId && (input.visibility === "OWNER_VISIBLE" || p.internal));
+  const people = (await discussionParticipants(input.taskId, client, true)).filter(p => p.id !== input.authorId && (input.visibility === "OWNER_VISIBLE" || p.internal));
   const explicit = new Set([...input.mentionedIds, ...input.recipientIds]);
-  for (const person of people) await enqueue(client, input.taskId, person.id, explicit.has(person.id) ? "MENTION" : "COMMENT", `entry:${input.entryId}`, input.entryId);
+  for (const person of people.filter(p => p.participant !== false || explicit.has(p.id))) await enqueue(client, input.taskId, person.id, explicit.has(person.id) ? "MENTION" : "COMMENT", `entry:${input.entryId}`, input.entryId);
 }
 
 /** Observe assignment/status changes, including tasks created by automatic events. */
@@ -66,9 +66,13 @@ export async function processTaskNotifications(options: { taskId?: string; now?:
     const finish = (status: string, detail: string) => prisma.taskNotification.update({ where: { id: row.id }, data: { status, detail, ...(status === "SENT" ? { sentAt: new Date() } : {}) } });
     try {
       const user = await prisma.user.findUnique({ where: { id: row.userId }, include: { notificationPreferences: true } });
-      const people = await discussionParticipants(row.taskId);
+      const people = await discussionParticipants(row.taskId, prisma, true);
       if (!user?.active || !people.some(p => p.id === user.id) || !notificationAllowed(row.kind, user.notificationPreferences)) { await finish("SKIPPED", "Upozornění vypnuto nebo příjemce již nemá přístup."); skipped++; continue; }
       const entry = row.entryId ? await visibleTaskEntry(user, row.taskId, row.entryId) : null;
+      const person = people.find(p => p.id === user.id);
+      if (person?.participant === false && (!person.flatcloudMember || row.kind !== "MENTION" || !entry || !parseMentions(entry.mentions || [], entry.body).some(m => m.userId === "group:flatcloud"))) {
+        await finish("SKIPPED", "Příjemce již není členem oslovené skupiny."); skipped++; continue;
+      }
       const task = await prisma.task.findFirst({ where: { AND: [{ id: row.taskId }, taskViewWhere(user)] } });
       if (!task || (row.entryId && !entry)) { await finish("SKIPPED", "Záznam již není přístupný."); skipped++; continue; }
       if ((row.kind === "ASSIGNMENT" || row.kind === "DUE_SOON" || row.kind === "OVERDUE") && task.assigneeId !== user.id || (["DUE_SOON", "OVERDUE"].includes(row.kind) && (["DONE", "CANCELLED"].includes(task.status) || !task.dueAt || !row.dedupeKey.includes(task.dueAt.toISOString())))) { await finish("SKIPPED", "Úkol nebo jeho termín se změnil."); skipped++; continue; }

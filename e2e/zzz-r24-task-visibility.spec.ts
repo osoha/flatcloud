@@ -105,13 +105,13 @@ test("R24 visibility composer defaults internal, explicit sharing works, invalid
   await login(page, actor.email);
   await page.goto(`/ukoly/${f.task.id}`);
   await expect(page.getByLabel("Viditelnost záznamu", { exact: true })).toHaveValue("INTERNAL");
-  await page.getByLabel("Nový záznam", { exact: true }).fill(`${marker} private UI`);
-  await page.getByRole("button", { name: "Přidat do vlákna" }).click();
+  await page.getByLabel("Nový komentář", { exact: true }).fill(`${marker} private UI`);
+  await page.getByRole("button", { name: "Odeslat" }).click();
   await expect(page.getByText("Záznam byl přidán do vlákna.", { exact: true })).toBeVisible();
   expect((await db.taskEntry.findFirstOrThrow({ where: { taskId: f.task.id, body: `${marker} private UI` } })).visibility).toBe("INTERNAL");
   await page.getByLabel("Viditelnost záznamu", { exact: true }).selectOption("OWNER_VISIBLE");
-  await page.getByLabel("Nový záznam", { exact: true }).fill(`${marker} shared UI`);
-  await page.getByRole("button", { name: "Přidat do vlákna" }).click();
+  await page.getByLabel("Nový komentář", { exact: true }).fill(`${marker} shared UI`);
+  await page.getByRole("button", { name: "Odeslat" }).click();
   await expect(page.getByText(`${marker} shared UI`, { exact: true })).toBeVisible();
   expect((await db.taskEntry.findFirstOrThrow({ where: { taskId: f.task.id, body: `${marker} shared UI` } })).visibility).toBe("OWNER_VISIBLE");
   expect((await post(page, f.task.id, { body: "invalid", visibility: "PUBLIC" })).get("error")).toContain("platnou viditelnost");
