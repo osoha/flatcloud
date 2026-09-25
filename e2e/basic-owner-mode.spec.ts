@@ -12,7 +12,7 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
     const property = await db.property.create({ data: { name: `${tag} house`, address: "Testovací 2", city: "Praha", ownerId: owner.id } });
     const visible = await db.unit.create({ data: { propertyId: property.id, label: `${tag} visible` } });
     const hidden = await db.unit.create({ data: { propertyId: property.id, label: `${tag} hidden` } });
-    const user = await db.user.create({ data: { email: `basic-${crypto.randomUUID()}@flatcloud.test`, name: `${tag} user`, role: "OWNER_VIEWER", active: true, allProperties: false, passwordHash: await bcrypt.hash(password, 8), isTestIdentity: true } });
+    const user = await db.user.create({ data: { email: `basic-${crypto.randomUUID()}@flatcloud.test`, name: `${tag} user`, role: "OWNER_VIEWER", active: true, allProperties: false, passwordHash: await bcrypt.hash(password, 8), isTestIdentity: false } });
     await db.userUnit.create({ data: { userId: user.id, unitId: visible.id, permission: "VIEW" } });
 
     await page.goto("/login");
