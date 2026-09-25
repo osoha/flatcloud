@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertCircle, ArrowRight, Bell, CheckCircle2, House, ListChecks, WalletCards } from "lucide-react";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { TenantAvatar } from "@/components/TenantAvatar";
+import { defaultPropertyIllustration } from "@/lib/illustration-library";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
 import { currentLeaseForUnit } from "@/lib/lease-lifecycle-core";
 import { money } from "@/lib/format";
@@ -51,7 +52,7 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
     </section>
 
     <section className="basic-properties" id="nemovitosti" data-guide="properties" aria-labelledby="basic-properties-heading"><div className="basic-section-heading"><div><span className="basic-eyebrow">Moje místo</span><h2 id="basic-properties-heading">Nemovitosti</h2></div></div>
-      <div className="basic-property-grid">{activeRows.flatMap(({ property }) => property.units.length ? property.units.map((unit) => {
+      <div className="basic-property-grid">{activeRows.flatMap(({ property }) => property.units.length ? property.units.map((unit, unitIndex) => {
         const lease = currentLeaseForUnit(unit.leases);
         const charges = unit.leases.flatMap((item) => item.charges);
         const due = charges.filter((charge) => charge.active && charge.period === period);
@@ -59,7 +60,7 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
         const unitPaid = due.reduce((sum, charge) => sum + paidCents(charge), 0);
         const unitDebt = charges.reduce((sum, charge) => sum + overdueDebtCents(charge), 0);
         const href = `/nemovitosti/${property.id}/jednotky/${unit.id}`;
-        return <article className="basic-property-card" key={unit.id}><Link className="basic-property-photo" href={href} aria-label={`Otevřít ${unit.label}`}><EntityAvatar photoId={photos.units[unit.id]} kind="unit" identity={unit.id} basic size="lg"/></Link>
+        return <article className="basic-property-card" key={unit.id}><Link className="basic-property-photo" href={href} aria-label={`Otevřít ${unit.label}`}><EntityAvatar photoId={photos.units[unit.id] || defaultPropertyIllustration("unit", property.id, unitIndex)} kind="unit" basic size="lg"/></Link>
           <div className="basic-property-body"><Link href={href} className="basic-property-name">{unit.label} <span className={`basic-unit-state${lease ? " is-occupied" : ""}`}>{lease ? "Pronajato" : "Volná"}</span></Link><p>{property.name} · {property.city}</p>
             <div className="basic-tenant">{lease ? <TenantAvatar tenant={lease.tenant} className="basic-person-avatar"/> : <span className="basic-person-avatar" aria-hidden="true">–</span>}<strong>{lease?.tenant.name || "Zatím bez nájemníka"}</strong></div>
             <div className="basic-rent"><span>{unitExpected ? <><strong>{money(unitExpected)}</strong> / {month}</> : "Bez předpisu v tomto měsíci"}</span>{unitDebt > 0 ? <b className="basic-payment-late">Po splatnosti {money(unitDebt)}</b> : unitExpected > 0 ? <b className={unitPaid >= unitExpected ? "basic-payment-ok" : "basic-payment-pending"}>{unitPaid >= unitExpected ? "Uhrazeno" : `Zbývá ${money(Math.max(0, unitExpected - unitPaid))}`}</b> : null}</div>
