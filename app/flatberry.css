@@ -285,9 +285,7 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 .flatberry-shell .entry-reactions .reaction-picker-toggle svg{width:22px;height:22px;flex-shrink:0}
 .flatberry-shell .entry-reactions .reaction-count{order:-1}
 .flatberry-shell .task-case-page .discussion-entry:is(.kind-system,.kind-status){grid-template-columns:38px minmax(0,1fr);padding:8px 0;color:var(--muted)}
-.flatberry-shell .task-case-page .discussion-entry:is(.kind-system,.kind-status) .discussion-avatar{display:flex;justify-content:center;padding-top:10px}
-.flatberry-shell .task-case-page .discussion-entry:is(.kind-system,.kind-status) .discussion-avatar>*{display:none}
-.flatberry-shell .task-case-page .discussion-entry:is(.kind-system,.kind-status) .discussion-avatar:after{content:"";width:9px;height:9px;background:var(--blue);border-radius:50%;box-shadow:0 0 0 3px var(--blue-soft)}
+.flatberry-shell .task-case-page .discussion-entry:is(.kind-system,.kind-status) .discussion-avatar{display:block;padding-top:5px}
 .flatberry-shell .task-case-page .discussion-entry:is(.kind-system,.kind-status) .discussion-content{border:0;background:transparent;padding:5px 0}
 .flatberry-shell .task-case-page .discussion-entry:is(.kind-system,.kind-status) .discussion-content>p{font-size:13px;color:var(--muted);margin-top:4px}
 .flatberry-shell .task-comments-only .discussion-entry:is(.kind-system,.kind-status){display:none}
