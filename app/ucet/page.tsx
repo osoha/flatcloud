@@ -6,6 +6,8 @@ import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { UserAvatar } from "@/components/UserAvatar";
 import { requireUser } from "@/lib/auth";
+import { IllustrationPicker } from "@/components/IllustrationPicker";
+import { suggestedIllustration } from "@/lib/illustration-library";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +56,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           <form action="/api/account/avatar" method="post" encType="multipart/form-data" className="account-avatar-form">
             <UserAvatar user={user} size="lg"/>
             <div className="account-avatar-fields">
+              <IllustrationPicker kind="person" selected={user.avatarMimeType ? "upload" : user.avatarChoice || suggestedIllustration("person", user.id)}/>
               <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/>
               <small>PNG, JPG nebo WebP, maximálně 2 MB.</small>
               {user.avatarMimeType && <label className="checkbox-field"><input type="checkbox" name="removeAvatar"/><span>Odstranit současný avatar</span></label>}

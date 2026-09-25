@@ -1,11 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
-export function EntityAvatarChoice({ selected, photos }: { selected: string; photos: { id: string; title: string }[] }) {
-  const initial = selected === "upload" ? "upload" : photos.some(p => p.id === selected) ? "photo" : "icon";
+import { illustration, illustrationCount, illustrationStyle, validIllustration } from "@/lib/illustration-library";
+export function EntityAvatarChoice({ selected, photos, kind }: { selected: string; photos: { id: string; title: string }[]; kind: "house" | "unit" }) {
+  const initial = validIllustration(selected, kind) ? "library" : selected === "upload" ? "upload" : photos.some(p => p.id === selected) ? "photo" : "icon";
   const [mode, setMode] = useState(initial), [file, setFile] = useState<File | null>(null), [preview, setPreview] = useState("");
+  const [choice, setChoice] = useState(validIllustration(selected, kind) ? selected : illustration(kind, 0));
   useEffect(() => { if (!file) { setPreview(""); return; } const url = URL.createObjectURL(file); setPreview(url); return () => URL.revokeObjectURL(url); }, [file]);
-  return <div className="avatar-choice"><label className="field"><span>Avatar objektu / jednotky</span><select value={mode} onChange={event => { setMode(event.target.value); setFile(null); }}><option value="icon">Obecná ikona</option><option value="photo" disabled={!photos.length}>Vybrat z nahraných fotografií</option><option value="upload">Nahrát nový avatar</option></select></label>
-    {mode === "photo" ? <label className="field"><span>Titulní fotografie</span><select name="photoId" defaultValue={selected}>{photos.map(photo => <option key={photo.id} value={photo.id}>{photo.title}</option>)}</select></label> : <input type="hidden" name="photoId" value={mode}/>}
+  return <div className="avatar-choice"><label className="field"><span>Avatar objektu / jednotky</span><select value={mode} onChange={event => { setMode(event.target.value); setFile(null); }}><option value="library">Knihovna ilustrací</option><option value="icon">Obecná ikona</option><option value="photo" disabled={!photos.length}>Vybrat z nahraných fotografií</option><option value="upload">Nahrát nový avatar</option></select></label>
+    {mode === "library" && <fieldset className="illustration-picker"><legend>Vyberte {kind === "house" ? "dům" : "interiér"}</legend><div className="illustration-picker-grid">{Array.from({length:illustrationCount[kind]},(_,index)=>{const value=illustration(kind,index);return <label className={`illustration-option${choice===value?" selected":""}`} key={value} title={`Ilustrace ${index+1}`}><input type="radio" name="photoId" value={value} checked={choice===value} onChange={()=>setChoice(value)}/><span className="illustration-tile" style={illustrationStyle(value)}/><span className="sr-only">Ilustrace {index+1}</span></label>})}</div></fieldset>}
+    {mode === "photo" ? <label className="field"><span>Titulní fotografie</span><select name="photoId" defaultValue={selected}>{photos.map(photo => <option key={photo.id} value={photo.id}>{photo.title}</option>)}</select></label> : mode !== "library" && <input type="hidden" name="photoId" value={mode}/>}
     {mode === "upload" && <label className="field"><span>Fotografie avatara</span><input type="file" name="avatar" accept="image/png,image/jpeg,image/webp" onChange={event => setFile(event.target.files?.[0] || null)}/><small>JPG, PNG nebo WebP, nejvýše 2 MB. Fotografii automaticky otočíme a upravíme do čtverce stejně jako uživatelský avatar.{selected === "upload" ? " Bez nového souboru zůstane současný avatar." : ""}</small>{preview && <img className="avatar-choice-preview" src={preview} alt="Náhled vybraného avatara"/>}</label>}
   </div>;
 }

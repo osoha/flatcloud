@@ -34,6 +34,7 @@ type ShellUser = {
   allProperties?: boolean;
   flatcloudMember?: boolean;
   avatarMimeType?: string | null;
+  avatarChoice?: string | null;
   updatedAt?: Date | string;
 };
 
