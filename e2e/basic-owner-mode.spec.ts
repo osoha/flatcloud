@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-test("Basic switch persists and unit-only access stays scoped", async ({ page, context }) => {
+test("Basic switch persists and unit-only access stays scoped", async ({ page, context }, testInfo) => {
   if (!process.env.DATABASE_URL || !["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error("Isolated CI database required");
   const db = new PrismaClient();
   const password = "Basic-Owner-E2E-2026";
@@ -25,11 +25,13 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
     await expect(page.locator(".basic-property-card")).toHaveCount(1);
     await expect(page.locator(".basic-property-card")).toContainText(visible.label);
     await expect(page.locator("main")).not.toContainText(hidden.label);
+    await page.screenshot({ path: testInfo.outputPath("basic-owner-desktop.png"), fullPage: true });
     await page.reload();
     await expect(page.locator(".basic-portfolio")).toBeVisible();
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.locator(".topbar .display-mode-switch button[value=pro]")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath("basic-owner-mobile.png"), fullPage: true });
     await page.locator(".topbar .display-mode-switch button[value=pro]").click();
     await expect(page.locator(".v21-portfolio")).toBeVisible();
     await context.clearCookies();
