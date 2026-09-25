@@ -85,15 +85,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     <aside className="sidebar">
       <SidebarCollapseToggle/>
       <nav className="nav v21-nav">
-        {mode === "basic" ? <>
-          <div className="nav-label">Moje FlatBerry</div>
-          <Nav href="/portfolio" icon={<LayoutDashboard size={20}/>} label="Přehled"/>
-          <Nav href="/portfolio#nemovitosti" icon={<House size={20}/>} label="Nemovitosti"/>
-          <Nav href="/reporty?view=collections" icon={<WalletCards size={20}/>} label="Platby"/>
-          <Nav href="/ukoly" icon={<ListChecks size={20}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
-          <Nav href="/dokumenty" icon={<FileText size={20}/>} label="Dokumenty"/>
-          <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={20}/>} label="Průvodce"/>
-        </> : <>
+        {mode === "pro" ? <>
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
@@ -135,6 +127,14 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           <Nav href="/nastaveni/cenovy-benchmark" icon={<BarChart3 size={17}/>} label="Cenový benchmark"/>
           <Nav href="/dovednosti" icon={<Compass size={17}/>} label="Dovednosti"/>
         </CollapsibleNavGroup>}
+        </> : <>
+          <div className="nav-label">Moje FlatBerry</div>
+          <Nav href="/portfolio" icon={<LayoutDashboard size={20}/>} label="Přehled"/>
+          <Nav href="/portfolio#nemovitosti" icon={<House size={20}/>} label="Nemovitosti"/>
+          <Nav href="/reporty?view=collections" icon={<WalletCards size={20}/>} label="Platby"/>
+          <Nav href="/ukoly" icon={<ListChecks size={20}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
+          <Nav href="/dokumenty" icon={<FileText size={20}/>} label="Dokumenty"/>
+          <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={20}/>} label="Průvodce"/>
         </>}
       </nav>
       <div className="sidebar-footer">
