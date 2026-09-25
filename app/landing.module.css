@@ -1359,7 +1359,7 @@
   box-shadow: 0 18px 55px #1027470c;
 }
 .gallery {
-  background: radial-gradient(ellipse at center, #f0f5fb 50%, #fcfcfd 100%);
+  background: radial-gradient(ellipse closest-side at center, #f0f5fb 50%, #fcfcfd 100%);
 }
 .closing {
   background:
