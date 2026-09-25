@@ -18,6 +18,12 @@ export function suggestedIllustration(kind: IllustrationKind, seed: string) {
   return illustration(kind, (hash >>> 0) % illustrationCount[kind]);
 }
 
+// Keep each property's first 12 units distinct while preserving a stable choice across visits.
+export function defaultPropertyIllustration(kind: "house" | "unit", propertyId: string, unitIndex = 0) {
+  const first = Number(suggestedIllustration(kind, propertyId).split(":")[2]) - 1;
+  return illustration(kind, (first + unitIndex) % illustrationCount[kind]);
+}
+
 export function illustrationStyle(value: string): CSSProperties {
   const [source, kind, raw] = value.split(":");
   const number = Number(raw);

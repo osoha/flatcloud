@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
-import { illustration, illustrationCount, illustrationStyle, suggestedIllustration, validIllustration } from "../lib/illustration-library";
+import { defaultPropertyIllustration, illustration, illustrationCount, illustrationStyle, suggestedIllustration, validIllustration } from "../lib/illustration-library";
 
 for (const kind of ["person", "house", "unit"] as const) {
   const options = Array.from({ length: illustrationCount[kind] }, (_, index) => illustration(kind, index));
@@ -25,4 +25,6 @@ for (const asset of ["people", "places"]) {
 }
 assert.equal(illustrationStyle("library:unit:1").backgroundPosition, "0% 66.66666666666667%");
 assert.equal(illustrationStyle("library:unit:12").backgroundPosition, "100% 100%");
+assert.equal(new Set(Array.from({length:12}, (_, index) => defaultPropertyIllustration("unit", "one-property", index))).size, 12);
+assert.equal(defaultPropertyIllustration("unit", "one-property", 3), defaultPropertyIllustration("unit", "one-property", 3));
 verifyAssets().then(() => console.log("Illustration library: 24 people, 12 houses, 12 interiors, stable choices, valid assets."));
