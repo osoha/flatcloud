@@ -6,6 +6,7 @@ export function displayModeCookie(userId: string) {
   return `flatberry-mode-${userId}`;
 }
 
-export async function displayMode(userId: string): Promise<DisplayMode> {
-  return (await cookies()).get(displayModeCookie(userId))?.value === "basic" ? "basic" : "pro";
+export async function displayMode(userId: string, fallback: DisplayMode = "pro"): Promise<DisplayMode> {
+  const value = (await cookies()).get(displayModeCookie(userId))?.value;
+  return value === "basic" || value === "pro" ? value : fallback;
 }

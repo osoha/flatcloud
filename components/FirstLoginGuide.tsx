@@ -8,6 +8,24 @@ import { GUIDE_VERSION, guideSteps, type GuideAction, type GuideCapabilities, ty
 
 type Payload = { state: GuideState; capabilities: GuideCapabilities; mode: "basic" | "pro"; modeChosen: boolean };
 type Box = { x: number; y: number; width: number; height: number };
+function coverOutside(boxes: Box[], width: number, height: number): Box[] {
+  const xs = [...new Set([0, width, ...boxes.flatMap(b => [b.x, b.x + b.width])])].sort((a, b) => a - b);
+  const ys = [...new Set([0, height, ...boxes.flatMap(b => [b.y, b.y + b.height])])].sort((a, b) => a - b);
+  return xs.slice(0, -1).flatMap((x, i) => ys.slice(0, -1).flatMap((y, j) => {
+    const w = xs[i + 1] - x, h = ys[j + 1] - y, cx = x + w / 2, cy = y + h / 2;
+    return w > 0 && h > 0 && !boxes.some(b => cx >= b.x && cx <= b.x + b.width && cy >= b.y && cy <= b.y + b.height) ? [{ x, y, width: w, height: h }] : [];
+  }));
+}
+function arrowTo(box: Box, panel: Box): string {
+  const right = box.x + box.width, bottom = box.y + box.height;
+  if (right + 16 < panel.x) {
+    const sy = panel.y + Math.min(90, panel.height / 3), ey = box.y + box.height / 2;
+    return `M ${panel.x - 10} ${sy} Q ${(right + panel.x) / 2} ${Math.min(sy, ey) - 55} ${right + 10} ${ey}`;
+  }
+  const sx = Math.max(panel.x + 35, Math.min(panel.x + panel.width - 35, box.x + box.width * .68));
+  const ex = Math.max(box.x + 18, Math.min(right - 18, sx));
+  return `M ${sx} ${panel.y - 10} Q ${(sx + ex) / 2 + 45} ${Math.min(panel.y, bottom) - 65} ${ex} ${bottom < panel.y ? bottom + 10 : box.y + 18}`;
+}
 const focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]';
 
 export function FirstLoginGuide({ userId }: { userId: string }) {
@@ -20,6 +38,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
   const [hidden, setHidden] = useState(false);
   const [startRequested, setStartRequested] = useState(false);
   const [box, setBox] = useState<Box | null>(null);
+  const [extraBox, setExtraBox] = useState<Box | null>(null);
   const [missing, setMissing] = useState(false);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [panelBox, setPanelBox] = useState<Box | null>(null);
@@ -93,6 +112,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
   // all use the same geometry. Missing targets never leave a stale spotlight behind.
   useEffect(() => {
     setBox(null);
+    setExtraBox(null);
     setMissing(false);
     if (!open || !step) return;
     let frame = 0;
@@ -105,7 +125,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
         const width = window.innerWidth;
         const height = window.innerHeight;
         setViewport({ width, height });
-        const candidates = [document.querySelector<HTMLElement>(step.target), document.querySelector<HTMLElement>(step.fallback)];
+        const candidates = [document.querySelector<HTMLElement>(step.target), document.querySelector<HTMLElement>(step.fallback), document.querySelector<HTMLElement>('[data-guide="portfolio"]')];
         const element = candidates.find(el => el && el.getClientRects().length && getComputedStyle(el).visibility !== "hidden") || null;
         target.current = element;
         const topbar = document.querySelector<HTMLElement>(".topbar");
@@ -121,14 +141,26 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
         }
         if (element) {
           const r = element.getBoundingClientRect();
-          const x = Math.max(8, r.left - 6), y = Math.max(8, headerBottom + (belowTopbar ? 8 : 0), r.top - 6);
-          const right = Math.min(width - 8, r.right + 6);
-          // For large sections spotlight the heading, leaving space for the explanation.
-          const bottom = Math.min(height - 8, r.top + Math.min(r.height, width < 700 ? 76 : 150) + 6);
-          setBox(right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null);
+          const basic = payloadRef.current?.mode === "basic";
+          const firstRow = basic && step.id === "properties" ? [...element.querySelectorAll<HTMLElement>(".basic-property-card")].filter(card => card.getClientRects().length) : [];
+          const rowTop = firstRow[0]?.getBoundingClientRect().top;
+          const row = firstRow.filter(card => Math.abs(card.getBoundingClientRect().top - rowTop!) < 12).map(card => card.getBoundingClientRect());
+          const heading = basic && step.id === "properties" && !row.length ? element.querySelector<HTMLElement>(".basic-section-heading")?.getBoundingClientRect() : null;
+          const focus = row.length ? { left: Math.min(...row.map(card => card.left)), top: Math.min(...row.map(card => card.top)), right: Math.max(...row.map(card => card.right)), bottom: Math.max(...row.map(card => card.bottom)) } : heading || r;
+          const full = basic && ["properties", "finance", "tasks"].includes(step.id) || !basic && step.id === "notifications";
+          const toBox = (rect: {left: number; top: number; right: number; bottom: number}, entire: boolean, inTopbar = false) => {
+            const x = Math.max(8, rect.left - 6), y = Math.max(8, inTopbar ? 0 : headerBottom + (belowTopbar ? 8 : 0), rect.top - 6);
+            const right = Math.min(width - 8, rect.right + 6);
+            const bottom = Math.min(height - 8, (entire ? rect.bottom : rect.top + Math.min(rect.bottom - rect.top, width < 700 ? 76 : 150)) + 6);
+            return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
+          };
+          setBox(toBox(focus, full));
+          const addProperty = !basic && step.id === "properties" && step.target !== '[data-guide="add-property"]' ? document.querySelector<HTMLElement>('[data-guide="add-property"]') : null;
+          setExtraBox(addProperty?.getClientRects().length ? toBox(addProperty.getBoundingClientRect(), true, true) : null);
           setMissing(false);
         } else {
           setBox(null);
+          setExtraBox(null);
           if (Date.now() - started > 1800) setMissing(true);
         }
         if (panel.current) {
@@ -175,8 +207,7 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
     setHidden(true);
     try { sessionStorage.setItem(`flatberry:guide-hidden:${userId}`, "1"); } catch { /* optional */ }
   };
-  const arrow = box && panelBox && box.y + box.height + 25 < panelBox.y
-    ? `M ${panelBox.x + panelBox.width * .7} ${panelBox.y - 14} Q ${Math.min(viewport.width - 20, box.x + box.width + 50)} ${box.y + box.height + 60} ${box.x + box.width * .75} ${box.y + box.height + 12}` : null;
+  const arrow = box && panelBox && !choosingMode ? arrowTo(extraBox || box, panelBox) : null;
   return <>
     {showBanner && <aside className="guide-resume" aria-label="Průvodce aplikací">
       <Compass size={20} aria-hidden="true"/><div><strong>Pan správce je připraven</strong><span>{error || "Prohlídku můžete dokončit, až se vám to bude hodit."}</span></div>
@@ -188,12 +219,12 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
       <div className="guide-mode-panel" ref={panel} role="dialog" aria-labelledby="guide-title" aria-describedby="guide-copy" aria-busy={busy}>
         <button type="button" className="guide-close" aria-label="Odložit průvodce" disabled={busy} onClick={() => void act("pause")}><X size={19}/></button>
         <img className="guide-mode-berry" src="/guide/choose-mode.webp" alt="" width="280" height="330"/>
-        <div className="guide-mode-intro"><span className="guide-eyebrow">Berry vám pomůže začít</span><h2 ref={title} tabIndex={-1} id="guide-title">Vítejte ve FlatBerry</h2><p id="guide-copy">Vyberte si vzhled, který vám vyhovuje. Kdykoli jej můžete přepnout.</p></div>
+        <div className="guide-mode-intro"><span className="guide-eyebrow">Berry vám pomůže začít</span><h2 ref={title} tabIndex={-1} id="guide-title">Vítejte ve FlatBerry</h2><p id="guide-copy">Jsem Berry, pan správce. Doporučuji začít v Basic; pro podrobnou správu zvolte Profi. Vzhled kdykoli přepnete.</p></div>
         <div className="guide-mode-cards" role="group" aria-label="Vyberte vzhled aplikace">
-          <form action="/api/display-mode" method="post"><input type="hidden" name="returnTo" value="/portfolio"/><button name="mode" value="basic" className={`guide-mode-card basic${payload.modeChosen && payload.mode === "basic" ? " selected" : ""}`} aria-pressed={payload.modeChosen && payload.mode === "basic"}><span className="guide-mode-name">Basic</span><strong>Nemovitosti pod kontrolou</strong><span>Domy, nájemníci, platby a úkoly v klidném přehledu. Vhodné pro vlastníka, který chce rychle vědět, co se děje.</span><em>{payload.modeChosen && payload.mode === "basic" ? "Vybráno ✓" : "Zvolit Basic →"}</em></button></form>
+          <form action="/api/display-mode" method="post"><input type="hidden" name="returnTo" value="/portfolio"/><button name="mode" value="basic" className={`guide-mode-card basic${payload.modeChosen && payload.mode === "basic" ? " selected" : ""}`} aria-pressed={payload.modeChosen && payload.mode === "basic"}><span className="guide-mode-name">Basic · doporučeno na začátek</span><strong>Nemovitosti pod kontrolou</strong><span>Přehledné velké karty pro začátečníky, vlastníky a menší portfolia. Domy, nájemníci, platby a úkoly na jednom místě.</span><em>{payload.modeChosen && payload.mode === "basic" ? "Vybráno ✓" : "Zvolit Basic →"}</em></button></form>
           <form action="/api/display-mode" method="post"><input type="hidden" name="returnTo" value="/portfolio"/><button name="mode" value="pro" className={`guide-mode-card pro${payload.modeChosen && payload.mode === "pro" ? " selected" : ""}`} aria-pressed={payload.modeChosen && payload.mode === "pro"}><span className="guide-mode-name">Profi</span><strong>Podrobné nástroje správy</strong><span>Smlouvy, náklady, reporty a týmová práce v souvislostech celého portfolia. Vhodné pro správce a profesionály.</span><em>{payload.modeChosen && payload.mode === "pro" ? "Vybráno ✓" : "Zvolit Profi →"}</em></button></form>
         </div>
-        <div className="guide-mode-bottom"><span>Volíte uspořádání aplikace, ne placený tarif. Po výběru vám prostředí krátce ukážu.</span></div>
+        <div className="guide-mode-bottom"><span>Po výběru vás provedu prostředím za přibližně 2 minuty. Režim zobrazení není placený tarif.</span></div>
         <div className="guide-dismiss-actions"><button type="button" disabled={busy} onClick={() => void act("pause")}>Později</button><button type="button" disabled={busy} onClick={() => void act("dismiss")}>Ukončit průvodce</button></div>
         {error && <div className="guide-error" role="alert">{error}<button type="button" onClick={hideLocally}>Zavřít bez uložení</button></div>}
       </div>
@@ -201,11 +232,9 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
     {open && !choosingMode && createPortal(<div className="first-guide" data-testid="first-login-guide">
       {/* Four scrims leave the actual highlighted control clickable. */}
       {box ? <>
-        <div className="guide-scrim" style={{ inset: `0 0 auto 0`, height: box.y }}/>
-        <div className="guide-scrim" style={{ top: box.y, left: 0, width: box.x, height: box.height }}/>
-        <div className="guide-scrim" style={{ top: box.y, left: box.x + box.width, right: 0, height: box.height }}/>
-        <div className="guide-scrim" style={{ top: box.y + box.height, bottom: 0, left: 0, right: 0 }}/>
+        {coverOutside(extraBox ? [box, extraBox] : [box], viewport.width, viewport.height).map((region, i) => <div className="guide-scrim" key={i} style={{ left: region.x, top: region.y, width: region.width, height: region.height }}/>) }
         <div className="guide-spotlight" data-testid="guide-spotlight" style={{ left: box.x, top: box.y, width: box.width, height: box.height }}/>
+        {extraBox && <div className="guide-spotlight" data-testid="guide-spotlight-secondary" style={{ left: extraBox.x, top: extraBox.y, width: extraBox.width, height: extraBox.height }}/>}
       </> : <div className="guide-scrim" style={{ inset: 0 }}/>}
       {arrow && <svg className="guide-arrow" width={viewport.width} height={viewport.height} aria-hidden="true"><defs><marker id="first-guide-arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M 0 0 L 7 4 L 0 8" fill="none" stroke="currentColor" strokeWidth="1.5"/></marker></defs><path d={arrow} fill="none" stroke="currentColor" strokeWidth="3" markerEnd="url(#first-guide-arrowhead)"/></svg>}
       <div className="guide-panel" ref={panel} role="dialog" aria-labelledby="guide-title" aria-describedby="guide-copy" aria-busy={busy}>

@@ -46,7 +46,7 @@ function announcementPreview(body: string) {
 
 export default async function Portfolio({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; properties?: string; propertyId?: string }> }) {
   const user = await requireUser();
-  const [availableProperties, query, mode] = await Promise.all([accessibleProperties(user, { includeInactive: true }), searchParams, displayMode(user.id)]);
+  const [availableProperties, query, mode] = await Promise.all([accessibleProperties(user, { includeInactive: true }), searchParams, displayMode(user.id, user.onboardingStatus === "pending" ? "basic" : "pro")]);
   const selection = parsePortfolioSelection(query);
   const allowedSelection = selectedPropertyIds(selection, availableProperties.map((property)=>property.id));
   const selectedSet = new Set(allowedSelection);

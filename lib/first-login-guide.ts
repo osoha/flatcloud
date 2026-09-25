@@ -11,7 +11,7 @@ export type GuideStep = { id: GuideStepId; href: string; target: string; fallbac
 
 export function guideSteps(c: GuideCapabilities, mode: GuideMode = "pro"): GuideStep[] {
   if (mode === "basic") return [
-    { id: "welcome", href: "/portfolio", target: '[data-guide="portfolio"]', fallback: '[data-guide="portfolio"]', image: "choose-mode", title: "Vítejte ve FlatBerry", body: "Vyberte si vzhled, ve kterém se vám bude pracovat nejlépe. Kdykoli jej můžete změnit." },
+    { id: "welcome", href: "/portfolio", target: '.display-mode-switch:not(.display-mode-switch-mobile)', fallback: '.display-mode-switch-mobile', image: "choose-mode", title: "Vítejte v Basic", body: "Jsem Berry. Za dvě minuty vám ukážu to nejdůležitější: nemovitosti, platby a úkoly. Basic je přehledný začátek pro menší portfolio; kdykoli si zde můžete zapnout podrobnější Profi vzhled." },
     { id: "properties", href: "/portfolio", target: '[data-guide="properties"]', fallback: '[data-guide="portfolio"]', image: "properties", title: "Vaše nemovitosti a lidé", body: c.hasProperties ? "Tady najdete své domy a byty i jejich nájemníky. Otevřením karty se dostanete k podrobnostem." : "Zde uvidíte nemovitosti a jednotky, ke kterým máte přístup. Prázdný přehled u nového účtu je v pořádku." },
     { id: "finance", href: "/portfolio", target: '[data-guide="basic-payments"]', fallback: '[data-guide="portfolio"]', image: "finance", title: "Platby na první pohled", body: "Vidíte, co už přišlo, co zbývá uhradit v tomto měsíci a kolik je po splatnosti. Podrobnosti otevřete kartou Platby." },
     { id: "tasks", href: "/portfolio", target: '[data-guide="basic-tasks"]', fallback: '[data-guide="portfolio"]', image: "tasks", title: "Co potřebuje pozornost", body: "Karta Úkoly a termíny ukazuje otevřené případy. Kliknutím otevřete jejich přehled; úpravy se řídí vašimi oprávněními." },
@@ -20,13 +20,13 @@ export function guideSteps(c: GuideCapabilities, mode: GuideMode = "pro"): Guide
   return [
     { id: "welcome", href: "/portfolio", target: '[data-guide="portfolio"]', fallback: ".page-title", image: "welcome",
       title: "Vítejte ve FlatBerry",
-      body: "Jsem pan správce. Za dvě minuty vám ukážu, kde co najdete. Portfolio je vaše hlavní rozcestí: inkaso, dluhy i blížící se termíny máte na jednom místě." },
+      body: "Jsem Berry, pan správce. Za dvě minuty vám ukážu hlavní rozcestí: inkaso, dluhy i termíny. Profi nabízí podrobné nástroje; kdykoli můžete přepnout na klidnější Basic ve spodní části menu." },
     { id: "properties", href: "/portfolio", target: !c.hasProperties && c.canAddProperty ? '[data-guide="add-property"]' : '[data-guide="properties"]', fallback: '[data-guide="properties"]', image: "properties",
       title: !c.hasProperties && c.canAddProperty ? "Začněte první nemovitostí" : "Od domu ke konkrétnímu bytu",
-      body: c.hasProperties ? "Z karty nemovitosti otevřete její jednotky. U každé pak najdete nájemní vztahy, platby, dokumenty i technické údaje. V přehledech vidíte jen to, k čemu máte přístup."
+      body: c.hasProperties ? `Z karty nemovitosti otevřete její jednotky. U každé najdete vztahy, platby a dokumenty. ${c.canAddProperty ? "Nový dům rychle přidáte tlačítkem nahoře vpravo. " : ""}Vidíte jen to, k čemu máte přístup.`
         : c.canAddProperty ? "Tlačítkem Přidat nemovitost založíte svůj první dům. V něm pak doplníte jednotky a smlouvy. Teď si jen projdeme aplikaci; nic nemusíte vyplňovat."
         : "Tady se objeví nemovitosti a jednotky, ke kterým vám správce přidělí přístup. Prázdný přehled je u nového účtu v pořádku." },
-    { id: "contracts", href: "/smlouvy", target: '[data-guide="contracts"]', fallback: ".page-title", image: "properties",
+    { id: "contracts", href: "/smlouvy", target: '[data-guide="contracts"]', fallback: ".page-title", image: "contracts",
       title: "Smlouvy a nájemníci pohromadě",
       body: "Ve Smlouvách najdete nájemní vztahy, jejich platnost a návazné předpisy. Přehled Expirace a výročí pomáhá hlídat důležité termíny. Kontakty jsou také v sekci Nájemníci." },
     { id: "finance", href: "/reporty", target: '[data-guide="finance"]', fallback: ".page-title", image: "finance",
