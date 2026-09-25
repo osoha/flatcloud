@@ -148,15 +148,15 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
           const heading = basic && step.id === "properties" && !row.length ? element.querySelector<HTMLElement>(".basic-section-heading")?.getBoundingClientRect() : null;
           const focus = row.length ? { left: Math.min(...row.map(card => card.left)), top: Math.min(...row.map(card => card.top)), right: Math.max(...row.map(card => card.right)), bottom: Math.max(...row.map(card => card.bottom)) } : heading || r;
           const full = basic && ["properties", "finance", "tasks"].includes(step.id) || !basic && step.id === "notifications";
-          const toBox = (rect: {left: number; top: number; right: number; bottom: number}, entire: boolean) => {
-            const x = Math.max(8, rect.left - 6), y = Math.max(8, headerBottom + (belowTopbar ? 8 : 0), rect.top - 6);
+          const toBox = (rect: {left: number; top: number; right: number; bottom: number}, entire: boolean, inTopbar = false) => {
+            const x = Math.max(8, rect.left - 6), y = Math.max(8, inTopbar ? 0 : headerBottom + (belowTopbar ? 8 : 0), rect.top - 6);
             const right = Math.min(width - 8, rect.right + 6);
             const bottom = Math.min(height - 8, (entire ? rect.bottom : rect.top + Math.min(rect.bottom - rect.top, width < 700 ? 76 : 150)) + 6);
             return right > x && bottom > y ? { x, y, width: right - x, height: bottom - y } : null;
           };
           setBox(toBox(focus, full));
           const addProperty = !basic && step.id === "properties" && step.target !== '[data-guide="add-property"]' ? document.querySelector<HTMLElement>('[data-guide="add-property"]') : null;
-          setExtraBox(addProperty?.getClientRects().length ? toBox(addProperty.getBoundingClientRect(), true) : null);
+          setExtraBox(addProperty?.getClientRects().length ? toBox(addProperty.getBoundingClientRect(), true, true) : null);
           setMissing(false);
         } else {
           setBox(null);
