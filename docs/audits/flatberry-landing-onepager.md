@@ -19,3 +19,13 @@ Scope: public root page, isolated CSS module, optimized presentation assets, leg
 - Local production build and Prisma validate passed.
 - TypeScript and diff whitespace checks passed.
 - PR CI provides isolated PostgreSQL migration and browser smoke evidence before sandbox merge.
+
+## Approved matrix restoration
+
+The desktop source of truth is `onepager-v04/FlatBerry_onepager_B_cely_navrh.png` (1600 × 9750) and its source composition. Restore its exact claims, section copy, centered hero and closing CTA, left/right benefits introduction, gallery composition, expanded FAQ and proportions. Bundle the original DejaVu typography with its license. Mobile reflows this same content.
+
+Retain only requested differences: original supplied logos, remove hero tester-limit note, sanitized real screenshots (8 contracts / 3 tasks, no superadmin icon, cursor or right sidebar; portfolio KPI column removed), photographic closing background, disabled resources, company and legal footer. Unverified telephone remains omitted. Registration flag and existing legal draft remain unchanged.
+
+Regression coverage checks centered hero/closing claims, FAQ toggle, original logos, disabled resources, legal navigation, mobile overflow, and loaded-image full-page screenshots at 1600 px and 390 px.
+
+Follow-up: use the uncropped approved composite on desktop, with feathered outer edges and its original continuous blue-white background behind the headings. Preserve the person/device positions and original pixels; mobile retains the compact crop with soft edges.
