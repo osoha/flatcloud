@@ -1,2 +1,522 @@
-import { redirect } from "next/navigation";
-export default function Page(){redirect("/portfolio")}
+import type { Metadata } from "next";
+import {
+  ArrowRight,
+  FileText,
+  Wallet,
+  ListChecks,
+  Calculator,
+  ChartNoAxesCombined,
+  Users,
+  Check,
+} from "lucide-react";
+import s from "./landing.module.css";
+
+export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "FlatBerry — Vaše nemovitosti pod kontrolou",
+  description:
+    "Profesionální správa nájmů, plateb, smluv a úkolů. Jasný přehled pro správce, investory i vlastníky.",
+};
+const faq = [
+  [
+    "Pro koho je FlatBerry?",
+    "Pro profesionální správce, investory i vlastníky, kteří chtějí mít přehled o nemovitostech. Propojuje smlouvy, platby, náklady a týmovou práci v jednom prostředí.",
+  ],
+  [
+    "Je FlatBerry zdarma?",
+    "Pro testery je nyní používání otevřené bez limitu jednotek. Připravovaný bezplatný základ počítá se 3 bytovými jednotkami. Podrobnosti placených tarifů představíme později.",
+  ],
+  [
+    "Co znamenají 3 bytové jednotky?",
+    "Počítají se jednotlivé byty. Dům se šesti samostatnými byty představuje šest jednotek. Během současného testování se tento limit neuplatňuje.",
+  ],
+  [
+    "Co mě čeká po registraci?",
+    "Po potvrzení e-mailu vás Berry provede prvními kroky. Průvodce můžete odložit, ukončit nebo znovu spustit v Mém účtu.",
+  ],
+  [
+    "Musím něco instalovat?",
+    "Ne. FlatBerry používáte ve webovém prohlížeči na počítači nebo mobilu.",
+  ],
+  [
+    "Můžu spolupracovat s kolegy nebo vlastníky?",
+    "Ano. Můžete přizvat spolupracovníky a nastavit jejich oprávnění. Úkoly, diskuse a podklady jsou dostupné podle přiděleného přístupu.",
+  ],
+  [
+    "Umí FlatBerry pracovat s bankovními platbami?",
+    "Ano, prostřednictvím podporovaných oznámení a importů. Konkrétní možnosti závisejí na zdroji a nastavení; nejde o univerzální přímé napojení všech bank.",
+  ],
+  [
+    "Pomůže mi s vyúčtováním služeb?",
+    "Ano. Od podkladů a rozdělení nákladů přes protokoly až po evidenci doručení, námitek a vypořádání. Evidence doručení sama neznamená odeslání dokumentu.",
+  ],
+  [
+    "Můžu převést údaje z Excelu?",
+    "Podporované údaje připravíte v předepsané CSV struktuře a ověříte v náhledu importu. Libovolný excelový soubor nelze automaticky převést bez přípravy.",
+  ],
+  [
+    "Kde najdu pomoc a návody?",
+    "Přímo v aplikaci najdete metodiku a praktické průvodce. Veřejný blog, tipy a vzory smluv připravujeme. S první orientací vám pomůže také průvodce Berry.",
+  ],
+];
+const features = [
+  [
+    FileText,
+    "Nájmy a smlouvy",
+    "Nemovitosti, jednotky a nájemní vztahy propojené do přehledného celku.",
+  ],
+  [
+    Wallet,
+    "Platby a náklady",
+    "Víte, co přišlo, co chybí a jaké výdaje patří k jednotlivým nemovitostem.",
+  ],
+  [
+    ListChecks,
+    "Úkoly a termíny",
+    "Jasná odpovědnost a další krok. Důležité věci nezůstávají jen v e-mailu.",
+  ],
+  [
+    Calculator,
+    "Vyúčtování služeb",
+    "Podklady, rozdělení nákladů a vypořádání v navazujících krocích.",
+  ],
+  [
+    ChartNoAxesCombined,
+    "Reporty a scénáře",
+    "Přehledné souvislosti pro rozhodování o vašem portfoliu.",
+  ],
+  [
+    Users,
+    "Tým a spolupráce",
+    "Správce, kolegové i vlastníci spolupracují podle přiděleného přístupu.",
+  ],
+] as const;
+const nav = [
+  ["Funkce", "funkce"],
+  ["Pro koho", "pro-koho"],
+  ["Jak začít", "jak-zacit"],
+  ["Zdarma", "zdarma"],
+  ["FAQ", "faq"],
+];
+function Logo() {
+  return (
+    <img
+      src="/landing/logo.webp"
+      alt="Flatberry"
+      width="220"
+      height="41"
+      className={s.logo}
+    />
+  );
+}
+export default function Page() {
+  const signup =
+    process.env.PUBLIC_REGISTRATION_ENABLED === "true"
+      ? "/registrace"
+      : "mailto:info@flatcloud.cz?subject=Chci%20vyzkou%C5%A1et%20FlatBerry";
+  const cta = (label = "Vyzkoušet zdarma") => (
+    <a className={s.primary} href={signup}>
+      {label}
+      <ArrowRight size={18} aria-hidden="true" />
+    </a>
+  );
+  return (
+    <div className={s.landing}>
+      <a className={s.skip} href="#obsah">
+        Přejít na obsah
+      </a>
+      <header className={s.header}>
+        <a href="#" aria-label="Flatberry — úvod">
+          <Logo />
+        </a>
+        <nav aria-label="Hlavní navigace">
+          {nav.map(([label, id]) => (
+            <a key={id} href={"#" + id}>
+              {label}
+            </a>
+          ))}
+        </nav>
+        <div className={s.account}>
+          <a href="/login">Přihlásit se</a>
+          {cta()}
+        </div>
+        <details className={s.mobileNav}>
+          <summary>Menu</summary>
+          <nav aria-label="Mobilní navigace">
+            {nav.map(([label, id]) => (
+              <a key={id} href={"#" + id}>
+                {label}
+              </a>
+            ))}
+            <a href="/login">Přihlásit se</a>
+          </nav>
+        </details>
+      </header>
+      <main id="obsah">
+        <section className={s.hero}>
+          <div className={s.heroPhoto} />
+          <div className={s.heroCopy}>
+            <span className={s.eyebrow}>VAŠE NEMOVITOSTI POD KONTROLOU</span>
+            <h1>
+              Profesionální správa.
+              <br />
+              <em>Jasný přehled</em>
+              <br />o nemovitostech.
+            </h1>
+            <p>
+              Nájmy, platby, náklady a týmová práce v souvislostech celého
+              portfolia.
+            </p>
+            <p className={s.heroSub}>
+              Pro správce, kteří řeší provoz, i investory, kteří potřebují
+              podklady pro rozhodování.
+            </p>
+            <div className={s.actions}>
+              {cta()}
+              <a className={s.secondary} href="#nahledy">
+                Prohlédnout aplikaci <ArrowRight size={18} />
+              </a>
+            </div>
+          </div>
+          <div className={s.heroScreen}>
+            <div className={s.screenBar}>
+              <span />
+              <span />
+              <span />
+              <small>FlatBerry · Přehled nemovitosti</small>
+            </div>
+            <img
+              src="/landing/app-detail.webp"
+              alt="Přehled domu U Lip v aplikaci FlatBerry: nájmy, platby, 8 smluv a 3 úkoly"
+              width="1333"
+              height="926"
+              fetchPriority="high"
+            />
+          </div>
+        </section>
+        <section id="pro-koho" className={`${s.section} ${s.perspectives}`}>
+          <span className={s.eyebrow}>DVĚ PERSPEKTIVY. JEDNA APLIKACE.</span>
+          <div className={s.dualHeading}>
+            <div>
+              <h2>
+                Jednoduché
+                <br />
+                pro vlastníky
+              </h2>
+              <p>
+                Víte, co přišlo, co se řeší a kdy je potřeba vaše rozhodnutí.
+              </p>
+            </div>
+            <span className={s.slash} aria-hidden="true">
+              /
+            </span>
+            <div>
+              <h2>
+                Propracované
+                <br />
+                pro správce
+              </h2>
+              <p>
+                Platby, náklady, smlouvy a týmové úkoly v souvislostech celého
+                portfolia.
+              </p>
+            </div>
+          </div>
+          <img
+            className={s.perspectiveImage}
+            src="/landing/two-perspectives.webp"
+            alt="Berry s přehledem na mobilu a profesionální správce s aplikací na notebooku"
+            width="1536"
+            height="500"
+            loading="lazy"
+          />
+          <h3>Přehled pro vlastníka. Nástroje pro správce.</h3>
+          <a className={s.textLink} href="#nahledy">
+            Prohlédnout FlatBerry <ArrowRight size={18} />
+          </a>
+        </section>
+        <section id="funkce" className={`${s.section} ${s.features}`}>
+          <div className={s.center}>
+            <span className={s.eyebrow}>KAŽDODENNÍ SPRÁVA V SOUVISLOSTECH</span>
+            <h2>
+              Víte, co se děje.
+              <br />A co je potřeba udělat.
+            </h2>
+            <p>Od první smlouvy po přehled celého portfolia.</p>
+          </div>
+          <div className={s.featureGrid}>
+            {features.map(([Icon, title, body]) => (
+              <article key={title}>
+                <div className={s.icon}>
+                  <Icon size={25} strokeWidth={1.6} />
+                </div>
+                <h3>{title}</h3>
+                <p>{body}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+        <section id="nahledy" className={`${s.section} ${s.gallery}`}>
+          <div className={s.center}>
+            <span className={s.eyebrow}>PODÍVEJTE SE DOVNITŘ</span>
+            <h2>
+              Od každodenní správy
+              <br />k rozhodování.
+            </h2>
+            <p>Vše podstatné k nemovitostem najdete na jednom místě.</p>
+          </div>
+          {[
+            [
+              "portfolio",
+              "01",
+              "Portfolio v souvislostech",
+              "Domy, vlastníci a stav plateb. Rychle se zorientujete a snadno přejdete k detailu konkrétní nemovitosti.",
+              "Nemovitosti a vlastníci",
+              "Přehled plateb a obsazenosti",
+              904,
+              445,
+            ],
+            [
+              "tasks",
+              "02",
+              "Každý úkol má své místo.",
+              "Co je potřeba vyřešit, kdo se tomu věnuje a do kdy. Provozní agenda zůstává propojená s nemovitostí.",
+              "Odpovědnost a termíny",
+              "Společný přehled pro tým",
+              1014,
+              390,
+            ],
+            [
+              "reports",
+              "03",
+              "Podklady pro další rozhodnutí.",
+              "Podívejte se na své portfolio v širších souvislostech. Přehledy a scénáře pomáhají promýšlet další kroky.",
+              "Reporty na jednom místě",
+              "Souvislosti pro investory",
+              1014,
+              407,
+            ],
+          ].map(([file, n, title, body, a, b, w, h]) => (
+            <article className={s.galleryRow} key={file}>
+              <div className={s.galleryText}>
+                <span className={s.number}>{n}</span>
+                <h3>{title}</h3>
+                <p>{body}</p>
+                <ul>
+                  <li>
+                    <Check size={16} />
+                    {a}
+                  </li>
+                  <li>
+                    <Check size={16} />
+                    {b}
+                  </li>
+                </ul>
+              </div>
+              <a
+                className={s.galleryImage}
+                href={"/landing/app-" + file + ".webp"}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={"Zvětšit náhled: " + title}
+              >
+                <img
+                  src={"/landing/app-" + file + ".webp"}
+                  alt={String(title)}
+                  width={Number(w)}
+                  height={Number(h)}
+                  loading="lazy"
+                />
+              </a>
+            </article>
+          ))}
+        </section>
+        <section id="jak-zacit" className={`${s.section} ${s.guide}`}>
+          <div>
+            <span className={s.eyebrow}>PRVNÍ KROKY? SPOLU.</span>
+            <h2>
+              Seznamte se. Bernard.
+              <br />
+              Pro vás <em>Berry.</em>
+            </h2>
+            <p>
+              Váš průvodce prvními kroky.
+              <br />
+              Začněte jednoduše a vlastním tempem.
+            </p>
+            <div className={s.berry}>
+              <img
+                src="/landing/berry-guide.webp"
+                alt="Berry ukazuje seznam prvních kroků"
+                width="330"
+                height="400"
+                loading="lazy"
+              />
+              <blockquote>
+                „Projdeme to spolu.
+                <br />
+                Krok za krokem.“
+              </blockquote>
+            </div>
+          </div>
+          <div className={s.steps}>
+            {[
+              ["Vytvořte účet", "Potvrďte svůj e-mail a přihlaste se."],
+              [
+                "Rozhlédněte se s Berrym",
+                "Krátký průvodce vám ukáže, kde co najdete.",
+              ],
+              [
+                "Přidejte první nemovitost",
+                "Domy, jednotky a nájmy doplníte postupně.",
+              ],
+            ].map(([title, body], i) => (
+              <article key={title}>
+                <span>0{i + 1}</span>
+                <div>
+                  <h3>{title}</h3>
+                  <p>{body}</p>
+                </div>
+              </article>
+            ))}
+            <p>Průvodce můžete odložit a kdykoliv znovu spustit.</p>
+          </div>
+        </section>
+        <section id="zdarma" className={s.offer}>
+          <div>
+            <span className={s.eyebrow}>NYNÍ PRO TESTERY</span>
+            <h2>
+              Vyzkoušejte FlatBerry.
+              <br />
+              Bez limitu jednotek.
+            </h2>
+            <p>
+              Pro testery je nyní počet jednotek otevřený.
+              <br />
+              Placené tarify představíme později.
+            </p>
+            {cta()}
+            {process.env.PUBLIC_REGISTRATION_ENABLED !== "true" && (
+              <small>O přístup do testování nám napište.</small>
+            )}
+          </div>
+          <div className={s.free}>
+            <span>PŘIPRAVOVANÝ ZÁKLAD</span>
+            <strong>3 byty</strong>
+            <b>zdarma</b>
+            <p>
+              Počítají se jednotlivé
+              <br />
+              bytové jednotky, nikoli domy.
+            </p>
+          </div>
+        </section>
+        <section id="faq" className={`${s.section} ${s.faq}`}>
+          <div>
+            <span className={s.eyebrow}>ČASTÉ OTÁZKY</span>
+            <h2>Než začnete.</h2>
+            <p>
+              To nejdůležitější
+              <br />o používání FlatBerry.
+            </p>
+          </div>
+          <div>
+            {faq.map(([q, a]) => (
+              <details key={q}>
+                <summary>
+                  {q}
+                  <span aria-hidden="true">+</span>
+                </summary>
+                <p>{a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+        <section className={`${s.section} ${s.resources}`}>
+          <span className={s.eyebrow}>DALŠÍ POMOCNÍKY PŘIPRAVUJEME</span>
+          <div>
+            {[
+              ["Blog", "Články z praxe správy nemovitostí."],
+              ["Tipy", "Drobnosti, které usnadní práci."],
+              ["Vzory smluv", "Materiály pro každodenní agendu."],
+            ].map(([title, body]) => (
+              <button type="button" key={title} disabled>
+                <span>
+                  <b>{title}</b>
+                  <small>Připravujeme</small>
+                </span>
+                <p>{body}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className={s.closing}>
+          <div>
+            <span className={s.eyebrow}>VAŠE NEMOVITOSTI. VÁŠ PŘEHLED.</span>
+            <h2>
+              Méně dohledávání.
+              <br />
+              Více přehledu.
+            </h2>
+            <p>
+              Dejte každodenní správě řád a mějte
+              <br />
+              své portfolio v souvislostech.
+            </p>
+            {cta()}
+            <a className={s.textLink} href="/login">
+              Už máte účet? Přihlaste se.
+            </a>
+          </div>
+        </section>
+      </main>
+      <footer id="kontakt" className={s.footer}>
+        <div className={s.footerTop}>
+          <div>
+            <a href="#" aria-label="Flatberry — úvod">
+              <Logo />
+            </a>
+            <p>
+              Správa pronájmů a přehled portfolia.
+              <br />
+              Pro správce, investory a vlastníky.
+            </p>
+            <a className={s.textLink} href="mailto:info@flatcloud.cz">
+              info@flatcloud.cz
+            </a>
+          </div>
+          <nav aria-label="Navigace v patičce">
+            <span className={s.eyebrow}>FLATBERRY</span>
+            {nav.map(([label, id]) => (
+              <a key={id} href={"#" + id}>
+                {label}
+              </a>
+            ))}
+          </nav>
+          <div>
+            <span className={s.eyebrow}>KONTAKT A PROVOZOVATEL</span>
+            <h3>Flat Cloud a.s.</h3>
+            <address>
+              Houškova 561/4, Východní Předměstí
+              <br />
+              326 00 Plzeň
+              <br />
+              IČO: 23111780
+            </address>
+            <p>
+              Krajský soud v Plzni
+              <br />
+              oddíl B, vložka 2257
+            </p>
+          </div>
+        </div>
+        <div className={s.footerBottom}>
+          <span>© {new Date().getFullYear()} FlatBerry · Flat Cloud a.s.</span>
+          <a href="/pravni-informace#osobni-udaje">Ochrana osobních údajů</a>
+          <a href="/pravni-informace#cookies">Informace o cookies</a>
+          <a href="/pravni-informace#podminky">Podmínky používání</a>
+        </div>
+      </footer>
+    </div>
+  );
+}
