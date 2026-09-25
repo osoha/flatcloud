@@ -30,7 +30,7 @@ const faq = [
   ],
   [
     "Co mě čeká po registraci?",
-    "Po potvrzení e-mailu vás Berry provede sedmi krátkými zastaveními. Průvodce můžete odložit, ukončit nebo znovu spustit v Mém účtu.",
+    "Po potvrzení e-mailu vám Berry pomůže vybrat vzhled a provede vás krátkou prohlídkou podle zvoleného režimu. Průvodce můžete odložit, ukončit nebo znovu spustit v Mém účtu.",
   ],
   [
     "Musím něco instalovat?",
