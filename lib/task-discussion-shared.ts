@@ -7,7 +7,7 @@ export const taskReactions = [
   { key: "SAD", emoji: "😢", label: "Smutek" },
 ] as const;
 export type Mention = { userId: string; label: string; start: number; end: number };
-export type DiscussionPerson = { id: string; name: string; email: string; internal: boolean };
+export type DiscussionPerson = { id: string; name: string; email: string; internal: boolean; participant?: boolean; flatcloudMember?: boolean };
 export function parseMentions(value: unknown, body: string): Mention[] {
   if (!Array.isArray(value) || value.length > 50) throw new Error("Neplatný seznam zmínek.");
   let end = 0;
@@ -34,3 +34,28 @@ export const notificationFields = [
   ["deadlines", "Blížící se a prošlé termíny mých úkolů"],
   ["statusChanges", "Změny stavu úkolů, kterých se účastním"],
 ] as const;
+
+/** Group tokens are resolved afresh on the server; they never grant access. */
+export function withGroupMentions(body: string, mentions: Mention[]): Mention[] {
+  const individual = mentions.filter(m => !m.userId.startsWith("group:"));
+  const groups: Mention[] = [];
+  for (const match of body.matchAll(/(^|[\s(])@(all|board|flatcloud)(?=$|[\s.,!?;:)\]])/giu)) {
+    const start = match.index! + match[1].length, label = match[2];
+    if (individual.some(m => start < m.end && start + label.length + 1 > m.start)) continue;
+    groups.push({ userId: `group:${label.toLowerCase()}`, label, start, end: start + label.length + 1 });
+  }
+  return parseMentions([...individual, ...groups].sort((a,b) => a.start - b.start), body);
+}
+export function mentionRecipientIds(mentions: Mention[], people: DiscussionPerson[]): string[] {
+  return [...new Set(mentions.flatMap(m => {
+    if (m.userId === "group:all" || m.userId === "group:board") return people.filter(p => p.participant !== false).map(p => p.id);
+    if (m.userId === "group:flatcloud") return people.filter(p => p.flatcloudMember).map(p => p.id);
+    return people.some(p => p.id === m.userId && p.participant !== false) ? [m.userId] : [];
+  }))];
+}
+export function taskComposerMode(task: { category: string; propertyId?: string | null; unitId?: string | null; tenantId?: string | null; leaseId?: string | null; status?: string; automationRuleId?: string | null; dedupeKey?: string | null; conditionPlanExecution?: unknown }) {
+  const contextual = Boolean(task.propertyId && (task.unitId || task.tenantId || task.leaseId));
+  const collection = contextual && task.category === "COLLECTION";
+  const automatic = Boolean(task.automationRuleId || task.dedupeKey);
+  return { showKinds: contextual && (collection || task.category === "LEASE" && !automatic), allowPromise: collection && !task.conditionPlanExecution && !["DONE", "CANCELLED"].includes(task.status || "") };
+}

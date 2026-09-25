@@ -43,12 +43,12 @@ test("@našeptávač, tiché reakce a oprávnění v obou režimech", async ({ b
   const f = await fixture();
   const page = await browser.newPage(); await login(page, f.author.email);
   await page.goto(`/ukoly/${f.task.id}`);
-  await page.getByLabel("Nový záznam", { exact: true }).fill("Prosím @");
+  await page.getByLabel("Nový komentář", { exact: true }).fill("Prosím @");
   await expect(page.getByRole("listbox", { name: "Účastníci k označení" })).toBeVisible();
   await expect(page.getByRole("option", { name: new RegExp(f.outsider.email) })).toHaveCount(0);
   await page.getByRole("option", { name: new RegExp(f.member.email) }).click();
   await expect(page.locator('input[name="mentions"]')).toHaveValue(new RegExp(f.member.id));
-  await page.getByRole("button", { name: "Přidat do vlákna", exact: true }).click();
+  await page.getByRole("button", { name: "Odeslat", exact: true }).click();
   const entry = await prisma.taskEntry.findFirstOrThrow({ where: { taskId: f.task.id }, orderBy: { createdAt: "desc" } });
   const article = page.locator(`[id="zaznam-${entry.id}"]`);
   await expect(article.locator(".task-mention")).toHaveText(`@${f.member.name}`);
@@ -146,4 +146,63 @@ test("termín má jeden e-mail předem a jeden po termínu; zrušený termín se
   await prisma.taskNotification.deleteMany({ where: { taskId: f.task.id, kind: "ASSIGNMENT" } });
   let sent = 0; await processTaskNotifications({ taskId: f.task.id, transport: async () => { sent++; return { sent: true }; } });
   expect(sent).toBe(0);
+});
+
+test("skupinové zmínky se deduplikují, editor skrývá příslib a FC našeptávání", async ({ page }, testInfo) => {
+  const f = await fixture(); await login(page, f.author.email);
+  await prisma.taskEntry.create({ data: { taskId: f.task.id, kind: "SYSTEM", body: "Systémový záznam" } });
+  await page.goto(`/ukoly/${f.task.id}`);
+  await expect(page.getByRole("group", { name: "Typ záznamu" })).toHaveCount(0);
+  const editor = page.getByLabel("Nový komentář", { exact: true });
+  await editor.fill("@");
+  await expect(page.getByRole("option", { name: /@all / })).toBeVisible();
+  await expect(page.getByRole("option", { name: /^@flatcloud/ })).toHaveCount(0);
+  await editor.fill("@all @board Prosím o potvrzení.");
+  await expect(page.locator(".composer-actions")).toContainText("Adresně upozornit: 1 osobu");
+  await page.getByRole("button", { name: "Odeslat", exact: true }).click();
+  await expect(page.getByText("Záznam byl přidán do vlákna.", { exact: true })).toBeVisible();
+  const entry = await prisma.taskEntry.findFirstOrThrow({ where: { taskId: f.task.id, kind: "COMMENT" } });
+  expect(await prisma.taskNotification.count({ where: { entryId: entry.id, userId: f.member.id, kind: "MENTION" } })).toBe(1);
+  expect(await prisma.taskNotification.count({ where: { entryId: entry.id, userId: { in: [f.author.id, f.outsider.id] } } })).toBe(0);
+  await expect(page.locator(`#zaznam-${entry.id} .task-mention`)).toHaveText(["@all", "@board"]);
+  await page.getByRole("switch", { name: "Jen komentáře" }).check();
+  await expect(page.getByText("Systémový záznam", { exact: true })).toBeHidden();
+  await page.getByRole("switch", { name: "Jen komentáře" }).uncheck();
+  await expect(page.getByText("Systémový záznam", { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 1366, height: 768 });
+  const icon = page.locator(`#zaznam-${entry.id} .reaction-picker-toggle svg`);
+  expect((await icon.boundingBox())!.width).toBeGreaterThanOrEqual(22);
+  expect(await page.locator(`#zaznam-${entry.id} .discussion-content>p`).evaluate(el => parseFloat(getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(15);
+  await page.screenshot({ path: testInfo.outputPath("task-polish-desktop-light.png"), fullPage: true });
+  await page.getByRole("button", { name: "Tmavý režim", exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath("task-polish-desktop-dark.png"), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("task-polish-mobile.png"), fullPage: true });
+  const rejected = await post(page, `/api/tasks/${f.task.id}/entries`, { kind: "PROMISE", body: "Nevhodný příslib", promiseDate: "2026-10-01" });
+  expect(new URL(rejected.url).searchParams.get("error")).toContain("Příslib nelze přidat");
+});
+
+test("@flatcloud respektuje členství, interní viditelnost a ztrátu přístupu před odesláním", async ({ page }) => {
+  const f = await fixture();
+  const owner = await prisma.owner.create({ data: { name: `FC ${randomUUID()}` } });
+  const property = await prisma.property.create({ data: { name: "FC test", address: "Test 1", city: "Praha", ownerId: owner.id, memberships: { create: { userId: f.author.id, permission: "EDIT" } } } });
+  const createPerson = (name: string, flatcloudMember: boolean, permission?: "EDIT" | "VIEW") => prisma.user.create({ data: { name, email: `${randomUUID()}@flatcloud.test`, passwordHash: f.author.passwordHash, role: "OWNER_VIEWER", isTestIdentity: false, flatcloudMember, ...(permission ? { memberships: { create: { propertyId: property.id, permission } } } : {}) } });
+  const [fcEditor, fcReader, fcNoAccess, externalEditor] = await Promise.all([createPerson("FC editor", true, "EDIT"), createPerson("FC reader", true, "VIEW"), createPerson("FC bez přístupu", true), createPerson("Externí editor", false, "EDIT")]);
+  const task = await prisma.task.create({ data: { title: "FC scope", category: "MAINTENANCE", propertyId: property.id, createdById: f.author.id } });
+  await login(page, f.author.email);
+  const result = await post(page, `/api/tasks/${task.id}/entries`, { body: "@flatcloud Kontrola", kind: "COMMENT", visibility: "INTERNAL" });
+  expect(new URL(result.url).searchParams.has("error")).toBe(false);
+  const entry = await prisma.taskEntry.findFirstOrThrow({ where: { taskId: task.id } });
+  const notifications = await prisma.taskNotification.findMany({ where: { entryId: entry.id } });
+  expect(notifications.some(n => n.userId === fcEditor.id)).toBe(true);
+  for (const person of [fcReader, fcNoAccess, externalEditor]) expect(notifications.some(n => n.userId === person.id)).toBe(false);
+  expect(await prisma.taskMember.count({ where: { taskId: task.id, userId: fcEditor.id } })).toBe(0);
+  // Use a fake transport only; no test sends an actual email.
+  await prisma.taskNotification.updateMany({ where: { entryId: entry.id, userId: fcEditor.id }, data: { status: "PENDING", attempts: 0, nextAttemptAt: new Date(0) } });
+  await prisma.user.update({ where: { id: fcEditor.id }, data: { flatcloudMember: false } });
+  const delivered: string[] = [];
+  await processTaskNotifications({ taskId: task.id, transport: async mail => { delivered.push(mail.to); return { sent: true }; } });
+  expect(delivered).not.toContain(fcEditor.email);
+  expect((await prisma.taskNotification.findFirstOrThrow({ where: { entryId: entry.id, userId: fcEditor.id } })).status).toBe("SKIPPED");
 });

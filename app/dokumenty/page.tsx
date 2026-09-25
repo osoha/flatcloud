@@ -1,3 +1,4 @@
+import { cleanDocumentCatalogParams } from "@/lib/documents/catalog";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { DocumentCategory, Prisma } from "@prisma/client";
@@ -12,13 +13,6 @@ import { documentCategories } from "@/lib/labels";
 export const dynamic = "force-dynamic";
 type Query = { q?: string; property?: string; category?: string; type?: string; dateFrom?: string; dateTo?: string; page?: string };
 const validDate = (value?: string): value is BusinessDateKey => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00Z`)));
-
-export function cleanDocumentCatalogParams(query: Query, page: number) {
-  const params = new URLSearchParams();
-  for (const key of ["q", "property", "category", "type", "dateFrom", "dateTo"] as const) if (query[key]) params.set(key, query[key]!);
-  if (page > 1) params.set("page", String(page));
-  return params.toString();
-}
 
 export default async function DocumentsPage({ searchParams }: { searchParams: Promise<Query> }) {
   const user = await requireUser();

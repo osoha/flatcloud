@@ -4,16 +4,16 @@ import { taskViewWhere, taskEditWhere, taskEntryVisibilityWhere } from "./task-a
 import type { DiscussionPerson } from "./task-discussion-shared";
 export type DiscussionClient = Prisma.TransactionClient | typeof prisma;
 
-export async function discussionParticipants(taskId: string, client: DiscussionClient = prisma): Promise<DiscussionPerson[]> {
+export async function discussionParticipants(taskId: string, client: DiscussionClient = prisma, includeFlatcloud = false): Promise<DiscussionPerson[]> {
   const task = await client.task.findUnique({ where: { id: taskId }, select: { createdById: true, assigneeId: true, members: { select: { userId: true } } } });
   if (!task) return [];
   const ids = [...new Set([task.createdById, task.assigneeId, ...task.members.map(m => m.userId)].filter((id): id is string => Boolean(id)))];
-  const people = await client.user.findMany({ where: { id: { in: ids }, active: true }, select: { id: true, name: true, email: true, role: true, allProperties: true } });
+  const people = await client.user.findMany({ where: { active: true, OR: [{ id: { in: ids } }, ...(includeFlatcloud ? [{ flatcloudMember: true }, { role: "SUPER_ADMIN" as const }] : [])] }, select: { id: true, name: true, email: true, role: true, allProperties: true, flatcloudMember: true } });
   const result: DiscussionPerson[] = [];
   for (const person of people) {
     if (!await client.task.count({ where: { AND: [{ id: taskId }, taskViewWhere(person)] } })) continue;
     const internal = Boolean(await client.task.count({ where: { AND: [{ id: taskId }, { OR: [taskEditWhere(person), { members: { some: { userId: person.id } } }] }] } }));
-    result.push({ id: person.id, name: person.name, email: person.email, internal });
+    result.push({ id: person.id, name: person.name, email: person.email, internal, participant: ids.includes(person.id), flatcloudMember: person.flatcloudMember || person.role === "SUPER_ADMIN" });
   }
   return result.sort((a,b) => a.name.localeCompare(b.name, "cs"));
 }

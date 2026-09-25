@@ -1,3 +1,6 @@
+import { Fragment } from "react";
+import { TaskDiscussion, TaskReplyButton } from "@/components/TaskDiscussion";
+import { taskComposerMode } from "@/lib/task-discussion-shared";
 import { discussionParticipants } from "@/lib/task-discussion";
 import { TaskEntryReactions } from "@/components/TaskEntryReactions";
 import { TaskMentionBody } from "@/components/TaskMentionBody";
@@ -38,7 +41,8 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   const [documents,taskAttachments]=await Promise.all([task.propertyId?prisma.document.findMany({where:{AND:[documentAccessWhere(user),{taskId:id}]},orderBy:{createdAt:"desc"},include:{fileAsset:true,property:{select:{name:true}},unit:{select:{label:true}},lease:{select:{contractNumber:true}},task:{select:{title:true}},complianceRecord:{select:{id:true}}}}):Promise.resolve([]),!task.propertyId?prisma.taskAttachment.findMany({where:{taskId:id},orderBy:{createdAt:"desc"},include:{fileAsset:true}}):Promise.resolve([])]);
   const managers=canManage?await prisma.user.findMany({where:task.propertyId?taskParticipantWhere(task.propertyId,authoritativeTaskUnitId(task)):{active:true},select:{id:true,name:true,role:true,flatcloudMember:true}}):[];
   managers.sort((a,b)=>Number(b.role==="SUPER_ADMIN"||b.flatcloudMember)-Number(a.role==="SUPER_ADMIN"||a.flatcloudMember)||a.name.localeCompare(b.name,"cs"));
-  const discussionPeople = canManage ? await discussionParticipants(id) : [];
+  const discussionPeople = canManage ? await discussionParticipants(id, prisma, true) : [];
+  const composerMode = taskComposerMode(task);
   const debt=task.lease?.charges.reduce((sum,charge)=>sum+overdueDebtCents(charge),0)??0;
   const latestPromise=task.entries.find((entry)=>entry.kind==="PROMISE");
   const promiseDate=latestPromise?.promisedPaymentDate||task.lease?.promisedPaymentDate||null;
@@ -54,13 +58,13 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
 
     <div className="detail-grid case-layout">
       <div className="card col-8 case-thread-card">
-        <div className="card-head"><div><h2>Vlákno případu</h2><p className="muted-copy">Nejnovější komunikace a automatické události jsou nahoře. Vlastník vidí pouze záznamy označené jako viditelné vlastníkovi.</p></div></div>
+        <TaskDiscussion composer={canManage && <TaskThreadComposer key={task.status} taskId={task.id} people={discussionPeople} currentUserId={user.id} currentUserName={user.name} collection={task.category==="COLLECTION"} {...composerMode}/> }>
         {!task.propertyId&&taskAttachments.some(attachment=>!attachment.taskEntryId)&&<div className="case-description"><strong>Přílohy zadání</strong><TaskAttachments attachments={taskAttachments.filter(attachment=>!attachment.taskEntryId)}/></div>}
-        <div className="discussion-thread">{task.entries.length?task.entries.map((entry)=>{const entryDocuments=documents.filter(document=>document.taskEntryId===entry.id),entryAttachments=taskAttachments.filter(attachment=>attachment.taskEntryId===entry.id);return <article className={`discussion-entry kind-${entry.kind.toLowerCase()}`} id={`zaznam-${entry.id}`} key={entry.id}>
+        <div className="discussion-thread">{task.entries.length?task.entries.map((entry,index)=>{const entryDocuments=documents.filter(document=>document.taskEntryId===entry.id),entryAttachments=taskAttachments.filter(attachment=>attachment.taskEntryId===entry.id);return <Fragment key={entry.id}>{(index===0||entry.createdAt.toLocaleDateString("cs-CZ",{timeZone:"Europe/Prague"})!==task.entries[index-1].createdAt.toLocaleDateString("cs-CZ",{timeZone:"Europe/Prague"}))&&<h3 className="discussion-day">{entry.createdAt.toLocaleDateString("cs-CZ",{dateStyle:"long",timeZone:"Europe/Prague"})}</h3>}<article className={`discussion-entry kind-${entry.kind.toLowerCase()}`} id={`zaznam-${entry.id}`} key={entry.id}>
           <div className="discussion-avatar">{entry.author?<UserAvatar user={entry.author} size="sm"/>:<div className="system-avatar">FC</div>}</div>
-          <div className="discussion-content"><div className="discussion-head"><div><strong>{entry.author?.name||"FlatCloud"}</strong><span className="entry-kind">{taskEntryKinds[entry.kind]}</span><span className="entry-kind">{entry.visibility==="INTERNAL"?"Interní":"Viditelné vlastníkovi"}</span></div><time>{entry.createdAt.toLocaleString("cs-CZ",{dateStyle:"medium",timeStyle:"short"})} · <Link href={`/ukoly/${task.id}#zaznam-${entry.id}`}>odkaz</Link></time></div><TaskMentionBody body={entry.body} mentions={entry.mentions}/>{entryDocuments.length>0&&<DocumentAttachments documents={entryDocuments}/>}<TaskAttachments attachments={entryAttachments}/><TaskEntryReactions taskId={task.id} entryId={entry.id} userId={user.id} reactions={entry.reactions}/> {entry.kind==="PROMISE"&&(entry.promisedPaymentDate||entry.promisedAmountCents)&&<div className="promise-summary"><Clock3 size={15}/><div><strong>Příslib úhrady</strong><span>{entry.promisedPaymentDate?date(entry.promisedPaymentDate):"Datum neuvedeno"}{entry.promisedAmountCents?` · ${money(entry.promisedAmountCents)}`:""}</span></div></div>}</div>
-        </article>}):<div className="table-empty">Vlákno zatím neobsahuje záznamy.</div>}</div>
-        {canManage&&<TaskThreadComposer key={task.status} taskId={task.id} people={discussionPeople} currentUserId={user.id} collection={task.category==="COLLECTION"} allowPromise={!task.conditionPlanExecution&&!(["DONE","CANCELLED"] as string[]).includes(task.status)}/>}
+          <div className="discussion-content"><div className="discussion-head"><div><strong>{entry.author?.name||"FlatBerry"}</strong><time><Link href={`/ukoly/${task.id}#zaznam-${entry.id}`} title={entry.createdAt.toLocaleString("cs-CZ",{timeZone:"Europe/Prague"})}>{entry.createdAt.toLocaleTimeString("cs-CZ",{hour:"2-digit",minute:"2-digit",timeZone:"Europe/Prague"})}</Link></time>{entry.kind!=="COMMENT"&&<span className="entry-kind">{taskEntryKinds[entry.kind]}</span>}<span className="entry-kind">{entry.visibility==="INTERNAL"?"Interní":"Viditelné vlastníkovi"}</span></div></div><TaskMentionBody body={entry.body} mentions={entry.mentions}/>{entryDocuments.length>0&&<DocumentAttachments documents={entryDocuments}/>}<TaskAttachments attachments={entryAttachments}/><div className="discussion-entry-actions"><TaskEntryReactions taskId={task.id} entryId={entry.id} userId={user.id} reactions={entry.reactions}/>{canManage&&entry.authorId&&entry.kind!=="SYSTEM"&&entry.kind!=="STATUS"&&<TaskReplyButton taskId={task.id} userId={entry.authorId}/>}</div> {entry.kind==="PROMISE"&&(entry.promisedPaymentDate||entry.promisedAmountCents)&&<div className="promise-summary"><Clock3 size={15}/><div><strong>Příslib úhrady</strong><span>{entry.promisedPaymentDate?date(entry.promisedPaymentDate):"Datum neuvedeno"}{entry.promisedAmountCents?` · ${money(entry.promisedAmountCents)}`:""}</span></div></div>}</div>
+        </article></Fragment>}):<div className="table-empty">Vlákno zatím neobsahuje záznamy.</div>}</div>
+        </TaskDiscussion>
       </div>
 
       <aside className="col-4 stack-column case-sidebar">
@@ -69,7 +73,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
           {task.category==="COLLECTION"&&<div><span>Aktuální dluh po splatnosti</span><strong className={debt?"negative":"positive"}>{money(debt)}</strong></div>}
           {task.category==="COLLECTION"&&<div><span>Nájemník / jednotka</span><strong>{task.tenant?.name||"Bez vazby"}{task.unit?` · ${task.unit.label}`:""}</strong></div>}
           {task.lease&&<div><span>Smlouva / VS</span><strong>{task.lease.contractNumber||"Bez čísla"} · VS {task.lease.variableSymbol}</strong></div>}
-          {promiseDate&&<div><span>Příslib úhrady</span><strong>{date(promiseDate)}{promiseAmount?` · ${money(promiseAmount)}`:""}</strong></div>}
+          {composerMode.showKinds&&task.category==="COLLECTION"&&promiseDate&&<div><span>Příslib úhrady</span><strong>{date(promiseDate)}{promiseAmount?` · ${money(promiseAmount)}`:""}</strong></div>}
           <div><span>Odpovědný</span><strong>{task.assignee?.name||"Nepřiřazen"}</strong></div>
           <div><span>Termín</span><strong>{task.dueAt?date(task.dueAt):"Bez termínu"}</strong></div>
           <div><span>Poslední aktivita</span><strong>{lastActivity.toLocaleString("cs-CZ",{dateStyle:"short",timeStyle:"short"})}</strong></div>
