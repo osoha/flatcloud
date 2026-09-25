@@ -56,7 +56,7 @@ test("@našeptávač, tiché reakce a oprávnění v obou režimech", async ({ b
   const mailCount = await prisma.taskNotification.count({ where: { taskId: f.task.id } });
   await article.getByRole("button", { name: "Přidat reakci", exact: true }).click();
   await article.getByRole("button", { name: "Líbí se", exact: true }).click();
-  await expect(article.getByText("👍 1", { exact: true })).toBeVisible();
+  await expect(article.getByLabel("Líbí se: 1", { exact: true })).toBeVisible();
   await article.getByText("👍 1", { exact: true }).click();
   await expect(article.locator(".reaction-people")).toContainText(f.author.name);
   await article.getByRole("button", { name: "Odebrat mou reakci", exact: true }).click();
