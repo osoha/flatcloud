@@ -85,6 +85,7 @@ test("potvrzená registrace otevře portfolio s prvním krokem bez vytvoření d
   await expect(page).toHaveURL(/\/portfolio/);
   await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
   await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
+  await expect(page.locator(".basic-portfolio")).toBeVisible(); // Basic is the initial preview for a newly registered owner.
   await page.getByRole("button", { name: /Zvolit Profi/ }).click();
   const user = await prisma.user.findUniqueOrThrow({ where: { email }, include: { personalOwner: true } });
   expect(user.onboardingStatus).toBe("pending");
@@ -107,21 +108,86 @@ test("Berry vysvětlí vzhledy a ukáže skutečné karty Basic", async ({ page 
   await page.getByLabel("Heslo", { exact: true }).fill(password);
   await page.getByRole("button", { name: "Přihlásit se", exact: true }).click();
   await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
+  await expect(page.locator(".basic-portfolio")).toBeVisible();
+  await expect(page.getByRole("dialog")).toContainText("přibližně 2 minuty");
   await expect.poll(() => page.locator(".guide-mode-berry").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
   await page.getByRole("button", { name: /Zvolit Basic/ }).click();
   await expect(page.locator(".basic-portfolio")).toBeVisible();
-  await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Vítejte v Basic" })).toBeVisible();
+  await expect(page.getByRole("dialog")).toContainText("menší portfolio");
+  await expect(page.getByRole("dialog")).toContainText("5 zastavení");
+  await expect.poll(async () => {
+    const spot = await page.getByTestId("guide-spotlight").boundingBox();
+    const control = await page.locator(".topbar .display-mode-switch-mobile").boundingBox();
+    return Boolean(spot && control && spot.x <= control.x && spot.x + spot.width >= control.x + control.width);
+  }).toBe(true);
   await page.getByRole("button", { name: "Pojďme na to" }).click();
   for (const [title, target] of [["Vaše nemovitosti a lidé", "properties"], ["Platby na první pohled", "basic-payments"], ["Co potřebuje pozornost", "basic-tasks"]]) {
     await expect(page.locator("#guide-title")).toHaveText(title);
     await expect(page.locator(`[data-guide="${target}"]`)).toBeVisible();
     await expect(page.getByTestId("guide-spotlight")).toBeVisible();
+    if (target !== "properties") await expect.poll(async () => {
+      const spot = await page.getByTestId("guide-spotlight").boundingBox();
+      const card = await page.locator(`[data-guide="${target}"]`).boundingBox();
+      return Boolean(spot && card && spot.y <= card.y && spot.y + spot.height >= Math.min(page.viewportSize()!.height - 8, card.y + card.height) - 8);
+    }).toBe(true);
     await page.getByRole("button", { name: "Další", exact: true }).click();
   }
   await expect(page.locator("#guide-title")).toContainText("nablízku");
   await page.reload();
   await expect(page.locator("#guide-title")).toContainText("nablízku");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+});
+
+test("Basic osvítí celý první řádek jednotek a Profi také rychlé přidání domu", async ({ page }) => {
+  const user = await fixture();
+  const owner = await prisma.owner.create({ data: { name: "Průvodce – vlastník", userId: user.id } });
+  const property = await prisma.property.create({ data: { name: "Průvodce – dům", address: "Testovací 12", city: "Praha", ownerId: owner.id } });
+  for (const label of ["Byt A", "Byt B", "Byt C"]) {
+    const unit = await prisma.unit.create({ data: { propertyId: property.id, label } });
+    await prisma.userUnit.create({ data: { userId: user.id, unitId: unit.id, permission: "VIEW" } });
+  }
+  await page.setViewportSize({ width: 1900, height: 1000 });
+  await page.goto("/login");
+  await page.getByLabel("E-mail", { exact: true }).fill(user.email);
+  await page.getByLabel("Heslo", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Přihlásit se", exact: true }).click();
+  await page.getByRole("button", { name: /Zvolit Basic/ }).click();
+  await page.getByRole("button", { name: "Pojďme na to" }).click();
+  await expect(page.locator(".basic-property-card")).toHaveCount(3);
+  await expect.poll(async () => {
+    const spot = await page.getByTestId("guide-spotlight").boundingBox();
+    const cards = await Promise.all([0, 1, 2].map(i => page.locator(".basic-property-card").nth(i).boundingBox()));
+    return Boolean(spot && cards.every(card => card && spot.x <= card.x && spot.x + spot.width >= card.x + card.width - 2 && spot.y <= card.y && spot.y + spot.height >= card.y + card.height - 2));
+  }).toBe(true);
+
+  const manager = await fixture("pending", "MANAGER");
+  await page.context().clearCookies();
+  await page.goto("/login");
+  await page.getByLabel("E-mail", { exact: true }).fill(manager.email);
+  await page.getByLabel("Heslo", { exact: true }).fill(password);
+  await page.getByRole("button", { name: "Přihlásit se", exact: true }).click();
+  await page.getByRole("button", { name: /Zvolit Profi/ }).click();
+  await page.getByRole("button", { name: "Pojďme na to" }).click();
+  await expect(page.getByTestId("guide-spotlight-secondary")).toBeVisible();
+  await expect.poll(async () => {
+    const spot = await page.getByTestId("guide-spotlight-secondary").boundingBox();
+    const button = await page.locator('[data-guide="add-property"]').boundingBox();
+    return Boolean(spot && button && spot.x <= button.x && spot.x + spot.width >= button.x + button.width && spot.y <= button.y && spot.y + spot.height >= button.y + button.height);
+  }).toBe(true);
+  await page.getByRole("button", { name: "Další", exact: true }).click();
+  await expect(page.locator(".guide-character")).toHaveAttribute("src", "/guide/contracts.webp");
+  await expect.poll(() => page.locator(".guide-character").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  for (const title of ["Mějte přehled o penězích", "Úkoly, na které nezapomenete", "Upozornění podle vašich potřeb"]) {
+    await page.getByRole("button", { name: "Další", exact: true }).click();
+    await expect(page.locator("#guide-title")).toHaveText(title);
+  }
+  await expect.poll(async () => {
+    const spot = await page.getByTestId("guide-spotlight").boundingBox();
+    const form = await page.locator('[data-guide="notifications"]').boundingBox();
+    const path = await page.locator(".guide-arrow > path").getAttribute("d");
+    return Boolean(spot && form && path && spot.x <= form.x && spot.x + spot.width >= form.x + form.width - 2 && spot.height > 300);
+  }).toBe(true);
 });
 
 test("odložení, reload, jiné zařízení, zpět a dokončení bez opakování", async ({ browser }, info) => {
@@ -217,7 +283,7 @@ test("API průvodce vyžaduje přihlášení a neumožní přepsat cizí ani nov
   expect((await post(page, { action: "hacked", version: 1, revision: 1 })).status).toBe(400);
 });
 
-test("bublina a cíl zůstávají oddělené na mobilu i desktopu v obou režimech", async ({ page }, info) => {
+test("průvodce zvýrazní správný cíl a bublina zůstane v obrazovce", async ({ page }, info) => {
   const user = await fixture(); await login(page, user.email);
   for (const size of [{ width: 1440, height: 1000 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(size);
@@ -227,8 +293,8 @@ test("bublina a cíl zůstávají oddělené na mobilu i desktopu v obou režime
       await expect.poll(() => page.locator(".guide-character").evaluate(el => (el as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
       await expect.poll(async () => {
         const bubble = await page.locator(".guide-bubble").boundingBox(), spot = await page.getByTestId("guide-spotlight").boundingBox();
-        const header = await page.locator(".topbar").boundingBox();
-        return Boolean(bubble && spot && header && spot.y >= header.y + header.height && spot.y + spot.height < bubble.y);
+        const kpi = await page.locator('[data-guide="portfolio"]').boundingBox();
+        return Boolean(bubble && spot && kpi && spot.y <= kpi.y + 8 && spot.y + spot.height >= kpi.y + 72 && bubble.x >= 0 && bubble.x + bubble.width <= size.width && bubble.y + bubble.height <= size.height);
       }).toBe(true);
       await page.screenshot({ path: info.outputPath(`guide-${size.width}-${theme}.png`) });
     }
