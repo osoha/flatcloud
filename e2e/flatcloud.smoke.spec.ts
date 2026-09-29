@@ -1020,9 +1020,13 @@ test("pracovní checklist lze vytvořit, odškrtnout a znovu otevřít", async (
   await login(page);
   await page.goto("/ukoly/novy");
   await page.getByLabel("Kontext úkolu *").selectOption({ label: "Moskevská" });
+  const selectedPropertyId = await page.getByLabel("Kontext úkolu *").inputValue();
+  await page.goto(`/ukoly/novy?propertyId=${selectedPropertyId}`);
+  await expect(page.getByLabel("Kontext úkolu *")).toHaveValue(selectedPropertyId);
   await page.getByLabel("Pracovní postup").selectOption("METER_READINGS");
   await expect(page.getByLabel("Kategorie *")).toHaveValue("MAINTENANCE");
   const unitSelect = page.getByLabel("Jednotka", { exact: true });
+  await expect(unitSelect).toBeEnabled();
   const unitValue = await unitSelect.locator("option:not([value=''])").first().getAttribute("value");
   expect(unitValue).toBeTruthy();
   await unitSelect.selectOption(unitValue!);

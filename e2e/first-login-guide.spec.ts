@@ -32,6 +32,7 @@ async function login(page: Page, email: string) {
   if (account.onboardingStatus === "pending") {
     await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
     await page.getByRole("button", { name: /Zvolit Profi/ }).click();
+    await expect.poll(async () => (await (await page.request.get("/api/account/guide")).json()).mode).toBe("pro");
     await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
   }
 }
@@ -207,6 +208,7 @@ test("odložení, reload, jiné zařízení, zpět a dokončení bez opakování
   expect((await state(page)).status).toBe("paused");
   const other = await browser.newPage();
   await login(other, user.email);
+  await other.reload();
   await other.getByRole("button", { name: "Pokračovat v prohlídce" }).click();
   await expect(other.locator("#guide-title")).toContainText("první nemovitostí");
   await other.getByRole("button", { name: "Zpět", exact: true }).click();
