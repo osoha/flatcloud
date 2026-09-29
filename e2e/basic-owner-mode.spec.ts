@@ -59,7 +59,7 @@ test("archived selected property stays visible in Basic and its units sort natur
     const owner = await db.owner.create({ data: { name: `${tag} owner` } });
     const property = await db.property.create({ data: { name: `${tag} house`, address: "Testovací 10", city: "Praha", ownerId: owner.id, active: false,
       units: { create: ["1", "10", "11", "2", "3"].map(label => ({ label })) } } });
-    const user = await db.user.create({ data: { email: `archive-${crypto.randomUUID()}@flatcloud.test`, name: `${tag} manager`, role: "MANAGER", active: true, passwordHash: await bcrypt.hash(password, 8), isTestIdentity: true } });
+    const user = await db.user.create({ data: { email: `archive-${crypto.randomUUID()}@flatcloud.test`, name: `${tag} manager`, role: "MANAGER", active: true, passwordHash: await bcrypt.hash(password, 8), isTestIdentity: false } });
 
     await page.goto("/login");
     await page.getByLabel("E-mail").fill(user.email);
