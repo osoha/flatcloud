@@ -53,7 +53,7 @@ export async function tryVerifyNotificationPayment(input: {
   if (!vs || !accounts.length) return null;
 
   const links = await prisma.propertyPaymentAccount.findMany({
-    where: { active: true, property: { active: true }, ownerBankAccountId: { in: accounts.map((account) => account.id) } },
+    where: { active: true, ownerBankAccountId: { in: accounts.map((account) => account.id) } },
     include: { property: { include: { units: { select: { id: true, ownerships: { select: { ownerBankAccountId: true } } } } } } },
   });
   const candidates = links.filter((link) => linkIsUsedByUnit(link.ownerBankAccountId, link.property.units) && normalizedVs(verificationCodeForAccount(link.ownerBankAccountId)) === vs);
