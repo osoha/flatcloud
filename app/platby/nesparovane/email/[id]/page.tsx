@@ -26,8 +26,8 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
   const { id } = await params;
   const [row, leases, paymentLinks, query] = await Promise.all([
     prisma.inboxPayment.findUnique({ where: { id } }),
-    prisma.lease.findMany({ where: { unit: { property: { active: true } } }, include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
-    prisma.propertyPaymentAccount.findMany({ where: { active: true, property: { active: true } }, include: { property: { include: { units: { select: { label: true, ownerships: { select: { ownerBankAccountId: true } } } } } }, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }),
+    prisma.lease.findMany({ include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
+    prisma.propertyPaymentAccount.findMany({ where: { active: true }, include: { property: { include: { units: { select: { label: true, ownerships: { select: { ownerBankAccountId: true } } } } } }, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }),
     searchParams,
   ]);
   if (!row) notFound();
@@ -65,7 +65,7 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
             </select></label>
             {exactTestLink ? <div className="notice">VS odpovídá testovacímu kódu pro <strong>{exactTestLink.property.name}</strong>.</div> : null}
             <button className="primary" type="submit">Potvrdit jako test bankovního účtu</button>
-          </form> : <div className="notice">Cílový účet z e-mailu není přiřazen žádné jednotce aktivní nemovitosti. Nejdřív nastavte vlastníka a bankovní účet u konkrétní jednotky.</div>}
+          </form> : <div className="notice">Cílový účet z e-mailu není přiřazen žádné jednotce v evidenci. Nejdřív nastavte vlastníka a bankovní účet u konkrétní jednotky.</div>}
         </> : <>
           <h2>Přiřadit ke smlouvě</h2>
           <p className="muted-copy">Tím vznikne standardní bankovní transakce v objektu a částka se automaticky rozpočítá na nejstarší otevřené předpisy vybrané smlouvy.</p>
