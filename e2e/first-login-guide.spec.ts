@@ -32,7 +32,7 @@ async function login(page: Page, email: string) {
   if (account.onboardingStatus === "pending") {
     await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
     await page.getByRole("button", { name: /Zvolit Profi/ }).click();
-    await expect.poll(async () => (await (await page.request.get("/api/account/guide")).json()).mode).toBe("pro");
+    await expect.poll(() => page.evaluate(async () => (await (await fetch("/api/account/guide", { cache: "no-store" })).json()).mode)).toBe("pro");
     await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
   }
 }

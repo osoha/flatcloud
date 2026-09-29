@@ -1025,7 +1025,7 @@ test("pracovní checklist lze vytvořit, odškrtnout a znovu otevřít", async (
   await expect(page.getByLabel("Kontext úkolu *")).toHaveValue(selectedPropertyId);
   await page.getByLabel("Pracovní postup").selectOption("METER_READINGS");
   await expect(page.getByLabel("Kategorie *")).toHaveValue("MAINTENANCE");
-  const unitSelect = page.getByLabel("Jednotka", { exact: true });
+  const unitSelect = page.locator('select[name="unitId"]');
   await expect(unitSelect).toBeEnabled();
   const unitValue = await unitSelect.locator("option:not([value=''])").first().getAttribute("value");
   expect(unitValue).toBeTruthy();
