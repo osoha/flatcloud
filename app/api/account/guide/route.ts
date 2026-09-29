@@ -43,5 +43,5 @@ export async function POST(request: Request) {
     onboardingStatus: next.status, onboardingStep: next.step, onboardingVersion: next.version, onboardingRevision: { increment: 1 },
   } });
   if (!saved.count) return json({ error: "Průvodce se změnil v jiném okně. Obnovte jej prosím." }, 409);
-  return json({ state: { ...next, revision: state.revision + 1 } });
+  return json({ state: { ...next, revision: state.revision + 1 }, mode });
 }

@@ -84,13 +84,13 @@ export function FirstLoginGuide({ userId }: { userId: string }) {
       const response = await fetch("/api/account/guide", { method: "POST", signal: AbortSignal.timeout(10000), headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, revision: current.state.revision, version: GUIDE_VERSION }) });
       const data = await response.json();
-      if (data.state) setPayload(value => value ? { ...value, state: data.state } : value);
+      if (data.state) setPayload(value => value ? { ...value, state: data.state, mode: data.mode === "basic" || data.mode === "pro" ? data.mode : value.mode } : value);
       if (!response.ok) throw new Error(data.error || "Uložení se nepodařilo. Zkuste to znovu.");
       setHidden(false);
       try { sessionStorage.removeItem(`flatberry:guide-hidden:${userId}`); } catch { /* storage is optional */ }
       if (data.state.status === "completed") router.push("/portfolio");
       if (["start", "resume", "next", "back"].includes(action) && data.state.status === "active") {
-        const next = guideSteps(current.capabilities, current.mode).find(item => item.id === data.state.step)!;
+        const next = guideSteps(current.capabilities, data.mode === "basic" || data.mode === "pro" ? data.mode : current.mode).find(item => item.id === data.state.step)!;
         router.push(next.href, { scroll: true });
       }
     } catch (reason) {

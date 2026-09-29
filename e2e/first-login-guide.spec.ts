@@ -209,6 +209,7 @@ test("odložení, reload, jiné zařízení, zpět a dokončení bez opakování
   const other = await browser.newPage();
   await login(other, user.email);
   await other.reload();
+  await expect.poll(() => other.evaluate(async () => (await (await fetch("/api/account/guide", { cache: "no-store" })).json()).mode)).toBe("pro");
   await other.getByRole("button", { name: "Pokračovat v prohlídce" }).click();
   await expect(other.locator("#guide-title")).toContainText("první nemovitostí");
   await other.getByRole("button", { name: "Zpět", exact: true }).click();
