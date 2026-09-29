@@ -11,3 +11,5 @@ export function phone(value: string | null | undefined) {
 
 /** Exact cents for accounting details; compact dashboard money() is unchanged. */
 export const moneyExact = (cents: number) => new Intl.NumberFormat("cs-CZ", { style: "currency", currency: "CZK", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(cents / 100);
+/** Show haléře when present, while keeping whole-crown amounts compact. */
+export const moneyPrecise = (cents: number) => cents % 100 === 0 ? money(cents) : moneyExact(cents);
