@@ -22,6 +22,7 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
   announcementCount: number; scopeOptions: ScopeOption[]; selection: PortfolioSelection;
 }) {
   const activeRows = rows.filter((row) => row.property.active);
+  const archivedRows = rows.filter((row) => !row.property.active);
   const units = activeRows.flatMap((row) => row.property.units);
   const occupied = units.filter((unit) => currentLeaseForUnit(unit.leases)).length;
   const remaining = Math.max(0, expected - paid);
@@ -65,7 +66,15 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
             <div className="basic-tenant">{lease ? <TenantAvatar tenant={lease.tenant} className="basic-person-avatar"/> : <span className="basic-person-avatar" aria-hidden="true">–</span>}<strong>{lease?.tenant.name || "Zatím bez nájemníka"}</strong></div>
             <div className="basic-rent"><span>{unitExpected ? <><strong>{money(unitExpected)}</strong> / {month}</> : "Bez předpisu v tomto měsíci"}</span>{unitDebt > 0 ? <b className="basic-payment-late">Po splatnosti {money(unitDebt)}</b> : unitExpected > 0 ? <b className={unitPaid >= unitExpected ? "basic-payment-ok" : "basic-payment-pending"}>{unitPaid >= unitExpected ? "Uhrazeno" : `Zbývá ${money(Math.max(0, unitExpected - unitPaid))}`}</b> : null}</div>
           </div></article>;
-      }) : [<article className="basic-property-card" key={property.id}><Link className="basic-property-photo" href={`/nemovitosti/${property.id}/prehled`} aria-label={`Otevřít ${property.name}`}><EntityAvatar photoId={photos.properties[property.id]} identity={property.id} size="lg"/></Link><div className="basic-property-body"><Link href={`/nemovitosti/${property.id}/prehled`} className="basic-property-name">{property.name} <ArrowRight size={17}/></Link><p>{property.address}, {property.city}</p><small>Zatím bez jednotek</small></div></article>])}{!activeRows.length && <div className="basic-empty-properties"><House size={30}/><strong>Zatím tu nejsou žádné aktivní nemovitosti.</strong><span>Vyberte jiné portfolio nebo otevřete profesionální přehled.</span></div>}</div>
+      }) : [<article className="basic-property-card" key={property.id}><Link className="basic-property-photo" href={`/nemovitosti/${property.id}/prehled`} aria-label={`Otevřít ${property.name}`}><EntityAvatar photoId={photos.properties[property.id]} identity={property.id} size="lg"/></Link><div className="basic-property-body"><Link href={`/nemovitosti/${property.id}/prehled`} className="basic-property-name">{property.name} <ArrowRight size={17}/></Link><p>{property.address}, {property.city}</p><small>Zatím bez jednotek</small></div></article>])}{!activeRows.length && <div className="basic-empty-properties"><House size={30}/><strong>Zde nejsou žádné aktivní nemovitosti.</strong><span>{archivedRows.length ? "Vybraný neaktivní objekt najdete níže." : "Vyberte jiné portfolio nebo přidejte nemovitost."}</span></div>}</div>
+      {archivedRows.length > 0 && <div className="basic-archived-properties" aria-labelledby="basic-archived-heading">
+        <div className="basic-section-heading"><div><span className="basic-eyebrow">Příprava a historie</span><h2 id="basic-archived-heading">Neaktivní nemovitosti</h2></div></div>
+        <p className="basic-archived-note">Objekty lze otevřít před aktivací i po ukončení správy. Souhrn nahoře počítá pouze aktivní nemovitosti.</p>
+        <div className="basic-property-grid">{archivedRows.map(({ property }) => <article className="basic-property-card basic-archived-card" key={property.id}>
+          <Link className="basic-property-photo" href={`/nemovitosti/${property.id}/prehled`} aria-label={`Otevřít ${property.name}`}><EntityAvatar photoId={photos.properties[property.id]} identity={property.id} size="lg"/></Link>
+          <div className="basic-property-body"><Link href={`/nemovitosti/${property.id}/prehled`} className="basic-property-name">{property.name} <ArrowRight size={17}/></Link><p>{property.address}, {property.city}</p><span className="basic-archived-badge">Neaktivní</span></div>
+        </article>)}</div>
+      </div>}
     </section>
   </div>;
 }

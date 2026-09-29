@@ -556,6 +556,7 @@ html[data-theme="dark"] .basic-portfolio :is(.basic-hero h1,.basic-section-headi
 html[data-theme="dark"] .basic-portfolio :is(.basic-hero p,.basic-summary-card small,.basic-property-body>p,.basic-attention-item small,.basic-tenant strong){color:#adbed4}
 html[data-theme="dark"] .basic-portfolio :is(.basic-summary-card,.basic-attention-item,.basic-property-card){background:#192536;border-color:#34445c;color:#e3ebf8}
 html[data-theme="dark"] .basic-property-photo>.entity-avatar{background:#263850;color:#99b3cf}
+html[data-theme="dark"] .basic-archived-badge{background:#334359;color:#c5d3e5}
 html[data-theme="dark"] .basic-unit-state.is-occupied{background:#244c40;color:#9ae1bf}
 html[data-theme="dark"] .basic-unit-state:not(.is-occupied){background:#4b3929;color:#f4cc99}
 html[data-theme="dark"] .basic-rent{border-color:#34445c}

@@ -49,3 +49,34 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
     await db.$disconnect();
   }
 });
+
+test("inactive selected property stays visible in Basic and its units sort naturally in Profi", async ({ page }) => {
+  if (!process.env.DATABASE_URL || !["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error("Isolated CI database required");
+  const db = new PrismaClient();
+  const password = "Basic-Archive-E2E-2026";
+  try {
+    const tag = `Archive ${crypto.randomUUID().slice(0, 8)}`;
+    const owner = await db.owner.create({ data: { name: `${tag} owner` } });
+    const property = await db.property.create({ data: { name: `${tag} house`, address: "Testovací 10", city: "Praha", ownerId: owner.id, active: false,
+      units: { create: ["1", "10", "11", "2", "3"].map(label => ({ label })) } } });
+    const user = await db.user.create({ data: { email: `archive-${crypto.randomUUID()}@flatcloud.test`, name: `${tag} manager`, role: "MANAGER", active: true, passwordHash: await bcrypt.hash(password, 8), isTestIdentity: false } });
+
+    await page.goto("/login");
+    await page.getByLabel("E-mail").fill(user.email);
+    await page.getByLabel("Heslo").fill(password);
+    await page.getByRole("button", { name: "Přihlásit se", exact: true }).click();
+    await page.goto(`/portfolio?properties=${property.id}`);
+    await page.locator(".sidebar .display-mode-switch button[value=basic]").click();
+    await expect(page.locator(".basic-portfolio")).toBeVisible();
+    await expect(page.locator(".basic-archived-card")).toHaveCount(1);
+    await expect(page.locator(".basic-archived-card")).toContainText(property.name);
+    await expect(page.locator(".basic-archived-card")).toContainText("Neaktivní");
+    await expect(page.locator(".basic-empty-properties")).toContainText("neaktivní objekt najdete níže");
+    await expect(page.locator(".basic-archived-card .basic-property-name")).toHaveAttribute("href", `/nemovitosti/${property.id}/prehled`);
+    await expect(page.locator(".basic-payments")).toContainText("uhrazeno z 0 Kč");
+
+    await page.goto(`/nemovitosti/${property.id}/jednotky`);
+    await expect(page.locator("table tbody tr")).toHaveCount(5);
+    expect((await page.locator("table tbody tr td:first-child").allTextContents()).map(label => label.trim())).toEqual(["1", "2", "3", "10", "11"]);
+  } finally { await db.$disconnect(); }
+});
