@@ -10,7 +10,7 @@ export type WelcomeLetterStatus = "DRAFT" | "READY" | "SENDING" | "SENT" | "ARCH
 export const welcomeLetterStatuses: Record<WelcomeLetterStatus, string> = { DRAFT: "Koncept", READY: "Připraveno", SENDING: "Odesílá se", SENT: "Odesláno", ARCHIVED: "Archivováno" };
 export const welcomeSectionFields = [
   ["handoverText", "Předání nemovitosti"], ["leaseText", "Nájemní smlouva a platební údaje"], ["insuranceText", "Pojištění nemovitosti"],
-  ["managementText", "Správa nemovitosti"], ["platformText", "Evidence a FlatCloud Rent"], ["taxText", "Zdanění příjmu a odpisy"],
+  ["managementText", "Správa nemovitosti"], ["platformText", "Evidence ve FlatBerry"], ["taxText", "Zdanění příjmu a odpisy"],
   ["associationText", "Společenství vlastníků jednotek"],
 ] as const;
 type SectionField = typeof welcomeSectionFields[number][0];
@@ -29,7 +29,7 @@ export function defaultWelcomeLetterContent(input: { recipientName: string; prop
     leaseText: "Je-li jednotka pronajatá, je po změně vlastníka potřeba zkontrolovat nájemní dokumentaci, platební předpis a údaje účtu pro nájemné a zálohy. Podle situace připravíme novou smlouvu nebo dodatek a zajistíme informování nájemce. Prosíme o potvrzení vašich fakturačních a bankovních údajů zabezpečeným dohodnutým kanálem; neposílejte citlivé údaje odpovědí na tento e-mail, pokud jsme se nedohodli jinak.",
     insuranceText: "Doporučujeme bez prodlení ověřit pojištění nemovitosti včetně odpovědnosti vlastníka. Pojištění domácnosti si zpravidla sjednává nájemce. Pokud bylo pojištění podmínkou hypotečního financování, zkontrolujte zejména správnost identifikace jednotky a počátek krytí.",
     managementText: "Pokud chcete nemovitost držet jako pasivní investici, můžeme vám představit rozsah navazující správy: komunikaci s nájemcem, evidenci plateb, vyúčtování služeb, přípravu změn nájemného, obsazování, revize a provozní údržbu. Konkrétní rozsah, cenu a odpovědnosti vždy stanoví samostatná smlouva o správě.",
-    platformText: "Pro přehled o pronájmu doporučujeme využívat FlatCloud Rent. Na jednom místě lze sledovat smlouvy, předpisy a platby, měřidla, dokumenty, úkoly, revize a podklady pro vyúčtování. Přístup a oprávnění vám nastavíme podle zvoleného modelu správy.",
+    platformText: "Pro přehled o pronájmu doporučujeme využívat FlatBerry. Na jednom místě lze sledovat smlouvy, předpisy a platby, měřidla, dokumenty, úkoly, revize a podklady pro vyúčtování. Přístup a oprávnění vám nastavíme podle zvoleného modelu správy.",
     taxText: "Příjmy z pronájmu a související náklady doporučujeme konzultovat s daňovým poradcem. Ten posoudí vhodný způsob evidence skutečných výdajů, odpisování a přípravy daňového přiznání s ohledem na vaši individuální situaci a případné bankovní financování.",
     associationText: "Informace o existujícím nebo připravovaném společenství vlastníků, správci domu, zálohách a plánovaných rozhodnutích doplníme podle aktuální situace v konkrétním domě. Pokud bude potřeba váš souhlas nebo účast, obdržíte samostatné podklady.",
     closingText: "Věříme, že se podaří všechny navazující kroky dokončit hladce a že vám investice bude přinášet očekávaný užitek. V případě dotazů jsme vám k dispozici.\n\nS pozdravem\ntým FlatCloud",

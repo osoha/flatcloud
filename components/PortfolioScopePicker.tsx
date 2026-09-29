@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ChevronDown, Search } from "lucide-react";
+import { createPortal } from "react-dom";
 import { portfolioSelectionLabel, withPortfolioSelection, type PortfolioSelection } from "@/lib/portfolio-selection";
 
 type PropertyOption = { id: string; name: string; address: string; city: string; active: boolean; ownerId?: string; ownerName?: string; scopeKind?: "FLATCLOUD" | "EXTERNAL" | "UNCLASSIFIED" };
@@ -13,6 +14,7 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [placement, setPlacement] = useState({ top: 12, left: 12, width: 390, maxHeight: 500 });
   useLayoutEffect(() => {
@@ -23,10 +25,12 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
       const viewport = window.visualViewport;
       const topEdge = (viewport?.offsetTop || 0) + 12;
       const height = viewport?.height || window.innerHeight;
-      const width = Math.min(390, (viewport?.width || window.innerWidth) - 24);
       const leftEdge = (viewport?.offsetLeft || 0) + 12;
+      const rightEdge = (viewport?.offsetLeft || 0) + (viewport?.width || window.innerWidth) - 12;
+      const contentLeft = Math.max(leftEdge, rect.left);
+      const width = Math.max(0, Math.min(390, rightEdge - contentLeft));
       const top = Math.max(topEdge, Math.min(rect.bottom + 8, topEdge + Math.max(0, height - 344)));
-      setPlacement({ top, left: Math.max(leftEdge, Math.min(rect.right - width, leftEdge + (viewport?.width || window.innerWidth) - width - 24)), width, maxHeight: Math.max(0, topEdge + height - 24 - top) });
+      setPlacement({ top, left: Math.max(contentLeft, Math.min(rect.right - width, rightEdge - width)), width, maxHeight: Math.max(0, topEdge + height - 24 - top) });
     };
     place();
     window.addEventListener("resize", place);
@@ -44,7 +48,7 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
     function onPointerDown(event: PointerEvent) {
       // Native page scrollbar is not a dismiss action.
       if (event.clientX >= document.documentElement.clientWidth || event.clientY >= document.documentElement.clientHeight) return;
-      if (open && event.target instanceof Node && !pickerRef.current?.contains(event.target)) close();
+      if (open && event.target instanceof Node && !pickerRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) close();
     }
     function onKeyDown(event: KeyboardEvent) {
       if (open && event.key === "Escape") {
@@ -98,7 +102,7 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
   if (availableProperties.length <= 1) return <span className="scope-picker-single">{portfolioSelectionLabel(selection, selectedCount, availableProperties.length, availableProperties.filter((property) => property.active).length)}</span>;
   return <div className="scope-picker" ref={pickerRef}>
     <button ref={triggerRef} className="scope-picker-trigger" type="button" title="Zobrazené objekty" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><span><small>Rozsah správy</small><strong>{selection.mode === "ALL" ? `Vše ve správě · ${availableProperties.length} objektů` : `${selectedCount} z ${availableProperties.length} objektů`}</strong></span><ChevronDown size={16}/></button>
-    {open && <div className="scope-picker-popover" style={placement} role="dialog" aria-label="Vybrat zobrazené objekty">
+    {open && createPortal(<div ref={popoverRef} className="scope-picker-popover" style={placement} role="dialog" aria-label="Vybrat zobrazené objekty">
       <div className="scope-actions"><button className="secondary" type="button" onClick={() => close()}>Zrušit změny</button><button className="primary" type="button" onClick={apply}>Použít výběr</button></div>
       <div className="scope-bulk-actions"><button type="button" aria-label="Vybrat vše ve správě" onClick={() => setDraft(availableProperties.map((property) => property.id))}>Označit vše</button><button type="button" onClick={() => setDraft([])}>Odznačit vše</button><span aria-live="polite">Vybráno {draft.length} z {availableProperties.length}</span></div>
       <label className="scope-search"><Search size={15}/><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Najít dům nebo vlastníka…" aria-label="Hledat nemovitost nebo vlastníka"/></label>
@@ -111,6 +115,6 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
       <div className="scope-options">{visible.map((property) => <label key={property.id} className={!property.active ? "archived" : ""}><input type="checkbox" checked={draft.includes(property.id)} onChange={(event) => setDraft(event.target.checked ? [...new Set([...draft, property.id])] : draft.filter((id) => id !== property.id))}/><span><strong>{property.name}</strong><small>{property.ownerName ? `${property.ownerName} · ` : ""}{property.city} · {property.address}{!property.active ? " · Archivováno" : ""}</small></span></label>)}</div>
       {!visible.length && <p>Žádná nemovitost neodpovídá hledání.</p>}
       </div>
-    </div>}
+    </div>,document.body)}
   </div>;
 }

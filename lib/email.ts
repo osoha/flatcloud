@@ -20,7 +20,7 @@ export async function smtpConfiguration() {
       console.warn(`[smtp] Uložené SMTP heslo se nepodařilo dešifrovat; používám SMTP_PASSWORD z prostředí. ${error instanceof Error ? error.message : ""}`);
     }
   }
-  const fromName = settings.smtpFromName || process.env.SMTP_FROM_NAME || "FlatCloud";
+  const fromName = settings.smtpFromName || process.env.SMTP_FROM_NAME || "FlatBerry";
   const fromEmail = settings.smtpFromEmail || process.env.SMTP_FROM_EMAIL || "";
   const replyTo = settings.smtpReplyTo || undefined;
   return { host, port, secure, user, password, fromName, fromEmail, replyTo, configured: Boolean(host && user && password && fromEmail) };
@@ -35,11 +35,13 @@ export async function sendMail(input: MailInput) {
 }
 
 export async function sendInvitationEmail(input: { to: string; inviterName: string; propertyName: string; permissionLabel: string; inviteUrl: string }) {
+  const loginUrl = new URL("/login", input.inviteUrl).toString();
+  const homeUrl = new URL("/", input.inviteUrl).toString();
   return sendMail({
     to: input.to,
-    subject: `Pozvánka do FlatCloud Rent – ${input.propertyName}`,
-    html: `<div style="font-family:Arial,sans-serif;line-height:1.55;color:#17233a;max-width:620px;margin:auto"><div style="padding:18px 0;border-bottom:1px solid #dbe4f0"><strong style="font-size:22px;color:#1766b1">FlatCloud</strong></div><h2>Pozvánka do FlatCloud Rent</h2><p>${escapeHtml(input.inviterName)} vás pozval ke správě nemovitosti <strong>${escapeHtml(input.propertyName)}</strong>.</p><p>Oprávnění: <strong>${escapeHtml(input.permissionLabel)}</strong>.</p><p><a href="${escapeHtml(input.inviteUrl)}" style="display:inline-block;background:#1766b1;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px">Přijmout pozvánku</a></p><p style="color:#64748b">Odkaz je platný 7 dní. Pokud jste pozvánku neočekávali, e-mail můžete ignorovat.</p></div>`,
-    text: `${input.inviterName} vás pozval do FlatCloud Rent k nemovitosti ${input.propertyName}. Oprávnění: ${input.permissionLabel}. Přijmout: ${input.inviteUrl}`,
+    subject: `Pozvánka do FlatBerry – ${input.propertyName}`,
+    html: `<div style="font-family:Arial,sans-serif;line-height:1.55;color:#17233a;max-width:620px;margin:auto"><div style="padding:18px 0;border-bottom:1px solid #dbe4f0"><strong style="font-size:22px;color:#1766b1">FlatBerry</strong></div><h2>Pozvánka do FlatBerry</h2><p>${escapeHtml(input.inviterName)} vás pozval ke správě nemovitosti <strong>${escapeHtml(input.propertyName)}</strong>.</p><p>Oprávnění: <strong>${escapeHtml(input.permissionLabel)}</strong>.</p><p><a href="${escapeHtml(input.inviteUrl)}" style="display:inline-block;background:#1766b1;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px">Přijmout pozvánku</a></p><p style="color:#64748b">Odkaz je platný 7 dní. Pokud jste pozvánku neočekávali, e-mail můžete ignorovat.</p><p><a href="${escapeHtml(loginUrl)}">Přihlášení</a> · <a href="${escapeHtml(homeUrl)}">Veřejný web FlatBerry</a></p></div>`,
+    text: `${input.inviterName} vás pozval do FlatBerry k nemovitosti ${input.propertyName}. Oprávnění: ${input.permissionLabel}. Přijmout: ${input.inviteUrl}\nPřihlášení: ${loginUrl}\nVeřejný web: ${homeUrl}`,
   });
 }
 

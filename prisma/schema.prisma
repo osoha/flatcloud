@@ -503,6 +503,7 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  defaultDisplayMode String @default("basic")
   onboardingStatus String @default("available")
   onboardingStep String @default("welcome")
   onboardingVersion Int @default(1)
@@ -548,6 +549,8 @@ model User {
   taskEntries                          TaskEntry[]
   taskMemberships                      TaskMember[]
   taskStates                           TaskUserState[]
+  passwordResetTokens                  PasswordResetToken[]
+  checklistItemsCompleted              TaskChecklistItem[]            @relation("ChecklistCompleter")
   taskAttachmentsUploaded              TaskAttachment[]               @relation("TaskAttachmentUploader")
   announcementsCreated                 Announcement[]                 @relation("AnnouncementCreator")
   announcementAudiences                AnnouncementAudience[]         @relation("AnnouncementAudienceUser")
@@ -597,6 +600,19 @@ model User {
   propertyCostsReviewed                PropertyCost[]                 @relation("PropertyCostReviewer")
   createdAt                            DateTime                       @default(now())
   updatedAt                            DateTime                       @updatedAt
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model Owner {
@@ -2058,6 +2074,7 @@ model Task {
   closedAt               DateTime?
   dedupeKey              String?                     @unique
   entries                TaskEntry[]
+  checklistItems         TaskChecklistItem[]
   members                TaskMember[]
   userStates             TaskUserState[]
   attachments            TaskAttachment[]
@@ -2074,6 +2091,20 @@ model Task {
   @@index([assigneeId, status, dueAt])
   @@index([leaseId, category, status])
   @@index([automationRuleId, automationEventKey])
+}
+
+model TaskChecklistItem {
+  id            String   @id @default(cuid())
+  taskId        String
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  position      Int
+  title         String
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?    @relation("ChecklistCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, position])
+  @@index([taskId, completedAt])
 }
 
 enum TaskAutomationEvent {
