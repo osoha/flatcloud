@@ -13,6 +13,6 @@ export default async function ForgotPassword({searchParams}:{searchParams:Promis
       <label className="field"><span>E-mail</span><input type="email" name="email" autoComplete="email" maxLength={254} required/></label>
       <button className="primary" type="submit">Poslat odkaz pro obnovu</button>
     </form>
-    <p className="demo-note"><Link href="/login">Přihlášení</Link> · <Link href="/">Veřejný web FlatBerry</Link></p>
+    <nav className="auth-footer-links" aria-label="Další možnosti"><Link href="/login">Přihlášení</Link><Link href="/">Zpět na web FlatBerry</Link></nav>
   </div></main>;
 }
