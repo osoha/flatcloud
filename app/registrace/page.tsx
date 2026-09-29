@@ -13,5 +13,5 @@ export default async function RegistrationPage({searchParams}:{searchParams:Prom
       <div className="field"><label htmlFor="register-password">Heslo (alespoň 12 znaků)</label><input id="register-password" name="password" type="password" minLength={12} maxLength={72} autoComplete="new-password" required/></div>
       <button className="primary" type="submit">Poslat potvrzovací odkaz</button>
     </form>}
-    <p><Link href="/login">Zpět na přihlášení</Link></p></div></main>;
+    <nav className="auth-footer-links" aria-label="Další možnosti"><Link href="/login">Zpět na přihlášení</Link><Link href="/">Zpět na web FlatBerry</Link></nav></div></main>;
 }

@@ -20,6 +20,6 @@ export default async function ResetPassword({params,searchParams}:{params:Promis
         <button className="primary" type="submit">Uložit nové heslo</button>
       </form>
     </>:<p>Požádejte o nový odkaz pro obnovu hesla.</p>}
-    <p className="demo-note"><Link href="/zapomenute-heslo">Nový odkaz</Link> · <Link href="/login">Přihlášení</Link> · <Link href="/">Veřejný web</Link></p>
+    <nav className="auth-footer-links" aria-label="Další možnosti"><Link href="/zapomenute-heslo">Nový odkaz</Link><Link href="/login">Přihlášení</Link><Link href="/">Zpět na web FlatBerry</Link></nav>
   </div></main>;
 }
