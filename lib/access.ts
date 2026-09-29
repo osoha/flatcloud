@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { hasAllPropertyAccess } from "./auth";
+import { compareUnitLabels } from "./unit-label-sort";
 
 
 const publicUserSelect = {
@@ -44,10 +45,10 @@ export async function accessibleProperties(user:{id:string;role:string;allProper
     include: propertyInclude,
     orderBy:{name:"asc"}
   });
-  if(hasAllPropertyAccess(user)) return properties;
+  if(hasAllPropertyAccess(user)) return properties.map(property=>({...property,units:property.units.sort(compareUnitLabels)}));
   return properties.map(property=>{
     const propertyWide=property.memberships.some(m=>m.userId===user.id);
-    return propertyWide?property:{...property,units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id))};
+    return {...property,units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id))).sort(compareUnitLabels)};
   });
 }
 
@@ -56,9 +57,10 @@ export async function requirePropertyAccess(user:{id:string;role:string;allPrope
     where:{id:propertyId,...(hasAllPropertyAccess(user)?{}:{OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}}]})},
     include: propertyInclude,
   });
-  if(!property||hasAllPropertyAccess(user)) return property;
+  if(!property) return property;
+  if(hasAllPropertyAccess(user)) return {...property,units:property.units.sort(compareUnitLabels)};
   const propertyWide=property.memberships.some(m=>m.userId===user.id);
-  return propertyWide?property:{...property,units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id))};
+  return {...property,units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id))).sort(compareUnitLabels)};
 }
 
 export async function requireUnitAccess(user:{id:string;role:string;allProperties?:boolean},propertyId:string,unitId:string){
