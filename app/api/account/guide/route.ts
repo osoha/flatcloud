@@ -13,7 +13,7 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status, 
 export async function GET() {
   const user = await currentUser();
   if (!user) return json({ error: "Přihlaste se prosím znovu." }, 401);
-  const [mode, cookieStore] = await Promise.all([displayMode(user.id, user.onboardingStatus === "pending" ? "basic" : "pro"), cookies()]);
+  const [mode, cookieStore] = await Promise.all([displayMode(user.id, user.onboardingStatus === "pending" ? "basic" : user.defaultDisplayMode === "basic" ? "basic" : "pro"), cookies()]);
   const full = hasAllPropertyAccess(user);
   const [row, property, edits] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select }),
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   if (!guideOriginMatches(request)) return json({ error: "Neplatný původ požadavku." }, 403);
   const user = await currentUser();
   if (!user) return json({ error: "Přihlaste se prosím znovu." }, 401);
-  const mode = await displayMode(user.id, user.onboardingStatus === "pending" ? "basic" : "pro");
+  const mode = await displayMode(user.id, user.onboardingStatus === "pending" ? "basic" : user.defaultDisplayMode === "basic" ? "basic" : "pro");
   let body: { action?: GuideAction; revision?: number; version?: number };
   try { body = await request.json(); } catch { return json({ error: "Neplatný požadavek." }, 400); }
   if (!body || !["start", "resume", "next", "back", "pause", "dismiss"].includes(body.action || "") || !Number.isSafeInteger(body.revision) || body.version !== GUIDE_VERSION) return json({ error: "Neplatný krok průvodce." }, 400);
@@ -43,5 +43,5 @@ export async function POST(request: Request) {
     onboardingStatus: next.status, onboardingStep: next.step, onboardingVersion: next.version, onboardingRevision: { increment: 1 },
   } });
   if (!saved.count) return json({ error: "Průvodce se změnil v jiném okně. Obnovte jej prosím." }, 409);
-  return json({ state: { ...next, revision: state.revision + 1 } });
+  return json({ state: { ...next, revision: state.revision + 1 }, mode });
 }

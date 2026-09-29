@@ -503,7 +503,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .ownership-history pre { max-width: 100%; font-size: .8rem; }
 
 /* Scope picker: viewport-bounded panel with permanently reachable actions. */
-.scope-picker-popover{position:fixed;right:auto;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
+.scope-picker-popover{position:fixed;right:auto;z-index:1100;box-sizing:border-box;display:flex;flex-direction:column;overflow:hidden}
 .scope-picker-popover .scope-actions{flex-shrink:0;padding:0 0 8px;flex-wrap:wrap}
 .scope-picker-popover .scope-search{flex-shrink:0;margin:8px 0}
 .scope-bulk-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;font-size:12px}
@@ -568,3 +568,13 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .collaborator-picker{position:relative;display:grid;gap:12px}.collaborator-options{position:absolute;top:100%;left:0;right:0;z-index:20;margin:4px 0 0;padding:8px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #0002}.collaborator-options button{display:grid;width:100%;text-align:left;gap:4px;margin:2px 0}.collaborator-options [aria-selected="true"] button{outline:2px solid var(--primary,#4263eb)}
 
 .automation-template{background:var(--card);color:var(--text)}
+.methodology-guide-icon{display:grid;place-items:center;width:58px;height:58px;border-radius:17px;background:#e8f1ff;color:#2965b6}
+.methodology-guide-icon svg{width:32px;height:32px;stroke-width:1.8}
+.methodology-guide:nth-child(3n+2) .methodology-guide-icon{background:#e6f5ee;color:#24835b}
+.methodology-guide:nth-child(3n) .methodology-guide-icon{background:#fff0df;color:#ba6826}
+.task-checklist ol{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
+.task-checklist li{border:1px solid var(--border,#e0e6ed);border-radius:10px;padding:8px}
+.task-checklist li form{display:flex;align-items:flex-start;gap:10px}
+.task-checklist li button{flex:0 0 32px;width:32px;min-height:32px;padding:0}
+.task-checklist li span{line-height:1.45;padding-top:4px}
+.task-checklist-done span{text-decoration:line-through;opacity:.7}

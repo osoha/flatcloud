@@ -31,7 +31,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   const user=await requireUser();
   const {id}=await params;
   const query=await searchParams;
-  const task=await prisma.task.findFirst({where:{id,...taskAccessWhere(user)},include:{property:true,unit:true,lease:{include:{charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true}}}},tenant:true,assignee:true,createdBy:true,members:{include:{user:true},orderBy:{createdAt:"asc"}},userStates:{where:{userId:user.id}},conditionPlanExecution:true,costs:{select:{id:true,title:true}},entries:{where:taskEntryVisibilityWhere(user),include:{author:true,reactions:{include:{user:{select:{name:true}}}}},orderBy:{createdAt:"desc"}}}});
+  const task=await prisma.task.findFirst({where:{id,...taskAccessWhere(user)},include:{property:true,unit:true,lease:{include:{charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true}}}},tenant:true,assignee:true,createdBy:true,members:{include:{user:true},orderBy:{createdAt:"asc"}},userStates:{where:{userId:user.id}},conditionPlanExecution:true,costs:{select:{id:true,title:true}},checklistItems:{orderBy:{position:"asc"}},entries:{where:taskEntryVisibilityWhere(user),include:{author:true,reactions:{include:{user:{select:{name:true}}}}},orderBy:{createdAt:"desc"}}}});
   if(!task)notFound();
   const property=task.propertyId?await requirePropertyAccess(user,task.propertyId):null;
   if(task.propertyId&&!property)notFound();
@@ -68,6 +68,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
       </div>
 
       <aside className="col-4 stack-column case-sidebar">
+        {task.checklistItems.length>0&&<section className="card task-checklist"><h2>Pracovní postup</h2><p className="muted-copy">{task.checklistItems.filter(item=>item.completedAt).length} z {task.checklistItems.length} kroků hotovo. Změna kroku se ukládá do historie; provozní údaje je nutné zapsat v příslušném modulu.</p><ol>{task.checklistItems.map(item=><li key={item.id} className={item.completedAt?"task-checklist-done":undefined}><form action={`/api/tasks/${task.id}/checklist/${item.id}`} method="post"><input type="hidden" name="action" value={item.completedAt?"reopen":"complete"}/><button type="submit" className="secondary" disabled={!canManage||task.status==="DONE"||task.status==="CANCELLED"} aria-label={`${item.completedAt?"Znovu otevřít":"Dokončit"}: ${item.title}`}>{item.completedAt?"✓":"○"}</button><span>{item.title}</span></form></li>)}</ol></section>}
         <div className="card case-summary-card"><div className="card-head"><h2>Stav případu</h2>{task.status==="DONE"&&<CheckCircle2 size={18} className="positive"/>}</div><div className="summary-list">
           <div><span>Stav</span><strong>{statusLabel}</strong></div>
           {task.category==="COLLECTION"&&<div><span>Aktuální dluh po splatnosti</span><strong className={debt?"negative":"positive"}>{money(debt)}</strong></div>}

@@ -27,7 +27,7 @@ export function SidebarCollapseToggle() {
   }
   const bitmap = <span className="flatberry-brand-bitmap" aria-hidden="true"/>;
   return <div className="sidebar-brand-row">
-    <Link className="brand flatberry-home" href="/portfolio" aria-label="Flatberry – domovská stránka" title="Flatberry – domovská stránka" hidden={collapsed}>
+    <Link className="brand flatberry-home" href="/portfolio" aria-label="FlatBerry – domovská stránka" title="FlatBerry – domovská stránka" hidden={collapsed}>
       <span className="flatberry-brand-clip">{bitmap}</span>
     </Link>
     <button ref={expand} className="flatberry-expand" type="button" aria-label="Rozbalit levé menu" aria-expanded={false} title="Rozbalit menu" onClick={toggle} hidden={!collapsed}>

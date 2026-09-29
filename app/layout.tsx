@@ -11,7 +11,7 @@ import "./dark-theme.css";
 import "./first-login-guide.css";
 
 export const metadata = {
-  title: "Flatberry",
+  title: "FlatBerry",
   description: "Evidence nájemních plateb",
   robots: { index: false, follow: false },
 };

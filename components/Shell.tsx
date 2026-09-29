@@ -37,13 +37,14 @@ type ShellUser = {
   avatarChoice?: string | null;
   updatedAt?: Date | string;
   onboardingStatus?: string;
+  defaultDisplayMode?: string;
 };
 
 export async function Shell({ user: contentUser, children, taskPropertyId, taskLeaseId, displayReturnTo }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string; displayReturnTo?: string }) {
   const context = await previewContext();
   const preview = context.requested && Boolean(context.actor);
   const user = preview ? context.actor! : contentUser;
-  const mode = preview ? "pro" : await displayMode(contentUser.id, contentUser.onboardingStatus === "pending" ? "basic" : "pro");
+  const mode = preview ? "pro" : await displayMode(contentUser.id, contentUser.onboardingStatus === "pending" ? "basic" : contentUser.defaultDisplayMode === "basic" ? "basic" : "pro");
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");

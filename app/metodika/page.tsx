@@ -7,10 +7,16 @@ import {
   CheckCircle2,
   Compass,
   ExternalLink,
+  FileCheck2,
   Headphones,
+  House,
+  KeyRound,
   Library,
+  MessageCircle,
+  PiggyBank,
   Search,
   Video,
+  Wrench,
 } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { Shell } from "@/components/Shell";
@@ -154,6 +160,7 @@ export default async function MethodologyPage({
               {guides.map((guide) => (
                 <article className="card methodology-guide" key={guide.slug}>
                   <div className="methodology-card-head">
+                    <span className="methodology-guide-icon" aria-hidden="true">{guide.slug==="prevzeti-objektu"?<House/>:guide.slug==="novy-najemce"?<KeyRound/>:guide.slug==="chybejici-uhrada"?<PiggyBank/>:guide.slug==="obnova-jednotky"?<Wrench/>:guide.slug==="upozorneni-ukolu"?<MessageCircle/>:<FileCheck2/>}</span>
                     <span>
                       {guide.situation} · {guide.audience}
                     </span>

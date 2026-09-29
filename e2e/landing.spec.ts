@@ -9,11 +9,11 @@ test.describe("Public FlatBerry landing", () => {
     await expect(page.getByRole("heading", { level: 1 })).toContainText(
       "Profesionální správa.",
     );
-    await expect(page.locator('header img[alt="Flatberry"]')).toHaveAttribute(
+    await expect(page.locator('header img[alt="FlatBerry"]')).toHaveAttribute(
       "src",
       "/landing/logo.webp",
     );
-    await expect(page.locator('footer img[alt="Flatberry"]')).toHaveAttribute(
+    await expect(page.locator('footer img[alt="FlatBerry"]')).toHaveAttribute(
       "src",
       "/landing/logo.webp",
     );

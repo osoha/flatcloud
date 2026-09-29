@@ -45,6 +45,8 @@ test("neplatné přihlášení zobrazí bezpečnou chybu", async ({ page }) => {
   await page.getByLabel("Heslo").fill("incorrect-password");
   await page.getByRole("button", { name: "Přihlásit se" }).click();
   await expect(page.getByText("Neplatný e-mail nebo heslo.")).toBeVisible();
+  await expect(page.getByLabel("E-mail")).toHaveValue("nobody@flatcloud.test");
+  await expect(page.getByLabel("Heslo")).toHaveValue("");
   assertNoBrowserFailures();
 });
 
@@ -1010,6 +1012,35 @@ test("administrátor vytvoří úkol přes skutečný formulář", async ({ page
   await expect(page).toHaveURL(/\/ukoly\/[0-9a-f-]+(?:\?|$)/);
   await expect(page.getByRole("heading", { name: taskTitle, exact: true })).toBeVisible();
   await expect(page.getByText("Úkol byl vytvořen.")).toBeVisible();
+  assertNoBrowserFailures();
+});
+
+test("pracovní checklist lze vytvořit, odškrtnout a znovu otevřít", async ({ page }) => {
+  const assertNoBrowserFailures = watchBrowserFailures(page);
+  await login(page);
+  await page.goto("/ukoly/novy");
+  await page.getByLabel("Kontext úkolu *").selectOption({ label: "Moskevská" });
+  const selectedPropertyId = await page.getByLabel("Kontext úkolu *").inputValue();
+  await page.goto(`/ukoly/novy?propertyId=${selectedPropertyId}`);
+  await expect(page.getByLabel("Kontext úkolu *")).toHaveValue(selectedPropertyId);
+  await page.getByLabel("Pracovní postup").selectOption("METER_READINGS");
+  await expect(page.getByLabel("Kategorie *")).toHaveValue("MAINTENANCE");
+  const unitSelect = page.locator('select[name="unitId"]');
+  await expect(unitSelect).toBeEnabled();
+  const unitValue = await unitSelect.locator("option:not([value=''])").first().getAttribute("value");
+  expect(unitValue).toBeTruthy();
+  await unitSelect.selectOption(unitValue!);
+  await page.getByLabel("Název *").fill("Kontrola odečtů E2E");
+  await page.getByRole("button", { name: "Vytvořit úkol" }).click();
+  await expect(page.getByRole("heading", { name: "Kontrola odečtů E2E" })).toBeVisible();
+  const checklist = page.locator(".task-checklist");
+  await expect(checklist.locator("li")).toHaveCount(5);
+  await checklist.getByRole("button", { name: /Dokončit: Ověřit všechna relevantní měřidla/ }).click();
+  await expect(checklist).toContainText("1 z 5 kroků hotovo");
+  await page.reload();
+  await expect(checklist).toContainText("1 z 5 kroků hotovo");
+  await checklist.getByRole("button", { name: /Znovu otevřít: Ověřit všechna relevantní měřidla/ }).click();
+  await expect(checklist).toContainText("0 z 5 kroků hotovo");
   assertNoBrowserFailures();
 });
 

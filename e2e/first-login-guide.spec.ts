@@ -32,6 +32,7 @@ async function login(page: Page, email: string) {
   if (account.onboardingStatus === "pending") {
     await expect(page.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
     await page.getByRole("button", { name: /Zvolit Profi/ }).click();
+    await expect.poll(() => page.evaluate(async () => (await (await fetch("/api/account/guide", { cache: "no-store" })).json()).mode)).toBe("pro");
     await expect(page.getByRole("dialog", { name: "Vítejte ve FlatBerry" })).toBeVisible();
   }
 }
@@ -207,8 +208,11 @@ test("odložení, reload, jiné zařízení, zpět a dokončení bez opakování
   expect((await state(page)).status).toBe("paused");
   const other = await browser.newPage();
   await login(other, user.email);
+  await other.reload();
+  // Display mode is per device; the second browser starts in Basic until it chooses Profi.
+  await expect.poll(() => other.evaluate(async () => (await (await fetch("/api/account/guide", { cache: "no-store" })).json()).mode)).toBe("basic");
   await other.getByRole("button", { name: "Pokračovat v prohlídce" }).click();
-  await expect(other.locator("#guide-title")).toContainText("první nemovitostí");
+  await expect(other.locator("#guide-title")).toHaveText("Vaše nemovitosti a lidé");
   await other.getByRole("button", { name: "Zpět", exact: true }).click();
   await expect(other.locator("#guide-title")).toHaveText("Vítejte ve FlatBerry");
   // Mode is stored in a per-account cookie on this device, so a second browser chooses again.
