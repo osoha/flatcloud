@@ -12,6 +12,7 @@ test("jednorázový odkaz obnoví heslo a zneplatní staré relace", async ({ pa
   const token = randomBytes(32).toString("base64url");
   const user = await prisma.user.create({ data: { email, name: "Reset E2E", passwordHash: await bcrypt.hash(oldPassword,12), active: true, isTestIdentity: true } });
   try {
+    expect(user.defaultDisplayMode).toBe("basic");
     await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash: hashPasswordResetToken(token), expiresAt: new Date(Date.now()+30*60_000) } });
     await page.goto(`/obnovit-heslo/${token}`);
     await expect(page.getByRole("heading", { name: "Nové heslo" })).toBeVisible();

@@ -9,6 +9,11 @@ const cents = (value: number) => value * 100;
 async function main() {
   const admin = await prisma.user.findFirst({ where: { role: "SUPER_ADMIN", active: true } });
   if (!admin) throw new Error("Nejprve vytvořte administrátora příkazem npm run db:bootstrap.");
+  // Existing browser scenarios exercise the legacy Profi cockpit. The public
+  // default for accounts created outside this isolated CI fixture remains Basic.
+  if (process.env.CI && admin.email.endsWith("@flatcloud.test")) {
+    await prisma.user.update({ where: { id: admin.id }, data: { defaultDisplayMode: "pro" } });
+  }
   const existingProperties = await prisma.property.count();
   if (existingProperties > 0) {
     await ensureDemoCostScenarios(prisma, admin.id);
