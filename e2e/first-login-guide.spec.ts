@@ -214,7 +214,7 @@ test("odložení, reload, jiné zařízení, zpět a dokončení bez opakování
   await other.getByRole("button", { name: "Pokračovat v prohlídce" }).click();
   await expect(other.locator("#guide-title")).toHaveText("Vaše nemovitosti a lidé");
   await other.getByRole("button", { name: "Zpět", exact: true }).click();
-  await expect(other.locator("#guide-title")).toHaveText("Vítejte v Basic");
+  await expect(other.locator("#guide-title")).toHaveText("Vítejte ve FlatBerry");
   // Mode is stored in a per-account cookie on this device, so a second browser chooses again.
   await expect(other.getByRole("group", { name: "Vyberte vzhled aplikace" })).toBeVisible();
   await other.getByRole("button", { name: /Zvolit Profi/ }).click();
