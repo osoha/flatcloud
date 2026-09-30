@@ -649,7 +649,9 @@ export async function loadAnnualOwnerPackage(
       OR: [{ amountCents: { gt: 0 }, source: { not: "expense-statement" }, status: { in: ["UNMATCHED", "SUGGESTED", "OVERPAYMENT"] } },
         { OR: [{ amountCents: { lt: 0 } }, { source: "expense-statement" }], expenseIgnoredAt: null }],
     }, include: { expenseAllocations: true } });
-    const unresolved = pending.filter(p => p.amountCents > 0 && p.source !== "expense-statement" || bankRemainder(p.amountCents, p.expenseAllocations) > 0);
+    const unresolved = pending.filter(p => p.amountCents > 0 && p.source !== "expense-statement"
+      ? ["UNMATCHED", "SUGGESTED", "OVERPAYMENT"].includes(p.status)
+      : (p.amountCents < 0 || p.source === "expense-statement") && !p.expenseIgnoredAt && bankRemainder(p.amountCents, p.expenseAllocations) > 0);
     if (unresolved.length) issues.push({ code: "BANK_UNCLASSIFIED", severity: "BLOCKER", message: `V období zůstává ${unresolved.length} bankovních pohybů k přiřazení nebo potvrzení nerelevance. Nejsou automaticky zahrnuté jako daňové příjmy či výdaje; před dokončením podkladů je prověřte.` });
   }
   for (const cost of costs) {

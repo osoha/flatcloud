@@ -6,7 +6,6 @@ import { reconcileTransactionReview, reconcileInboxReview } from "../lib/bank-re
 import { applyExpense } from "../lib/bank-expenses";
 import { loadAnnualOwnerPackage } from "../lib/reporting/annual-owner-package";
 import { loadPayerDisplayNames } from "../lib/bank-payer-display";
-import { R24_ROLE_USERS } from "../prisma/seed-r24-agent-roles";
 
 const db = new PrismaClient();
 test.beforeAll(() => { if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname)) throw new Error("Local/CI DB only"); });
@@ -20,7 +19,9 @@ async function login(page: Page) {
 }
 async function fixture() {
   const token = randomUUID(), accountNumber = String(Math.floor(Math.random() * 8000000000) + 1000000000);
-  const manager = await db.user.findUniqueOrThrow({ where: { email: R24_ROLE_USERS.advanced } });
+  // Dedicated reviewer: shared seeded role memberships are used by other suites.
+  const manager = await db.user.create({ data: { email: `bank-review-${token}@flatcloud.test`, name: `Bank reviewer ${token}`,
+    passwordHash: "e2e-isolated-reviewer-no-login", role: "PROPERTY_MANAGER", isTestIdentity: true } });
   const owner = await db.owner.create({ data: { name: `Bank review owner ${token}` } });
   const property = await db.property.create({ data: { name: `Bank review ${token}`, address: "Testovací 1", city: "Test", ownerId: owner.id, managerId: manager.id,
     memberships: { create: { userId: manager.id, permission: "EDIT" } } } });
@@ -134,7 +135,9 @@ test("shared account is not guessed from outgoing VS and a superadmin can route 
   expect((await db.user.findUniqueOrThrow({ where: { id: task.assigneeId! } })).role).toBe("SUPER_ADMIN");
   await login(page);
   await page.goto(`/platby/nesparovane/email/${row.id}`);
-  await page.getByLabel("Nemovitost", { exact: true }).selectOption(other.id);
+  const selector = page.locator('select[name="propertyId"]');
+  await expect(selector, await page.content()).toBeVisible();
+  await selector.selectOption(other.id);
   await page.getByRole("button", { name: "Předat výdaj k posouzení" }).click();
   await expect(page.getByRole("status")).toContainText("Odchozí pohyb byl předán");
   const saved = await db.inboxPayment.findUniqueOrThrow({ where: { id: row.id } });
