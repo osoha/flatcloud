@@ -1,6 +1,6 @@
 import { processAvatarUpload } from "@/lib/avatar";
 import { NextResponse } from "next/server";
-import { currentUser, hasAllPropertyAccess } from "@/lib/auth";
+import { currentUser, hasAllPropertyAccess, canManageProperty } from "@/lib/auth";
 import { requirePropertyAccess, requireUnitAccess } from "@/lib/access";
 import { prisma } from "@/lib/db";
 import { loadEntityPhotoCandidates } from "@/lib/entity-photos";
@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     if (form.has("photoId")) {
       const photoId = String(form.get("photoId") || "");
-      if (!unitId && !hasAllPropertyAccess(user) && !property.memberships.some(member => member.userId === user.id && ["EDIT", "ADMIN"].includes(member.permission))) throw new Error("Nemáte oprávnění měnit společný avatar objektu.");
+      if (!unitId && !(canManageProperty(user.role) && hasAllPropertyAccess(user)) && !property.memberships.some(member => member.userId === user.id && ["EDIT", "ADMIN"].includes(member.permission))) throw new Error("Nemáte oprávnění měnit společný avatar objektu.");
       if (photoId === "upload") {
         const uploaded = await processAvatarUpload(form.get("avatar"));
         const previous = unitId ? await prisma.userEntityAppearance.findUnique({where:{userId_entityKey:{userId:user.id,entityKey:entityAppearanceKey(id,unitId)}},select:{avatarMimeType:true}}) : property;

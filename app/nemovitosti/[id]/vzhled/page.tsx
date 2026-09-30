@@ -1,7 +1,7 @@
 import { EntityAvatarChoice } from "@/components/EntityAvatarChoice";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
+import { requireUser, hasAllPropertyAccess, canManageProperty } from "@/lib/auth";
 import { requirePropertyAccess, requireUnitAccess } from "@/lib/access";
 import { loadEntityPhotoCandidates, loadEntityPhotos } from "@/lib/entity-photos";
 import { loadEntityAppearances } from "@/lib/entity-appearance";
@@ -20,7 +20,7 @@ export default async function EntityAppearance({ params, searchParams }: { param
   if (query.unitId && !unit) notFound();
   const [photos, candidates, appearances] = await Promise.all([loadEntityPhotos(user, [id]), loadEntityPhotoCandidates(user, [id]), loadEntityAppearances(user.id)]);
   const preference = appearances[entityAppearanceKey(id, unit?.id)];
-  const canEditShared = hasAllPropertyAccess(user) || property.memberships.some(member => member.userId === user.id && ["EDIT", "ADMIN"].includes(member.permission));
+  const canEditShared = (canManageProperty(user.role) && hasAllPropertyAccess(user)) || property.memberships.some(member => member.userId === user.id && ["EDIT", "ADMIN"].includes(member.permission));
   const defaultChoice = unit ? defaultPropertyIllustration("unit", id, property.units.findIndex(item => item.id === unit.id)) : defaultPropertyIllustration("house", id);
   const back = unit ? `/nemovitosti/${id}/jednotky/${unit.id}` : `/nemovitosti/${id}/prehled`;
   return <Shell user={user} taskPropertyId={id}><div className="page form-page">
