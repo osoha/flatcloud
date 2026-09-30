@@ -676,6 +676,9 @@ model Property {
   city                              String
   postalCode                        String?
   note                              String?
+  avatarPhotoId                     String?
+  avatarData                        Bytes?
+  avatarMimeType                    String?
   technicalData                     Json?
   active                            Boolean                         @default(true)
   ownerId                           String

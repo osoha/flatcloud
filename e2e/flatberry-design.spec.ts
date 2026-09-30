@@ -3,9 +3,9 @@ async function apiHeaders(page: Page) {
   // Browser accepts Secure cookies on loopback; APIRequestContext needs them explicitly on HTTP CI.
   return { Accept: "application/json", Cookie: (await page.context().cookies()).map(cookie => `${cookie.name}=${cookie.value}`).join("; ") };
 }
-async function login(page: Page) {
+async function login(page: Page, address = process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test") {
   await page.goto("/login");
-  await page.getByLabel("E-mail", { exact: true }).fill(process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test");
+  await page.getByLabel("E-mail", { exact: true }).fill(address);
   await page.getByLabel("Heslo", { exact: true }).fill(process.env.E2E_ADMIN_PASSWORD || "FlatCloud-E2E-Only-Password-2026");
   await page.getByRole("button", { name: "Přihlásit se" }).click();
   await expect(page.getByRole("heading", { name: "Portfolio", exact: true })).toBeVisible();
@@ -92,8 +92,7 @@ test("Flatberry: dostupná fotografie se načte a její chyba přejde na velký 
   const href = await page.locator('a.property-cell[href$="/prehled"]').first().getAttribute("href");
   const propertyId = href!.split("/")[2];
   const actor = await prisma.user.findUniqueOrThrow({ where: { email: process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test" } });
-  const entityKey = `property:${propertyId}`;
-  const previous = await prisma.userEntityAppearance.findUnique({ where: { userId_entityKey: { userId: actor.id, entityKey } } });
+  const previous = await prisma.property.findUniqueOrThrow({ where: { id: propertyId }, select: { avatarPhotoId: true, avatarData: true, avatarMimeType: true } });
   const photoBytes = await readFile("public/flatberry-logo.png");
   const asset = await prisma.fileAsset.create({ data: { storageKey: `r31-avatar-test-${Date.now()}.png`, originalName: "R31 isolated photo fixture.png", mimeType: "image/png", sizeBytes: photoBytes.length, sha256: "0".repeat(64), uploadedById: actor.id } });
   const document = await prisma.document.create({ data: { propertyId, fileAssetId: asset.id, category: "PHOTO", title: "R31 isolated avatar fixture", createdById: actor.id } });
@@ -113,9 +112,57 @@ test("Flatberry: dostupná fotografie se načte a její chyba přejde na velký 
     await expect(page.locator(".property-header-identity .entity-avatar-glyph")).toBeVisible();
     await expect(image).toHaveCount(0);
   } finally {
-    if (previous) await prisma.userEntityAppearance.update({ where: { id: previous.id }, data: { photoId: previous.photoId } });
-    else await prisma.userEntityAppearance.deleteMany({ where: { userId: actor.id, entityKey } });
+    await prisma.property.update({ where: { id: propertyId }, data: previous });
     await prisma.document.delete({ where: { id: document.id } });
     await prisma.fileAsset.delete({ where: { id: asset.id } });
   }
+});
+
+test("Sdílený avatar domu vidí správce i uživatel s přístupem; osobní barva zůstává oddělená", async ({ page, browser }) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "Synthetic users belong only to the isolated local/CI database.");
+  const { prisma } = await import("../lib/db");
+  const { readFile } = await import("node:fs/promises");
+  const admin = await prisma.user.findUniqueOrThrow({ where: { email: process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test" } });
+  const property = await prisma.property.findFirstOrThrow({ where: { active: true } });
+  const previous = { avatarPhotoId: property.avatarPhotoId, avatarData: property.avatarData, avatarMimeType: property.avatarMimeType };
+  const suffix = Date.now();
+  const manager = await prisma.user.create({ data: { email: `avatar-manager-${suffix}@example.test`, name: "Správce avataru", passwordHash: admin.passwordHash, role: "PROPERTY_MANAGER", memberships: { create: { propertyId: property.id, permission: "EDIT" } } } });
+  const viewer = await prisma.user.create({ data: { email: `avatar-viewer-${suffix}@example.test`, name: "Čtenář avataru", passwordHash: admin.passwordHash, role: "OWNER_VIEWER", allProperties: true, memberships: { create: { propertyId: property.id, permission: "VIEW" } } } });
+  const viewerContext = await browser.newContext();
+  try {
+    await login(page, manager.email);
+    const bytes = await readFile("public/flatberry-logo.png");
+    const saved = await page.request.post(`/api/properties/${property.id}/appearance`, { headers: await apiHeaders(page), multipart: { photoId: "upload", avatar: { name: "house.png", mimeType: "image/png", buffer: bytes }, color: "blue" } });
+    expect(saved.ok()).toBe(true);
+    await expect(page.getByRole("link", { name: "Nespárované" })).toBeVisible();
+    await page.goto("/platby/nesparovane");
+    await expect(page.getByRole("heading", { name: "Platby k řešení" })).toBeVisible();
+    await expect(page.getByText("Bankovní notifikace k ručnímu řešení")).toHaveCount(0);
+    const viewerPage = await viewerContext.newPage();
+    await login(viewerPage, viewer.email);
+    await viewerPage.goto(`/nemovitosti/${property.id}/prehled`);
+    await expect(viewerPage.locator(".property-header-identity .entity-avatar img")).toBeVisible();
+    const forbidden = await viewerPage.request.post(`/api/properties/${property.id}/appearance`, { headers: await apiHeaders(viewerPage), multipart: { photoId: "icon" } });
+    expect(forbidden.status()).toBe(400);
+    await viewerPage.goto(`/nemovitosti/${property.id}/vzhled`);
+    await expect(viewerPage.getByLabel("Avatar objektu / jednotky")).toHaveCount(0);
+    await page.goto(`/nemovitosti/${property.id}/vzhled`);
+    await expect(page.getByLabel("Barva karty v přehledu")).toHaveValue("blue");
+    await expect(viewerPage.getByLabel("Barva karty v přehledu")).toHaveValue("");
+  } finally {
+    await viewerContext.close();
+    await prisma.property.update({ where: { id: property.id }, data: previous });
+    await prisma.user.delete({ where: { id: manager.id } });
+    await prisma.user.delete({ where: { id: viewer.id } });
+  }
+});
+
+test("PDF větší než 10 MB projde proxy celý do dokumentové trasy", async ({ page }) => {
+  test.skip(Boolean(process.env.E2E_BASE_URL), "Only the isolated CI instance has deliberately disabled file storage.");
+  await login(page);
+  const content = Buffer.alloc(11_500_000, 0x20);
+  content.write("%PDF-1.7", 0, "ascii");
+  const response = await page.request.post("/api/documents/upload", { headers: await apiHeaders(page), multipart: { files: { name: "contract.pdf", mimeType: "application/pdf", buffer: content }, propertyId: "test", returnTo: "/dokumenty" }, maxRedirects: 0 });
+  expect(response.status()).toBe(303);
+  expect(decodeURIComponent(response.headers()["location"] || "")).toContain("Úložiště souborů není nakonfigurováno");
 });

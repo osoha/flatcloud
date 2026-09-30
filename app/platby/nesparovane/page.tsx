@@ -2,7 +2,7 @@ import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { loadPayerDisplayNames } from "@/lib/bank-payer-display";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { requireUser, canManageProperty, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { bankNameForCode } from "@/lib/inbound-bank/bank-email";
@@ -19,8 +19,14 @@ export const dynamic = "force-dynamic";
 export default async function UnmatchedPaymentsPage({searchParams}:{searchParams:Promise<{properties?:string;propertyId?:string;ok?:string;error?:string}>}) {
   // V21.3.5 compatibility: the retained bank-income audit query remains conceptually `where: { status: "IGNORED" }`, refined below only to separate irrelevant mail.
   const [user,query] = await Promise.all([requireUser(),searchParams]);
-  if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
+  if (!canManageProperty(user.role)) redirect("/portfolio");
   const availableProperties=await accessibleProperties(user,{includeInactive:true}); const selection=parsePortfolioSelection(query); const propertyIds=selectedPropertyIds(selection,availableProperties.map((property)=>property.id));
+  if (user.role !== "SUPER_ADMIN") {
+    const managedIds=hasAllPropertyAccess(user) ? propertyIds : availableProperties.filter(property => propertyIds.includes(property.id) && property.memberships.some(member => member.userId === user.id && ["EDIT", "ADMIN"].includes(member.permission))).map(property => property.id);
+    const transactions=await prisma.bankTransaction.findMany({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] }, bankAccount: { propertyId: { in: managedIds } } }, include: { bankAccount: { include: { property: true } }, suggestedLease: { include: { unit: true, tenant: true } } }, orderBy: { bookedAt: "desc" } });
+    const payerNames=await loadPayerDisplayNames(user, transactions.map(t => ({ ...t, propertyId: t.bankAccount.propertyId, counterpartyAccount: t.counterpartyIban })));
+    return <Shell user={user}><div className="page"><Flash {...query}/><div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Nespárované platby</span></div><div className="page-title"><div><PageHeading>Platby k řešení</PageHeading><p>Bankovní platby u objektů, které spravujete.</p></div></div><div className="card portfolio-table-card"><div className="card-head"><h2>{transactions.length} plateb k přiřazení</h2></div><div className="table-wrap"><table><thead><tr><th>Datum</th><th>Nemovitost</th><th>Plátce / protistrana</th><th>VS</th><th>Částka</th><th>Stav</th><th>Návrh systému</th><th></th></tr></thead><tbody>{transactions.length ? transactions.map(tx => <NavigableTableRow href={`/nemovitosti/${tx.bankAccount.propertyId}/platby/${tx.id}`} ariaLabel={`Otevřít platbu ${tx.variableSymbol || tx.id}`} key={tx.id}><td>{date(tx.bookedAt)}</td><td>{tx.bankAccount.property.name}</td><td>{payerNames.get(tx.id) || tx.counterpartyName || "Plátce neuveden"}</td><td>{tx.variableSymbol || "—"}</td><td className="money">{money(tx.amountCents)}</td><td><span className={`status ${tx.status === "UNMATCHED" ? "bad" : "warn"}`}>{paymentStatuses[tx.status]}</span></td><td>{tx.suggestedLease ? `${tx.suggestedLease.unit.label} · ${tx.suggestedLease.tenant.name}` : tx.matchNote || "—"}</td><td><Link className="table-link" href={`/nemovitosti/${tx.bankAccount.propertyId}/platby/${tx.id}`}>Otevřít</Link></td></NavigableTableRow>) : <tr><td colSpan={8} className="table-empty">Žádné bankovní platby nečekají na řešení.</td></tr>}</tbody></table></div></div></div></Shell>;
+  }
   const inboxScope={OR:[{propertyId:null},{propertyId:{in:propertyIds}}]};
   const [transactions, inboxRows, ignoredRows, irrelevantRows, accounts] = await Promise.all([
     prisma.bankTransaction.findMany({

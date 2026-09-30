@@ -10,7 +10,9 @@ export async function GET(request: Request) {
   if (!id || !["unit", "property"].includes(kind)) return new NextResponse(null, { status: 404 });
   const accessible = kind === "property" ? await requirePropertyAccess(user, id) : await prisma.unit.findUnique({ where: { id }, select: { propertyId: true } }).then(unit => unit && requireUnitAccess(user, unit.propertyId, id));
   if (!accessible) return new NextResponse(null, { status: 404 });
-  const appearance = await prisma.userEntityAppearance.findUnique({ where: { userId_entityKey: { userId: user.id, entityKey: key } } });
-  if (appearance?.photoId !== "upload" || !appearance.avatarData || !appearance.avatarMimeType) return new NextResponse(null, { status: 404 });
+  const appearance = kind === "property"
+    ? await prisma.property.findUnique({ where: { id }, select: { avatarPhotoId: true, avatarData: true, avatarMimeType: true } })
+    : await prisma.userEntityAppearance.findUnique({ where: { userId_entityKey: { userId: user.id, entityKey: key } }, select: { photoId: true, avatarData: true, avatarMimeType: true } });
+  if (!appearance || ("avatarPhotoId" in appearance ? appearance.avatarPhotoId : appearance.photoId) !== "upload" || !appearance.avatarData || !appearance.avatarMimeType) return new NextResponse(null, { status: 404 });
   return new NextResponse(new Uint8Array(appearance.avatarData), { headers: { "Content-Type": appearance.avatarMimeType, "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff" } });
 }
