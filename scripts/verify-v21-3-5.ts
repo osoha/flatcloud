@@ -14,7 +14,8 @@ assert.match(portfolio, /activeProperties = properties\.filter/);
 assert.match(portfolio, /Neaktivní \/ archivované/);
 assert.match(portfolio, /leaseAlertsForProperties\(activeProperties\)/);
 assert.match(portfolio, /taskScope = fullAccess \? \{ propertyId: \{ in: propertyIds \} \}/);
-assert.match(portfolio, /bankAccount: \{ propertyId: \{ in: propertyIds \} \}/);
+assert.match(portfolio, /managerPropertyIds = fullAccess \? propertyIds : activeProperties\.filter\(property => property\.memberships\.some\(member => member\.userId === user\.id && \["EDIT", "ADMIN"\]\.includes\(member\.permission\)\)\)/);
+assert.match(portfolio, /bankAccount: \{ propertyId: \{ in: managerPropertyIds \} \}/);
 assert.match(portfolio, /OR: \[\{ propertyId: null \}, \{ propertyId: \{ in: propertyIds \} \}\]/);
 
 const task = read("app/ukoly/\[id\]/page.tsx");
