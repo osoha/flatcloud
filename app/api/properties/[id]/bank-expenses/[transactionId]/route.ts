@@ -4,6 +4,7 @@ import { requireManagedProperty } from "@/lib/management";
 import { goWithMessage } from "@/lib/route-response";
 import { applyExpense } from "@/lib/bank-expenses";
 import { expenseMoney, type ExpenseKind } from "@/lib/bank-expense-values";
+import { reconcileTransactionReview } from "@/lib/bank-review-tasks";
 
 export async function POST(request:Request,{params}:{params:Promise<{id:string;transactionId:string}>}) {
   const {id,transactionId}=await params,back=`/nemovitosti/${id}/bankovni-vydaje`;
@@ -21,6 +22,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;t
         const ignored=get("operation")==="ignore";
         await tx.bankTransaction.update({where:{id:transactionId},data:{expenseIgnoredAt:ignored?new Date():null,expenseIgnoreReason:ignored?get("reason"):null,expenseSuggestedRuleId:null,expenseRevision:{increment:1}}});
         await tx.auditLog.create({data:{userId:access.user.id,propertyId:id,action:ignored?"BANK_EXPENSE_IGNORED":"BANK_EXPENSE_RESTORED",entityType:"BankTransaction",entityId:transactionId,details:{reason:get("reason")}}});
+        await reconcileTransactionReview(transactionId, tx);
       });
       return goWithMessage(request,back,"ok","Stav pohybu uložen; historie zůstává zachována.");
     }

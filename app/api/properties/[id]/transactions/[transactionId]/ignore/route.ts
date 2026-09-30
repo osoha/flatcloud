@@ -5,6 +5,7 @@ import { requireManagedProperty, audit } from "@/lib/management";
 import { normalizeIban, processPropertyTransactions } from "@/lib/matching";
 import { go, goWithMessage } from "@/lib/route-response";
 import { assertNoReceivedDepositForTransactionAction } from "@/lib/payment-safety";
+import { reconcileTransactionReview } from "@/lib/bank-review-tasks";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; transactionId: string }> }) {
   const { id, transactionId } = await params;
@@ -45,6 +46,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     }
     await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status: PaymentStatus.IGNORED, matchedRuleId: ruleId, suggestedLeaseId: null, matchNote: future ? "Ignorováno a vytvořeno pravidlo pro budoucí transakce." : "Ručně ignorováno správcem." } });
     if (future) await processPropertyTransactions(id);
+    await reconcileTransactionReview(transactionId);
     await audit(access.user.id, "PAYMENT_IGNORED", "BankTransaction", transactionId, { propertyId: id, futureRule: future, ruleId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/platby/${transactionId}`, "ok", future ? "Platba byla ignorována a pravidlo platí i pro budoucí transakce." : "Platba byla ignorována.");
   } catch (error) {

@@ -1,5 +1,6 @@
 import { ownerVisibleDocumentWhere } from "@/lib/documents/access";
 import { prisma } from "@/lib/db";
+import { bankRemainder } from "@/lib/bank-expense-values";
 import {
   businessDateEndInstant,
   businessDateKey,
@@ -639,6 +640,18 @@ export async function loadAnnualOwnerPackage(
   const expenseRows: AnnualExpenseRow[] = [];
   const costPaymentRows: AnnualCostPaymentRow[] = [];
   issues.push({ code: "BANK_COVERAGE", severity: "WARNING", message: "Úplnost bankovních výdajů ověřte proti výpisům všech účtů. Evidované ACTUAL náklady nejsou zaplacené výdaje. Úhrady jsou uvedeny samostatně podle bankovního data; převody, zálohy a jistina jsou v bankovním přehledu domu." });
+  // Unclassified movements are never silently treated as tax income/expense.
+  // Whole-account warnings require whole-property visibility; unit-only users see no foreign totals.
+  const reviewPropertyIds = propertyIds.filter(id => wholePropertyIdSet.has(id));
+  if (reviewPropertyIds.length) {
+    const pending = await prisma.bankTransaction.findMany({ where: {
+      bankAccount: { propertyId: { in: reviewPropertyIds }, OR: [{ ownerId: selectedOwner.id }, { ownerId: null }] }, bookedAt: { gte: range.from, lte: range.to },
+      OR: [{ amountCents: { gt: 0 }, source: { not: "expense-statement" }, status: { in: ["UNMATCHED", "SUGGESTED", "OVERPAYMENT"] } },
+        { OR: [{ amountCents: { lt: 0 } }, { source: "expense-statement" }], expenseIgnoredAt: null }],
+    }, include: { expenseAllocations: true } });
+    const unresolved = pending.filter(p => p.amountCents > 0 && p.source !== "expense-statement" || bankRemainder(p.amountCents, p.expenseAllocations) > 0);
+    if (unresolved.length) issues.push({ code: "BANK_UNCLASSIFIED", severity: "BLOCKER", message: `V období zůstává ${unresolved.length} bankovních pohybů k přiřazení nebo potvrzení nerelevance. Nejsou automaticky zahrnuté jako daňové příjmy či výdaje; před dokončením podkladů je prověřte.` });
+  }
   for (const cost of costs) {
     let ownerAmountCents = 0,
       ownerShareBasisPoints: number | null = null,
