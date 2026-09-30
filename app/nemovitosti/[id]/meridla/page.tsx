@@ -31,14 +31,14 @@ export default async function PropertyMeters({params,searchParams}:{params:Promi
     <Flash ok={query.ok} error={query.error}/>
     <div className="notice"><strong>Princip evidence</strong><span>Hlavní domovní měřidlo je kořen. Podružné měřidlo lze navázat jen na stejné médium a měrnou jednotku. Bytová měřidla zůstávají na kartách jednotek. Výměna staré měřidlo nemaže.</span></div>
     <div className="meter-grid">{houseMeters.length?houseMeters.map(m=><div className={`meter-card ${m.active?"":"inactive"}`} key={m.id}>
-      <div className="meter-card-head"><div><span className="eyebrow">{m.scope==="HOUSE_MAIN"?"Hlavní domovní":"Podružné"} · {m.active?"Aktivní":"Vyřazené"}</span><h3>{m.label||meterTypes[m.type]}</h3><small>{meterTypes[m.type]} · {m.serialNumber||"bez sériového čísla"}{m.location?` · ${m.location}`:""}</small>{m.parent&&<small>Nadřazené: {m.parent.label||m.parent.serialNumber||m.parent.id}</small>}</div><Gauge size={18}/></div>
+      <div className="meter-card-head"><div><span className="eyebrow">{m.scope==="HOUSE_MAIN"?"Hlavní domovní":"Podružné"} · {m.active?"Aktivní":"Vyřazené"}</span><h3>{m.label||meterTypes[m.type]}</h3><small>{meterTypes[m.type]} · {m.serialNumber||"bez sériového čísla"}{m.location?` · ${m.location}`:""}</small>{m.supplyPointId&&<small>{m.type.startsWith("ELECTRICITY")?"EAN":m.type==="GAS"?"EIC":"Identifikátor odběrného místa"}: {m.supplyPointId}</small>}{m.parent&&<small>Nadřazené: {m.parent.label||m.parent.serialNumber||m.parent.id}</small>}</div><Gauge size={18}/></div>
       <MeterReadingHistory readings={m.readings} unitOfMeasure={m.unitOfMeasure} action={`/api/properties/${id}/meters/${m.id}/readings`} canManage={canManage} documents={documents}/>
     </div>):<div className="card empty-state compact-empty"><Gauge size={24}/><p>Objekt zatím nemá domovní měřidla.</p></div>}</div>
     {canManage&&<details className="card module-add"><summary><Plus size={15}/> Přidat domovní měřidlo</summary><form className="compact-form module-form" action={`/api/properties/${id}/meters`} method="post">
       <label className="field"><span>Úroveň</span><select name="scope" defaultValue="HOUSE_MAIN"><option value="HOUSE_MAIN">Hlavní domovní</option><option value="HOUSE_SUBMETER">Podružné</option></select></label>
       <label className="field"><span>Médium</span><select name="type">{Object.entries(meterTypes).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label>
       <label className="field"><span>Označení</span><input name="label" placeholder="např. Hlavní vodoměr"/></label>
-      <label className="field"><span>Sériové číslo</span><input name="serialNumber"/></label>
+      <label className="field"><span>Výrobní číslo měřidla</span><input name="serialNumber"/></label><label className="field"><span>EAN / EIC odběrného místa</span><input name="supplyPointId"/></label>
       <label className="field"><span>Umístění</span><input name="location" placeholder="např. suterén – vodoměrná šachta"/></label>
       <label className="field"><span>Jednotka</span><input name="unitOfMeasure" placeholder="Automaticky m³ nebo kWh"/></label>
       <label className="field"><span>Datum osazení</span><input name="installedAt" type="date"/></label>
