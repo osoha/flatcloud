@@ -1,4 +1,4 @@
-import { businessDateKey, businessQuarter, quarterStartKey } from "../calendar";
+import { businessDateKey, businessMonthKey, businessQuarter, quarterStartKey } from "../calendar";
 import { effectiveLeaseEnd, leaseStatusAt } from "../lease-lifecycle-core";
 import { securityDepositSnapshot } from "../security-deposit";
 import { operationalStatusAt } from "../unit-operational-history";
@@ -32,7 +32,10 @@ export function calculatePropertySnapshot(input: { propertyId: string; asOf: Dat
 
     const resolved = rentRollAmountsAt(lease, input.asOf);
     if ("financiallyTracked" in resolved && !resolved.financiallyTracked) continue;
-    if (!resolved.chargeFound) issues.push({ code: "MISSING_CHARGE_FOR_PERIOD", severity: "WARNING", message: "Active occupied lease has no charge for the as-of month; rent was reconstructed.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
+    // An explicitly disabled historical charge documents a waived obligation.
+    // It must not be mistaken for an invoice that the import forgot to create.
+    const waivedCurrentCharge = lease.charges?.some((charge: any) => charge.period === businessMonthKey(input.asOf) && !charge.active && charge.manualOverride);
+    if (!resolved.chargeFound && !waivedCurrentCharge) issues.push({ code: "MISSING_CHARGE_FOR_PERIOD", severity: "WARNING", message: "Active occupied lease has no charge for the as-of month; rent was reconstructed.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
     if (resolved.rent.source === "LEGACY") issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy lease rent used as RENT fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
     if (resolved.services.source === "LEGACY" && resolved.services.amountCents !== 0) issues.push({ code: "RENT_SOURCE_LEGACY_FALLBACK", severity: "WARNING", message: "Legacy lease services used as SERVICES fallback.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
     if (!resolved.rent.source) issues.push({ code: "MISSING_RENT_SOURCE", severity: "WARNING", message: "No rent source at as-of date.", propertyId: input.propertyId, unitId: unit.id, leaseId: lease.id });
