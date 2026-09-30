@@ -67,6 +67,7 @@ test("QR verification routes a trusted Air Bank test automatically, scoped queue
     await expect(verified.locator("summary")).toBeVisible();
     await expect(verified.locator("img")).toBeHidden();
     await expect(page.locator(".verification-box img")).toBeVisible();
+    await page.screenshot({ path: test.info().outputPath("verified-and-pending-qr.png"), fullPage: true });
     await verified.locator("summary").click();
     await expect(verified.locator("img")).toBeVisible();
     // Parsing the existing row again still creates no rent transaction.

@@ -9,12 +9,13 @@ import { notificationInScope, notificationPropertyIds } from "@/lib/inbound-bank
 import { paymentStatuses } from "@/lib/labels";
 import { Shell } from "@/components/Shell";
 import { NavigableTableRow } from "@/components/NavigableTableRow";
+import { Flash } from "@/components/FormUi";
 import { accessibleProperties } from "@/lib/access";
 import { parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds } from "@/lib/portfolio-selection";
 
 export const dynamic = "force-dynamic";
 
-export default async function UnmatchedPaymentsPage({searchParams}:{searchParams:Promise<{properties?:string;propertyId?:string}>}) {
+export default async function UnmatchedPaymentsPage({searchParams}:{searchParams:Promise<{properties?:string;propertyId?:string;ok?:string;error?:string}>}) {
   // V21.3.5 compatibility: the retained bank-income audit query remains conceptually `where: { status: "IGNORED" }`, refined below only to separate irrelevant mail.
   const [user,query] = await Promise.all([requireUser(),searchParams]);
   if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
@@ -35,6 +36,7 @@ export default async function UnmatchedPaymentsPage({searchParams}:{searchParams
   const inbox=inboxRows.filter(inScope); const ignored=ignoredRows.filter(inScope); const irrelevantEmails=irrelevantRows.filter(inScope);
   const propertyLabel=(row:{propertyId:string|null;recipientAccount:string|null})=>notificationPropertyIds(row,accounts).map(id=>availableProperties.find(p=>p.id===id)?.name||"Neznámá nemovitost").join(" · ")||"Nemovitost neurčena";
   return <Shell user={user}><div className="page">
+    <Flash {...query}/>
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Nespárované platby</span></div>
     <div className="page-title"><div><PageHeading>Platby k řešení</PageHeading><p>Centrální pracovní fronta pouze pro hlavního administrátora. Aktivní práce je oddělená od historie a vyřazených notifikací.</p></div></div>
     <div className="card"><div className="card-head"><div><span className="eyebrow">K řešení</span><h2>{transactions.length + inbox.length} položek k řešení</h2></div></div><div className="stat-grid"><QueueStat label="Bankovní platby" value={String(transactions.length)} bad={transactions.length > 0}/><QueueStat label="Bankovní notifikace" value={String(inbox.length)} bad={inbox.length > 0}/></div></div>
