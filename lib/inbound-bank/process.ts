@@ -124,13 +124,14 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   if (!inbox || !inbox.amountCents || inbox.amountCents <= 0) return { imported: false, reason: "Platba nemá kladnou částku." };
   if (inbox.transactionId) return { imported: true, transactionId: inbox.transactionId, reason: "Platba už byla importována." };
 
-  const verification = inbox.currency === "CZK" ? await tryVerifyNotificationPayment({
+  const verification = await tryVerifyNotificationPayment({
     inboxId: inbox.id,
     amountCents: inbox.amountCents,
+    currency: inbox.currency,
     recipientAccount: inbox.recipientAccount,
     variableSymbol: inbox.variableSymbol,
     receivedAt: inbox.receivedAt,
-  }) : null;
+  });
   if (verification) return { imported: true, propertyId: verification.propertyId, reason: "Ověřovací platba 1 Kč potvrdila bankovní e-mailové notifikace." };
 
   let route = await inferRoute(inbox);
