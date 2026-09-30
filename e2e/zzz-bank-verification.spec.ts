@@ -48,7 +48,12 @@ test("QR verification routes a trusted Air Bank test automatically, scoped queue
       await page.getByRole("button", { name: "Znovu zpracovat parserem / vrátit ke kontrole", exact: true }).click();
       await expect(page.getByRole("status")).toBeVisible();
       expect((await db.ownerBankAccount.findUniqueOrThrow({ where: { id: account.id } })).notificationVerifiedAt).toBeNull();
-      expect((await db.inboxPayment.findUniqueOrThrow({ where: { id: negative.id } })).transactionId).toBeNull();
+      const after = await db.inboxPayment.findUniqueOrThrow({ where: { id: negative.id } });
+      if (sender === "info@airbank.cz" && testVs === "1" && currency === "CZK") {
+        // A real, non-verification payment on a known account remains reviewable.
+        expect(after.transactionId).toBeTruthy();
+        expect((await db.bankTransaction.findUniqueOrThrow({ where: { id: after.transactionId! } })).status).toBe("UNMATCHED");
+      } else expect(after.transactionId).toBeNull();
     }
     await page.goto(`/platby/nesparovane/email/${row.id}`);
     await page.getByRole("button", { name: "Znovu zpracovat parserem / vrátit ke kontrole", exact: true }).click();

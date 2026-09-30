@@ -4,6 +4,7 @@ import { parseBankNotification } from "@/lib/inbound-bank/bank-email";
 import { materializeInboxPayment } from "@/lib/inbound-bank/process";
 import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { reconcileInboxReview } from "@/lib/bank-review-tasks";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
@@ -58,6 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       recognizedPayment: parsed.recognizedPayment,
       autoProcessEligible: parsed.autoProcessEligible,
     });
+    await reconcileInboxReview(id);
 
     if (!parsed.recognizedPayment) return goWithMessage(request, `/platby/nesparovane/email/${id}`, "ok", forceReview ? "E-mail byl vrácen do ruční pracovní fronty." : parsed.parseNote);
 

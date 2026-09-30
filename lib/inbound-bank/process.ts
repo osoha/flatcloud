@@ -4,6 +4,8 @@ import { allocateTransactionToLease, processTransaction } from "@/lib/matching";
 import { MatchRuleAction } from "@prisma/client";
 import { bankAccountMatches, bankNameForCode, normalizeBankAccount } from "@/lib/inbound-bank/bank-email";
 import { touchPropertyPaymentNotification, tryVerifyNotificationPayment } from "@/lib/bank-email-verification";
+import { runExpenseRules } from "@/lib/bank-expense-rules";
+import { reconcileInboxReview, reconcileTransactionReview } from "@/lib/bank-review-tasks";
 
 function normalizedVs(value?: string | null) {
   return (value || "").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
@@ -105,23 +107,25 @@ async function emailBankAccount(propertyId: string, recipientAccount?: string | 
   const bankName = `${bankDisplayName(bank)} · e-mail`;
   return prisma.bankAccount.upsert({
     where: { provider_externalAccountId: { provider: "bank-email", externalAccountId } },
-    update: { bankName, ibanMasked: maskedAccount(recipientAccount), ...(ownerId ? { ownerId } : {}) },
+    update: { bankName, iban: normalizeBankAccount(recipientAccount) || null, ibanMasked: maskedAccount(recipientAccount), ...(ownerId ? { ownerId } : {}) },
     create: {
       propertyId,
       ownerId: ownerId || undefined,
       provider: "bank-email",
       bankName,
       accountName: "Sběrný e-mail bankovních notifikací",
-      iban: normalizeBankAccount(recipientAccount).startsWith("CZ") ? normalizeBankAccount(recipientAccount) : undefined,
+      iban: normalizeBankAccount(recipientAccount) || undefined,
       ibanMasked: maskedAccount(recipientAccount),
       externalAccountId,
     },
   });
 }
 
-export async function materializeInboxPayment(inboxId: string, explicitLeaseId?: string) {
+export async function materializeInboxPayment(inboxId: string, explicitLeaseId?: string, explicitExpensePropertyId?: string) {
   const inbox = await prisma.inboxPayment.findUnique({ where: { id: inboxId } });
-  if (!inbox || !inbox.amountCents || inbox.amountCents <= 0) return { imported: false, reason: "Platba nemá kladnou částku." };
+  if (!inbox || !inbox.amountCents) return { imported: false, reason: "Pohyb nemá nenulovou částku." };
+  if (inbox.currency !== "CZK") return { imported: false, reason: "Cizí měna vyžaduje ruční kontrolu; automatické zaúčtování není podporované." };
+  if (inbox.amountCents < 0 && explicitLeaseId) return { imported: false, reason: "Odchozí pohyb nelze přiřadit k nájemní smlouvě." };
   if (inbox.transactionId) return { imported: true, transactionId: inbox.transactionId, reason: "Platba už byla importována." };
 
   const verification = await tryVerifyNotificationPayment({
@@ -132,9 +136,20 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
     variableSymbol: inbox.variableSymbol,
     receivedAt: inbox.receivedAt,
   });
-  if (verification) return { imported: true, propertyId: verification.propertyId, reason: "Ověřovací platba 1 Kč potvrdila bankovní e-mailové notifikace." };
+  if (verification) {
+    await reconcileInboxReview(inbox.id);
+    return { imported: true, propertyId: verification.propertyId, reason: "Ověřovací platba 1 Kč potvrdila bankovní e-mailové notifikace." };
+  }
 
-  let route = await inferRoute(inbox);
+  // VS and the counterparty of an outgoing transfer must not route it to a tenant.
+  let route = await inferRoute(inbox.amountCents < 0 ? { recipientAccount: inbox.recipientAccount } : inbox);
+  if (explicitExpensePropertyId) {
+    if (inbox.amountCents >= 0) return { imported: false, reason: "Tato cesta je určena pouze pro odchozí pohyby." };
+    const links = await prisma.propertyPaymentAccount.findMany({ where: { propertyId: explicitExpensePropertyId, active: true, ownerBankAccount: { active: true } }, include: { ownerBankAccount: true } });
+    const link = links.find(l => bankAccountMatches(l.ownerBankAccount, inbox.recipientAccount));
+    if (!link) return { imported: false, reason: "Vybraný dům nemá přiřazený vlastní účet tohoto pohybu." };
+    route = { propertyId: explicitExpensePropertyId, leaseId: null, ownerId: link.ownerBankAccount.ownerId, strong: false, reason: "ruční směrování výdaje na známý účet domu" };
+  }
   if (explicitLeaseId) {
     const lease = await prisma.lease.findUnique({ where: { id: explicitLeaseId }, include: { unit: true, ownerBankAccount: true } });
     if (!lease) return { imported: false, reason: "Vybraná smlouva nebyla nalezena." };
@@ -142,22 +157,18 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   }
   if (!route.propertyId) {
     await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "UNMATCHED", parseNote: `${inbox.parseNote || ""} ${route.reason}.`.trim() } });
+    await reconcileInboxReview(inbox.id);
     return { imported: false, reason: route.reason };
   }
 
   await touchPropertyPaymentNotification(route.propertyId, inbox.recipientAccount, inbox.receivedAt);
-  const matchingRule = explicitLeaseId ? null : await matchingRuleForInbox(route.propertyId, inbox);
+  const matchingRule = explicitLeaseId || inbox.amountCents < 0 ? null : await matchingRuleForInbox(route.propertyId, inbox);
   if (matchingRule?.action === MatchRuleAction.IGNORE) {
     const reason = `Ignorováno pravidlem: ${matchingRule.name}.`;
     await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IGNORED", propertyId: route.propertyId, parseNote: reason } });
+    await reconcileInboxReview(inbox.id);
     return { imported: false, ignored: true, propertyId: route.propertyId, reason };
   }
-  if (!explicitLeaseId && !route.strong && !matchingRule) {
-    const reason = "Příjem na známý účet bez vazby na nájemní evidenci.";
-    await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IGNORED", propertyId: route.propertyId, parseNote: reason } });
-    return { imported: false, ignored: true, propertyId: route.propertyId, reason };
-  }
-
   const account = await emailBankAccount(route.propertyId, inbox.recipientAccount, route.ownerId, inbox.bank);
   const transaction = await prisma.bankTransaction.upsert({
     where: { bankAccountId_externalId: { bankAccountId: account.id, externalId: `email:${inbox.id}` } },
@@ -178,11 +189,16 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
     },
   });
 
-  if (explicitLeaseId || route.leaseId) {
+  if (inbox.amountCents < 0) {
+    await prisma.bankTransaction.update({ where: { id: transaction.id }, data: { status: "IGNORED", matchNote: "Odchozí pohyb k posouzení v Bankovních výdajích." } });
+    await runExpenseRules(route.propertyId, [transaction.id]);
+    await reconcileTransactionReview(transaction.id);
+  } else if (explicitLeaseId || route.leaseId) {
     await allocateTransactionToLease(transaction.id, explicitLeaseId || route.leaseId!, `Bankovní e-mail: ${route.reason}.`);
   } else {
     await processTransaction(transaction.id);
   }
   await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IMPORTED", propertyId: route.propertyId, transactionId: transaction.id } });
+  await reconcileInboxReview(inbox.id);
   return { imported: true, transactionId: transaction.id, propertyId: route.propertyId, reason: route.reason };
 }

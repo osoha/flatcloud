@@ -5,12 +5,13 @@ import { expenseRuleMatches } from "./bank-expense-rule-policy";
 import { applyExpense } from "./bank-expenses";
 import { settledCents, expenseAccountIdentity } from "./bank-expense-values";
 import { bankAccountMatches } from "./inbound-bank/bank-email";
+import { reconcileTransactionReview } from "./bank-review-tasks";
 
 export async function expenseRuleAccess(tx:Prisma.TransactionClient,rule:Pick<BankExpenseRule,"sourcePropertyId"|"targetPropertyId"|"bankAccountId"|"unitId">,userId:string) {
   const user=await tx.user.findFirst({where:{id:userId,active:true}});if(!user)throw new Error("Autor pravidla není aktivní.");
   const all=user.allProperties||["SUPER_ADMIN","MANAGER"].includes(user.role);
   for(const id of new Set([rule.sourcePropertyId,rule.targetPropertyId])) {
-    if(!await tx.property.findFirst({where:{id,active:true,...(all?{}:{memberships:{some:{userId,permission:{in:["EDIT","ADMIN"]}}}})}}))throw new Error("Chybí oprávnění k domu pravidla.");
+    if(!await tx.property.findFirst({where:{id,...(all?{}:{memberships:{some:{userId,permission:{in:["EDIT","ADMIN"]}}}})}}))throw new Error("Chybí oprávnění k domu pravidla.");
   }
   const bank=await tx.bankAccount.findFirst({where:{id:rule.bankAccountId,propertyId:rule.sourcePropertyId}});if(!bank)throw new Error("Účet nepatří zdrojovému domu.");
   if(rule.sourcePropertyId!==rule.targetPropertyId){
@@ -22,7 +23,6 @@ export async function expenseRuleAccess(tx:Prisma.TransactionClient,rule:Pick<Ba
 // Executed only for freshly imported IDs or a user-confirmed preview; never during GET.
 export async function runExpenseRules(sourcePropertyId:string,ids:string[],actorId?:string,expectedRuleId?:string) {
   let applied=0,review=0;
-  if(!await prisma.bankExpenseRule.count({where:{sourcePropertyId,active:true}}))return {applied,review:ids.length};
   for(const id of [...new Set(ids)].slice(0,1000)) {
     try {const changed=await serializableTransaction(async tx=>{
       const bank=await tx.bankTransaction.findFirst({where:{id,bankAccount:{propertyId:sourcePropertyId}},include:{expenseAllocations:true,allocations:true,securityDepositReceipts:true}});
@@ -48,6 +48,7 @@ export async function runExpenseRules(sourcePropertyId:string,ids:string[],actor
       await tx.auditLog.create({data:{userId,propertyId:sourcePropertyId,action:"BANK_EXPENSE_RULE_APPLIED",entityType:"BankTransaction",entityId:id,details:{ruleId:rule.id,action:rule.action,targetPropertyId:rule.targetPropertyId}}});
       return true;
     });if(changed)applied++;else review++;}catch {review++;}
+    await reconcileTransactionReview(id);
   }
   return {applied,review};
 }

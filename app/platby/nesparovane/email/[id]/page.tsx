@@ -8,6 +8,7 @@ import { verificationCodeForAccount } from "@/lib/bank-email-verification";
 import { linkIsUsedByUnit } from "@/lib/bank-verification-scope";
 import { Shell } from "@/components/Shell";
 import { Flash, FormPage } from "@/components/FormUi";
+import { payerDisplayName } from "@/lib/bank-payer-display";
 
 export const dynamic = "force-dynamic";
 
@@ -31,9 +32,12 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
     searchParams,
   ]);
   if (!row) notFound();
+  const payerPropertyIds = [...new Set(paymentLinks.filter(l => bankAccountMatches(l.ownerBankAccount, row.recipientAccount)).map(l => l.propertyId))];
+  const payerPropertyId = row.propertyId || (payerPropertyIds.length === 1 ? payerPropertyIds[0] : null);
+  const payerName = payerDisplayName(row, leases.filter(l => l.unit.propertyId === payerPropertyId));
 
   const isOneCrownTest = row.amountCents === 100;
-  const matchingLinks = paymentLinks.filter((link) => link.ownerBankAccount.active && linkIsUsedByUnit(link.ownerBankAccountId, link.property.units) && bankAccountMatches(link.ownerBankAccount, row.recipientAccount)).sort((a, b) => a.property.name.localeCompare(b.property.name, "cs"));
+  const matchingLinks = paymentLinks.filter((link) => link.ownerBankAccount.active && ((row.amountCents || 0) < 0 || linkIsUsedByUnit(link.ownerBankAccountId, link.property.units)) && bankAccountMatches(link.ownerBankAccount, row.recipientAccount)).sort((a, b) => a.property.name.localeCompare(b.property.name, "cs"));
   const exactTestLink = matchingLinks.find((link) => digits(verificationCodeForAccount(link.ownerBankAccountId)) === digits(row.variableSymbol));
 
   return <Shell user={user}><FormPage title="Bankovní e-mail – ruční řešení" description="Sběrný e-mail bankovních notifikací" backHref="/platby/nesparovane">
@@ -46,7 +50,7 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
         <div><span>Datum platby</span><strong>{row.bookedAt ? date(row.bookedAt) : "—"}</strong></div>
         <div><span>Částka</span><strong>{row.amountCents ? money(row.amountCents) : "—"}</strong></div>
         <div><span>Cílový účet</span><strong>{row.recipientAccount || "—"}</strong></div>
-        <div><span>Plátce</span><strong>{row.counterpartyName || "—"}</strong></div>
+        <div><span>Plátce</span><strong>{payerName}</strong></div>
         <div><span>Účet plátce</span><strong>{row.counterpartyAccount || "—"}</strong></div>
         <div><span>VS / SS / KS</span><strong>{[row.variableSymbol && `VS ${row.variableSymbol}`, row.specificSymbol && `SS ${row.specificSymbol}`, row.constantSymbol && `KS ${row.constantSymbol}`].filter(Boolean).join(" · ") || "—"}</strong></div>
         <div><span>Zpráva</span><strong>{row.message || "—"}</strong></div>
@@ -55,7 +59,14 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
       </div></div>
 
       <div className="card col-5">
-        {isOneCrownTest ? <>
+        {row.amountCents && row.amountCents < 0 ? <>
+          <h2>Předat do bankovních výdajů</h2>
+          <p className="muted-copy">Vyberte dům se známým vlastním účtem. Pohyb se předá k posouzení; náklad vznikne až přiřazením nebo odpovídajícím pravidlem.</p>
+          {matchingLinks.length ? <form className="compact-form" action={`/api/inbound-payments/${row.id}/assign-expense`} method="post">
+            <label className="field"><span>Nemovitost</span><select name="propertyId" required defaultValue=""><option value="" disabled>Vyberte nemovitost</option>{[...new Map(matchingLinks.map(l => [l.propertyId, l])).values()].map(l => <option key={l.propertyId} value={l.propertyId}>{l.property.name}</option>)}</select></label>
+            <button className="primary">Předat výdaj k posouzení</button>
+          </form> : <div className="notice">Vlastní účet není přiřazen žádnému domu. Nejprve doplňte jeho vazbu.</div>}
+        </> : isOneCrownTest ? <>
           <h2>Ověření bankovního účtu</h2>
           <p className="muted-copy">Platba 1,00 Kč se nezaúčtuje jako nájemné. Ověří konkrétní účet vlastníka pouze pro jednotky v dané nemovitosti, které tento účet skutečně používají.</p>
           {matchingLinks.length ? <form className="compact-form" action={`/api/inbound-payments/${row.id}/verify-account`} method="post">

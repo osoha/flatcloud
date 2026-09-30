@@ -229,7 +229,15 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   const combined = `${subject}\n${text}`.trim();
   const hash = createHash("sha256").update(`${input.from || ""}|${subject}|${text}`).digest("hex");
   const messageId = input.messageId?.trim() || `bank-email-${hash}`;
-  const { amountCents, currency } = amountAndCurrency(combined);
+  const parsedAmount = amountAndCurrency(combined);
+  const outgoing = /(?:odchoz[ií]\s+(?:platba|úhrada)|směr platby\s*:\s*odchozí|odeslan[aá]\s+(?:platba|úhrada)|(?:zůstatek|zustatek)[^\n]{0,100}(?:sn[ií]žil|sn[ií]žen)|outgoing payment|debited amount)/i.test(combined);
+  // Never infer an outgoing transfer from its positive amount or destination account.
+  // Automatic expense import requires both an explicit debit and an explicit own account.
+  const ownAccount = outgoing ? accountFromValue(lineValue(combined, ["Váš účet", "Vas ucet", "Z účtu", "Z uctu", "Číslo účtu(?!\\s+protistrany)", "Cislo uctu(?!\\s+protistrany)", "Účet odesílatele", "Ucet odesilatele", "Debited account", "Own account"]))
+    || accountFromValue(combined.match(/(?:zůstatek|zustatek)\s+na\s+(?:účtu|uctu)[^\n]{0,100}/i)?.[0]) : undefined;
+  const debitAmount = outgoing ? lineValue(combined, ["Částka(?: platby)?", "Castka(?: platby)?", "Odepsaná částka", "Odepsana castka", "Payment amount", "Debited amount", "Amount"]) : undefined;
+  const amountCents = outgoing && debitAmount ? -Math.abs(parseMoneyToCents(debitAmount) || 0) : parsedAmount.amountCents;
+  const currency = outgoing && debitAmount ? amountAndCurrency(`Částka: ${debitAmount}`).currency : parsedAmount.currency;
 
   const recipientValue = lineValue(combined, [
     "Na účet", "Na ucet", "Číslo účtu(?!\\s+protistrany)", "Cislo uctu(?!\\s+protistrany)", "Účet příjemce", "Ucet prijemce", "Váš účet", "Vas ucet",
@@ -242,8 +250,8 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
     "Plátce - účet", "Platce - ucet", "Odesílatel - účet", "Odesilatel - ucet",
     "Sender account", "Payer account", "Counterparty account", "Z",
   ]);
-  const recipientAccount = accountFromValue(recipientValue) || fallbackAccountSearch(combined, "recipient");
-  const counterpartyAccount = accountFromValue(counterpartyValue) || fallbackAccountSearch(combined, "counterparty");
+  const recipientAccount = outgoing ? ownAccount : accountFromValue(recipientValue) || fallbackAccountSearch(combined, "recipient");
+  const counterpartyAccount = outgoing ? accountFromValue(lineValue(combined, ["Účet příjemce", "Ucet prijemce", "Na účet", "Na ucet", "Recipient account", "Beneficiary account", "Číslo účtu protistrany", "Cislo uctu protistrany", "Účet protistrany", "Ucet protistrany", "Protiúčet", "Protiucet"])) : accountFromValue(counterpartyValue) || fallbackAccountSearch(combined, "counterparty");
   const counterpartyName = lineValue(combined, [
     "Jméno plátce", "Jmeno platce", "Název protiúčtu", "Nazev protiuctu", "Plátce", "Platce",
     "Odesílatel", "Odesilatel", "Protistrana", "Sender", "Payer", "Counterparty",
@@ -263,7 +271,8 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   const bank = detectBank(combined, input.from, input.returnPath, recipientAccount);
   const trustedSource = sourceTrusted(bank.code, input);
   const positiveAmount = typeof amountCents === "number" && amountCents > 0;
-  const recognizedPayment = positiveAmount && Boolean(recipientAccount);
+  const conflictingDirection = outgoing && /(?:příchozí\s+(?:platba|úhrada)|směr platby\s*:\s*příchozí|incoming payment)/i.test(combined);
+  const recognizedPayment = !conflictingDirection && (outgoing ? Boolean(debitAmount && amountCents && amountCents < 0) : positiveAmount) && Boolean(recipientAccount);
   const autoProcessEligible = recognizedPayment && trustedSource;
   const paymentWording = /(?:příchoz|prijata|přips|prips|platb|účet|ucet|bankovn|transakc|částk|castk|payment|credited|beneficiary|payer|iban|variabilní symbol|variabilni symbol|\bVS\s*[:\-]?\s*\d|\bSS\s*[:\-]?\s*\d|\bKS\s*[:\-]?\s*\d|\bCZK\b|\bKč\b|\bEUR\b|€)/i.test(combined);
   // Sender trust helps, but is never required: bank notifications are often forwarded
@@ -272,7 +281,13 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   const missing = [!amountCents && "částka", !recipientAccount && "cílový účet", !variableSymbol && "VS"].filter(Boolean);
 
   let parseNote: string;
-  if (!positiveAmount) {
+  if (conflictingDirection) {
+    parseNote = "Notifikace obsahuje protichůdné směry pohybu. Vyžaduje ruční kontrolu.";
+  } else if (outgoing && !recognizedPayment) {
+    parseNote = "Odchozí notifikace nemá jednoznačnou částku a vlastní účet. Vyžaduje ruční kontrolu.";
+  } else if (outgoing && trustedSource) {
+    parseNote = "Odchozí bankovní pohyb rozpoznán; k posouzení v Bankovních výdajích, nikoli automaticky jako náklad.";
+  } else if (!positiveAmount && !outgoing) {
     parseNote = "Nebyla rozpoznána kladná příchozí částka.";
   } else if (!recipientAccount) {
     parseNote = "Částka byla rozpoznána, ale chybí cílový účet. Vyžaduje ruční kontrolu.";
