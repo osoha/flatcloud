@@ -569,3 +569,6 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .collaborator-picker{position:relative;display:grid;gap:12px}.collaborator-options{position:absolute;top:100%;left:0;right:0;z-index:20;margin:4px 0 0;padding:8px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px #0002}.collaborator-options button{display:grid;width:100%;text-align:left;gap:4px;margin:2px 0}.collaborator-options [aria-selected="true"] button{outline:2px solid var(--primary,#4263eb)}
 
 .automation-template{background:var(--card);color:var(--text)}
+
+
+.verification-verified{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}.verification-verified summary{padding:12px;cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.verification-verified summary small{color:var(--muted)}.verification-verified summary::after{content:"Rozbalit detail";margin-left:auto;font-size:12px;color:var(--muted)}.verification-verified[open] summary::after{content:"Sbalit detail"}.verification-retest{padding:16px;border-top:1px solid var(--line)}
