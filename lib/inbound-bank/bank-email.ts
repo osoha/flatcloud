@@ -47,6 +47,11 @@ const nbsp = /[\u00a0\u202f]/g;
 // has been observed and its sender domain verified.
 const trustedSenderRules = [
   {
+    bankCode: "3030",
+    domains: ["airbank.cz"],
+    text: /air\s*bank/i,
+  },
+  {
     bankCode: "5500",
     domains: ["rb.cz", "raiffeisenbank.cz"],
     text: /raiffeisen(?:bank)?|\brb\b|informuj mě|informuj me/i,
@@ -109,7 +114,7 @@ function cleanText(value?: string | null) {
 
 function lineValue(text: string, labels: string[]) {
   for (const label of labels) {
-    const rx = new RegExp(`(?:^|\\n)\\s*${label}\\s*[:\\-]?\\s*([^\\n]+)`, "i");
+    const rx = new RegExp(`(?:^|\\n)\\s*${label}(?=\\s|[:\\-]|$)\\s*[:\\-]?\\s*([^\\n]+)`, "i");
     const match = text.match(rx);
     if (match?.[1]?.trim()) return match[1].trim();
   }
@@ -118,9 +123,9 @@ function lineValue(text: string, labels: string[]) {
 
 function accountFromValue(value?: string) {
   if (!value) return undefined;
-  const iban = value.match(/CZ\d{2}(?:\s*[A-Z0-9]){20,}/i)?.[0];
+  const iban = value.match(/(?<![A-Z0-9])CZ\d{2}(?:\s*\d){20}(?!\d)/i)?.[0];
   if (iban) return normalizeBankAccount(iban);
-  const local = value.match(/(?:\d{0,6}-)?\d{1,10}\s*\/\s*\d{4}/)?.[0];
+  const local = value.match(/(?<![\d-])(?:\d{1,6}-)?\d{1,10}\s*\/\s*\d{4}(?!\d)/)?.[0];
   return local ? normalizeBankAccount(local) : undefined;
 }
 
@@ -170,21 +175,15 @@ function parseDate(value?: string, fallback?: Date | null) {
 }
 
 function fallbackAccountSearch(text: string, kind: "recipient" | "counterparty") {
-  const account = "((?:\\d{0,6}-)?\\d{1,10}\\s*\\/\\s*\\d{4}|CZ\\d{2}(?:\\s*[A-Z0-9]){20,})";
-  const patterns = kind === "recipient"
-    ? [
-        new RegExp(`(?:na|pro|váš|vas|příjemce|prijemce|recipient|beneficiary|credited)\\s+(?:účet|ucet|účtu|uctu|account)[^\\n]{0,45}${account}`, "i"),
-        new RegExp(`(?:account credited|credited account|beneficiary account)[^\\n]{0,30}${account}`, "i"),
-      ]
-    : [
-        new RegExp(`(?:z|od|protiúčet|protiucet|plátce|platce|sender|payer|counterparty)[^\\n]{0,45}${account}`, "i"),
-        new RegExp(`(?:sender account|payer account|counterparty account)[^\\n]{0,30}${account}`, "i"),
-      ];
-  for (const pattern of patterns) {
-    const hit = text.match(pattern)?.[1];
-    if (hit) return normalizeBankAccount(hit);
-  }
-  return undefined;
+  // Lazy context and digit boundaries preserve the whole account number. Account
+  // direction requires a complete phrase: "zůstatek" is never a payer marker.
+  const account = "((?<![\\d-])(?:\\d{1,6}-)?\\d{1,10}\\s*\\/\\s*\\d{4}(?!\\d)|(?<![A-Z0-9])CZ\\d{2}(?:\\s*\\d){20}(?!\\d))";
+  const context = kind === "recipient"
+    ? "(?:na|pro|váš|vas|příjemce|prijemce|recipient|beneficiary|credited)\\s+(?:účet|ucet|účtu|uctu|account)|account credited|credited account|beneficiary account"
+    : "(?:z|od)\\s+(?:účtu|uctu|účet|ucet|account)|protiúčet|protiucet|plátce|platce|sender(?: account)?|payer(?: account)?|counterparty(?: account)?";
+  const pattern = new RegExp(`(?:^|[\\s:])(?:${context})(?=\\s|[:\\-]|$)[^\\n]{0,60}?${account}`, "i");
+  const hit = text.match(pattern)?.[1];
+  return hit ? normalizeBankAccount(hit) : undefined;
 }
 
 function domainFromAddress(value?: string | null) {
@@ -233,7 +232,7 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   const { amountCents, currency } = amountAndCurrency(combined);
 
   const recipientValue = lineValue(combined, [
-    "Na účet", "Na ucet", "Účet příjemce", "Ucet prijemce", "Váš účet", "Vas ucet",
+    "Na účet", "Na ucet", "Číslo účtu(?!\\s+protistrany)", "Cislo uctu(?!\\s+protistrany)", "Účet příjemce", "Ucet prijemce", "Váš účet", "Vas ucet",
     "Příjemce - účet", "Prijemce - ucet", "Příjemce účet", "Prijemce ucet",
     "Recipient account", "Beneficiary account", "Credited account", "Account credited", "Na",
   ]);

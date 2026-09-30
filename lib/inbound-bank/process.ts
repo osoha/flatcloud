@@ -127,6 +127,7 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   const verification = await tryVerifyNotificationPayment({
     inboxId: inbox.id,
     amountCents: inbox.amountCents,
+    currency: inbox.currency,
     recipientAccount: inbox.recipientAccount,
     variableSymbol: inbox.variableSymbol,
     receivedAt: inbox.receivedAt,
