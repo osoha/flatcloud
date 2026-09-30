@@ -21,7 +21,7 @@ async function fixture() {
   const token = randomUUID(), accountNumber = String(Math.floor(Math.random() * 8000000000) + 1000000000);
   // Dedicated reviewer: shared seeded role memberships are used by other suites.
   const manager = await db.user.create({ data: { email: `bank-review-${token}@flatcloud.test`, name: `Bank reviewer ${token}`,
-    passwordHash: "e2e-isolated-reviewer-no-login", role: "PROPERTY_MANAGER", isTestIdentity: true } });
+    passwordHash: "e2e-isolated-reviewer-no-login", role: "PROPERTY_MANAGER" } });
   const owner = await db.owner.create({ data: { name: `Bank review owner ${token}` } });
   const property = await db.property.create({ data: { name: `Bank review ${token}`, address: "Testovací 1", city: "Test", ownerId: owner.id, managerId: manager.id,
     memberships: { create: { userId: manager.id, permission: "EDIT" } } } });

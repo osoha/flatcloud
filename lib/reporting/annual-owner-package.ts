@@ -642,7 +642,12 @@ export async function loadAnnualOwnerPackage(
   issues.push({ code: "BANK_COVERAGE", severity: "WARNING", message: "Úplnost bankovních výdajů ověřte proti výpisům všech účtů. Evidované ACTUAL náklady nejsou zaplacené výdaje. Úhrady jsou uvedeny samostatně podle bankovního data; převody, zálohy a jistina jsou v bankovním přehledu domu." });
   // Unclassified movements are never silently treated as tax income/expense.
   // Whole-account warnings require whole-property visibility; unit-only users see no foreign totals.
-  const reviewPropertyIds = propertyIds.filter(id => wholePropertyIdSet.has(id));
+  const reviewPropertyIds = properties.filter(property => wholePropertyIdSet.has(property.id) && (
+    property.ownerId === selectedOwner.id || property.ownerships.some(row => row.ownerId === selectedOwner.id)
+    || property.ownershipPeriods.some(row => row.ownerId === selectedOwner.id)
+    || property.units.some(unit => unit.ownerships.some(row => row.ownerId === selectedOwner.id)
+      || unit.ownershipPeriods.some(row => row.ownerId === selectedOwner.id))
+  )).map(property => property.id);
   if (reviewPropertyIds.length) {
     const pending = await prisma.bankTransaction.findMany({ where: {
       bankAccount: { propertyId: { in: reviewPropertyIds }, OR: [{ ownerId: selectedOwner.id }, { ownerId: null }] }, bookedAt: { gte: range.from, lte: range.to },
