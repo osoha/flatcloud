@@ -548,6 +548,7 @@ model User {
   taskEntries                          TaskEntry[]
   taskMemberships                      TaskMember[]
   taskStates                           TaskUserState[]
+  passwordResetTokens                  PasswordResetToken[]
   taskAttachmentsUploaded              TaskAttachment[]               @relation("TaskAttachmentUploader")
   announcementsCreated                 Announcement[]                 @relation("AnnouncementCreator")
   announcementAudiences                AnnouncementAudience[]         @relation("AnnouncementAudienceUser")
@@ -597,6 +598,19 @@ model User {
   propertyCostsReviewed                PropertyCost[]                 @relation("PropertyCostReviewer")
   createdAt                            DateTime                       @default(now())
   updatedAt                            DateTime                       @updatedAt
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
 }
 
 model Owner {

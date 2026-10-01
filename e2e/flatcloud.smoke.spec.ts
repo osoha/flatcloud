@@ -45,6 +45,8 @@ test("neplatné přihlášení zobrazí bezpečnou chybu", async ({ page }) => {
   await page.getByLabel("Heslo").fill("incorrect-password");
   await page.getByRole("button", { name: "Přihlásit se" }).click();
   await expect(page.getByText("Neplatný e-mail nebo heslo.")).toBeVisible();
+  await expect(page.getByLabel("E-mail")).toHaveValue("nobody@flatcloud.test");
+  await expect(page.getByLabel("Heslo")).toHaveValue("");
   assertNoBrowserFailures();
 });
 
