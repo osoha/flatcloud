@@ -73,7 +73,8 @@ test("pravidla: náhled, vytvoření a zpětné použití přes UI",async({page}
 test("ignorovaný výdaj nabídne předvyplněné ignorovací pravidlo pro další pohyby",async({page})=>{
  const f=await fixture(),ignored=await f.bank(),next=await f.bank();
  await login(page);await page.goto(`/nemovitosti/${f.property.id}/bankovni-vydaje?year=2026&transaction=${ignored.id}`);
- await page.getByLabel("Důvod",{exact:true}).fill("Nesouvisí s domem");await page.getByRole("button",{name:"Ignorovat pohyb"}).click();
+ const transaction=page.locator(`[id="pohyb-${ignored.id}"]`);
+ await transaction.getByLabel("Důvod",{exact:true}).fill("Nesouvisí s domem");await transaction.getByRole("button",{name:"Ignorovat pohyb"}).click();
  await expect(page).toHaveURL(new RegExp(`state=ignored.*transaction=${ignored.id}`));
  await page.getByRole("link",{name:"Vytvořit ignorovací pravidlo"}).click();
  await expect(page.getByText("Ignorovat budoucí odpovídající pohyby")).toBeVisible();
