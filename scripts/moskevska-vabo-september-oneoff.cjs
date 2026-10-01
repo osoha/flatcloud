@@ -5,7 +5,7 @@ const crypto = require('node:crypto');
 const { PrismaClient } = require('@prisma/client');
 
 const db = new PrismaClient();
-const propertyCode = 'P1002';
+const propertyCode = '1002';
 const leases = {
   U005: { id: 'cmumshuud0026kb2ak4b3pypb', unitCode: 'P1002-U005', owner: 'František Pokorný', expectedExistingSeptember: false },
   U008: { id: 'cmums4a5t0016kb2agawqz6q9', unitCode: 'P1002-U008', owner: 'Jiří Bělohlávek', expectedExistingSeptember: true },
@@ -21,7 +21,7 @@ function loadSource() {
   assert(path, 'REPILOT_SOURCE_MANIFEST is required');
   const data = JSON.parse(fs.readFileSync(path, 'utf8'));
   exactKeys(data, ['propertyCode', 'rows'], 'manifest');
-  assert(data.propertyCode === propertyCode, 'Wrong property code');
+  assert(data.propertyCode === 'P1002', 'Wrong source manifest property code');
   exactKeys(data.rows, Object.keys(leases), 'manifest rows');
   for (const [key, row] of Object.entries(data.rows)) {
     exactKeys(row, ['sourceLeaseId', 'sourceBillId', 'sourceRecordId', 'period', 'dueDate', 'receivedAt', 'rentCents', 'servicesCents', 'amountCents', 'recipientAccount', 'payerAccount', 'payerName', 'variableSymbol', 'bankName'], key);
