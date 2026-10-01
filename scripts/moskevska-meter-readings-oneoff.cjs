@@ -2,9 +2,7 @@
 // The source manifest and backup live outside the repository.
 const fs = require('node:fs');
 const crypto = require('node:crypto');
-const { PrismaClient } = require('@prisma/client');
-
-const db = new PrismaClient();
+let db;
 const assert = (ok, message) => { if (!ok) throw new Error(message); };
 const instant = date => new Date(`${date}T12:00:00.000Z`);
 const sha = value => crypto.createHash('sha256').update(value).digest('hex');
@@ -58,6 +56,14 @@ function backup(state, path, apply) {
 
 async function run() {
   const rows = source();
+  if (process.env.VALIDATE_SOURCE_ONLY === '1') {
+    console.log(JSON.stringify({ mode: 'SOURCE_VALIDATED', count: rows.length,
+      targets: rows.reduce((counts, row) => ({ ...counts, [row.target]: (counts[row.target] || 0) + 1 }), {}),
+    }, null, 2));
+    return;
+  }
+  const { PrismaClient } = require('@prisma/client');
+  db = new PrismaClient();
   const state = await preflight(rows);
   const plan = state.planned.map(({ row, meterId, existingId }) => ({ target: row.target, serial: row.serial, type: row.type, date: row.date, value: row.value, meterId, existingId }));
   console.log(JSON.stringify({ mode: process.env.APPLY === '1' ? 'APPLY' : 'DRY_RUN', plan }, null, 2));
@@ -81,4 +87,4 @@ async function run() {
   });
   console.log(JSON.stringify({ mode: 'APPLIED', created }, null, 2));
 }
-run().catch(e => { console.error(e); process.exitCode = 1; }).finally(() => db.$disconnect());
+run().catch(e => { console.error(e); process.exitCode = 1; }).finally(() => db?.$disconnect());
