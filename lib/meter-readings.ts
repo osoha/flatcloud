@@ -17,7 +17,7 @@ export async function recordMeterReading(actor:Actor,input:Input) {
         : {id:input.meterId,propertyId:input.propertyId,unitId:null,scope:{in:['HOUSE_MAIN','HOUSE_SUBMETER']}},include:{readings:true}});
       if(!meter) throw new Error('Měřidlo není dostupné k úpravě nebo je nemovitost archivovaná.');
       const original=input.correctsId ? meter.readings.find(r=>r.id===input.correctsId) : null;
-      validateReadingPosition(meter.readings,readAt,input.value,input.correctsId);
+      validateReadingPosition(meter.readings,readAt,input.value,input.correctsId,input.method==='LEGACY');
       const leaseId=input.unitId ? (original ? original.leaseId : input.leaseId || null) : null;
       if(leaseId && !await tx.lease.findFirst({where:{id:leaseId,unitId:input.unitId!},select:{id:true}})) throw new Error('Nájemní vztah nepatří k jednotce.');
       // A correction cannot silently lose an existing attachment.
