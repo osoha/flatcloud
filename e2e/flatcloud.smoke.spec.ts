@@ -1,4 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
+import { prisma } from "../lib/db";
 
 const adminEmail = process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test";
 const adminPassword = process.env.E2E_ADMIN_PASSWORD || "FlatCloud-E2E-Only-Password-2026";
@@ -24,6 +26,13 @@ async function login(page: Page) {
   await page.getByRole("button", { name: "Přihlásit se" }).click();
   await expect(page).toHaveURL(/\/portfolio(?:\?|$)/);
   await expect(page.getByRole("heading", { name: "Portfolio", exact: true })).toBeVisible();
+}
+
+async function openMoskevskaUnit(page: Page) {
+  await page.getByRole("link", { name: "Jednotky", exact: true }).click();
+  await expect(page).toHaveURL(/\/nemovitosti\/[^/]+\/jednotky$/);
+  await page.locator("tr.clickable-table-row").getByRole("link", { name: "1.01", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/jednotky\/[^/]+$/);
 }
 
 test("health endpoint potvrzuje dostupnou aplikaci a databázi", async ({ request }) => {
@@ -665,8 +674,7 @@ test("uživatel projde z portfolia do nemovitosti a jednotky", async ({ page }) 
   await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
   await expect(page.getByRole("heading", { name: "Moskevská", exact: true })).toBeVisible();
   await expect(page.getByText(/ID nemovitosti: P\d{4}/)).toBeVisible();
-  await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.getByRole("link", { name: /1\.01/ }).first().click();
+  await openMoskevskaUnit(page);
   await expect(page.getByRole("heading", { name: "1.01", exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
@@ -960,8 +968,7 @@ test("nájemné a služby jsou shodné v reportu, smlouvách, nájemníkovi a je
 
   await page.goto("/portfolio");
   await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
-  await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.getByRole("link", { name: /1\.01/ }).first().click();
+  await openMoskevskaUnit(page);
   const currentChargeCard = page.getByText("Aktuální předpis", { exact: true }).locator("..");
   await expect(currentChargeCard).toContainText(recurringTotal);
   assertNoBrowserFailures();
@@ -975,8 +982,7 @@ test("nová smlouva navrhne stabilní VS a stejné pořadí v čísle smlouvy", 
   const propertyCode = propertyIdentity?.match(/P(\d{4})/)?.[1];
   expect(propertyCode).toBeTruthy();
 
-  await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.getByRole("link", { name: /1\.01/ }).first().click();
+  await openMoskevskaUnit(page);
   const unitIdentity = await page.getByText(/ID jednotky: P\d{4}-U\d{3}/).textContent();
   const unitCode = unitIdentity?.match(/-U(\d{3})/)?.[1];
   expect(unitCode).toBeTruthy();
@@ -1054,15 +1060,32 @@ test("Q2: změna 19 000→20 000 Kč od 1. 10. zachová zářijový předpis", a
 });
 
 test("Q3: částečná úhrada blokuje přepis a zachová alokaci", async ({ page }) => {
+  if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname)) throw new Error("Q3 fixture requires an isolated database");
   const assertNoBrowserFailures = watchBrowserFailures(page);
   await login(page);
   await page.goto("/smlouvy");
-  await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
+  const leaseLink = page.getByRole("link", { name: /QA Q3 · Alena Alokace/ });
+  const leaseId = (await leaseLink.getAttribute("href"))!.split("/").at(-1)!;
+  const now = new Date();
+  const effectiveFrom = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 12));
+  const period = effectiveFrom.toISOString().slice(0, 7);
+  const existingTransaction = await prisma.bankTransaction.findFirstOrThrow({ where: { externalId: "qa-q3-partial" } });
+  const futureCharge = await prisma.charge.findUnique({ where: { leaseId_period: { leaseId, period } } }) || await prisma.charge.create({ data: {
+    leaseId, period, dueDate: new Date(Date.UTC(effectiveFrom.getUTCFullYear(), effectiveFrom.getUTCMonth(), 5, 12)), amountCents: 2_150_000,
+    items: { create: [{ name: "Nájemné", category: "RENT", amountCents: 1_900_000 }, { name: "Zálohy na služby", category: "SERVICES", amountCents: 250_000 }] },
+  } });
+  if (!await prisma.paymentAllocation.count({ where: { chargeId: futureCharge.id } })) {
+    const payment = await prisma.bankTransaction.create({ data: { bankAccountId: existingTransaction.bankAccountId, externalId: `qa-q3-future-${randomUUID()}`, bookedAt: new Date(), amountCents: 1_000_000, counterpartyName: "QA Q3 · Alena Alokace", status: "PARTIAL" } });
+    await prisma.paymentAllocation.create({ data: { transactionId: payment.id, chargeId: futureCharge.id, amountCents: 1_000_000 } });
+  }
+  await leaseLink.click();
   await page.getByRole("link", { name: "Změnit nájem / služby", exact: true }).click();
   await page.getByLabel("Nové nájemné Kč / měsíc").fill("20000");
+  await page.getByLabel("Účinnost od prvního dne měsíce").fill(effectiveFrom.toISOString().slice(0, 10));
   await page.getByLabel("Důvod změny *").fill("QA kontrola ochrany částečné úhrady");
   await page.getByRole("button", { name: "Zkontrolovat dopad", exact: true }).click();
-  await expect(page.locator(".error-flash")).toContainText("Předpis 2026-10 je ručně upravený nebo už obsahuje úhradu");
+  await expect(page.locator(".error-flash")).toContainText(`Předpis ${period} je ručně upravený nebo už obsahuje úhradu`);
+  expect((await prisma.paymentAllocation.findFirstOrThrow({ where: { chargeId: futureCharge.id } })).amountCents).toBe(1_000_000);
   await page.goto("/smlouvy");
   await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
   await page.locator(".lease-action-bar").getByRole("link", { name: "Předpisy", exact: true }).click();
