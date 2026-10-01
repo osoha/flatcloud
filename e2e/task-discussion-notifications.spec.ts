@@ -50,21 +50,17 @@ test("víceřádková zmínka se odešle bez zaškrtnutí e-mailu a chyba zachov
   await editor.fill(body);
   const mentionInput = page.locator('input[name="mentions"]');
   await expect(mentionInput).toHaveValue(new RegExp(f.member.id));
-  const validMentions = await mentionInput.inputValue();
   await expect(page.getByRole("group", { name: "Upozornit e-mailem další účastníky" })).toHaveCount(0);
 
-  // A stale offset must produce an inline error without discarding the draft.
-  await mentionInput.evaluate((input: HTMLInputElement) => {
-    const mentions = JSON.parse(input.value);
-    mentions[0].start++;
-    input.value = JSON.stringify(mentions);
-  });
+  // A server validation failure must leave the form intact for a retry.
+  const endpoint = `**/api/tasks/${f.task.id}/entries`;
+  await page.route(endpoint, route => route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ error: "Zmínka se změnila. Vyberte osobu znovu z našeptávače." }) }));
   await page.getByRole("button", { name: "Odeslat", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("Zmínka se změnila");
+  await expect(page.locator(".thread-composer-v211 [role=alert]")).toContainText("Zmínka se změnila");
   await expect(editor).toHaveValue(body);
   expect(await prisma.taskEntry.count({ where: { taskId: f.task.id } })).toBe(0);
 
-  await mentionInput.evaluate((input: HTMLInputElement, value) => { input.value = value; }, validMentions);
+  await page.unroute(endpoint);
   await page.getByRole("button", { name: "Odeslat", exact: true }).click();
   await expect(page.getByText("Záznam byl přidán do vlákna.", { exact: true })).toBeVisible();
   const entry = await prisma.taskEntry.findFirstOrThrow({ where: { taskId: f.task.id } });
@@ -83,6 +79,7 @@ test("@našeptávač, tiché reakce a oprávnění v obou režimech", async ({ b
   await page.getByRole("option", { name: new RegExp(f.member.email) }).click();
   await expect(page.locator('input[name="mentions"]')).toHaveValue(new RegExp(f.member.id));
   await page.getByRole("button", { name: "Odeslat", exact: true }).click();
+  await expect(page.getByText("Záznam byl přidán do vlákna.", { exact: true })).toBeVisible();
   const entry = await prisma.taskEntry.findFirstOrThrow({ where: { taskId: f.task.id }, orderBy: { createdAt: "desc" } });
   const article = page.locator(`[id="zaznam-${entry.id}"]`);
   await expect(article.locator(".task-mention")).toHaveText(`@${f.member.name}`);
