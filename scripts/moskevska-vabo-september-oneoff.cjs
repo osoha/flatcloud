@@ -7,8 +7,8 @@ const { PrismaClient } = require('@prisma/client');
 const db = new PrismaClient();
 const propertyCode = '1002';
 const leases = {
-  U005: { id: 'cmumshuud0026kb2ak4b3pypb', unitCode: 'P1002-U005', owner: 'František Pokorný', expectedExistingSeptember: false },
-  U008: { id: 'cmums4a5t0016kb2agawqz6q9', unitCode: 'P1002-U008', owner: 'Jiří Bělohlávek', expectedExistingSeptember: true },
+  U005: { id: 'cmumshuud0026kb2ak4b3pypb', unitCode: '005', owner: 'František Pokorný', expectedExistingSeptember: false },
+  U008: { id: 'cmums4a5t0016kb2agawqz6q9', unitCode: '008', owner: 'Jiří Bělohlávek', expectedExistingSeptember: true },
 };
 const at = value => new Date(`${value}T12:00:00.000Z`);
 const assert = (condition, message) => { if (!condition) throw Error(message); };
