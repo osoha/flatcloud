@@ -10,8 +10,8 @@ function Fields({unitOfMeasure,reading,documents}:{unitOfMeasure:string;reading?
   return <>
     <label className="field"><span>Datum odečtu</span><input type="date" name="readAt" required defaultValue={reading?businessDateKey(reading.readAt):businessTodayKey()} readOnly={!!reading}/></label>
     <label className="field"><span>Stav ({unitOfMeasure})</span><input type="number" name="value" min="0" step="0.001" required defaultValue={reading?.value}/></label>
-    <label className="field"><span>Způsob odečtu</span><select name="method" required defaultValue={reading?.method==='LEGACY'?'':reading?.method||''}><option value="" disabled>Vyberte způsob</option>{Object.entries(readingMethods).filter(([key])=>key!=='LEGACY').map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
-    <label className="field"><span>Poznámka / zdůvodnění odhadu</span><input name="note" defaultValue={reading?.note||''}/></label>
+    <label className="field"><span>Způsob odečtu</span><select name="method" required defaultValue={reading?.method||''}><option value="" disabled>Vyberte způsob</option>{Object.entries(readingMethods).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
+    <label className="field"><span>Poznámka / zdroj historického odečtu / důvod odhadu</span><input name="note" defaultValue={reading?.note||''}/></label>
     <label className="field"><span>Fotografie nebo předávací protokol</span><select name="evidenceDocumentId" defaultValue={reading?.evidenceDocumentId||''}><option value="">{reading?.evidenceDocumentId?'Zachovat původní důkaz':'Bez přílohy'}</option>{documents.map(d=><option key={d.id} value={d.id}>{d.title}</option>)}</select></label>
     {reading&&<><input type="hidden" name="correctsId" value={reading.id}/><label className="field"><span>Důvod opravy</span><input name="correctionReason" required/></label></>}
   </>;
@@ -30,6 +30,6 @@ export function MeterReadingHistory({readings,unitOfMeasure,action,canManage,lea
         {canManage&&activeIds.has(reading.id)&&<details><summary>Opravit odečet z {businessDateKey(reading.readAt)}</summary><p>Původní záznam zůstane zachován. Oprava nemění datum ani vazbu na smlouvu.</p><form className="compact-form" action={action} method="post"><Fields unitOfMeasure={reading.unitOfMeasure||unitOfMeasure} reading={reading} documents={documents}/><button className="secondary" type="submit">Uložit opravu odečtu</button></form></details>}
       </div>)}</div>
     </details>
-    {canManage&&<details className="module-add"><summary>Přidat odečet</summary><form className="compact-form" action={action} method="post">{leaseId&&<input type="hidden" name="leaseId" value={leaseId}/>}<Fields unitOfMeasure={unitOfMeasure} documents={documents}/><button className="primary" type="submit">Uložit odečet</button></form><p className="muted-copy">Fotografii nebo PDF nejprve nahrajte do dokumentů této jednotky. Odhad vyžaduje zdůvodnění; ruční odečty nenahrazují odborné rozúčtování tepla.</p></details>}
+    {canManage&&<details className="module-add"><summary>Přidat odečet</summary><form className="compact-form" action={action} method="post">{leaseId&&<input type="hidden" name="leaseId" value={leaseId}/>}<Fields unitOfMeasure={unitOfMeasure} documents={documents}/><button className="primary" type="submit">Uložit odečet</button></form><p className="muted-copy">Fotografii nebo PDF nejprve nahrajte do dokumentů této jednotky. U historického odečtu uveďte zdroj, u odhadu zdůvodnění; ruční odečty nenahrazují odborné rozúčtování tepla.</p></details>}
   </>;
 }
