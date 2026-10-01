@@ -2,7 +2,7 @@ import { ownerVisibleDocumentWhere } from "../documents/access";
 import type { Prisma } from "@prisma/client";
 import { canSeeAll } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { escapeHtml, sendMail } from "@/lib/email";
+import { escapeHtml, renderFlatBerryEmail, sendMail } from "@/lib/email";
 import { createFileStorage } from "@/lib/storage";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
@@ -10,7 +10,7 @@ export type WelcomeLetterStatus = "DRAFT" | "READY" | "SENDING" | "SENT" | "ARCH
 export const welcomeLetterStatuses: Record<WelcomeLetterStatus, string> = { DRAFT: "Koncept", READY: "Připraveno", SENDING: "Odesílá se", SENT: "Odesláno", ARCHIVED: "Archivováno" };
 export const welcomeSectionFields = [
   ["handoverText", "Předání nemovitosti"], ["leaseText", "Nájemní smlouva a platební údaje"], ["insuranceText", "Pojištění nemovitosti"],
-  ["managementText", "Správa nemovitosti"], ["platformText", "Evidence a FlatCloud Rent"], ["taxText", "Zdanění příjmu a odpisy"],
+  ["managementText", "Správa nemovitosti"], ["platformText", "Evidence ve FlatBerry"], ["taxText", "Zdanění příjmu a odpisy"],
   ["associationText", "Společenství vlastníků jednotek"],
 ] as const;
 type SectionField = typeof welcomeSectionFields[number][0];
@@ -29,7 +29,7 @@ export function defaultWelcomeLetterContent(input: { recipientName: string; prop
     leaseText: "Je-li jednotka pronajatá, je po změně vlastníka potřeba zkontrolovat nájemní dokumentaci, platební předpis a údaje účtu pro nájemné a zálohy. Podle situace připravíme novou smlouvu nebo dodatek a zajistíme informování nájemce. Prosíme o potvrzení vašich fakturačních a bankovních údajů zabezpečeným dohodnutým kanálem; neposílejte citlivé údaje odpovědí na tento e-mail, pokud jsme se nedohodli jinak.",
     insuranceText: "Doporučujeme bez prodlení ověřit pojištění nemovitosti včetně odpovědnosti vlastníka. Pojištění domácnosti si zpravidla sjednává nájemce. Pokud bylo pojištění podmínkou hypotečního financování, zkontrolujte zejména správnost identifikace jednotky a počátek krytí.",
     managementText: "Pokud chcete nemovitost držet jako pasivní investici, můžeme vám představit rozsah navazující správy: komunikaci s nájemcem, evidenci plateb, vyúčtování služeb, přípravu změn nájemného, obsazování, revize a provozní údržbu. Konkrétní rozsah, cenu a odpovědnosti vždy stanoví samostatná smlouva o správě.",
-    platformText: "Pro přehled o pronájmu doporučujeme využívat FlatCloud Rent. Na jednom místě lze sledovat smlouvy, předpisy a platby, měřidla, dokumenty, úkoly, revize a podklady pro vyúčtování. Přístup a oprávnění vám nastavíme podle zvoleného modelu správy.",
+    platformText: "Pro přehled o pronájmu doporučujeme využívat FlatBerry. Na jednom místě lze sledovat smlouvy, předpisy a platby, měřidla, dokumenty, úkoly, revize a podklady pro vyúčtování. Přístup a oprávnění vám nastavíme podle zvoleného modelu správy.",
     taxText: "Příjmy z pronájmu a související náklady doporučujeme konzultovat s daňovým poradcem. Ten posoudí vhodný způsob evidence skutečných výdajů, odpisování a přípravy daňového přiznání s ohledem na vaši individuální situaci a případné bankovní financování.",
     associationText: "Informace o existujícím nebo připravovaném společenství vlastníků, správci domu, zálohách a plánovaných rozhodnutích doplníme podle aktuální situace v konkrétním domě. Pokud bude potřeba váš souhlas nebo účast, obdržíte samostatné podklady.",
     closingText: "Věříme, že se podaří všechny navazující kroky dokončit hladce a že vám investice bude přinášet očekávaný užitek. V případě dotazů jsme vám k dispozici.\n\nS pozdravem\ntým FlatCloud",
@@ -39,7 +39,7 @@ export function defaultWelcomeLetterContent(input: { recipientName: string; prop
 
 export function renderWelcomeLetter(input: { subject: string; introduction: string; closingText: string; contactText: string } & Record<SectionField, string>) {
   const sections = welcomeSectionFields.filter(([field]) => input[field].trim()).map(([field, label]) => `<section style="margin:0 0 22px"><h2 style="margin:0 0 8px;color:#173d6f;font-size:18px">${escapeHtml(label)}</h2>${paragraphs(input[field])}</section>`).join("");
-  const html = `<div style="margin:0;background:#f4f7fb;padding:24px 10px;font-family:Arial,sans-serif;color:#17233a;line-height:1.55"><div style="max-width:680px;margin:auto;background:#fff;border:1px solid #dbe4f0"><div style="padding:24px 30px;background:#173d6f;color:#fff"><div style="font-size:26px;font-weight:700">FlatCloud</div><div style="margin-top:5px;color:#c9dcf2">Průvodce nového vlastníka</div></div><div style="padding:30px">${paragraphs(input.introduction)}${sections}${paragraphs(input.closingText)}<div style="margin-top:24px;padding-top:18px;border-top:1px solid #dbe4f0;color:#53647a;font-size:13px">${paragraphs(input.contactText)}</div></div></div></div>`;
+  const html = renderFlatBerryEmail(`<h1 style="margin:0 0 22px;color:#102348;font-size:22px">Průvodce nového vlastníka</h1>${paragraphs(input.introduction)}${sections}${paragraphs(input.closingText)}<div style="margin-top:24px;padding-top:18px;border-top:1px solid #dbe4f0;color:#53647a;font-size:13px">${paragraphs(input.contactText)}</div>`);
   const text = [input.introduction, ...welcomeSectionFields.flatMap(([field, label]) => input[field].trim() ? [`${label}\n${input[field]}`] : []), input.closingText, `Kontakty\n${input.contactText}`].join("\n\n");
   return { html, text };
 }

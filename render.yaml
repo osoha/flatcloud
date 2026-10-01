@@ -37,7 +37,7 @@ services:
       - key: SMTP_PASSWORD
         sync: false
       - key: SMTP_FROM_NAME
-        value: FlatCloud
+        value: FlatBerry
       - key: SMTP_FROM_EMAIL
         sync: false
 
@@ -84,7 +84,7 @@ services:
           name: flatcloud-rent
           envVarKey: SMTP_PASSWORD
       - key: SMTP_FROM_NAME
-        value: FlatCloud
+        value: FlatBerry
       - key: SMTP_FROM_EMAIL
         fromService:
           type: web

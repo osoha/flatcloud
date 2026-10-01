@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(path, "utf8"); let passed = 0;
 function check(name: string, run: () => void) { run(); passed += 1; console.log(`✓ ${name}`); }
 
 check("FlatCloud template covers the source letter as editable sections", () => {
-  assert.deepEqual(welcomeSectionFields.map(([, label]) => label), ["Předání nemovitosti", "Nájemní smlouva a platební údaje", "Pojištění nemovitosti", "Správa nemovitosti", "Evidence a FlatCloud Rent", "Zdanění příjmu a odpisy", "Společenství vlastníků jednotek"]);
+  assert.deepEqual(welcomeSectionFields.map(([, label]) => label), ["Předání nemovitosti", "Nájemní smlouva a platební údaje", "Pojištění nemovitosti", "Správa nemovitosti", "Evidence ve FlatBerry", "Zdanění příjmu a odpisy", "Společenství vlastníků jednotek"]);
   const content = defaultWelcomeLetterContent({ recipientName: "Jan Novák", propertyName: "Moskevská", propertyAddress: "Moskevská 24, Ústí nad Labem", unitLabel: "Byt 12", sellerName: "FlatCloud Moskevská s.r.o.", sellerEmail: "info@example.test" });
   assert.match(content.subject, /Moskevská/); assert.match(content.introduction, /Byt 12/); assert.match(content.introduction, /Moskevská 24/); assert.match(content.contactText, /FlatCloud Moskevská/);
   assert.doesNotMatch(Object.values(content).join(" "), /Westside|Spravujeme\.cz|Finstar|Zvládneme\.cz/i);
@@ -15,7 +15,7 @@ check("FlatCloud template covers the source letter as editable sections", () => 
 check("email preview is branded, readable and escapes edited content", () => {
   const base = defaultWelcomeLetterContent({ recipientName: "Kupující", propertyName: "Dům", propertyAddress: "Adresa", unitLabel: "1", sellerName: "SPV" });
   const rendered = renderWelcomeLetter({ ...base, introduction: "Bezpečný text <script>alert(1)</script>" });
-  assert.match(rendered.html, /FlatCloud/); assert.match(rendered.html, /Průvodce nového vlastníka/); assert.match(rendered.html, /&lt;script&gt;/); assert.doesNotMatch(rendered.html, /<script>/); assert.match(rendered.text, /Předání nemovitosti/);
+  assert.match(rendered.html, /alt="FlatBerry"/); assert.match(rendered.html, /Průvodce nového vlastníka/); assert.match(rendered.html, /&lt;script&gt;/); assert.doesNotMatch(rendered.html, /<script>/); assert.match(rendered.text, /Předání nemovitosti/);
 });
 
 check("schema snapshots sale scope, revisions, approval and send history", () => {
