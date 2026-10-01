@@ -2,14 +2,13 @@ import { Prisma } from '@prisma/client';
 import { editableUnitWhere } from './access';
 import { documentAccessWhere } from './documents/access';
 import { serializableTransaction } from './serializable';
-import { readingDate, validateReadingPosition } from './meter-reading-rules';
+import { readingDate, validateReadingMethod, validateReadingPosition } from './meter-reading-rules';
 
 type Actor = {id:string;role:string;allProperties?:boolean};
 type Input = {propertyId:string;unitId?:string|null;meterId:string;readAt:string;value:number;method:string;leaseId?:string|null;note?:string|null;correctsId?:string|null;correctionReason?:string|null;evidenceDocumentId?:string|null};
 export async function recordMeterReading(actor:Actor,input:Input) {
   const readAt=readingDate(input.readAt);
-  if (!['PERSONAL','REMOTE','ESTIMATE'].includes(input.method)) throw new Error('Vyberte způsob odečtu: osobní, dálkový nebo odhad.');
-  if (input.method === 'ESTIMATE' && !input.note?.trim()) throw new Error('U odhadu uveďte důvod a způsob stanovení.');
+  validateReadingMethod(input.method,input.note);
   if (input.correctsId && !input.correctionReason?.trim()) throw new Error('Uveďte důvod opravy.');
   try {
     return await serializableTransaction(async tx => {
