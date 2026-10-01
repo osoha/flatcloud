@@ -17,6 +17,7 @@ function source() {
   assert(path, 'REPILOT_METER_MANIFEST is required');
   const data = JSON.parse(fs.readFileSync(path, 'utf8'));
   assert(data.propertyCode === 'P1002' && Array.isArray(data.readings) && data.readings.length === 38, 'Expected 38 verified P1002 readings');
+  assert(Array.isArray(data.identifiers) && data.identifiers.length === 12, 'Expected 12 EAN/EIC meter fields');
   const unique = new Set();
   for (const row of data.readings) {
     assert(Object.keys(row).sort().join() === ['date','note','serial','source','target','type','value'].sort().join(), 'Unexpected source columns');
@@ -29,13 +30,22 @@ function source() {
     assert(!unique.has(key), `Duplicate source reading ${key}`);
     unique.add(key);
   }
-  return data.readings;
+  for (const item of data.identifiers) {
+    assert(Object.keys(item).sort().join() === ['kind','serial','target','type','value'].sort().join(), 'Unexpected identifier columns');
+    assert((item.kind === 'EAN' && item.type.startsWith('ELECTRICITY') && /^\d{18}$/.test(item.value)) ||
+      (item.kind === 'EIC' && item.type === 'GAS' && /^[A-Z0-9]{16}$/.test(item.value)), `Invalid EAN/EIC for ${item.target}/${item.serial}`);
+    assert(!unique.has(`ID|${item.target}|${item.serial}|${item.type}`), 'Duplicate identifier target');
+    unique.add(`ID|${item.target}|${item.serial}|${item.type}`);
+  }
+  return data;
 }
 
-async function preflight(rows) {
+async function preflight(data) {
+  const rows = data.readings;
   const property = await db.property.findUnique({ where: { propertyCode: 'P1002' }, include: { units: { select: { id: true, unitCode: true } } } });
   assert(property?.name === 'Moskevská' && property.units.length === 15, 'P1002 / 15-unit scope changed');
   const meters = await db.meter.findMany({ where: { propertyId: property.id }, include: { readings: true } });
+  assert(meters.length && Object.hasOwn(meters[0], 'supplyPointId'), 'Deploy PR #208 schema and Prisma client before importing EAN/EIC');
   const planned = [];
   for (const row of rows) {
     const unit = row.target === 'HOUSE' ? null : property.units.find(x => x.unitCode === row.target);
@@ -49,7 +59,16 @@ async function preflight(rows) {
     if (sameDay.length) assert(sameDay[0].value === row.value, `Target value differs for ${row.target}/${row.serial}/${row.date}`);
     planned.push({ row, meterId: meter?.id || null, unitId: unit?.id || null, missingMeter: meter ? null : missingHistoricalMeters[key], existingId: sameDay[0]?.id || null });
   }
-  return { property, meters, planned };
+  const identifiers = data.identifiers.map(item => {
+    const unit = item.target === 'HOUSE' ? null : property.units.find(x => x.unitCode === item.target);
+    assert(item.target === 'HOUSE' || unit, `Identifier target unit missing: ${item.target}`);
+    const candidates = meters.filter(m => m.unitId === (unit?.id || null) && m.serialNumber === item.serial && m.type === item.type);
+    const key = [item.target, item.serial, item.type].join('|');
+    assert(candidates.length === 1 || (candidates.length === 0 && missingHistoricalMeters[key]), `Identifier meter mismatch: ${key}`);
+    assert(!candidates[0]?.supplyPointId || candidates[0].supplyPointId === item.value, `Conflicting existing EAN/EIC: ${key}`);
+    return { item, meterId: candidates[0]?.id || null };
+  });
+  return { property, meters, planned, identifiers };
 }
 
 function backup(state, path, apply) {
@@ -61,18 +80,19 @@ function backup(state, path, apply) {
 }
 
 async function run() {
-  const rows = source();
+  const data = source();
+  const rows = data.readings;
   if (process.env.VALIDATE_SOURCE_ONLY === '1') {
-    console.log(JSON.stringify({ mode: 'SOURCE_VALIDATED', count: rows.length,
+    console.log(JSON.stringify({ mode: 'SOURCE_VALIDATED', count: rows.length, identifiers: data.identifiers.length,
       targets: rows.reduce((counts, row) => ({ ...counts, [row.target]: (counts[row.target] || 0) + 1 }), {}),
     }, null, 2));
     return;
   }
   const { PrismaClient } = require('@prisma/client');
   db = new PrismaClient();
-  const state = await preflight(rows);
+  const state = await preflight(data);
   const plan = state.planned.map(({ row, meterId, existingId, missingMeter }) => ({ target: row.target, serial: row.serial, type: row.type, date: row.date, value: row.value, meterId, createHistoricalMeter: !!missingMeter, existingId }));
-  console.log(JSON.stringify({ mode: process.env.APPLY === '1' ? 'APPLY' : 'DRY_RUN', plan }, null, 2));
+  console.log(JSON.stringify({ mode: process.env.APPLY === '1' ? 'APPLY' : 'DRY_RUN', plan, identifiers: state.identifiers }, null, 2));
   if (process.env.APPLY !== '1') {
     if (process.env.BACKUP_PATH) console.log(`Backup SHA-256 ${backup(state, process.env.BACKUP_PATH, false)}`);
     return;
@@ -91,6 +111,7 @@ async function run() {
           const meter = await tx.meter.create({ data: {
             propertyId: state.property.id, unitId, scope: 'UNIT', serialNumber: row.serial,
             type: row.type, unitOfMeasure: missingMeter.unitOfMeasure, label: missingMeter.label, active: false,
+            supplyPointId: state.identifiers.find(x => x.item.target === row.target && x.item.serial === row.serial && x.item.type === row.type)?.item.value || null,
           } });
           newMeterIds.set(key, meter.id);
         }
@@ -101,6 +122,10 @@ async function run() {
         note: `Převzato z REpilot: ${row.note}; původní způsob odečtu nezjištěn.`,
       } });
       result.push({ id: reading.id, meterId: targetMeterId, date: row.date, value: row.value });
+    }
+    for (const { item, meterId } of state.identifiers) {
+      if (meterId) await tx.meter.update({ where: { id: meterId }, data: { supplyPointId: item.value } });
+      else assert(newMeterIds.has([item.target, item.serial, item.type].join('|')), 'Missing historical meter was not created');
     }
     return result;
   });
