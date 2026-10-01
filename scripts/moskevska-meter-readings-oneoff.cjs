@@ -42,7 +42,7 @@ function source() {
 
 async function preflight(data) {
   const rows = data.readings;
-  const property = await db.property.findUnique({ where: { propertyCode: 'P1002' }, include: { units: { select: { id: true, unitCode: true } } } });
+  const property = await db.property.findUnique({ where: { propertyCode: '1002' }, include: { units: { select: { id: true, unitCode: true } } } });
   assert(property?.name === 'Moskevská' && property.units.length === 15, 'P1002 / 15-unit scope changed');
   const meters = await db.meter.findMany({ where: { propertyId: property.id }, include: { readings: true } });
   assert(meters.length && Object.hasOwn(meters[0], 'supplyPointId'), 'Deploy PR #208 schema and Prisma client before importing EAN/EIC');
