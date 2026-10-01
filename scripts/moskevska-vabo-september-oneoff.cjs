@@ -94,6 +94,13 @@ function backup(rows, state, path, apply) {
 
 async function run() {
   const rows = loadSource();
+  if (process.env.VALIDATE_SOURCE_ONLY === '1') {
+    console.log(JSON.stringify({ mode: 'SOURCE_VALIDATED', rows: Object.fromEntries(Object.entries(rows).map(([key, row]) => [key, {
+      sourceLeaseId: row.sourceLeaseId, sourceBillId: row.sourceBillId, sourceRecordId: row.sourceRecordId,
+      period: row.period, receivedAt: row.receivedAt, amountCents: row.amountCents,
+    }])) }, null, 2));
+    return;
+  }
   const state = await preflight(rows);
   const plan = Object.fromEntries(Object.entries(rows).map(([key, row]) => [key, {
     unit: leases[key].unitCode, sourceBillId: row.sourceBillId, sourceRecordId: row.sourceRecordId,
