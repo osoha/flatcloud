@@ -48,7 +48,7 @@ async function preflight(data) {
   assert(meters.length && Object.hasOwn(meters[0], 'supplyPointId'), 'Deploy PR #208 schema and Prisma client before importing EAN/EIC');
   const planned = [];
   for (const row of rows) {
-    const unit = row.target === 'HOUSE' ? null : property.units.find(x => x.unitCode === row.target);
+    const unit = row.target === 'HOUSE' ? null : property.units.find(x => x.unitCode === row.target.slice(-3));
     assert(row.target === 'HOUSE' || unit, `Target unit missing: ${row.target}`);
     const candidates = meters.filter(m => m.unitId === (unit?.id || null) && m.serialNumber === row.serial && m.type === row.type);
     const key = [row.target, row.serial, row.type].join('|');
@@ -60,7 +60,7 @@ async function preflight(data) {
     planned.push({ row, meterId: meter?.id || null, unitId: unit?.id || null, missingMeter: meter ? null : missingHistoricalMeters[key], existingId: sameDay[0]?.id || null });
   }
   const identifiers = data.identifiers.map(item => {
-    const unit = item.target === 'HOUSE' ? null : property.units.find(x => x.unitCode === item.target);
+    const unit = item.target === 'HOUSE' ? null : property.units.find(x => x.unitCode === item.target.slice(-3));
     assert(item.target === 'HOUSE' || unit, `Identifier target unit missing: ${item.target}`);
     const candidates = meters.filter(m => m.unitId === (unit?.id || null) && m.serialNumber === item.serial && m.type === item.type);
     const key = [item.target, item.serial, item.type].join('|');
