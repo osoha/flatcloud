@@ -85,6 +85,7 @@ test("ignorovaný výdaj nabídne předvyplněné ignorovací pravidlo pro dalš
  await page.getByRole("button",{name:"Zobrazit náhled pravidla"}).click();
  await expect(page.getByRole("heading",{name:"Náhled: 1 odpovídajících pohybů"})).toBeVisible();
  await page.getByRole("button",{name:"Uložit pravidlo pro budoucí importy"}).click();
+ await expect(page.getByRole("heading",{name:"Ignorovat: Dodavatel · Zapnuto"})).toBeVisible();
  const saved=await prisma.bankExpenseRule.findFirstOrThrow({where:{sourcePropertyId:f.property.id}});
  expect(saved.action).toBe("IGNORE");expect(saved.conditions).toMatchObject({counterpartyName:"Dodavatel",counterpartyAccount:"",variableSymbol:"",message:"",minCents:null,maxCents:null});
  expect((await runExpenseRules(f.property.id,[next.id])).applied).toBe(1);
