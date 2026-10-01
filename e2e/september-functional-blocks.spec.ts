@@ -70,6 +70,26 @@ test("pravidla: náhled, vytvoření a zpětné použití přes UI",async({page}
  await page.goto(`/nemovitosti/${f.property.id}/bankovni-vydaje?year=2026&state=ignored`);await page.locator('details[id^="pohyb-"] > summary').click();await page.getByLabel("Důvod",{exact:true}).fill("Vrácení do evidence");await page.getByRole("button",{name:"Vrátit do fronty"}).click();await expect(page.getByRole("status")).toContainText("Stav pohybu uložen");
 });
 
+test("ignorovaný výdaj nabídne předvyplněné ignorovací pravidlo pro další pohyby",async({page})=>{
+ const f=await fixture(),ignored=await f.bank(),next=await f.bank();
+ await login(page);await page.goto(`/nemovitosti/${f.property.id}/bankovni-vydaje?year=2026&transaction=${ignored.id}`);
+ await page.getByLabel("Důvod",{exact:true}).fill("Nesouvisí s domem");await page.getByRole("button",{name:"Ignorovat pohyb"}).click();
+ await expect(page).toHaveURL(new RegExp(`state=ignored.*transaction=${ignored.id}`));
+ await page.getByRole("link",{name:"Vytvořit ignorovací pravidlo"}).click();
+ await expect(page.getByText("Ignorovat budoucí odpovídající pohyby")).toBeVisible();
+ await expect(page.getByLabel("Jméno protistrany – přesná shoda")).toHaveValue("Dodavatel");
+ await expect(page.getByLabel("Účet protistrany – přesná shoda")).toHaveValue("123/0800");
+ await expect(page.getByLabel("Přesná částka (Kč)")).toHaveValue("100");
+ await expect(page.getByRole("checkbox",{name:"Použít v pravidle"}).nth(1)).toBeChecked();
+ await page.getByRole("button",{name:"Zobrazit náhled pravidla"}).click();
+ await expect(page.getByRole("heading",{name:"Náhled: 1 odpovídajících pohybů"})).toBeVisible();
+ await page.getByRole("button",{name:"Uložit pravidlo pro budoucí importy"}).click();
+ const saved=await prisma.bankExpenseRule.findFirstOrThrow({where:{sourcePropertyId:f.property.id}});
+ expect(saved.action).toBe("IGNORE");expect(saved.conditions).toMatchObject({counterpartyName:"Dodavatel",counterpartyAccount:"",variableSymbol:"",message:"",minCents:null,maxCents:null});
+ expect((await runExpenseRules(f.property.id,[next.id])).applied).toBe(1);
+ expect((await prisma.bankTransaction.findUniqueOrThrow({where:{id:next.id}})).expenseIgnoredAt).not.toBeNull();
+});
+
 test("uživatelé: vazby se nezaměňují a našeptávač vybere existující účet",async({page},testInfo)=>{
  const f=await fixture(),person=await prisma.user.create({data:{name:"Výběr Spolupracovníka",email:`picker-${crypto.randomUUID()}@example.invalid`,passwordHash:"no-login"}});
  await prisma.property.update({where:{id:f.property.id},data:{managerId:person.id}});await prisma.auditLog.create({data:{userId:person.id,entityId:f.property.id,entityType:"Property",action:"PROPERTY_CREATED"}});
