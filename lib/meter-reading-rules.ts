@@ -1,6 +1,11 @@
 import { businessDateKey, businessDateKeyToInstant, businessTodayKey, type BusinessDateKey } from './calendar';
 
 export const readingMethods = { PERSONAL: 'Osobní odečet', REMOTE: 'Dálkový odečet', ESTIMATE: 'Odhad', LEGACY: 'Historický záznam – způsob nezjištěn' };
+export function validateReadingMethod(method: string, note?: string | null) {
+  if (!Object.hasOwn(readingMethods, method)) throw new Error('Vyberte způsob odečtu.');
+  if (method === 'ESTIMATE' && !note?.trim()) throw new Error('U odhadu uveďte důvod a způsob stanovení.');
+  if (method === 'LEGACY' && !note?.trim()) throw new Error('U historického záznamu uveďte zdroj odečtu.');
+}
 export type Reading = { id: string; readAt: Date; value: number; correctsId?: string | null; method?: string; unitOfMeasure?: string | null };
 export function currentReadings<T extends Reading>(readings: T[]): T[] {
   const replaced = new Set(readings.flatMap(r => r.correctsId ? [r.correctsId] : []));
