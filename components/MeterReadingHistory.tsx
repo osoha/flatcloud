@@ -11,7 +11,7 @@ function Fields({unitOfMeasure,reading,documents}:{unitOfMeasure:string;reading?
     <label className="field"><span>Datum odečtu</span><input type="date" name="readAt" required defaultValue={reading?businessDateKey(reading.readAt):businessTodayKey()} readOnly={!!reading}/></label>
     <label className="field"><span>Stav ({unitOfMeasure})</span><input type="number" name="value" min="0" step="0.001" required defaultValue={reading?.value}/></label>
     <label className="field"><span>Způsob odečtu</span><select name="method" required defaultValue={reading?.method||''}><option value="" disabled>Vyberte způsob</option>{Object.entries(readingMethods).map(([key,label])=><option key={key} value={key}>{label}</option>)}</select></label>
-    <label className="field"><span>Poznámka / zdroj historického odečtu / důvod odhadu</span><input name="note" defaultValue={reading?.note||''}/></label>
+    <label className="field"><span>Poznámka / zdůvodnění odhadu</span><input name="note" defaultValue={reading?.note||''}/></label>
     <label className="field"><span>Fotografie nebo předávací protokol</span><select name="evidenceDocumentId" defaultValue={reading?.evidenceDocumentId||''}><option value="">{reading?.evidenceDocumentId?'Zachovat původní důkaz':'Bez přílohy'}</option>{documents.map(d=><option key={d.id} value={d.id}>{d.title}</option>)}</select></label>
     {reading&&<><input type="hidden" name="correctsId" value={reading.id}/><label className="field"><span>Důvod opravy</span><input name="correctionReason" required/></label></>}
   </>;
