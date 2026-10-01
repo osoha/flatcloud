@@ -12,23 +12,31 @@ import { authoritativeTaskUnitId, canEditTask, parseTaskEntryVisibility } from "
 import { randomUUID } from "node:crypto";
 import { serializableTransaction } from "@/lib/serializable";
 import { cleanupTaskAttachments, createTaskAttachmentsInTransaction, storeTaskAttachments } from "@/lib/task-attachments";
+import { NextResponse } from "next/server";
 
 const kinds = new Set(["COMMENT", "CALL", "EMAIL", "PROMISE"]);
+const jsonRequest = (request: Request) => request.headers.get("accept")?.includes("application/json");
+const result = (request: Request, path: string, type: "ok" | "error", message: string, status = 400) =>
+  jsonRequest(request)
+    ? NextResponse.json(type === "ok" ? { ok: true, url: `${path}?ok=${encodeURIComponent(message)}` } : { error: message }, { status: type === "ok" ? 200 : status })
+    : goWithMessage(request, path, type, message);
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
-  if (!user) return go(request, "/login");
+  if (!user) return jsonRequest(request) ? NextResponse.json({ error: "Přihlášení vypršelo. Přihlaste se v nové kartě a pak zkuste odeslat znovu." }, { status: 401 }) : go(request, "/login");
   const { id } = await params;
   const task = await prisma.task.findUnique({ where: { id }, select: { id: true, createdById: true, assigneeId: true, propertyId: true, unitId:true, leaseId: true, lease:{select:{unitId:true}} } });
-  if (!task) return goWithMessage(request, "/ukoly", "error", "Úkol nebyl nalezen.");
+  if (!task) return result(request, "/ukoly", "error", "Úkol nebyl nalezen.", 404);
   const canEdit=await canEditTask(user,task);
-  if (!canEdit) return goWithMessage(request, `/ukoly/${id}`, "error", "Nemáte oprávnění přidávat záznamy.");
+  if (!canEdit) return result(request, `/ukoly/${id}`, "error", "Nemáte oprávnění přidávat záznamy.", 403);
   try {
     const form = await request.formData();
     const visibility = parseTaskEntryVisibility(form);
     const hasFiles=form.getAll("files").some(value=>value instanceof File&&value.size>0);
     const preparedFiles=hasFiles?await prepareDocumentFiles(form):[];
-    const body = String(form.get("body") || "");
+    // HTML form submission may encode textarea line breaks as CRLF. Mention offsets
+    // originate in the editor's LF-normalized textarea value.
+    const body = String(form.get("body") || "").replace(/\r\n?/g, "\n");
     if (!body.trim() || body.length > 50000) throw new Error("Vyplňte text záznamu (nejvýše 50 000 znaků).");
     const mentions = withGroupMentions(body, parseMentions(JSON.parse(String(form.get("mentions") || "[]")), body));
     const recipientIds = [...new Set(form.getAll("notificationRecipientIds").map(String))];
@@ -84,8 +92,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await tx.auditLog.create({data:{userId:user.id,propertyId:task.propertyId,action:"TASK_ENTRY_ADDED",entityType:"TaskEntry",entityId:entry.id,details:{taskId:id,kind:kindRaw,visibility,promiseDate:promiseDate?.toISOString(),promiseAmountCents,attachmentCount:preparedFiles.length}}});
     });}catch(error){await cleanupStoredDocumentBatch(storedBatch);if(taskAttachmentBatch)await cleanupTaskAttachments(taskAttachmentBatch);throw error;}
     after(async () => { try { await processTaskNotifications({ taskId: id }); } catch { console.error("Task notification worker failed; queue retained."); } });
-    return goWithMessage(request, `/ukoly/${id}`, "ok", "Záznam byl přidán do vlákna.");
+    return result(request, `/ukoly/${id}`, "ok", "Záznam byl přidán do vlákna.");
   } catch (error) {
-    return goWithMessage(request, `/ukoly/${id}`, "error", error instanceof Error ? error.message : "Záznam se nepodařilo přidat.");
+    return result(request, `/ukoly/${id}`, "error", error instanceof Error ? error.message : "Záznam se nepodařilo přidat.");
   }
 }

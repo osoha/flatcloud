@@ -39,6 +39,40 @@ test("zmínky zachovají identitu při úpravě textu", () => {
   expect(() => parseMentions([{ ...mention, userId: "known", start: -1 }], body)).toThrow();
 });
 
+test("víceřádková zmínka se odešle bez zaškrtnutí e-mailu a chyba zachová rozepsaný text", async ({ page }) => {
+  const f = await fixture(); await login(page, f.author.email);
+  await page.goto(`/ukoly/${f.task.id}`);
+  const editor = page.getByLabel("Nový komentář", { exact: true });
+  const draft = "První řádek\nProsím @";
+  await editor.fill(draft);
+  await page.getByRole("option", { name: new RegExp(f.member.email) }).click();
+  const body = `${draft}${f.member.name} o potvrzení.\nDěkuji.`;
+  await editor.fill(body);
+  const mentionInput = page.locator('input[name="mentions"]');
+  await expect(mentionInput).toHaveValue(new RegExp(f.member.id));
+  const validMentions = await mentionInput.inputValue();
+  await expect(page.getByRole("group", { name: "Upozornit e-mailem další účastníky" })).toHaveCount(0);
+
+  // A stale offset must produce an inline error without discarding the draft.
+  await mentionInput.evaluate((input: HTMLInputElement) => {
+    const mentions = JSON.parse(input.value);
+    mentions[0].start++;
+    input.value = JSON.stringify(mentions);
+  });
+  await page.getByRole("button", { name: "Odeslat", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Zmínka se změnila");
+  await expect(editor).toHaveValue(body);
+  expect(await prisma.taskEntry.count({ where: { taskId: f.task.id } })).toBe(0);
+
+  await mentionInput.evaluate((input: HTMLInputElement, value) => { input.value = value; }, validMentions);
+  await page.getByRole("button", { name: "Odeslat", exact: true }).click();
+  await expect(page.getByText("Záznam byl přidán do vlákna.", { exact: true })).toBeVisible();
+  const entry = await prisma.taskEntry.findFirstOrThrow({ where: { taskId: f.task.id } });
+  expect(entry.body).toBe(body);
+  await expect(page.locator(`#zaznam-${entry.id} .task-mention`)).toHaveText(`@${f.member.name}`);
+  expect(await prisma.taskNotification.count({ where: { entryId: entry.id, userId: f.member.id, kind: "MENTION" } })).toBe(1);
+});
+
 test("@našeptávač, tiché reakce a oprávnění v obou režimech", async ({ browser }, testInfo) => {
   const f = await fixture();
   const page = await browser.newPage(); await login(page, f.author.email);
