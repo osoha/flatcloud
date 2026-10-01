@@ -47,7 +47,9 @@ export async function ensureAuditScenarios(prisma: PrismaClient, adminId: string
   await prisma.charge.create({ data: { leaseId: q2.id, period: "2026-10", dueDate: new Date("2026-10-05T12:00:00Z"), amountCents: cents(22_500), items: { create: [{ name: "Nájemné", category: "RENT", amountCents: cents(20_000) }, { name: "Zálohy na služby", category: "SERVICES", amountCents: cents(2_500) }] } } });
 
   const q3 = await scenarioLease({ label: "Q3 · Částečná úhrada", tenant: "QA Q3 · Alena Alokace", email: "qa-q3@example.test", vs: "910000003", rent: 19_000, services: 2_500 });
-  const q3Charge = await prisma.charge.create({ data: { leaseId: q3.id, period: "2026-10", dueDate: new Date("2026-10-05T12:00:00Z"), amountCents: cents(21_500), items: { create: [{ name: "Nájemné", category: "RENT", amountCents: cents(19_000) }, { name: "Zálohy na služby", category: "SERVICES", amountCents: cents(2_500) }] } } });
+  const now = new Date();
+  const q3DueDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 5, 12));
+  const q3Charge = await prisma.charge.create({ data: { leaseId: q3.id, period: q3DueDate.toISOString().slice(0, 7), dueDate: q3DueDate, amountCents: cents(21_500), items: { create: [{ name: "Nájemné", category: "RENT", amountCents: cents(19_000) }, { name: "Zálohy na služby", category: "SERVICES", amountCents: cents(2_500) }] } } });
   const transaction = await prisma.bankTransaction.create({ data: { bankAccountId: bankAccount.id, externalId: "qa-q3-partial", bookedAt: new Date("2026-09-20T12:00:00Z"), amountCents: cents(10_000), counterpartyName: "QA Q3 · Alena Alokace", variableSymbol: q3.variableSymbol, status: "PARTIAL" } });
   await prisma.paymentAllocation.create({ data: { transactionId: transaction.id, chargeId: q3Charge.id, amountCents: cents(10_000) } });
 
