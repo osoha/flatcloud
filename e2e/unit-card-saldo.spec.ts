@@ -100,6 +100,16 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     const berry = page.locator(".basic-sidebar-berry");
     await expect(berry).toBeVisible();
     expect(await berry.evaluate(el=>el.nextElementSibling?.classList.contains("display-mode-switch"))).toBeTruthy();
+    // Desktop margin animates after resizing from mobile; wait for the actual layout.
+    await expect.poll(async () => page.evaluate(() => {
+      const main = document.querySelector(".main")!.getBoundingClientRect();
+      const side = document.querySelector(".sidebar")!.getBoundingClientRect();
+      return main.left >= side.right - 1;
+    })).toBeTruthy();
+    await page.screenshot({path:"test-results/basic-unit-vacant-desktop.png",fullPage:true});
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}`);
+    await expect(page.locator(".basic-unit-tenant strong")).toHaveText(tenant.name);
+    await expect(page.locator(".basic-unit-details")).not.toHaveAttribute("open", "");
     await page.screenshot({path:"test-results/basic-unit-approved-desktop.png",fullPage:true});
     await page.locator('.sidebar .display-mode-switch button[value="pro"]').click();
     await expect(berry).toHaveCount(0);
