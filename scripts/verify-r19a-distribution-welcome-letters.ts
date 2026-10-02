@@ -15,7 +15,7 @@ check("FlatCloud template covers the source letter as editable sections", () => 
 check("email preview is branded, readable and escapes edited content", () => {
   const base = defaultWelcomeLetterContent({ recipientName: "Kupující", propertyName: "Dům", propertyAddress: "Adresa", unitLabel: "1", sellerName: "SPV" });
   const rendered = renderWelcomeLetter({ ...base, introduction: "Bezpečný text <script>alert(1)</script>" });
-  assert.match(rendered.html, /FlatCloud/); assert.match(rendered.html, /Průvodce nového vlastníka/); assert.match(rendered.html, /&lt;script&gt;/); assert.doesNotMatch(rendered.html, /<script>/); assert.match(rendered.text, /Předání nemovitosti/);
+  assert.match(rendered.html, /alt="FlatBerry"/); assert.match(rendered.html, /Průvodce nového vlastníka/); assert.match(rendered.html, /&lt;script&gt;/); assert.doesNotMatch(rendered.html, /<script>/); assert.match(rendered.text, /Předání nemovitosti/);
 });
 
 check("schema snapshots sale scope, revisions, approval and send history", () => {

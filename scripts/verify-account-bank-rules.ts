@@ -1,0 +1,17 @@
+import assert from "node:assert/strict";
+import { accountBankRuleMatches,validateAccountRuleConditions } from "../lib/account-bank-rule-policy";
+import { managesBankScope,type ScopedBankAccount } from "../lib/account-banking-access";
+const rule={direction:"OUT",currency:"CZK",counterpartyAccount:"19-2000145399/0800",counterpartyNameContains:"banka",variableSymbol:"0012",messageContains:"vedení",amountCents:-40000};
+const row={amountCents:-40000,currency:"CZK",counterpartyAccount:"CZ6508000000192000145399",counterpartyName:"Moje Banka",variableSymbol:"12",message:"Poplatek za vedení účtu"};
+assert.equal(accountBankRuleMatches(rule,row),true);
+for(const change of [{amountCents:40000},{currency:"EUR"},{counterpartyAccount:"999/0800"},{counterpartyName:"Jiná protistrana"},{variableSymbol:"13"},{message:"Nájem"},{amountCents:-39999}])assert.equal(accountBankRuleMatches(rule,{...row,...change}),false);
+assert.throws(()=>validateAccountRuleConditions({...rule,counterpartyAccount:null,counterpartyNameContains:null,variableSymbol:null,messageContains:null,amountCents:null}),/alespoň jednu/);
+assert.throws(()=>validateAccountRuleConditions({...rule,amountCents:40000}),/směru/);
+const account={owner:{userId:"owner"},propertyLinks:[{propertyId:"house1"},{propertyId:"house2"}],unitOwnerships:[],leases:[]} as unknown as ScopedBankAccount;
+const actor={id:"manager",role:"PROPERTY_MANAGER"};
+assert.equal(managesBankScope(actor,[account],["house1"]),false);
+assert.equal(managesBankScope(actor,[account],["house1","house2"]),true);
+assert.equal(managesBankScope({...actor,id:"owner"},[account],[]),true);
+assert.equal(managesBankScope(actor,[],["house1","house2"]),false);
+assert.equal(managesBankScope(actor,[{...account,propertyLinks:[]}],[]),false);
+console.log("Account rules: direction, currency, all conditions, normalized identity, broad-rule rejection and complete-account permissions passed.");

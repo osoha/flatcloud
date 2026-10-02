@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await audit(access.user.id, "METER_STATUS_CHANGED", "Meter", meterId, { propertyId: id, unitId, active: !existing.active }, id);
     } else {
       if (await prisma.meterReading.count({where:{meterId}}) && (text(form,"unitOfMeasure",true)! !== existing.unitOfMeasure || text(form,"serialNumber") !== existing.serialNumber)) throw new Error("Měřidlo s odečty nemůže změnit výrobní číslo ani měrnou jednotku. Při výměně založte nové měřidlo.");
-      await prisma.meter.update({ where: { id: meterId }, data: { label: text(form, "label"), serialNumber: text(form, "serialNumber"), unitOfMeasure: text(form, "unitOfMeasure", true)! } });
+      await prisma.meter.update({ where: { id: meterId }, data: { label: text(form, "label"), serialNumber: text(form, "serialNumber"), supplyPointId: text(form, "supplyPointId"), unitOfMeasure: text(form, "unitOfMeasure", true)! } });
       await audit(access.user.id, "METER_UPDATED", "Meter", meterId, { propertyId: id, unitId }, id);
     }
     return goWithMessage(request, `/nemovitosti/${id}/jednotky/${unitId}#meridla`, "ok", "Měřidlo bylo upraveno.");

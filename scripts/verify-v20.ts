@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { parseRawEmail } from "../lib/inbound-bank/imap";
 import { normalizeBankAccount, parseMoneyToCents, parseRbNotification } from "../lib/inbound-bank/rb";
+import { parseBankNotification } from "../lib/inbound-bank/bank-email";
+import { notificationInScope } from "../lib/inbound-bank/queue-scope";
 import { addCalendarMonths, leaseAlertsForProperties, nextLeaseAnniversary } from "../lib/lease-alerts";
 
 const legacy = parseRbNotification({
@@ -55,6 +57,38 @@ assert.equal(outgoing.validPayment, false, "Odchozí platba nesmí být importov
 
 assert.equal(normalizeBankAccount("000019-0001234567 / 0800"), "19-1234567/0800");
 assert.equal(parseMoneyToCents("1.234,56 Kč"), 123_456);
+// Synthetic fixture mirrors the observed Air Bank wording without customer data.
+const airText = `Zvýšení zůstatku na účtu Testovací dům
+zůstatek na účtu Testovací dům číslo 2000145399/3030 se zvýšil o částku 1,00 CZK. Dostupný zůstatek je 9 999,00 CZK.
+Příchozí úhrada z účtu TEST PLATCE číslo 19-2000145399/0800
+Částka: 1,00 CZK
+Variabilní symbol: 12345678`;
+const air = parseBankNotification({ from: "Air Bank <info@airbank.cz>", text: airText });
+assert.equal(air.recipientAccount, "2000145399/3030");
+assert.equal(air.counterpartyAccount, "19-2000145399/0800");
+assert.equal(air.amountCents, 100);
+assert.equal(air.variableSymbol, "12345678");
+assert.equal(air.autoProcessEligible, true);
+for (const from of ["info@example.invalid", "info@airbank.cz.example.invalid"]) {
+  assert.equal(parseBankNotification({ from, text: airText }).autoProcessEligible, false);
+}
+assert.equal(parseBankNotification({ from: "info@airbank.cz", text: airText, authenticationResults: "dmarc=fail" }).autoProcessEligible, false);
+for (const [bankCode, from, trusted] of [["0800", "info@csas.cz", true], ["5500", "info@rb.cz", true], ["2010", "info@fio.cz", false]] as const) {
+  const parsed = parseBankNotification({ from, text: `Platba na účet Test číslo 2000145399/${bankCode}\nZ účtu: 19-2000145399/0800\nČástka: 1,00 CZK\nVS: 12345678` });
+  assert.equal(parsed.recipientAccount, `2000145399/${bankCode}`);
+  assert.equal(parsed.counterpartyAccount, "19-2000145399/0800");
+  assert.equal(parsed.bank, bankCode);
+  assert.equal(parsed.autoProcessEligible, trusted);
+}
+assert.equal(parseBankNotification({ text: "Na účet: CZ65 0800 0000 1920 0014 5399 další text\nČástka: 1 Kč" }).recipientAccount, "CZ6508000000192000145399");
+assert.equal(parseBankNotification({ text: "Na účet: 123456789012/0800\nČástka: 1 Kč" }).recipientAccount, undefined);
+assert.equal(parseBankNotification({ text: "Číslo účtu protistrany: 1234567890/0800\nČástka: 1 Kč" }).recipientAccount, undefined);
+const scopes = [{ accountNumber: "2000145399", bankCode: "3030", iban: null, propertyLinks: [{ propertyId: "house1" }], unitOwnerships: [], leases: [] }];
+assert.equal(notificationInScope({ propertyId: null, recipientAccount: "2000145399/3030" }, scopes, ["house1"]), true);
+assert.equal(notificationInScope({ propertyId: null, recipientAccount: "2000145399/3030" }, scopes, ["house2"]), false);
+assert.equal(notificationInScope({ propertyId: null, recipientAccount: "7/3030" }, scopes, ["house1"]), true);
+assert.equal(notificationInScope({ propertyId: "house2", recipientAccount: "2000145399/3030" }, scopes, ["house1"]), false);
+
 const now = new Date("2026-08-24T12:00:00Z");
 assert.equal(addCalendarMonths(now, 3).toISOString().slice(0, 10), "2026-11-24");
 assert.equal(nextLeaseAnniversary(new Date("2020-10-01T12:00:00Z"), now).toISOString().slice(0, 10), "2026-10-01");

@@ -27,7 +27,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
         if(!previous) throw new Error("Nahrazované měřidlo už není aktivní.");
         await tx.meter.update({where:{id:previous.id},data:{active:false,removedAt:installedAt}});
       }
-      return tx.meter.create({data:{propertyId:id,scope,type,parentId,replacementOfId,label:text(form,"label"),serialNumber:text(form,"serialNumber"),location:text(form,"location"),unitOfMeasure,installedAt}});
+      return tx.meter.create({data:{propertyId:id,scope,type,parentId,replacementOfId,label:text(form,"label"),serialNumber:text(form,"serialNumber"),supplyPointId:text(form,"supplyPointId"),location:text(form,"location"),unitOfMeasure,installedAt}});
     });
     await audit(access.user.id,"HOUSE_METER_CREATED","Meter",meter.id,{propertyId:id,scope,type,parentId,replacementOfId},id);
     return goWithMessage(request,`/nemovitosti/${id}/meridla`,"ok",replacementOfId?"Výměna měřidla byla uložena a historie zůstala zachována.":"Domovní měřidlo bylo přidáno.");

@@ -24,7 +24,7 @@ export async function POST(request:Request){
         const link=redirectUrl(`/registrace/potvrdit/${token}`,request).toString();
         try{
           const home=redirectUrl("/",request).toString(),login=redirectUrl("/login",request).toString();
-          const result=await sendMail({to:email,subject:"Potvrzení registrace FlatBerry",text:`Potvrďte registraci: ${link}\nOdkaz je platný 24 hodin. Pokud jste o registraci nežádali, e-mail ignorujte.\nPřihlášení: ${login}\nVeřejný web: ${home}`,html:`<p>Potvrďte registraci do FlatBerry.</p><p><a href="${escapeHtml(link)}">Potvrdit e-mail</a></p><p>Odkaz je platný 24 hodin. Pokud jste o registraci nežádali, e-mail ignorujte.</p><p><a href="${escapeHtml(login)}">Přihlášení</a> · <a href="${escapeHtml(home)}">Veřejný web FlatBerry</a></p>`});
+          const result=await sendMail({to:email,subject:"Potvrzení registrace FlatBerry",text:`Potvrďte registraci: ${link}\nOdkaz je platný 24 hodin. Pokud jste o registraci nežádali, e-mail ignorujte.\nPřihlášení: ${login}\nVeřejný web: ${home}`,html:`<p>Potvrďte registraci do FlatBerry.</p><p><a href="${escapeHtml(link)}">Potvrdit e-mail</a></p><p>Odkaz je platný 24 hodin. Pokud jste o registraci nežádali, e-mail ignorujte.</p><p><a href="${escapeHtml(login)}">Přihlášení</a> · <a href="${escapeHtml(home)}">Zpět na web FlatBerry</a></p>`});
           if(!result.sent)throw new Error("Potvrzovací e-mail se nepodařilo odeslat.");
         }catch{await prisma.registrationRequest.deleteMany({where:{email,tokenHash}});throw new Error("Potvrzovací e-mail se nepodařilo odeslat.")}
       }

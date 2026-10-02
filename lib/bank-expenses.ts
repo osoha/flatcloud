@@ -2,6 +2,7 @@ import { Prisma, PropertyCostCategory, PropertyCostKind } from "@prisma/client";
 import { serializableTransaction } from "./serializable";
 import { expenseAccountIdentity, expenseKinds, bankRemainder, settledCents, type ExpenseKind } from "./bank-expense-values";
 import { bankAccountMatches } from "./inbound-bank/bank-email";
+import { reconcileTransactionReview } from "./bank-review-tasks";
 
 export type ExpenseCommand = {
   transactionId:string; sourcePropertyId:string; targetPropertyId:string; userId:string;
@@ -67,6 +68,7 @@ export async function applyExpense(input:ExpenseCommand, client?:Prisma.Transact
     await tx.auditLog.create({data:{userId:input.userId,propertyId:input.targetPropertyId,action:input.voidId?"BANK_EXPENSE_VOIDED":"BANK_EXPENSE_ALLOCATED",entityType:"BankTransaction",entityId:bank.id,details:{allocationId:eventId,costId,reason:input.reason,kind:input.kind,amountCents:input.amountCents}}});
     // Expense state is derived from the ledger; rental match status is never used as proof of payment.
     await tx.bankTransaction.update({where:{id:bank.id},data:{status:"IGNORED",suggestedLeaseId:null,matchNote:"Bankovní výdaje: stav a zůstatek jsou v evidenci úhrad nákladů."}});
+    await reconcileTransactionReview(bank.id, tx);
     return {costId};
   };
   return client ? work(client) : serializableTransaction(work);

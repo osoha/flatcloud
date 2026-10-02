@@ -10,7 +10,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
-  experimental: { cpus: 2 },
+  // A document may be 25 MB; proxy buffers multipart requests before the route sees them.
+  experimental: { cpus: 2, proxyClientMaxBodySize: "32mb" },
   async headers() {
     return [
       { source: "/(.*)", headers: securityHeaders },

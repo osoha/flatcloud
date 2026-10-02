@@ -39,12 +39,14 @@ jobs:
       - run: node --import tsx scripts/verify-r33-consumption.ts
       - run: node --import tsx scripts/verify-r33-kpis.ts
       - run: node --import tsx scripts/verify-unit-card-saldo.ts
+      - run: node --import tsx scripts/verify-account-bank-rules.ts
       - run: node --import tsx scripts/verify-task-thread-polish.ts
       - run: npm run verify:tab-navigation-v2
       - run: node --import tsx scripts/verify-flatberry-comparison.ts
       - run: npm run verify:valorizace-v3
       - run: npx prisma generate
       - run: node --import tsx scripts/verify-p01b-bank-costs.ts
+      - run: node --import tsx scripts/verify-bank-routing-review.ts
       - run: node --import tsx scripts/verify-september-blocks.ts
       - run: node --import tsx scripts/verify-p07a-prospect-overview.ts
       - run: npm run verify:p02d-sale-benchmark
@@ -52,6 +54,7 @@ jobs:
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run verify:v20
+      - run: node --import tsx scripts/verify-csob-parser.ts
       - run: npm run verify:v21
       - run: npm run verify:v21.1
       - run: npm run verify:v21.2
@@ -169,6 +172,7 @@ jobs:
       - run: npm run verify:r18e-annual-map-cleanup
       - run: npm run verify:r18f-annual-map-projection
       - run: npm run verify:r19a-distribution-welcome-letters
+      - run: npm run verify:flatberry-email-branding
       - run: npm run verify:r19b-collapsible-navigation
       - run: npm run verify:r19c-shell-deduplication
       - run: npm run verify:r21-owner-year-package
@@ -222,6 +226,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - run: node --import tsx scripts/verify-p01b-bank-costs.ts
+      - run: node --import tsx scripts/verify-bank-routing-review.ts
       - run: node --import tsx scripts/verify-september-blocks.ts
       - run: node --import tsx scripts/verify-p07a-prospect-overview.ts
       - run: npm run verify:p02d-sale-benchmark

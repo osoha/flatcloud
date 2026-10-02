@@ -6,6 +6,7 @@ import { fetchImapMessages, parseRawEmail } from "@/lib/inbound-bank/imap";
 import { parseBankNotification } from "@/lib/inbound-bank/bank-email";
 import { materializeInboxPayment } from "@/lib/inbound-bank/process";
 import { mailboxIdentity } from "@/lib/inbound-bank/mailbox-identity";
+import { reconcileInboxReview } from "@/lib/bank-review-tasks";
 
 function fallbackMessageId(uid: number, source: Buffer) {
   return `imap-${uid}-${createHash("sha256").update(source).digest("hex").slice(0, 20)}`;
@@ -82,17 +83,20 @@ export async function syncInboundMailbox() {
       });
       inboxId = inbox.id;
       if (!parsedPayment.recognizedPayment) {
+        await reconcileInboxReview(inbox.id);
         if (parsedPayment.bankLike) errors += 1; else ignored += 1;
         safeLastUid = Math.max(safeLastUid, rawMessage.uid);
         continue;
       }
       if (!parsedPayment.autoProcessEligible) {
+        await reconcileInboxReview(inbox.id);
         unmatched += 1;
         safeLastUid = Math.max(safeLastUid, rawMessage.uid);
         continue;
       }
       const importedResult = await materializeInboxPayment(inbox.id);
       if (importedResult.imported) imported += 1; else if (importedResult.ignored) ignored += 1; else unmatched += 1;
+      await reconcileInboxReview(inbox.id);
       safeLastUid = Math.max(safeLastUid, rawMessage.uid);
     } catch (error) {
       errors += 1;
@@ -103,7 +107,7 @@ export async function syncInboundMailbox() {
           await prisma.inboxPayment.update({ where: { id: inboxId }, data: { status: "ERROR", parseNote: `Chyba zpracování: ${message}` } });
         } else {
           const messageId = parsedMessageId || fallbackMessageId(rawMessage.uid, rawMessage.source);
-          await prisma.inboxPayment.upsert({
+          const failedInbox = await prisma.inboxPayment.upsert({
             where: { messageId },
             update: { status: "ERROR", parseNote: `Chyba zpracování: ${message}` },
             create: {
@@ -120,7 +124,9 @@ export async function syncInboundMailbox() {
               parseNote: `Chyba zpracování: ${message}`,
             },
           });
+          inboxId = failedInbox.id;
         }
+        await reconcileInboxReview(inboxId);
         safeLastUid = Math.max(safeLastUid, rawMessage.uid);
       } catch (persistError) {
         // Do not advance the UID checkpoint. Already persisted messages are deduplicated on retry.

@@ -8,13 +8,34 @@ const options = [["COMMENT", "Poznámka"], ["CALL", "Telefonát"], ["EMAIL", "E-
 export function TaskThreadComposer({ taskId, collection = false, showKinds = false, allowPromise = false, allowFiles = true, people = [], currentUserId, currentUserName = "", currentUserAvatarMimeType, currentUserUpdatedAt }: { taskId: string; collection?: boolean; showKinds?: boolean; allowPromise?: boolean; allowFiles?: boolean; people?: DiscussionPerson[]; currentUserId?: string; currentUserName?: string; currentUserAvatarMimeType?: string | null; currentUserUpdatedAt?: Date | string }) {
   const [kind, setKind] = useState<(typeof options)[number][0]>(collection && showKinds ? "CALL" : "COMMENT");
   const [submitting, setSubmitting] = useState(false), [visibility, setVisibility] = useState("INTERNAL"), [notify, setNotify] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [mentionIds, setMentionIds] = useState<string[]>([]), [selectedIds, setSelectedIds] = useState<string[]>([]), [files, setFiles] = useState<string[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
   const eligible = useMemo(() => people.filter(person => visibility === "OWNER_VISIBLE" || person.internal), [people, visibility]);
   const recipients = eligible.filter(p => p.participant !== false && p.id !== currentUserId);
   const recipientIds = new Set([...mentionIds, ...(notify ? selectedIds.filter(id => recipients.some(p => p.id === id)) : [])]);
   const placeholder = kind === "CALL" ? "Co bylo domluveno při telefonátu?" : kind === "EMAIL" ? "Shrnutí odeslané nebo přijaté zprávy…" : kind === "PROMISE" ? "Co nájemník slíbil a za jakých podmínek?" : "Napište komentář…";
-  return <div className="task-composer-row"><UserAvatar user={{ id: currentUserId, name: currentUserName, avatarMimeType: currentUserAvatarMimeType, updatedAt: currentUserUpdatedAt }} size="sm"/><form className="thread-composer-v211" action={`/api/tasks/${taskId}/entries`} method="post" encType="multipart/form-data" onSubmit={() => setSubmitting(true)}>
+  async function submit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (submitting) return;
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    setSubmitting(true);
+    setSubmitError("");
+    try {
+      const response = await fetch(form.action, { method: "POST", body: data, headers: { Accept: "application/json" } });
+      const payload = await response.json() as { ok?: boolean; url?: string; error?: string };
+      if (response.ok && payload.ok && payload.url) {
+        window.location.assign(payload.url);
+        return;
+      }
+      setSubmitError(payload.error || "Záznam se nepodařilo přidat. Zkuste to znovu.");
+    } catch {
+      setSubmitError("Záznam se nepodařilo odeslat. Zkontrolujte připojení a zkuste to znovu.");
+    }
+    setSubmitting(false);
+  }
+  return <div className="task-composer-row"><UserAvatar user={{ id: currentUserId, name: currentUserName, avatarMimeType: currentUserAvatarMimeType, updatedAt: currentUserUpdatedAt }} size="sm"/><form className="thread-composer-v211" action={`/api/tasks/${taskId}/entries`} method="post" encType="multipart/form-data" onSubmit={submit}>
     <div className="composer-top">{showKinds ? <div className="composer-tabs" role="group" aria-label="Typ záznamu">{options.filter(([value]) => allowPromise || value !== "PROMISE").map(([value,label]) => <button key={value} className={kind===value?"active":""} type="button" onClick={()=>setKind(value)}>{label}</button>)}</div> : <span className="composer-title">Nový komentář</span>}
     <label className="composer-visibility"><LockKeyhole size={17} aria-hidden="true"/><select name="visibility" value={visibility} onChange={event => setVisibility(event.target.value)} aria-label="Viditelnost záznamu"><option value="INTERNAL">Interní</option><option value="OWNER_VISIBLE">Viditelné vlastníkovi</option></select></label></div>
     <input type="hidden" name="kind" value={showKinds ? kind : "COMMENT"}/>
@@ -23,6 +44,7 @@ export function TaskThreadComposer({ taskId, collection = false, showKinds = fal
     {notify && <fieldset className="notification-recipients"><legend>Upozornit e-mailem další účastníky</legend>{recipients.map(person => <label className="checkbox-field" key={person.id}><input type="checkbox" name="notificationRecipientIds" value={person.id} checked={selectedIds.includes(person.id)} onChange={e => setSelectedIds(ids => e.target.checked ? [...ids, person.id] : ids.filter(id => id !== person.id))}/><span>{person.name}</span></label>)}</fieldset>}
     {allowFiles && <input ref={fileInput} name="files" type="file" multiple hidden aria-label="Přiložit fotografie nebo soubory" onChange={e => setFiles(Array.from(e.target.files || []).map(file => file.name))}/>}
     {files.length > 0 && <div className="composer-files">{files.map((name, index) => <span key={index}><Paperclip size={15}/>{name}</span>)}<button type="button" onClick={() => { if (fileInput.current) fileInput.current.value = ""; setFiles([]); }}>Odebrat přílohy</button></div>}
+    {submitError && <p role="alert" className="error">{submitError}</p>}
     <div className="composer-actions"><small aria-live="polite">{recipientIds.size > 0 ? <><Users size={19} aria-hidden="true"/>Adresně upozornit: {recipientIds.size} {recipientIds.size === 1 ? "osobu" : recipientIds.size < 5 ? "osoby" : "osob"}</> : visibility === "INTERNAL" ? "Interní · Vidí pouze oprávnění účastníci" : "Záznam a přílohy uvidí i oprávnění vlastníci"}</small><button className="primary" type="submit" disabled={submitting}>{submitting ? "Ukládám…" : "Odeslat"}</button></div>
   </form></div>;
 }

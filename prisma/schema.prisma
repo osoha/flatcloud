@@ -656,6 +656,7 @@ model RegistrationRequest {
 }
 
 model OwnerBankAccount {
+  accountRules AccountBankRule[]
   id                     String                   @id @default(cuid())
   ownerId                String
   owner                  Owner                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -692,6 +693,9 @@ model Property {
   city                              String
   postalCode                        String?
   note                              String?
+  avatarPhotoId                     String?
+  avatarData                        Bytes?
+  avatarMimeType                    String?
   technicalData                     Json?
   active                            Boolean                         @default(true)
   ownerId                           String
@@ -1584,6 +1588,7 @@ model TenantProperty {
 }
 
 model Lease {
+  accountBankRules AccountBankRule[]
   id                          String                      @id @default(cuid())
   unitId                      String
   tenantId                    String
@@ -1696,6 +1701,7 @@ model Meter {
   type            MeterType
   label           String?
   serialNumber    String?
+  supplyPointId   String?        // EAN electricity or EIC gas; distinct from physical meter serial
   location        String?
   unitOfMeasure   String
   installedAt     DateTime?
@@ -2997,4 +3003,29 @@ model TaskNotificationSnapshot {
   status String
   observedAt DateTime
   trackingSince DateTime @default(now())
+}
+
+model AccountBankRule {
+  fingerprint              String           @unique
+  id                       String           @id @default(cuid())
+  ownerBankAccountId       String
+  ownerBankAccount         OwnerBankAccount @relation(fields: [ownerBankAccountId], references: [id], onDelete: Cascade)
+  name                     String
+  action                   MatchRuleAction
+  direction                String
+  currency                 String           @default("CZK")
+  counterpartyAccount      String?
+  counterpartyNameContains String?
+  variableSymbol           String?
+  messageContains          String?
+  amountCents              Int?
+  targetLeaseId            String?
+  targetLease              Lease?           @relation(fields: [targetLeaseId], references: [id], onDelete: Cascade)
+  priority                 Int              @default(100)
+  active                   Boolean          @default(true)
+  createdById              String
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  @@index([ownerBankAccountId, active, priority])
 }

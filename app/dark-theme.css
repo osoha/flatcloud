@@ -245,6 +245,10 @@ html[data-theme="dark"] .chart-point.expected{fill:#192536;stroke:#8cb6f7}
 html[data-theme="dark"] .chart-point.paid{fill:#192536;stroke:#72d4ac}
 html[data-theme="dark"] .chart-checkpoint:focus rect{stroke:#8cb6f7}
 html[data-theme="dark"] .chart-tooltip rect{fill:#192536;stroke:#a9b9cf}
+html[data-theme="dark"] .chart-tooltip text{fill:#dce8fa}
+html[data-theme="dark"] .chart-tooltip .chart-tooltip-title{fill:#fff}
+html[data-theme="dark"] .chart-label,html[data-theme="dark"] .chart-scale{fill:#c0d6f5}
+html[data-theme="dark"] .chart-mode-switch button[aria-pressed=true],html[data-theme="dark"] .financial-chart-controls button[aria-pressed=true]{background:#2168f5;border-color:#80afff;color:#fff}
 html[data-theme="dark"] .mf-unit-incomplete{background:#192536}
 html[data-theme="dark"] .quarterly-workspace-nav{background:#192536}
 html[data-theme="dark"] .quarterly-workspace-nav>a,html[data-theme="dark"] .quarterly-nav-group>a{color:#e3ebf8}

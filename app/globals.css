@@ -635,3 +635,8 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .unit-history-panel .compact-form button{grid-column:1/-1}
 .unit-detail-page .condition-add>summary{font-size:13px}
 @media(max-width:600px){.unit-history-panel .compact-form{grid-template-columns:1fr}}
+
+
+.verification-verified{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}.verification-verified summary{padding:12px;cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap}.verification-verified summary small{color:var(--muted)}.verification-verified summary::after{content:"Rozbalit detail";margin-left:auto;font-size:12px;color:var(--muted)}.verification-verified[open] summary::after{content:"Sbalit detail"}.verification-retest{padding:16px;border-top:1px solid var(--line)}
+
+.account-bank-filter{display:flex;gap:14px;align-items:end;flex-wrap:wrap;margin-bottom:20px}.account-bank-filter .field{flex:1;min-width:180px}.account-bank-rule-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}.account-bank-rule-form .field{min-width:0}.account-bank-rule-form>button{width:max-content}@media(max-width:600px){.account-bank-rule-form{grid-template-columns:1fr}}

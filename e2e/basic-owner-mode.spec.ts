@@ -50,7 +50,7 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
   }
 });
 
-test("archived selected property stays visible in Basic and its units sort naturally in Profi", async ({ page }) => {
+test("inactive selected property stays visible in Basic and its units sort naturally in Profi", async ({ page }) => {
   if (!process.env.DATABASE_URL || !["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error("Isolated CI database required");
   const db = new PrismaClient();
   const password = "Basic-Archive-E2E-2026";
@@ -70,8 +70,8 @@ test("archived selected property stays visible in Basic and its units sort natur
     await expect(page.locator(".basic-portfolio")).toBeVisible();
     await expect(page.locator(".basic-archived-card")).toHaveCount(1);
     await expect(page.locator(".basic-archived-card")).toContainText(property.name);
-    await expect(page.locator(".basic-archived-card")).toContainText("Archivováno");
-    await expect(page.locator(".basic-empty-properties")).toContainText("archivovaný objekt najdete níže");
+    await expect(page.locator(".basic-archived-card")).toContainText("Neaktivní");
+    await expect(page.locator(".basic-empty-properties")).toContainText("neaktivní objekt najdete níže");
     await expect(page.locator(".basic-archived-card .basic-property-name")).toHaveAttribute("href", `/nemovitosti/${property.id}/prehled`);
     await expect(page.locator(".basic-payments")).toContainText("uhrazeno z 0 Kč");
 
