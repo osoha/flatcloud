@@ -7,12 +7,20 @@ import { createAccountBankRule } from "../lib/account-bank-rules";
 import { bankAccountScopes } from "../lib/account-banking-access";
 
 const db=new PrismaClient();const password="Bank-Rules-QA-Only-2026";
+const createdUsers:string[]=[];
 test.beforeAll(()=>{if(!["localhost","127.0.0.1","postgres"].includes(new URL(process.env.DATABASE_URL!).hostname))throw new Error("Local/CI DB only");});
+test.afterEach(async()=>{
+  // Keep synthetic identities from leaking into later report/team scenarios.
+  await db.user.deleteMany({where:{id:{in:createdUsers}}});
+  createdUsers.length=0;
+});
 test.afterAll(()=>db.$disconnect());
 async function fixture() {
   const token=randomUUID();const passwordHash=await bcrypt.hash(password,10);
   const user=await db.user.create({data:{email:`bank-owner-${token}@flatcloud.test`,name:`Bankovní vlastník QA ${token}`,passwordHash,role:"PROPERTY_MANAGER",isTestIdentity:true,onboardingStatus:"DONE"}});
+  createdUsers.push(user.id);
   const partial=await db.user.create({data:{email:`bank-partial-${token}@flatcloud.test`,name:"Částečný správce QA",passwordHash,role:"PROPERTY_MANAGER",isTestIdentity:true,onboardingStatus:"DONE"}});
+  createdUsers.push(partial.id);
   const owner=await db.owner.create({data:{name:`Vlastník účtu QA ${token}`,userId:user.id}});
   const properties=await Promise.all([1,2].map(n=>db.property.create({data:{ownerId:owner.id,name:`Dům ${n} QA ${token}`,city:"Praha",address:`Testovací ${n}`,memberships:{create:{userId:user.id,permission:"EDIT"}}}})));
   await db.userProperty.create({data:{userId:partial.id,propertyId:properties[0].id,permission:"EDIT"}});
