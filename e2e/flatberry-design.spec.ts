@@ -126,8 +126,8 @@ test("Sdílený avatar domu vidí správce i uživatel s přístupem; osobní ba
   const property = await prisma.property.findFirstOrThrow({ where: { active: true } });
   const previous = { avatarPhotoId: property.avatarPhotoId, avatarData: property.avatarData, avatarMimeType: property.avatarMimeType };
   const suffix = Date.now();
-  const manager = await prisma.user.create({ data: { email: `avatar-manager-${suffix}@example.test`, name: "Správce avataru", passwordHash: admin.passwordHash, defaultDisplayMode: "pro", role: "PROPERTY_MANAGER", memberships: { create: { propertyId: property.id, permission: "EDIT" } } } });
-  const viewer = await prisma.user.create({ data: { email: `avatar-viewer-${suffix}@example.test`, name: "Čtenář avataru", passwordHash: admin.passwordHash, defaultDisplayMode: "pro", role: "OWNER_VIEWER", allProperties: true, memberships: { create: { propertyId: property.id, permission: "VIEW" } } } });
+  const manager = await prisma.user.create({ data: { email: `avatar-manager-${suffix}@example.test`, name: "Správce avataru", passwordHash: admin.passwordHash, role: "PROPERTY_MANAGER", memberships: { create: { propertyId: property.id, permission: "EDIT" } } } });
+  const viewer = await prisma.user.create({ data: { email: `avatar-viewer-${suffix}@example.test`, name: "Čtenář avataru", passwordHash: admin.passwordHash, role: "OWNER_VIEWER", allProperties: true, memberships: { create: { propertyId: property.id, permission: "VIEW" } } } });
   const viewerContext = await browser.newContext();
   try {
     await login(page, manager.email);
