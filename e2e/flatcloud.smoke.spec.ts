@@ -277,7 +277,7 @@ test("kvalita jednotky a distribuční připravenost mají oddělený průchod",
   expect(unitHref).toBeTruthy();
   await page.goto(`${unitHref}#kvalita`);
   const condition = page.locator("#kvalita");
-  await condition.getByText("Uložit hodnocení", { exact: false }).first().click();
+  await condition.locator(".condition-add > summary").click();
   await condition.getByLabel("Kvalita jednotky *").selectOption("B_GOOD");
   await condition.getByLabel("Naléhavost investice *").selectOption("MONITOR");
   await condition.getByLabel("Odhad CAPEX Kč").fill("125000");
@@ -668,7 +668,8 @@ test("uživatel projde z portfolia do nemovitosti a jednotky", async ({ page }) 
   await expect(page.getByRole("heading", { name: "Moskevská", exact: true })).toBeVisible();
   await expect(page.getByText(/ID nemovitosti: P\d{4}/)).toBeVisible();
   await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.locator('a[href*="/jednotky/"]').filter({ hasText: "1.01" }).first().click();
+  await expect(page).toHaveURL(/\/jednotky(?:\?|$)/);
+  await page.locator("tbody").getByRole("link", { name: "1.01", exact: true }).click();
   await expect(page.getByRole("heading", { name: "1.01", exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
@@ -963,7 +964,8 @@ test("nájemné a služby jsou shodné v reportu, smlouvách, nájemníkovi a je
   await page.goto("/portfolio");
   await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
   await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.locator('a[href*="/jednotky/"]').filter({ hasText: "1.01" }).first().click();
+  await expect(page).toHaveURL(/\/jednotky(?:\?|$)/);
+  await page.locator("tbody").getByRole("link", { name: "1.01", exact: true }).click();
   const currentChargeCard = page.getByText("Aktuální předpis", { exact: true }).locator("..");
   await expect(currentChargeCard).toContainText(recurringTotal);
   assertNoBrowserFailures();
@@ -978,7 +980,8 @@ test("nová smlouva navrhne stabilní VS a stejné pořadí v čísle smlouvy", 
   expect(propertyCode).toBeTruthy();
 
   await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.locator('a[href*="/jednotky/"]').filter({ hasText: "1.01" }).first().click();
+  await expect(page).toHaveURL(/\/jednotky(?:\?|$)/);
+  await page.locator("tbody").getByRole("link", { name: "1.01", exact: true }).click();
   const unitIdentity = await page.getByText(/ID jednotky: P\d{4}-U\d{3}/).textContent();
   const unitCode = unitIdentity?.match(/-U(\d{3})/)?.[1];
   expect(unitCode).toBeTruthy();

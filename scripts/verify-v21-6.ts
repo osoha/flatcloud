@@ -38,7 +38,7 @@ const checks: Array<[string, boolean]> = [
   ["global deposit tabs", ["Aktivní", "K vypořádání", "Vypořádané", "Vše"].every((text) => read("app/kauce/page.tsx").includes(text))],
   ["deposit sidebar", read("components/Shell.tsx").includes('href="/kauce"')],
   ["bank deposit UI", read("app/nemovitosti/[id]/platby/[transactionId]/page.tsx").includes("Zaúčtovat jako kauci") && read("app/nemovitosti/[id]/platby/[transactionId]/page.tsx").includes("securityDepositReceipts")],
-  ["account-level verification UI", read("app/nemovitosti/[id]/[section]/page.tsx").includes("verificationCodeForAccount(account.id)") && read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx").includes("ownershipPaymentAccount?.notificationVerifiedAt")],
+  ["account-level verification UI", read("app/nemovitosti/[id]/[section]/page.tsx").includes("verificationCodeForAccount(account.id)") && read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx").includes("paymentAccount?.notificationVerifiedAt")],
   ["legacy link verification ignored", !read("lib/bank-verification-scope.ts").includes("!link?.ownerBankAccount") && !read("app/api/properties/[id]/owner-bank-account/route.ts").includes("propertyPaymentAccount.updateMany")],
   ["shared charge includes", read("lib/access.ts").includes("securityDepositOffsets: true, creditApplications: true")],
   ["portfolio shared paid", read("app/portfolio/page.tsx").includes("paidCents(charge)")],

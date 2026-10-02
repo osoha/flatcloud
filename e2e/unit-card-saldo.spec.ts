@@ -1,0 +1,79 @@
+import { test, expect } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
+
+test("unit overview shows tenant, real overpayment and ordered modules on desktop and mobile", async ({ page }) => {
+  const url=process.env.DATABASE_URL;
+  if(!url || !["localhost","127.0.0.1","postgres"].includes(new URL(url).hostname)) throw new Error("Isolated CI database required");
+  const db=new PrismaClient();
+  try {
+    const tag=`R24_AGENT_QA_2026_09 unit saldo ${crypto.randomUUID().slice(0,8)}`;
+    const owner=await db.owner.create({data:{name:tag}});
+    const property=await db.property.create({data:{ownerId:owner.id,name:tag,address:"Syntetická 2",city:"Praha"}});
+    const unit=await db.unit.create({data:{propertyId:property.id,label:"Saldo QA",areaM2:50}});
+    const vacant=await db.unit.create({data:{propertyId:property.id,label:"Volná QA"}});
+    const tenant=await db.tenant.create({data:{name:"Nájemce saldo QA"}});
+    const lease=await db.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date("2020-01-01T12:00:00Z"),financialTrackingFromPeriod:"2020-01",variableSymbol:tag,rentCents:1000000,servicesCents:100000,depositCents:2000000,contractNumber:tag}});
+    const charge=await db.charge.create({data:{leaseId:lease.id,period:"2020-01",dueDate:new Date("2020-01-05T12:00:00Z"),amountCents:1100000}});
+    const account=await db.bankAccount.create({data:{propertyId:property.id,provider:"manual",bankName:"QA",externalAccountId:tag,ibanMasked:"QA"}});
+    await db.bankTransaction.create({data:{bankAccountId:account.id,externalId:tag,bookedAt:new Date("2020-01-06T12:00:00Z"),amountCents:1310000,source:"manual",status:"OVERPAYMENT",suggestedLeaseId:lease.id,allocations:{create:{chargeId:charge.id,amountCents:1100000}}}});
+    const paidUnit=await db.unit.create({data:{propertyId:property.id,label:"Uhrazený předpis QA"}});
+    const paidLease=await db.lease.create({data:{unitId:paidUnit.id,tenantId:tenant.id,startDate:new Date("2020-01-01T12:00:00Z"),financialTrackingFromPeriod:"2020-01",variableSymbol:`${tag}-paid`,rentCents:1000000,servicesCents:0}});
+    const paidCharge=await db.charge.create({data:{leaseId:paidLease.id,period:"2099-01",dueDate:new Date("2099-01-05T12:00:00Z"),amountCents:1000000}});
+    await db.bankTransaction.create({data:{bankAccountId:account.id,externalId:`${tag}-paid`,bookedAt:new Date("2020-01-06T12:00:00Z"),amountCents:1000000,source:"manual",status:"MATCHED",suggestedLeaseId:paidLease.id,allocations:{create:{chargeId:paidCharge.id,amountCents:1000000}}}});
+    await page.goto("/login");
+    await page.getByLabel("E-mail").fill(process.env.E2E_ADMIN_EMAIL||"e2e.admin@flatcloud.test");
+    await page.getByLabel("Heslo").fill(process.env.E2E_ADMIN_PASSWORD||"FlatCloud-E2E-Only-Password-2026");
+    await page.getByRole("button",{name:"Přihlásit se",exact:true}).click();
+    await expect(page).toHaveURL(/\/portfolio/);
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}`);
+    const kpis=page.locator(".unit-overview-kpis");
+    await expect(kpis.locator(".mini-kpi")).toHaveCount(4);
+    await expect(kpis.locator(".status-occupied strong")).toHaveText(tenant.name);
+    await expect(kpis.locator(".status-occupied small")).toHaveText("Obsazená");
+    await expect(kpis.locator(".unit-balance-kpi strong")).toHaveText(/\+2\s*100\s*Kč/);
+    await expect(kpis.locator(".unit-balance-kpi small")).toContainText("Přeplatek");
+    await expect(page.locator("#smlouva")).toContainText("Sjednaná kauce");
+    await expect(page.locator("#smlouva")).toContainText("Nájemné a platební podmínky");
+    const labels=["Přehled","Smlouva","Osoby","Předpisy","Platby","Upomínky","Měřidla","Dokumenty","Kvalita a Capex","Osobní hodnota"];
+    await expect(page.locator(".unit-tabs a")).toHaveText(labels);
+    const ids=["prehled","smlouva","osoby","predpisy","platby","komunikace","meridla","dokumenty","kvalita","osobni-hodnota"];
+    const tops=await page.evaluate(ids=>ids.map(id=>document.getElementById(id)!.getBoundingClientRect().top),ids);
+    expect(tops).toEqual([...tops].sort((a,b)=>a-b));
+    for (const selector of [".unit-occupancy-details", ".unit-area-details"]) {
+      const history=page.locator(selector);
+      await expect(history).not.toHaveAttribute("open", "");
+      await expect(history.locator(".unit-history-panel")).toBeHidden();
+      await history.locator("summary").click();
+      await expect(history.locator(".unit-history-panel")).toBeVisible();
+      const widths=await history.evaluate(el=>({history:el.getBoundingClientRect().width,panel:el.querySelector(".unit-history-panel")!.getBoundingClientRect().width}));
+      expect(Math.abs(widths.history-widths.panel)).toBeLessThan(2);
+      await history.locator("summary").click();
+    }
+    for (const [before,after] of [["predpisy","platby"],["kvalita","osobni-hodnota"]]) {
+      const gap=await page.evaluate(([before,after])=>document.getElementById(after)!.getBoundingClientRect().top-document.getElementById(before)!.getBoundingClientRect().bottom,[before,after]);
+      expect(gap).toBeGreaterThanOrEqual(16);
+    }
+    const quality=page.locator("#kvalita");
+    await quality.getByText("Ohodnotit jednotku a naplánovat obnovu",{exact:true}).click();
+    await quality.getByLabel("Kvalita jednotky *").selectOption("B_GOOD");
+    await quality.getByLabel("Odhad CAPEX Kč").fill("12000");
+    await quality.getByRole("button",{name:"Uložit hodnocení",exact:true}).click();
+    await expect(page.getByText("Hodnocení kvality a plánu obnovy bylo uloženo.",{exact:true})).toBeVisible();
+    await quality.getByText("Upravit hodnocení a plán obnovy",{exact:true}).click();
+    await expect(quality.getByLabel("Odhad CAPEX Kč")).toHaveValue("12000.00");
+    await kpis.locator(".unit-balance-kpi").click();
+    await expect(page).toHaveURL(/#saldo$/);
+    await expect(page.locator("#saldo")).toBeInViewport();
+    await page.setViewportSize({width:390,height:844});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+    await expect(page.locator("#smlouva .unit-contract-fields").first()).toHaveCSS("grid-template-columns",/^[\d.]+px$/);
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${vacant.id}`);
+    await expect(page.locator(".status-vacant strong")).toHaveText("Neobsazená");
+    await expect(page.locator(".unit-overview-kpis .mini-kpi")).toHaveCount(4);
+    await expect(page.getByText("Historie plochy pro rozúčtování",{exact:true})).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${paidUnit.id}`);
+    await expect(page.locator(".unit-balance-kpi strong")).toHaveText(/0\s*Kč/);
+    await expect(page.locator(".unit-balance-kpi small")).toContainText("Vyrovnáno");
+  } finally { await db.$disconnect(); }
+});

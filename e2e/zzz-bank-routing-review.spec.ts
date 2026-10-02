@@ -127,12 +127,13 @@ test("shared account is not guessed from outgoing VS and a superadmin can route 
   const f = await fixture();
   const other = await db.property.create({ data: { name: `Neaktivní ${f.token}`, address: "Testovací 2", city: "Test", ownerId: f.owner.id, active: false } });
   await db.propertyPaymentAccount.create({ data: { propertyId: other.id, ownerBankAccountId: f.account.id } });
+  await db.userProperty.create({data:{userId:f.manager.id,propertyId:other.id,permission:"EDIT"}});
   const row = await f.inbox(-10000, { variableSymbol: "770001" });
   expect((await materializeInboxPayment(row.id)).imported).toBe(false);
   await reconcileInboxReview(row.id);
   const task = await db.task.findUniqueOrThrow({ where: { dedupeKey: `bank-review:inbox:${row.id}` } });
   expect(task.propertyId).toBeNull();
-  expect((await db.user.findUniqueOrThrow({ where: { id: task.assigneeId! } })).role).toBe("SUPER_ADMIN");
+  expect(task.assigneeId).toBe(f.manager.id);
   await login(page);
   await page.goto(`/platby/nesparovane/email/${row.id}`);
   const selector = page.locator('select[name="propertyId"]');
