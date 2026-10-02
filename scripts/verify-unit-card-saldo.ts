@@ -12,7 +12,8 @@ assert.equal(run([charge(10000,future)]).balanceCents,0,"future unpaid prescript
 assert.equal(run().balanceCents,-10000,"unpaid overdue rent is debt");
 assert.equal(run([paid],[transaction()],[credit()]).balanceCents,4200,"settlement credit and payment excess both count");
 const advance=charge(10000,future);advance.allocations=paid.allocations;
-assert.equal(run([advance],[transaction()]).balanceCents,12100,"already received advance remains visible");
+assert.equal(run([advance],[transaction()]).balanceCents,2100,"applied advance is not a free overpayment; only the residual is credit");
+assert.equal(run([advance],[transaction(10000)]).balanceCents,0,"normal payment of a not-yet-due charge is settled, not an overpayment");
 const futurePaid=charge();futurePaid.allocations=[{amountCents:10000,transaction:{bookedAt:future,status:"MATCHED"}}];
 assert.equal(run([futurePaid],[{...transaction(),bookedAt:future}],[{...credit(),effectiveAt:future}]).balanceCents,-10000,"future payments and credits do not hide today's debt");
 assert.equal(run([{...charge(),active:false},{...charge(),debtTreatment:"HISTORICAL"},{...charge(),debtTreatment:"EXCLUDED"}]).balanceCents,0,"inactive/historical/excluded debt is not current debt");
@@ -26,4 +27,4 @@ const withCredit=charge();withCredit.creditApplications=[{amountCents:2100,credi
 assert.equal(run([withCredit],[],[{...credit(),applications:[{amountCents:2100}]}]).balanceCents,-7900,"applied credit pays debt and is not counted again");
 const withDeposit=charge();withDeposit.securityDepositOffsets=[{amountCents:10000,effectiveAt:past}];
 assert.equal(run([withDeposit]).balanceCents,0,"deposit legally applied to rent pays debt without inflating credit");
-console.log("Unit card saldo: 15 financial regression checks passed.");
+console.log("Unit card saldo: 16 financial regression checks passed.");

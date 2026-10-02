@@ -16,22 +16,20 @@ type BalanceTransaction = {
 };
 type BalanceCredit = { amountCents: number; effectiveAt: Date; applications: { amountCents: number }[] };
 
-/** Read-only balance. Future charges are not debt; already paid future charges are advances. */
+/** Free credit minus overdue debt. Payments already applied to a charge are not free overpayments. */
 export function leaseAccountBalance(input: {
   leaseId: string; charges: BalanceCharge[]; transactions: BalanceTransaction[]; credits: BalanceCredit[];
 }, now = new Date()) {
   const today = businessTodayKey(now);
   const effective = (date: Date) => businessDateKey(date) <= today;
-  let overdueCents = 0, advanceCents = 0;
+  let overdueCents = 0;
   for (const charge of input.charges) {
     const allocations = charge.allocations.filter(row => row.transaction.status !== "IGNORED" && effective(row.transaction.bookedAt));
     const creditApplications = charge.creditApplications.filter(row => effective(row.credit.effectiveAt));
     const securityDepositOffsets = charge.securityDepositOffsets.filter(row => effective(row.effectiveAt));
     const current = { ...charge, allocations, creditApplications, securityDepositOffsets };
     overdueCents += overdueDebtCents(current, now);
-    if (charge.active && (charge.debtTreatment ?? "CURRENT") === "CURRENT" && businessDateKey(charge.dueDate) >= today) {
-      advanceCents += [...allocations, ...creditApplications, ...securityDepositOffsets].reduce((sum, row) => sum + row.amountCents, 0);
-    }
+
   }
   let unappliedPaymentCents = 0;
   for (const transaction of input.transactions) {
@@ -49,5 +47,5 @@ export function leaseAccountBalance(input: {
   }
   const creditCents = input.credits.filter(row => effective(row.effectiveAt)).reduce((sum, row) =>
     sum + Math.max(0, row.amountCents - row.applications.reduce((used, item) => used + item.amountCents, 0)), 0);
-  return { balanceCents: advanceCents + unappliedPaymentCents + creditCents - overdueCents, overdueCents, advanceCents, unappliedPaymentCents, creditCents };
+  return { balanceCents: unappliedPaymentCents + creditCents - overdueCents, overdueCents, unappliedPaymentCents, creditCents };
 }

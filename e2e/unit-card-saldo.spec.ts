@@ -16,6 +16,10 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     const charge=await db.charge.create({data:{leaseId:lease.id,period:"2020-01",dueDate:new Date("2020-01-05T12:00:00Z"),amountCents:1100000}});
     const account=await db.bankAccount.create({data:{propertyId:property.id,provider:"manual",bankName:"QA",externalAccountId:tag,ibanMasked:"QA"}});
     await db.bankTransaction.create({data:{bankAccountId:account.id,externalId:tag,bookedAt:new Date("2020-01-06T12:00:00Z"),amountCents:1310000,source:"manual",status:"OVERPAYMENT",suggestedLeaseId:lease.id,allocations:{create:{chargeId:charge.id,amountCents:1100000}}}});
+    const paidUnit=await db.unit.create({data:{propertyId:property.id,label:"Uhrazený předpis QA"}});
+    const paidLease=await db.lease.create({data:{unitId:paidUnit.id,tenantId:tenant.id,startDate:new Date("2020-01-01T12:00:00Z"),financialTrackingFromPeriod:"2020-01",variableSymbol:`${tag}-paid`,rentCents:1000000,servicesCents:0}});
+    const paidCharge=await db.charge.create({data:{leaseId:paidLease.id,period:"2099-01",dueDate:new Date("2099-01-05T12:00:00Z"),amountCents:1000000}});
+    await db.bankTransaction.create({data:{bankAccountId:account.id,externalId:`${tag}-paid`,bookedAt:new Date("2020-01-06T12:00:00Z"),amountCents:1000000,source:"manual",status:"MATCHED",suggestedLeaseId:paidLease.id,allocations:{create:{chargeId:paidCharge.id,amountCents:1000000}}}});
     await page.goto("/login");
     await page.getByLabel("E-mail").fill(process.env.E2E_ADMIN_EMAIL||"e2e.admin@flatcloud.test");
     await page.getByLabel("Heslo").fill(process.env.E2E_ADMIN_PASSWORD||"FlatCloud-E2E-Only-Password-2026");
@@ -46,5 +50,8 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     await expect(page.locator(".unit-overview-kpis .mini-kpi")).toHaveCount(4);
     await expect(page.getByText("Historie plochy pro rozúčtování",{exact:true})).toBeVisible();
     expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBeTruthy();
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${paidUnit.id}`);
+    await expect(page.locator(".unit-balance-kpi strong")).toHaveText(/0\s*Kč/);
+    await expect(page.locator(".unit-balance-kpi small")).toContainText("Vyrovnáno");
   } finally { await db.$disconnect(); }
 });

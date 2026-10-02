@@ -613,7 +613,7 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .unit-account-summary{padding:20px 24px;border-bottom:1px solid var(--line);background:var(--bg)}
 .unit-account-summary h3{margin:0 0 8px;font-size:15px}
 .unit-account-summary p{color:var(--muted);font-size:12px;line-height:1.6;max-width:780px}
-.unit-account-summary dl{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:16px 0 0}
+.unit-account-summary dl{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0 0}
 .unit-account-summary dt{font-size:12px;color:var(--muted)}
 .unit-account-summary dd{margin:8px 0 0;font-weight:750;font-size:17px}
 #saldo,#osobni-hodnota{scroll-margin-top:145px}
