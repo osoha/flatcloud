@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 
-test("unit overview shows tenant, real overpayment and ordered modules on desktop and mobile", async ({ page }) => {
+test("unit overview shows tenant, real overpayment and ordered modules on desktop and mobile", async ({ page }, testInfo) => {
   const url=process.env.DATABASE_URL;
   if(!url || !["localhost","127.0.0.1","postgres"].includes(new URL(url).hostname)) throw new Error("Isolated CI database required");
   const db=new PrismaClient();
@@ -101,17 +101,35 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     const berry = page.locator(".basic-sidebar-berry");
     await expect(berry).toBeVisible();
     expect(await berry.evaluate(el=>el.nextElementSibling?.classList.contains("display-mode-switch"))).toBeTruthy();
-    // Desktop margin animates after resizing from mobile; wait for the actual layout.
-    await expect.poll(async () => page.evaluate(() => {
-      const main = document.querySelector(".main")!.getBoundingClientRect();
-      const side = document.querySelector(".sidebar")!.getBoundingClientRect();
-      return main.left >= side.right - 1;
-    })).toBeTruthy();
-    await page.screenshot({path:"test-results/basic-unit-vacant-desktop.png",fullPage:true});
+    const desktopLayout = () => page.evaluate(() => {
+      const selectors = [".sidebar", ".main", ".page", ".basic-unit-hero", ".basic-unit-summary", ".basic-unit-details"];
+      return {width:innerWidth, scrollX, boxes:Object.fromEntries(selectors.map(selector => {
+        const element=document.querySelector(selector)!;
+        const rect=element.getBoundingClientRect();
+        return [selector,{left:rect.left,right:rect.right,width:rect.width,animations:element.getAnimations().filter(animation=>animation.playState==="running").length}];
+      }))};
+    });
+    const captureDesktop = async (name: string) => {
+      // A geometry read may see the destination style before Chromium starts its transition.
+      // Wait for two rendered frames and for both the shell and its contents to settle.
+      await page.evaluate(() => new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+      await expect.poll(async () => {
+        const layout=await desktopLayout();
+        return layout.scrollX===0 && Object.entries(layout.boxes).every(([selector,box]) =>
+          box.animations===0 && (selector===".sidebar" || (box.left>=layout.boxes[".sidebar"].right-1 && box.right<=layout.width+1)));
+      }).toBeTruthy();
+      const before=await desktopLayout();
+      await page.screenshot({path:`test-results/${name}-viewport.png`,animations:"disabled"});
+      await page.screenshot({path:`test-results/${name}-desktop.png`,fullPage:true,animations:"disabled"});
+      const after=await desktopLayout();
+      await testInfo.attach(`${name}-layout`,{body:JSON.stringify({before,after},null,2),contentType:"application/json"});
+      expect(after.boxes[".basic-unit-hero"].left).toBeGreaterThanOrEqual(after.boxes[".sidebar"].right);
+    };
+    await captureDesktop("basic-unit-vacant");
     await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}`);
     await expect(page.locator(".basic-unit-tenant strong")).toHaveText(tenant.name);
     await expect(page.locator(".basic-unit-details")).not.toHaveAttribute("open", "");
-    await page.screenshot({path:"test-results/basic-unit-approved-desktop.png",fullPage:true});
+    await captureDesktop("basic-unit-approved");
     await page.locator('.sidebar .display-mode-switch button[value="pro"]').click();
     await expect(berry).toHaveCount(0);
     await expect(page.locator(".unit-overview-kpis .mini-kpi")).toHaveCount(4);
