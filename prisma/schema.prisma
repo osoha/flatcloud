@@ -1697,6 +1697,7 @@ model Meter {
   type            MeterType
   label           String?
   serialNumber    String?
+  supplyPointId   String?        // EAN electricity or EIC gas; distinct from physical meter serial
   location        String?
   unitOfMeasure   String
   installedAt     DateTime?
