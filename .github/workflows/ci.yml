@@ -52,6 +52,7 @@ jobs:
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: npm run verify:v20
+      - run: node --import tsx scripts/verify-csob-parser.ts
       - run: npm run verify:v21
       - run: npm run verify:v21.1
       - run: npm run verify:v21.2

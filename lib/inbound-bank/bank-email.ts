@@ -61,6 +61,11 @@ const trustedSenderRules = [
     domains: ["csas.cz", "ceskasporitelna.cz"],
     text: /česk[aá]\s+spořitelna|cesk[aá]\s+sporitelna|české\s+spořitelny|ceske\s+sporitelny/i,
   },
+  {
+    bankCode: "0300",
+    domains: ["csob.cz"],
+    text: /čsob|csob|československ[aá]\s+obchodn[ií]\s+banka/i,
+  },
 ];
 
 export function normalizeBankAccount(value?: string | null) {
@@ -227,6 +232,7 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   const subject = cleanText(input.subject);
   const text = cleanText(input.text);
   const combined = `${subject}\n${text}`.trim();
+  const csobNotification = detectBank(combined, input.from, input.returnPath).code === "0300";
   const hash = createHash("sha256").update(`${input.from || ""}|${subject}|${text}`).digest("hex");
   const messageId = input.messageId?.trim() || `bank-email-${hash}`;
   const parsedAmount = amountAndCurrency(combined);
@@ -250,11 +256,16 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
     "Plátce - účet", "Platce - ucet", "Odesílatel - účet", "Odesilatel - ucet",
     "Sender account", "Payer account", "Counterparty account", "Z",
   ]);
-  const recipientAccount = outgoing ? ownAccount : accountFromValue(recipientValue) || fallbackAccountSearch(combined, "recipient");
+  // ČSOB Moje info uses a bare "Účet" row for the receiving account.
+  // Keep this fallback bank-specific and exclude the separate counterparty row.
+  const csobRecipientAccount = csobNotification && !outgoing
+    ? accountFromValue(lineValue(combined, ["Účet(?!\\s+protistrany)", "Ucet(?!\\s+protistrany)"]))
+    : undefined;
+  const recipientAccount = outgoing ? ownAccount : accountFromValue(recipientValue) || csobRecipientAccount || fallbackAccountSearch(combined, "recipient");
   const counterpartyAccount = outgoing ? accountFromValue(lineValue(combined, ["Účet příjemce", "Ucet prijemce", "Na účet", "Na ucet", "Recipient account", "Beneficiary account", "Číslo účtu protistrany", "Cislo uctu protistrany", "Účet protistrany", "Ucet protistrany", "Protiúčet", "Protiucet"])) : accountFromValue(counterpartyValue) || fallbackAccountSearch(combined, "counterparty");
   const counterpartyName = lineValue(combined, [
     "Jméno plátce", "Jmeno platce", "Název protiúčtu", "Nazev protiuctu", "Plátce", "Platce",
-    "Odesílatel", "Odesilatel", "Protistrana", "Sender", "Payer", "Counterparty",
+    "Odesílatel", "Odesilatel", "Název protistrany", "Nazev protistrany", "Protistrana", "Sender", "Payer", "Counterparty",
   ]);
   const variableSymbol = symbol(combined, ["Variabilní symbol", "Variabilni symbol", "Variable symbol"], "VS");
   const specificSymbol = symbol(combined, ["Specifický symbol", "Specificky symbol", "Specific symbol"], "SS");
@@ -264,7 +275,7 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
     "Message for recipient", "Payment message", "Message", "Note",
   ]);
   const dateValue = lineValue(combined, [
-    "Datum zaúčtování", "Datum zauctovani", "Datum platby", "Datum připsání", "Datum pripsani",
+    "Datum zaúčtování", "Datum zauctovani", "Datum účtování", "Datum uctovani", "Datum platby", "Datum připsání", "Datum pripsani",
     "Booking date", "Payment date", "Value date", "Date", "Datum", "Dne",
   ]);
   const bookedAt = parseDate(dateValue, input.date);
