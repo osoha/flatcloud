@@ -668,7 +668,8 @@ test("uživatel projde z portfolia do nemovitosti a jednotky", async ({ page }) 
   await expect(page.getByRole("heading", { name: "Moskevská", exact: true })).toBeVisible();
   await expect(page.getByText(/ID nemovitosti: P\d{4}/)).toBeVisible();
   await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.getByRole("link", { name: /1\.01/ }).first().click();
+  await expect(page).toHaveURL(/\/jednotky(?:\?|$)/);
+  await page.locator("tbody").getByRole("link", { name: "1.01", exact: true }).click();
   await expect(page.getByRole("heading", { name: "1.01", exact: true })).toBeVisible();
   assertNoBrowserFailures();
 });
@@ -963,7 +964,8 @@ test("nájemné a služby jsou shodné v reportu, smlouvách, nájemníkovi a je
   await page.goto("/portfolio");
   await page.locator("a.property-cell").filter({ hasText: "Moskevská" }).click();
   await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.getByRole("link", { name: /1\.01/ }).first().click();
+  await expect(page).toHaveURL(/\/jednotky(?:\?|$)/);
+  await page.locator("tbody").getByRole("link", { name: "1.01", exact: true }).click();
   const currentChargeCard = page.getByText("Aktuální předpis", { exact: true }).locator("..");
   await expect(currentChargeCard).toContainText(recurringTotal);
   assertNoBrowserFailures();
@@ -978,7 +980,8 @@ test("nová smlouva navrhne stabilní VS a stejné pořadí v čísle smlouvy", 
   expect(propertyCode).toBeTruthy();
 
   await page.getByRole("link", { name: "Jednotky", exact: true }).click();
-  await page.getByRole("link", { name: /1\.01/ }).first().click();
+  await expect(page).toHaveURL(/\/jednotky(?:\?|$)/);
+  await page.locator("tbody").getByRole("link", { name: "1.01", exact: true }).click();
   const unitIdentity = await page.getByText(/ID jednotky: P\d{4}-U\d{3}/).textContent();
   const unitCode = unitIdentity?.match(/-U(\d{3})/)?.[1];
   expect(unitCode).toBeTruthy();
@@ -1090,16 +1093,17 @@ test("Q3: částečná úhrada blokuje přepis a zachová alokaci", async ({ pag
   await page.goto("/smlouvy");
   await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
   await page.getByRole("link", { name: "Změnit nájem / služby", exact: true }).click();
+  const protectedPeriod = (await page.getByLabel("Účinnost od prvního dne měsíce").inputValue()).slice(0,7);
   await page.getByLabel("Nové nájemné Kč / měsíc").fill("20000");
   await page.getByLabel("Důvod změny *").fill("QA kontrola ochrany částečné úhrady");
   await page.getByRole("button", { name: "Zkontrolovat dopad", exact: true }).click();
-  await expect(page.locator(".error-flash")).toContainText("Předpis 2026-10 je ručně upravený nebo už obsahuje úhradu");
+  await expect(page.locator(".error-flash")).toContainText(`Předpis ${protectedPeriod} je ručně upravený nebo už obsahuje úhradu`);
   await page.goto("/smlouvy");
   await page.getByRole("link", { name: /QA Q3 · Alena Alokace/ }).click();
   await page.locator(".lease-action-bar").getByRole("link", { name: "Předpisy", exact: true }).click();
-  const october = page.getByRole("row").filter({ hasText: "2026-10" });
-  await expect(october).toContainText(/10\s*000\s*Kč/);
-  await expect(october).toContainText(/11\s*500\s*Kč/);
+  const protectedCharge = page.getByRole("row").filter({ hasText: protectedPeriod });
+  await expect(protectedCharge).toContainText(/10\s*000\s*Kč/);
+  await expect(protectedCharge).toContainText(/11\s*500\s*Kč/);
   assertNoBrowserFailures();
 });
 

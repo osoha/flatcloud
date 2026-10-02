@@ -580,3 +580,48 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .task-checklist li button{flex:0 0 32px;width:32px;min-height:32px;padding:0}
 .task-checklist li span{line-height:1.45;padding-top:4px}
 .task-checklist-done span{text-decoration:line-through;opacity:.7}
+
+/* Unit overview: four key facts, then modules in navigation order. */
+.unit-kpi-grid.unit-overview-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.unit-overview-kpis .mini-kpi{min-height:122px;display:flex;flex-direction:column;justify-content:center;gap:8px;position:relative}
+.unit-overview-kpis .mini-kpi strong{font-size:20px;line-height:1.25;overflow-wrap:anywhere}
+.unit-overview-kpis .mini-kpi small{font-size:12px;color:var(--muted);line-height:1.45}
+.unit-overview-kpis .status-occupied strong{color:var(--navy)}
+.unit-overview-kpis .mini-kpi .unit-occupancy-tag{color:var(--green);font-weight:700}
+.unit-overview-kpis .unit-occupancy-tag::before{content:"";display:inline-block;width:7px;height:7px;background:var(--green);border-radius:50%;margin-right:6px}
+.unit-overview-kpis .balance-credit{background:var(--green-soft)}
+.unit-overview-kpis .balance-credit strong{color:var(--green)}
+.unit-overview-kpis .balance-debt{background:var(--red-soft)}
+.unit-overview-kpis .balance-debt strong{color:var(--red)}
+.unit-contract-group{padding:22px 0;border-top:1px solid var(--line)}
+.unit-contract-group:last-child{padding-bottom:0}
+.unit-contract-group h3{font-size:14px;margin:0 0 16px}
+.unit-contract-parties{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.unit-contract-parties>div{padding:18px;background:var(--bg);border:1px solid var(--line);border-radius:12px;display:flex;flex-direction:column;gap:8px}
+.unit-contract-parties span,.unit-contract-parties small,.unit-contract-fields dt,.unit-contract-amounts span,.unit-contract-note>span{color:var(--muted);font-size:12px}
+.unit-contract-parties a{font-size:18px;font-weight:750;overflow-wrap:anywhere}
+.unit-contract-fields{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;margin:0}
+.unit-contract-fields>div{padding:13px 0;border-bottom:1px solid var(--line);min-width:0}
+.unit-contract-fields dd{margin:6px 0 0;font-weight:650;line-height:1.5;overflow-wrap:anywhere}
+.unit-contract-fields a{color:var(--blue)}
+.unit-contract-amounts{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+.unit-contract-amounts>div{padding:16px;border-radius:12px;background:var(--bg);display:flex;flex-direction:column;gap:8px}
+.unit-contract-amounts>div:last-child{background:var(--blue-soft)}
+.unit-contract-amounts strong{font-size:20px}
+.unit-contract-note{margin-top:18px;padding:16px;background:var(--bg);border-radius:12px}
+.unit-contract-note p{white-space:pre-wrap;line-height:1.6;margin-bottom:0}
+.unit-account-summary{padding:20px 24px;border-bottom:1px solid var(--line);background:var(--bg)}
+.unit-account-summary h3{margin:0 0 8px;font-size:15px}
+.unit-account-summary p{color:var(--muted);font-size:12px;line-height:1.6;max-width:780px}
+.unit-account-summary dl{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0 0}
+.unit-account-summary dt{font-size:12px;color:var(--muted)}
+.unit-account-summary dd{margin:8px 0 0;font-weight:750;font-size:17px}
+#saldo,#osobni-hodnota{scroll-margin-top:145px}
+@media(max-width:1100px){.unit-kpi-grid.unit-overview-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.unit-account-summary dl{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.unit-kpi-grid.unit-overview-kpis,.unit-contract-parties,.unit-contract-fields,.unit-contract-amounts{grid-template-columns:1fr}.unit-contract-summary .card-head{align-items:flex-start;flex-wrap:wrap}.unit-account-summary{padding:16px}.unit-account-summary dl{grid-template-columns:1fr}}
+.unit-owner-main{display:flex;flex-direction:column;gap:8px}
+.unit-overview-kpis .unit-owner-bank{color:var(--blue);font-size:12px;text-decoration:underline;text-underline-offset:3px;line-height:1.45}
+.unit-contract-contact{display:flex;flex-wrap:wrap;gap:8px 18px}
+.unit-contract-contact a{font-size:12px;font-weight:500;color:var(--blue)}
+.unit-ownership-details{margin:0 0 18px}
+.unit-ownership-details>summary{cursor:pointer;font-size:13px;font-weight:650;color:var(--muted);padding:8px 0}
