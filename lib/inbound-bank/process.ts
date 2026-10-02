@@ -1,3 +1,4 @@
+import { matchingAccountBankRule } from "@/lib/account-bank-rules";
 import { createHash } from "node:crypto";
 import { prisma } from "@/lib/db";
 import { allocateTransactionToLease, processTransaction } from "@/lib/matching";
@@ -124,9 +125,10 @@ async function emailBankAccount(propertyId: string, recipientAccount?: string | 
 export async function materializeInboxPayment(inboxId: string, explicitLeaseId?: string, explicitExpensePropertyId?: string) {
   const inbox = await prisma.inboxPayment.findUnique({ where: { id: inboxId } });
   if (!inbox || !inbox.amountCents) return { imported: false, reason: "Pohyb nemá nenulovou částku." };
-  if (inbox.currency !== "CZK") return { imported: false, reason: "Cizí měna vyžaduje ruční kontrolu; automatické zaúčtování není podporované." };
   if (inbox.amountCents < 0 && explicitLeaseId) return { imported: false, reason: "Odchozí pohyb nelze přiřadit k nájemní smlouvě." };
   if (inbox.transactionId) return { imported: true, transactionId: inbox.transactionId, reason: "Platba už byla importována." };
+
+  if (!inbox.sourceTrusted && !explicitLeaseId && !explicitExpensePropertyId) return { imported: false, reason: "Zdroj vyžaduje ruční potvrzení." };
 
   const verification = await tryVerifyNotificationPayment({
     inboxId: inbox.id,
@@ -142,6 +144,21 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   }
 
   // VS and the counterparty of an outgoing transfer must not route it to a tenant.
+  // Account rules run before house routing, so shared-account movements need no guessed house.
+  const accountMatch = !explicitLeaseId && !explicitExpensePropertyId && inbox.sourceTrusted ? await matchingAccountBankRule(inbox) : { rule: null, ambiguous: false };
+  if (accountMatch.ambiguous) {
+    await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "UNMATCHED", parseNote: "Více účtových pravidel má stejnou prioritu a odlišný cíl. Potvrďte přiřazení ručně." } });
+    await reconcileInboxReview(inbox.id);
+    return { imported: false, reason: "Účtová pravidla mají nejednoznačný cíl." };
+  }
+  if (accountMatch.rule?.action === "IGNORE") {
+    const reason = `Ignorováno účtovým pravidlem: ${accountMatch.rule.name}.`;
+    await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IGNORED", parseNote: reason } });
+    await reconcileInboxReview(inbox.id);
+    return { imported: false, ignored: true, reason };
+  }
+
+  if (inbox.currency !== "CZK") return { imported: false, reason: "Cizí měna vyžaduje ruční kontrolu; automatické zaúčtování není podporované." };
   let route = await inferRoute(inbox.amountCents < 0 ? { recipientAccount: inbox.recipientAccount } : inbox);
   if (explicitExpensePropertyId) {
     if (inbox.amountCents >= 0) return { imported: false, reason: "Tato cesta je určena pouze pro odchozí pohyby." };
@@ -153,7 +170,16 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   if (explicitLeaseId) {
     const lease = await prisma.lease.findUnique({ where: { id: explicitLeaseId }, include: { unit: true, ownerBankAccount: true } });
     if (!lease) return { imported: false, reason: "Vybraná smlouva nebyla nalezena." };
-    route = { propertyId: lease.unit.propertyId, leaseId: lease.id, ownerId: lease.ownerBankAccount?.ownerId || null, reason: "ruční potvrzení hlavním administrátorem", strong: true };
+    route = { propertyId: lease.unit.propertyId, leaseId: lease.id, ownerId: lease.ownerBankAccount?.ownerId || null, reason: "ruční potvrzení oprávněným uživatelem", strong: true };
+  }
+  const ruleLease=accountMatch.rule?.targetLease;
+  if (accountMatch.rule && (!ruleLease?.ownerBankAccount || !bankAccountMatches(ruleLease.ownerBankAccount,inbox.recipientAccount))) {
+    await prisma.inboxPayment.update({where:{id:inbox.id},data:{status:"UNMATCHED",parseNote:"Smlouva v účtovém pravidle už nepoužívá tento bankovní účet. Potvrďte cíl ručně."}});
+    await reconcileInboxReview(inbox.id);
+    return {imported:false,reason:"Cíl pravidla neodpovídá bankovnímu účtu."};
+  }
+  if (ruleLease && inbox.amountCents > 0 && ruleLease.ownerBankAccount && bankAccountMatches(ruleLease.ownerBankAccount,inbox.recipientAccount)) {
+    route={propertyId:ruleLease.unit.propertyId,leaseId:accountMatch.rule!.action === "MATCH_LEASE"?ruleLease.id:null,ownerId:ruleLease.ownerBankAccount.ownerId,strong:true,reason:`účtové pravidlo: ${accountMatch.rule!.name}`};
   }
   if (!route.propertyId) {
     await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "UNMATCHED", parseNote: `${inbox.parseNote || ""} ${route.reason}.`.trim() } });
@@ -162,7 +188,7 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   }
 
   await touchPropertyPaymentNotification(route.propertyId, inbox.recipientAccount, inbox.receivedAt);
-  const matchingRule = explicitLeaseId || inbox.amountCents < 0 ? null : await matchingRuleForInbox(route.propertyId, inbox);
+  const matchingRule = accountMatch.rule || explicitLeaseId || inbox.amountCents < 0 ? null : await matchingRuleForInbox(route.propertyId, inbox);
   if (matchingRule?.action === MatchRuleAction.IGNORE) {
     const reason = `Ignorováno pravidlem: ${matchingRule.name}.`;
     await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IGNORED", propertyId: route.propertyId, parseNote: reason } });
@@ -192,6 +218,9 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
   if (inbox.amountCents < 0) {
     await prisma.bankTransaction.update({ where: { id: transaction.id }, data: { status: "IGNORED", matchNote: "Odchozí pohyb k posouzení v Bankovních výdajích." } });
     await runExpenseRules(route.propertyId, [transaction.id]);
+    await reconcileTransactionReview(transaction.id);
+  } else if (accountMatch.rule?.action === "SUGGEST_LEASE" && ruleLease) {
+    await prisma.bankTransaction.update({where:{id:transaction.id},data:{status:"SUGGESTED",suggestedLeaseId:ruleLease.id,matchNote:`Návrh účtovým pravidlem: ${accountMatch.rule.name}.`}});
     await reconcileTransactionReview(transaction.id);
   } else if (explicitLeaseId || route.leaseId) {
     await allocateTransactionToLease(transaction.id, explicitLeaseId || route.leaseId!, `Bankovní e-mail: ${route.reason}.`);

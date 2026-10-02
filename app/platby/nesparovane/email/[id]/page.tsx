@@ -1,6 +1,7 @@
+import { requireInboxBankAccess } from "@/lib/account-banking-access";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { notFound } from "next/navigation";
+import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
 import { bankAccountMatches, bankNameForCode } from "@/lib/inbound-bank/bank-email";
@@ -23,12 +24,11 @@ function accountLabel(account: { label: string | null; accountNumber: string | n
 
 export default async function InboxPaymentDetail({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
   const user = await requireUser();
-  if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
   const { id } = await params;
-  const [row, leases, paymentLinks, query] = await Promise.all([
-    prisma.inboxPayment.findUnique({ where: { id } }),
-    prisma.lease.findMany({ include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
-    prisma.propertyPaymentAccount.findMany({ where: { active: true }, include: { property: { include: { units: { select: { label: true, ownerships: { select: { ownerBankAccountId: true } } } } } }, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }),
+  const { row, accounts } = await requireInboxBankAccess(user,id).catch(()=>notFound());
+  const [leases, paymentLinks, query] = await Promise.all([
+    prisma.lease.findMany({ where: hasAllPropertyAccess(user) ? {} : {ownerBankAccountId:{in:accounts.map(a=>a.id)},unit:{OR:[{property:{memberships:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}}},{userAccesses:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}}]}}, include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
+    prisma.propertyPaymentAccount.findMany({ where: { active: true, ...(user.role === "SUPER_ADMIN" ? {} : { ownerBankAccountId: { in: accounts.map(a=>a.id) } }) }, include: { property: { include: { units: { select: { label: true, ownerships: { select: { ownerBankAccountId: true } } } } } }, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }),
     searchParams,
   ]);
   if (!row) notFound();
@@ -40,7 +40,7 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
   const matchingLinks = paymentLinks.filter((link) => link.ownerBankAccount.active && ((row.amountCents || 0) < 0 || linkIsUsedByUnit(link.ownerBankAccountId, link.property.units)) && bankAccountMatches(link.ownerBankAccount, row.recipientAccount)).sort((a, b) => a.property.name.localeCompare(b.property.name, "cs"));
   const exactTestLink = matchingLinks.find((link) => digits(verificationCodeForAccount(link.ownerBankAccountId)) === digits(row.variableSymbol));
 
-  return <Shell user={user}><FormPage title="Bankovní e-mail – ruční řešení" description="Sběrný e-mail bankovních notifikací" backHref="/platby/nesparovane">
+  return <Shell user={user}><FormPage title="Bankovní e-mail – ruční řešení" description="Sběrný e-mail bankovních notifikací" backHref={user.role==="SUPER_ADMIN"?"/platby/nesparovane":"/platby/banka"}>
     <Flash ok={query.ok} error={query.error}/>
     <div className="detail-grid">
       <div className="card col-7"><h2>Rozpoznaná platba</h2><div className="summary-list">
@@ -59,14 +59,14 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
       </div></div>
 
       <div className="card col-5">
-        {row.amountCents && row.amountCents < 0 ? <>
+        {row.transactionId ? <div className="notice">Pohyb už byl předán do evidence. Nové pravidlo ovlivní jen budoucí pohyby.</div> : row.amountCents && row.amountCents < 0 ? <>
           <h2>Předat do bankovních výdajů</h2>
           <p className="muted-copy">Vyberte dům se známým vlastním účtem. Pohyb se předá k posouzení; náklad vznikne až přiřazením nebo odpovídajícím pravidlem.</p>
           {matchingLinks.length ? <form className="compact-form" action={`/api/inbound-payments/${row.id}/assign-expense`} method="post">
             <label className="field"><span>Nemovitost</span><select name="propertyId" required defaultValue=""><option value="" disabled>Vyberte nemovitost</option>{[...new Map(matchingLinks.map(l => [l.propertyId, l])).values()].map(l => <option key={l.propertyId} value={l.propertyId}>{l.property.name}</option>)}</select></label>
             <button className="primary">Předat výdaj k posouzení</button>
           </form> : <div className="notice">Vlastní účet není přiřazen žádnému domu. Nejprve doplňte jeho vazbu.</div>}
-        </> : isOneCrownTest ? <>
+        </> : isOneCrownTest && user.role === "SUPER_ADMIN" ? <>
           <h2>Ověření bankovního účtu</h2>
           <p className="muted-copy">Platba 1,00 Kč se nezaúčtuje jako nájemné. Ověří konkrétní účet vlastníka pouze pro jednotky v dané nemovitosti, které tento účet skutečně používají.</p>
           {matchingLinks.length ? <form className="compact-form" action={`/api/inbound-payments/${row.id}/verify-account`} method="post">
@@ -84,7 +84,9 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
         </>}
 
         {!row.transactionId && row.rawExcerpt ? <form action={`/api/inbound-payments/${row.id}/reprocess`} method="post" style={{marginTop:14}}><input type="hidden" name="forceReview" value={row.status==="IGNORED"?"1":"0"}/><button className="secondary" type="submit">Znovu zpracovat parserem / vrátit ke kontrole</button></form> : null}
-        <form action={`/api/inbound-payments/${row.id}/ignore`} method="post" style={{marginTop:14}}><button className="danger-button" type="submit">Označit jako nerelevantní</button></form>
+        {!row.transactionId && <form action={`/api/inbound-payments/${row.id}/ignore`} method="post" className="action-row" style={{marginTop:14}}><button className="danger-button" type="submit">Označit jako nerelevantní</button>{accounts.length>0&&<button className="secondary" type="submit" name="createRule" value="1">Ignorovat a připravit pravidlo</button>}</form>}
+        {accounts.length>0&&<Link className="secondary" style={{marginTop:14}} href={`/platby/banka/pravidla?inbox=${row.id}`}>Vytvořit pravidlo z pohybu</Link>}
+        <p><Link href="/platby/banka">Bankovní pohyby mého účtu</Link></p>
       </div>
 
       <div className="card col-12"><h2>Původní obsah</h2>{row.rawExcerpt ? <pre className="email-raw">{row.rawExcerpt}</pre> : <div className="notice">Původní bankovní notifikace byla po 100 dnech odstraněna.</div>}</div>

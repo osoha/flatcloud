@@ -101,6 +101,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         </CollapsibleNavGroup>
 
         <CollapsibleNavGroup id="finance" label="Finance" activeRoots={["/platby","/reporty/predpisy","/reporty/saldo","/kauce"]} forceOpen={unmatchedCount > 0}>
+          <Nav href="/platby/banka" icon={<WalletCards size={17}/>} label="Bankovní pohyby"/>
           {superAdmin && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/reporty/predpisy" icon={<ReceiptText size={17}/>} label="Předpisy"/>
           <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
@@ -134,6 +135,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           <Nav href="/portfolio" icon={<LayoutDashboard size={20}/>} label="Přehled"/>
           <Nav href="/portfolio#nemovitosti" icon={<House size={20}/>} label="Nemovitosti"/>
           <Nav href="/reporty?view=collections" icon={<WalletCards size={20}/>} label="Platby"/>
+          <Nav href="/platby/banka" icon={<WalletCards size={20}/>} label="Bankovní pohyby"/>
           <Nav href="/ukoly" icon={<ListChecks size={20}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
           <Nav href="/dokumenty" icon={<FileText size={20}/>} label="Dokumenty"/>
           <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={20}/>} label="Průvodce"/>
