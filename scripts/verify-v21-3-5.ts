@@ -14,7 +14,8 @@ assert.match(portfolio, /activeProperties = properties\.filter/);
 assert.match(portfolio, /Neaktivní \/ archivované/);
 assert.match(portfolio, /leaseAlertsForProperties\(activeProperties\)/);
 assert.match(portfolio, /taskScope = fullAccess \? \{ propertyId: \{ in: propertyIds \} \}/);
-assert.match(portfolio, /bankAccount: \{ propertyId: \{ in: propertyIds \} \}/);
+assert.match(portfolio, /managerPropertyIds = fullAccess \? propertyIds : activeProperties\.filter\(property => property\.memberships\.some\(member => member\.userId === user\.id && \["EDIT", "ADMIN"\]\.includes\(member\.permission\)\)\)/);
+assert.match(portfolio, /bankAccount: \{ propertyId: \{ in: managerPropertyIds \} \}/);
 assert.match(portfolio, /OR: \[\{ propertyId: null \}, \{ propertyId: \{ in: propertyIds \} \}\]/);
 
 const task = read("app/ukoly/\[id\]/page.tsx");
@@ -25,13 +26,13 @@ assert.match(task, /lastActivity=task\.entries\[0\]/);
 const process = read("lib/inbound-bank/process.ts");
 assert.match(process, /tryVerifyNotificationPayment/);
 assert.ok(process.indexOf("tryVerifyNotificationPayment") < process.indexOf("matchingRuleForInbox(route.propertyId"));
-assert.match(process, /!explicitLeaseId && !route\.strong && !matchingRule/);
+assert.doesNotMatch(process, /!explicitLeaseId && !route\.strong && !matchingRule/);
 assert.match(process, /status: "IGNORED", propertyId: route\.propertyId/);
-assert.match(process, /Příjem na známý účet bez vazby na nájemní evidenci/);
+assert.match(process, /reconcileTransactionReview/);
 assert.match(process, /ownerAccountIds\.length && vs/);
 const touch = process.indexOf("await touchPropertyPaymentNotification(route.propertyId");
-const relevanceIgnore = process.indexOf("!explicitLeaseId && !route.strong && !matchingRule");
-assert.ok(touch > process.indexOf("if (!route.propertyId)") && touch < relevanceIgnore);
+const materialize = process.indexOf("const transaction = await prisma.bankTransaction.upsert");
+assert.ok(touch > process.indexOf("if (!route.propertyId)") && touch < materialize);
 assert.match(process, /externalAccountId === `bank-email:\$\{rule\.bankAccount\.propertyId\}:\$\{fingerprint\}`/);
 assert.match(process, /rule\.bankAccount\.provider === "bank-email"/);
 

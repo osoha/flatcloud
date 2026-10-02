@@ -2,7 +2,7 @@ import { ownerVisibleDocumentWhere } from "../documents/access";
 import type { Prisma } from "@prisma/client";
 import { canSeeAll } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { escapeHtml, sendMail } from "@/lib/email";
+import { escapeHtml, renderFlatBerryEmail, sendMail } from "@/lib/email";
 import { createFileStorage } from "@/lib/storage";
 
 type Actor = { id: string; role: string; allProperties?: boolean };
@@ -39,7 +39,7 @@ export function defaultWelcomeLetterContent(input: { recipientName: string; prop
 
 export function renderWelcomeLetter(input: { subject: string; introduction: string; closingText: string; contactText: string } & Record<SectionField, string>) {
   const sections = welcomeSectionFields.filter(([field]) => input[field].trim()).map(([field, label]) => `<section style="margin:0 0 22px"><h2 style="margin:0 0 8px;color:#173d6f;font-size:18px">${escapeHtml(label)}</h2>${paragraphs(input[field])}</section>`).join("");
-  const html = `<div style="margin:0;background:#f4f7fb;padding:24px 10px;font-family:Arial,sans-serif;color:#17233a;line-height:1.55"><div style="max-width:680px;margin:auto;background:#fff;border:1px solid #dbe4f0"><div style="padding:24px 30px;background:#173d6f;color:#fff"><div style="font-size:26px;font-weight:700">FlatCloud</div><div style="margin-top:5px;color:#c9dcf2">Průvodce nového vlastníka</div></div><div style="padding:30px">${paragraphs(input.introduction)}${sections}${paragraphs(input.closingText)}<div style="margin-top:24px;padding-top:18px;border-top:1px solid #dbe4f0;color:#53647a;font-size:13px">${paragraphs(input.contactText)}</div></div></div></div>`;
+  const html = renderFlatBerryEmail(`<h1 style="margin:0 0 22px;color:#102348;font-size:22px">Průvodce nového vlastníka</h1>${paragraphs(input.introduction)}${sections}${paragraphs(input.closingText)}<div style="margin-top:24px;padding-top:18px;border-top:1px solid #dbe4f0;color:#53647a;font-size:13px">${paragraphs(input.contactText)}</div>`);
   const text = [input.introduction, ...welcomeSectionFields.flatMap(([field, label]) => input[field].trim() ? [`${label}\n${input[field]}`] : []), input.closingText, `Kontakty\n${input.contactText}`].join("\n\n");
   return { html, text };
 }

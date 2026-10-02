@@ -13,6 +13,11 @@ test("jednorázový odkaz obnoví heslo a zneplatní staré relace", async ({ pa
   const user = await prisma.user.create({ data: { email, name: "Reset E2E", passwordHash: await bcrypt.hash(oldPassword,12), active: true, isTestIdentity: true } });
   try {
     expect(user.defaultDisplayMode).toBe("basic");
+    const unknown = await request.post("/api/auth/password-reset/request", { form: { email: "unknown-reset@flatcloud.test" } });
+    const testIdentity = await request.post("/api/auth/password-reset/request", { form: { email } });
+    expect(unknown.url()).toContain("/zapomenute-heslo?sent=1");
+    expect(testIdentity.url()).toContain("/zapomenute-heslo?sent=1");
+    expect(await prisma.passwordResetToken.count({ where: { userId: user.id } })).toBe(0);
     await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash: hashPasswordResetToken(token), expiresAt: new Date(Date.now()+30*60_000) } });
     await page.goto(`/obnovit-heslo/${token}`);
     await expect(page.getByRole("heading", { name: "Nové heslo" })).toBeVisible();

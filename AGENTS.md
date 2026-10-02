@@ -19,3 +19,18 @@ Tato pravidla platí pro automatické i interaktivní vývojové agenty v celém
 ## Definition of ready
 
 Před označením `READY` musí projít relevantní statické verifikace, Prisma validate/migrate nad izolovanou databází, production build, Playwright smoke testy a audit diffu. Při nejasnosti, selhání nebo chybějícím důkazu vrať `BLOCKED`; testy neobcházej a nesnižuj jejich přísnost jen kvůli zelenému výsledku.
+## Schválený jednorázový převod Moskevská 1575/24
+
+Pro převod tohoto objektu smí agent po výslovném schválení vlastníkem
+repozitáře provést produkční zápisy pouze nad nemovitostí P1002:
+- odstranit tři identifikované testovací jednotky 1–3 a jejich testovací vazby;
+- založit skutečné byty 1–3;
+- převést doložené smlouvy, předpisy, platby a jistoty nájemců NIPAMA
+  RACCOON a Diestra z REpilotu.
+
+Před zápisem musí vzniknout obnovitelná záloha dotčených dat a soupis
+konkrétních ID. Po zápisu se ověří 15 jednotek, vlastníci, nájemníci,
+předpisy a saldo proti zdroji. Deaktivované předpisy Diestry za
+červen–září 2026 se nesmějí převést jako dluh. Uživatelská oprávnění
+Burkytové, Palka, Pokorného a Kopeckého se nemění. Pozvánka Simoně
+Červené se odešle až po dokončení a kontrole převodu.

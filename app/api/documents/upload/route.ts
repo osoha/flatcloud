@@ -10,9 +10,11 @@ function value(form: FormData, key: string) { const raw=form.get(key); return ty
 export async function POST(request: Request) {
   const user=await currentUser();
   if(!user)return new Response("Unauthorized",{status:401});
-  const form=await request.formData();
-  const returnTo=safeInternalReturnPath(form.get("returnTo"),"/dokumenty");
+  let returnTo="/dokumenty";
   try {
+    // A truncated multipart body (proxy limit) throws before file validation runs.
+    const form=await request.formData();
+    returnTo=safeInternalReturnPath(form.get("returnTo"),returnTo);
     if(!fileStorageCapabilities().upload)throw new Error("Úložiště souborů není nakonfigurováno.");
     const context:DocumentContext={propertyId:value(form,"propertyId")||"",unitId:value(form,"unitId"),leaseId:value(form,"leaseId"),taskId:value(form,"taskId"),taskEntryId:value(form,"taskEntryId"),complianceRecordId:value(form,"complianceRecordId"),propertyCostId:value(form,"propertyCostId")};
     if(!context.propertyId)throw new Error("Chybí kontext nemovitosti.");
@@ -21,5 +23,5 @@ export async function POST(request: Request) {
     const stored=await storePreparedDocumentBatch(prepared);
     try{await prisma.$transaction(tx=>createStoredDocumentsInTransaction(tx,stored));}catch(error){await cleanupStoredDocumentBatch(stored);throw error;}
     return goWithMessage(request,returnTo,"ok",files.length===1?"Dokument byl nahrán.":`Nahráno ${files.length} dokumentů.`);
-  } catch(error){return goWithMessage(request,returnTo,"error",error instanceof Error?error.message:"Dokumenty se nepodařilo nahrát.");}
+  } catch(error){const message=error instanceof Error && /Failed to parse body as FormData/.test(error.message) ? "Soubory přesahují celkový limit 32 MB nebo se přenos přerušil. Nahrajte je prosím po menších dávkách." : error instanceof Error ? error.message : "Dokumenty se nepodařilo nahrát.";return goWithMessage(request,returnTo,"error",message);}
 }

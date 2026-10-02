@@ -43,10 +43,12 @@ export async function touchPropertyPaymentNotification(propertyId: string, recip
 export async function tryVerifyNotificationPayment(input: {
   inboxId: string;
   amountCents: number | null;
+  currency: string;
   recipientAccount?: string | null;
   variableSymbol?: string | null;
   receivedAt: Date;
 }) {
+  if (input.currency !== "CZK") return null;
   const accounts = await touchOwnerBankNotification(input.recipientAccount, input.receivedAt);
   if (input.amountCents !== 100) return null;
   const vs = normalizedVs(input.variableSymbol);

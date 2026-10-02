@@ -1,18 +1,20 @@
+import { requireInboxBankAccess } from "@/lib/account-banking-access";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { parseBankNotification } from "@/lib/inbound-bank/bank-email";
+import { bankAccountMatches, parseBankNotification } from "@/lib/inbound-bank/bank-email";
 import { materializeInboxPayment } from "@/lib/inbound-bank/process";
 import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { reconcileInboxReview } from "@/lib/bank-review-tasks";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await currentUser();
-  if (!user || user.role !== "SUPER_ADMIN") return go(request, "/login");
+  if (!user) return go(request, "/login");
   const { id } = await params;
   try {
     const form = await request.formData();
     const forceReview = form.get("forceReview") === "1";
-    const row = await prisma.inboxPayment.findUnique({ where: { id } });
+    const {row,accounts}=await requireInboxBankAccess(user,id);
     if (!row) throw new Error("Bankovní e-mail nebyl nalezen.");
     if (row.transactionId) throw new Error("Tento e-mail už byl importován jako bankovní transakce.");
 
@@ -26,6 +28,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       text: row.rawExcerpt,
     });
 
+    if(user.role!=="SUPER_ADMIN" && !accounts.some(a=>bankAccountMatches(a,parsed.recipientAccount))) throw new Error("Parser rozpoznal jiný účet. Pohyb musí zkontrolovat hlavní administrátor.");
     const status = parsed.recognizedPayment ? "RECEIVED" : forceReview || parsed.bankLike ? "ERROR" : "IGNORED";
     const parseNote = !parsed.recognizedPayment && !parsed.bankLike && !forceReview
       ? "Nerelevantní e-mail: zpráva neobsahuje smysluplné bankovní ani platební údaje."
@@ -58,6 +61,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       recognizedPayment: parsed.recognizedPayment,
       autoProcessEligible: parsed.autoProcessEligible,
     });
+    await reconcileInboxReview(id);
 
     if (!parsed.recognizedPayment) return goWithMessage(request, `/platby/nesparovane/email/${id}`, "ok", forceReview ? "E-mail byl vrácen do ruční pracovní fronty." : parsed.parseNote);
 

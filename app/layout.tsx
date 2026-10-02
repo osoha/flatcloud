@@ -9,6 +9,7 @@ import "./admin-activity.css";
 import "./visual-polish.css";
 import "./dark-theme.css";
 import "./first-login-guide.css";
+import "./auth-footer.css";
 
 export const metadata = {
   title: "FlatBerry",

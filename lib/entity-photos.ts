@@ -7,7 +7,7 @@ type User = Parameters<typeof documentAccessWhere>[0];
 export type EntityPhotos = { properties: Record<string, string>; units: Record<string, string> };
 
 /** Batch lookup through existing document permissions. Never expose storage URLs.
- * Display only the explicit personal choice; absent choices use a generic icon.
+ * The building choice is shared; unit choices remain personal.
  * Property avatars cannot accidentally borrow another unit's photo or a task attachment.
  */
 export async function loadEntityPhotoCandidates(user: User, propertyIds: string[]) {
@@ -29,15 +29,16 @@ export async function loadEntityPhotoCandidates(user: User, propertyIds: string[
 }
 
 export async function loadEntityPhotos(user: User, propertyIds: string[]): Promise<EntityPhotos> {
-  const [documents, preferences] = await Promise.all([loadEntityPhotoCandidates(user, propertyIds), loadEntityAppearances(user.id)]);
+  const [documents, preferences, properties] = await Promise.all([loadEntityPhotoCandidates(user, propertyIds), loadEntityAppearances(user.id), prisma.property.findMany({ where: { id: { in: propertyIds } }, select: { id: true, avatarPhotoId: true, avatarMimeType: true, updatedAt: true } })]);
   const result: EntityPhotos = { properties: {}, units: {} };
   for (const document of documents) {
     const map = document.unitId ? result.units : result.properties;
     const key = document.unitId || document.propertyId;
-    const preferred = preferences[entityAppearanceKey(document.propertyId, document.unitId)]?.photoId;
+    const preferred = document.unitId ? preferences[entityAppearanceKey(document.propertyId, document.unitId)]?.photoId : properties.find(property => property.id === document.propertyId)?.avatarPhotoId;
     if (preferred === document.id) map[key] = document.id;
   }
   for (const [key, preference] of Object.entries(preferences)) {
+    if (!key.startsWith("unit:")) continue;
     if (preference.photoId === "icon") {
       const [kind, id] = key.split(":");
       if (kind === "property" && !propertyIds.includes(id)) continue;
@@ -53,6 +54,10 @@ export async function loadEntityPhotos(user: User, propertyIds: string[]): Promi
     if (kind === "property" && !propertyIds.includes(id)) continue;
     // Image endpoint rechecks effective user and entity access on every request.
     (kind === "unit" ? result.units : result.properties)[id] = `avatar:${key}:${preference.updatedAt.getTime()}`;
+  }
+  for (const property of properties) {
+    if (property.avatarPhotoId === "icon" || property.avatarPhotoId?.startsWith("library:")) result.properties[property.id] = property.avatarPhotoId;
+    if (property.avatarPhotoId === "upload" && property.avatarMimeType) result.properties[property.id] = `avatar:property:${property.id}:${property.updatedAt.getTime()}`;
   }
   return result;
 }
