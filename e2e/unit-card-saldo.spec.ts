@@ -39,6 +39,28 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     const ids=["prehled","smlouva","osoby","predpisy","platby","komunikace","meridla","dokumenty","kvalita","osobni-hodnota"];
     const tops=await page.evaluate(ids=>ids.map(id=>document.getElementById(id)!.getBoundingClientRect().top),ids);
     expect(tops).toEqual([...tops].sort((a,b)=>a-b));
+    for (const selector of [".unit-occupancy-details", ".unit-area-details"]) {
+      const history=page.locator(selector);
+      await expect(history).not.toHaveAttribute("open", "");
+      await expect(history.locator(".unit-history-panel")).toBeHidden();
+      await history.locator("summary").click();
+      await expect(history.locator(".unit-history-panel")).toBeVisible();
+      const widths=await history.evaluate(el=>({history:el.getBoundingClientRect().width,panel:el.querySelector(".unit-history-panel")!.getBoundingClientRect().width}));
+      expect(Math.abs(widths.history-widths.panel)).toBeLessThan(2);
+      await history.locator("summary").click();
+    }
+    for (const [before,after] of [["predpisy","platby"],["kvalita","osobni-hodnota"]]) {
+      const gap=await page.evaluate(([before,after])=>document.getElementById(after)!.getBoundingClientRect().top-document.getElementById(before)!.getBoundingClientRect().bottom,[before,after]);
+      expect(gap).toBeGreaterThanOrEqual(16);
+    }
+    const quality=page.locator("#kvalita");
+    await quality.getByText("Ohodnotit jednotku a naplánovat obnovu",{exact:true}).click();
+    await quality.getByLabel("Kvalita jednotky *").selectOption("B_GOOD");
+    await quality.getByLabel("Odhad CAPEX Kč").fill("12000");
+    await quality.getByRole("button",{name:"Uložit hodnocení",exact:true}).click();
+    await expect(page.getByText("Hodnocení kvality a plánu obnovy bylo uloženo.",{exact:true})).toBeVisible();
+    await quality.getByText("Upravit hodnocení a plán obnovy",{exact:true}).click();
+    await expect(quality.getByLabel("Odhad CAPEX Kč")).toHaveValue("12000.00");
     await kpis.locator(".unit-balance-kpi").click();
     await expect(page).toHaveURL(/#saldo$/);
     await expect(page.locator("#saldo")).toBeInViewport();

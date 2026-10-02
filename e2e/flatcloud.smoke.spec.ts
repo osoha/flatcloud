@@ -277,7 +277,7 @@ test("kvalita jednotky a distribuční připravenost mají oddělený průchod",
   expect(unitHref).toBeTruthy();
   await page.goto(`${unitHref}#kvalita`);
   const condition = page.locator("#kvalita");
-  await condition.getByText("Uložit hodnocení", { exact: false }).first().click();
+  await condition.locator(".condition-add > summary").click();
   await condition.getByLabel("Kvalita jednotky *").selectOption("B_GOOD");
   await condition.getByLabel("Naléhavost investice *").selectOption("MONITOR");
   await condition.getByLabel("Odhad CAPEX Kč").fill("125000");
