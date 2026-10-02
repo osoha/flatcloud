@@ -110,7 +110,7 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
       </div>
       <h2 className="basic-unit-actions-heading">Co potřebujete řešit?</h2>
       <div className="basic-unit-actions">
-        <a className="basic-unit-tile" href="#smlouva"><span className="basic-unit-icon"><FileText size={40}/></span><div><strong>Smlouva</strong><p>{activeLease ? leaseEnd ? `Platná do ${date(leaseEnd)}` : "Na dobu neurčitou" : "Bez aktuální smlouvy"}</p><small>Otevřít smlouvu →</small></div></a>
+        <a className="basic-unit-tile" href={!activeLease && canManage ? `/nemovitosti/${id}/smlouvy/nova?unitId=${unitId}` : "#smlouva"}><span className="basic-unit-icon"><FileText size={40}/></span><div><strong>Smlouva</strong><p>{activeLease ? leaseEnd ? `Platná do ${date(leaseEnd)}` : "Na dobu neurčitou" : "Bez aktuální smlouvy"}</p><small>{!activeLease && canManage ? "Založit smlouvu →" : "Otevřít smlouvu →"}</small></div></a>
         <a className="basic-unit-tile basic-unit-meters" href="#meridla"><span className="basic-unit-icon"><Gauge size={40}/></span><div><strong>Měřidla</strong><p>Aktivní měřidla: {unit.meters.filter(meter => meter.active).length}</p><small>{canManageMeters ? "Zadat odečet →" : "Zobrazit odečty →"}</small></div></a>
         <div className="basic-unit-tile basic-unit-tasks"><span className="basic-unit-icon"><ListChecks size={40}/></span><div><strong>Úkoly</strong><p>Otevřené: {unitTaskCount}</p><Link href={`/ukoly?propertyId=${id}`}>Zobrazit úkoly →</Link>{canManage && <Link href={`/ukoly/novy?propertyId=${id}${activeLease ? `&leaseId=${activeLease.id}` : ""}`}>+ Nový úkol →</Link>}</div></div>
       </div>

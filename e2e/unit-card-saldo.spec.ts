@@ -91,6 +91,7 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     await page.goto(`/nemovitosti/${property.id}/jednotky/${vacant.id}`);
     await expect(page.locator(".basic-unit-status")).toHaveText("Neobsazená");
     await expect(page.locator(".basic-unit-balance p")).toHaveText("Bez aktuální smlouvy");
+    await expect(page.locator(".basic-unit-actions").getByRole("link", {name: /Založit smlouvu/})).toHaveAttribute("href", `/nemovitosti/${property.id}/smlouvy/nova?unitId=${vacant.id}`);
     for (const width of [1440, 1024, 390]) {
       await page.setViewportSize({width,height:1000});
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
