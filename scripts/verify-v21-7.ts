@@ -10,6 +10,7 @@ const shell = read("components/Shell.tsx");
 const catalog = read("app/smlouvy/page.tsx");
 const search = read("app/hledat/page.tsx");
 const unit = read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx");
+const unitContract = read("components/UnitContractSummary.tsx");
 const access = read("lib/access.ts");
 const deposit = read("app/kauce/page.tsx");
 const schema = read("prisma/schema.prisma");
@@ -35,8 +36,8 @@ checks.push(["EXPIRING behavior", isLeaseExpiring(baseLease, new Date("2026-08-2
 checks.push(["catalog search behavior", ["sm-42", "42001", "novák", "a-12", "alfa", "praha"].every((q) => leaseMatchesQuery(baseLease, q)) && !leaseMatchesQuery(baseLease, "nenalezeno")]);
 checks.push(["catalog shared lease scope", catalog.includes("leaseAccessWhere(user)")]);
 checks.push(["global search contracts and scope", search.includes('title="Smlouvy"') && search.includes("leaseAccessWhere(user)")]);
-checks.push(["unit deposit shared snapshot", unit.includes("securityDepositSnapshot(activeLease)")]);
-checks.push(["unit deposit link", unit.includes("#kauce") && unit.includes("Kauce")]);
+checks.push(["unit deposit shared snapshot", unit.includes("<UnitContractSummary lease={activeLease}") && unitContract.includes("securityDepositSnapshot(lease)")]);
+checks.push(["unit deposit link", unitContract.includes("#kauce") && unitContract.includes("Kauce")]);
 checks.push(["unit access deposit include", access.includes("securityDepositTerms") && access.includes("securityDepositMovements")]);
 checks.push(["deposit registry scoped clickable rows", deposit.includes("findVisibleSecurityDepositLeases(user)") && deposit.includes("clickable-table-row") && deposit.includes("row-cell-link")]);
 checks.push(["invitation role schema", schema.includes("role          UserRole") && schema.includes("@default(OWNER_VIEWER)")]);
