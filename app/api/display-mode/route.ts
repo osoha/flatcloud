@@ -9,7 +9,10 @@ export async function POST(request: Request) {
   const mode = form.get("mode");
   if (mode !== "basic" && mode !== "pro") return go(request, "/portfolio");
   const returnTo = safeInternalReturnPath(form.get("returnTo"), "/portfolio");
-  const response = go(request, returnTo.startsWith("/portfolio?") || returnTo === "/portfolio" ? returnTo : "/portfolio");
+  // Preserve the reviewed unit page when comparing Basic and Profi.
+  // Keep the existing portfolio allowlist; unrelated return paths still fall back.
+  const unitReturn = /^\/nemovitosti\/[a-zA-Z0-9_-]+\/jednotky\/[a-zA-Z0-9_-]+$/.test(returnTo);
+  const response = go(request, returnTo.startsWith("/portfolio?") || returnTo === "/portfolio" || unitReturn ? returnTo : "/portfolio");
   response.cookies.set(displayModeCookie(user.id), mode, {
     httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production",
     path: "/", maxAge: 60 * 60 * 24 * 365,
