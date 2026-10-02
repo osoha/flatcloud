@@ -39,6 +39,7 @@ jobs:
       - run: node --import tsx scripts/verify-r33-consumption.ts
       - run: node --import tsx scripts/verify-r33-kpis.ts
       - run: node --import tsx scripts/verify-unit-card-saldo.ts
+      - run: node --import tsx scripts/verify-illustration-library.ts
       - run: node --import tsx scripts/verify-account-bank-rules.ts
       - run: node --import tsx scripts/verify-task-thread-polish.ts
       - run: npm run verify:tab-navigation-v2

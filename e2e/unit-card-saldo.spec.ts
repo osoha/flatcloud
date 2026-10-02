@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 
-test("unit overview shows tenant, real overpayment and ordered modules on desktop and mobile", async ({ page }) => {
+test("unit overview shows tenant, real overpayment and ordered modules on desktop and mobile", async ({ page }, testInfo) => {
   const url=process.env.DATABASE_URL;
   if(!url || !["localhost","127.0.0.1","postgres"].includes(new URL(url).hostname)) throw new Error("Isolated CI database required");
   const db=new PrismaClient();
@@ -75,5 +75,70 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     await page.goto(`/nemovitosti/${property.id}/jednotky/${paidUnit.id}`);
     await expect(page.locator(".unit-balance-kpi strong")).toHaveText(/0\s*Kč/);
     await expect(page.locator(".unit-balance-kpi small")).toContainText("Vyrovnáno");
+    // The same financial fixtures must retain their meaning in the simpler Basic view.
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}`);
+    await page.locator('.display-mode-switch-mobile button[value="basic"]').click();
+    await expect(page).toHaveURL(new RegExp(`/jednotky/${unit.id}$`));
+    await expect(page.locator(".basic-unit-summary .basic-unit-tile")).toHaveCount(3);
+    await expect(page.locator(".basic-unit-tenant strong")).toHaveText(tenant.name);
+    await expect(page.locator(".basic-unit-balance strong")).toHaveText(/\+2\s*100\s*Kč/);
+    await expect(page.locator(".basic-unit-details")).not.toHaveAttribute("open", "");
+    await page.locator(".basic-unit-balance").click();
+    await expect(page.locator("#saldo")).toBeVisible();
+    await expect(page.locator("#saldo")).toBeInViewport();
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}#meridla`);
+    await expect(page.locator("#meridla")).toBeVisible();
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${vacant.id}`);
+    await expect(page.locator(".basic-unit-status")).toHaveText("Neobsazená");
+    await expect(page.locator(".basic-unit-balance p")).toHaveText("Bez aktuální smlouvy");
+    await expect(page.locator(".basic-unit-actions").getByRole("link", {name: /Založit smlouvu/})).toHaveAttribute("href", `/nemovitosti/${property.id}/smlouvy/nova?unitId=${vacant.id}`);
+    for (const width of [1440, 1024, 390]) {
+      await page.setViewportSize({width,height:1000});
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+      await expect(page.locator(".basic-unit-cover .entity-avatar-illustration")).toHaveCSS("background-size","cover");
+    }
+    await page.setViewportSize({width:1440,height:1000});
+    const berry = page.locator(".basic-sidebar-berry");
+    await expect(berry).toBeVisible();
+    expect(await berry.evaluate(el=>el.nextElementSibling?.classList.contains("display-mode-switch"))).toBeTruthy();
+    const desktopLayout = () => page.evaluate(() => {
+      const selectors = [".sidebar", ".main", ".page", ".basic-unit-hero", ".basic-unit-summary", ".basic-unit-details"];
+      return {width:innerWidth, scrollX, boxes:Object.fromEntries(selectors.map(selector => {
+        const element=document.querySelector(selector)!;
+        const rect=element.getBoundingClientRect();
+        return [selector,{left:rect.left,right:rect.right,width:rect.width,animations:element.getAnimations().filter(animation=>animation.playState==="running").length}];
+      }))};
+    });
+    const captureDesktop = async (name: string) => {
+      // A geometry read may see the destination style before Chromium starts its transition.
+      // Wait for two rendered frames and for both the shell and its contents to settle.
+      await page.evaluate(() => new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve()))));
+      await expect.poll(async () => {
+        const layout=await desktopLayout();
+        return layout.scrollX===0 && Object.entries(layout.boxes).every(([selector,box]) =>
+          box.animations===0 && (selector===".sidebar" || (box.left>=layout.boxes[".sidebar"].right-1 && box.right<=layout.width+1)));
+      }).toBeTruthy();
+      const before=await desktopLayout();
+      await page.screenshot({path:`test-results/${name}-viewport.png`,animations:"disabled"});
+      await page.screenshot({path:`test-results/${name}-desktop.png`,fullPage:true,animations:"disabled"});
+      const after=await desktopLayout();
+      await testInfo.attach(`${name}-layout`,{body:JSON.stringify({before,after},null,2),contentType:"application/json"});
+      expect(after.boxes[".basic-unit-hero"].left).toBeGreaterThanOrEqual(after.boxes[".sidebar"].right);
+    };
+    await captureDesktop("basic-unit-vacant");
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}`);
+    await expect(page.locator(".basic-unit-tenant strong")).toHaveText(tenant.name);
+    await expect(page.locator(".basic-unit-details")).not.toHaveAttribute("open", "");
+    await captureDesktop("basic-unit-approved");
+    await page.locator('.sidebar .display-mode-switch button[value="pro"]').click();
+    await expect(berry).toHaveCount(0);
+    await expect(page.locator(".unit-overview-kpis .mini-kpi")).toHaveCount(4);
+    // Unpaid overdue rent stays red in Basic; future paid rent remains balanced.
+    await db.charge.create({data:{leaseId:paidLease.id,period:"2020-02",dueDate:new Date("2020-02-05T12:00:00Z"),amountCents:350000}});
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${paidUnit.id}`);
+    await page.locator('.sidebar .display-mode-switch button[value="basic"]').click();
+    await expect(page.locator(".basic-unit-balance")).toHaveClass(/balance-debt/);
+    await expect(page.locator(".basic-unit-balance strong")).toHaveText(/−?-?3\s*500\s*Kč/);
+    await page.locator('.sidebar .display-mode-switch button[value="pro"]').click();
   } finally { await db.$disconnect(); }
 });
