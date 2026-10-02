@@ -625,3 +625,13 @@ table{width:100%;border-collapse:collapse;min-width:780px}th,td{padding:13px 16p
 .unit-contract-contact a{font-size:12px;font-weight:500;color:var(--blue)}
 .unit-ownership-details{margin:0 0 18px}
 .unit-ownership-details>summary{cursor:pointer;font-size:13px;font-weight:650;color:var(--muted);padding:8px 0}
+
+/* Consistent spacing and on-demand histories on the unit detail. */
+.unit-detail-page>.card{margin-top:0;margin-bottom:20px}
+.unit-detail-page>.unit-history-details,.unit-detail-page>.unit-ownership-details{width:100%;margin:0 0 20px}
+.unit-history-details>summary{cursor:pointer;font-size:13px;font-weight:650;color:var(--muted);padding:8px 0}
+.unit-history-panel{width:100%;margin-top:10px;box-sizing:border-box}
+.unit-history-panel .compact-form{margin-top:0;grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}
+.unit-history-panel .compact-form button{grid-column:1/-1}
+.unit-detail-page .condition-add>summary{font-size:13px}
+@media(max-width:600px){.unit-history-panel .compact-form{grid-template-columns:1fr}}
