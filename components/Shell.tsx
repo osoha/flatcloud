@@ -143,6 +143,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         </>}
       </nav>
       <div className="sidebar-footer">
+        {mode === "basic" && !preview && <Link className="basic-sidebar-berry" href="/metodika?view=guides"><img src="/landing/berry-guide.webp" alt=""/><span>Poradím vám <span aria-hidden="true">→</span></span></Link>}
         {!preview && <DisplayModeSwitch mode={mode} returnTo={displayReturnTo}/>}
         <DisplayPreferences userId={user.id}/>
         <div className="user-card">

@@ -1,3 +1,10 @@
+import { defaultPropertyIllustration } from "@/lib/illustration-library";
+import { displayMode } from "@/lib/display-mode";
+import { TenantAvatar } from "@/components/TenantAvatar";
+import { BasicUnitDetails } from "@/components/BasicUnitDetails";
+import { taskAccessWhere } from "@/lib/access";
+import { openTaskStatuses } from "@/lib/operations";
+import { effectiveLeaseEnd } from "@/lib/lease-lifecycle-core";
 import { MeterConsumption } from "@/components/MeterConsumption";
 import { loadEntityAppearances } from "@/lib/entity-appearance";
 import { appearanceBackgrounds } from "@/lib/entity-appearance-values";
@@ -8,7 +15,7 @@ import { MeterReadingHistory } from "@/components/MeterReadingHistory";
 import { OwnershipHistory } from "@/components/OwnershipHistory";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BellRing, Gauge, Hammer, Mail, Pencil, Phone, Plus, UserRound, UsersRound } from "lucide-react";
+import { BellRing, FileText, ListChecks, ReceiptText, WalletCards, Gauge, Hammer, Mail, Pencil, Phone, Plus, UserRound, UsersRound } from "lucide-react";
 import { requireUser, canSeeAll, hasAllPropertyAccess, previewContext } from "@/lib/auth";
 import { requirePropertyAccess, requireUnitAccess } from "@/lib/access";
 import { Shell } from "@/components/Shell";
@@ -43,6 +50,7 @@ export const dynamic = "force-dynamic";
 export default async function UnitDetail({ params, searchParams }: { params: Promise<{ id: string; unitId: string }>; searchParams: Promise<{ ok?: string; error?: string }> }) {
   const user = await requireUser();
   const inPreview=(await previewContext()).requested;
+  const basic = !inPreview && await displayMode(user.id, user.onboardingStatus === "pending" || user.defaultDisplayMode === "basic" ? "basic" : "pro") === "basic";
   const { id, unitId } = await params;
   const [property, unit, query] = await Promise.all([requirePropertyAccess(user, id), requireUnitAccess(user, id, unitId), searchParams]);
   if (!property || !unit) notFound();
@@ -84,18 +92,36 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
   const appearance = appearances[`unit:${unitId}`];
   const csuAverage=selectCsuAverage(csuAverages,district,new Date().getUTCFullYear());
   const csuValue=unit.type==="APARTMENT"&&csuAverage&&unit.areaM2&&unit.areaM2>0?Math.round(Number(csuAverage.pricePerSqmCents)*unit.areaM2):null;
+  const unitTaskCount = basic ? await prisma.task.count({ where: { AND: [taskAccessWhere(user), { propertyId: id, OR: [{ unitId }, { leaseId: { in: unit.leases.map(lease => lease.id) } }], status: { in: openTaskStatuses } }] } }) : 0;
+  const leaseEnd = activeLease ? effectiveLeaseEnd(activeLease) : null;
   const sourceLinks=personalValueSources({city:property.city,name:property.name,cadastralArea:readPropertyTechnicalData(property.technicalData).cadastralArea});
-  return <Shell user={user} taskPropertyId={id} taskLeaseId={activeLease?.id}><div className="page unit-detail-page">
+  return <Shell user={user} taskPropertyId={id} taskLeaseId={activeLease?.id} displayReturnTo={`/nemovitosti/${id}/jednotky/${unitId}`}><div className="page unit-detail-page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${id}/prehled`}>{property.name}</Link><span>›</span><Link href={`/nemovitosti/${id}/jednotky`}>Jednotky</Link><span>›</span><span>{unit.label}</span></div>
-    <div className="unit-hero card" style={{backgroundColor: appearance?.color ? appearanceBackgrounds[appearance.color] : undefined}}><div><Link className="avatar-edit-link" href={`/nemovitosti/${id}/vzhled?unitId=${unitId}`} title="Upravit kartu: barva a titulní obrázek" aria-label="Upravit avatar jednotky"><EntityAvatar photoId={photos.units[unitId]} identity={unitId} kind="unit" size="lg"/></Link><span className="eyebrow">{unitTypes[unit.type]}</span><PageHeading>{unit.label}</PageHeading><p>{property.name} · {unit.floor || "podlaží neuvedeno"} · {unit.areaM2 ? `${unit.areaM2} m²` : "plocha neuvedena"}</p><small>ID jednotky: {formatCompoundUnitBusinessId(property.propertyCode, unit.unitCode)}</small></div><div className="action-row"><Link className="secondary" href={`/nemovitosti/${id}/vzhled?unitId=${unitId}`} title="Změnit barvu karty nebo titulní obrázek">Upravit kartu</Link>{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unit.id}/upravit`}><Pencil size={15}/> Upravit jednotku</Link>}{canManage && <Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova?unitId=${unit.id}`}><Plus size={15}/> Nová smlouva</Link>}</div></div>
+    {basic ? <section className="basic-unit-hero card" style={{backgroundColor: appearance?.color ? appearanceBackgrounds[appearance.color] : undefined}}>
+      <Link className="basic-unit-cover" href={`/nemovitosti/${id}/vzhled?unitId=${unitId}`} aria-label="Upravit avatar jednotky"><EntityAvatar photoId={photos.units[unitId] || defaultPropertyIllustration("unit", id, property.units.findIndex(item => item.id === unitId))} identity={unitId} kind="unit" size="lg"/></Link>
+      <div className="basic-unit-identity"><div><PageHeading>{unit.label}</PageHeading><p>{property.name} · {property.city} · {unitTypes[unit.type]}{unit.areaM2 ? ` · ${unit.areaM2} m²` : ""}</p></div><div className="action-row"><span className={`basic-unit-status status-${statusTone}`}>{activeLease ? "Pronajato" : "Neobsazená"}</span>{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unitId}/upravit`}><Pencil size={18}/>Upravit jednotku</Link>}<Link className="secondary" href={`/nemovitosti/${id}/vzhled?unitId=${unitId}`}>Upravit kartu</Link></div></div>
+    </section> : <div className="unit-hero card" style={{backgroundColor: appearance?.color ? appearanceBackgrounds[appearance.color] : undefined}}><div><Link className="avatar-edit-link" href={`/nemovitosti/${id}/vzhled?unitId=${unitId}`} title="Upravit kartu: barva a titulní obrázek" aria-label="Upravit avatar jednotky"><EntityAvatar photoId={photos.units[unitId]} identity={unitId} kind="unit" size="lg"/></Link><span className="eyebrow">{unitTypes[unit.type]}</span><PageHeading>{unit.label}</PageHeading><p>{property.name} · {unit.floor || "podlaží neuvedeno"} · {unit.areaM2 ? `${unit.areaM2} m²` : "plocha neuvedena"}</p><small>ID jednotky: {formatCompoundUnitBusinessId(property.propertyCode, unit.unitCode)}</small></div><div className="action-row"><Link className="secondary" href={`/nemovitosti/${id}/vzhled?unitId=${unitId}`} title="Změnit barvu karty nebo titulní obrázek">Upravit kartu</Link>{canManage && <Link className="secondary" href={`/nemovitosti/${id}/jednotky/${unit.id}/upravit`}><Pencil size={15}/> Upravit jednotku</Link>}{canManage && <Link className="primary" href={`/nemovitosti/${id}/smlouvy/nova?unitId=${unit.id}`}><Plus size={15}/> Nová smlouva</Link>}</div></div>}
     <Flash ok={query.ok} error={query.error}/>
-    <nav className="unit-tabs"><a href="#prehled">Přehled</a><a href="#smlouva">Smlouva</a>{activeLease&&<><a href="#osoby">Osoby</a><a href="#predpisy">Předpisy</a></>}{unit.leases.length>0&&<a href="#platby">Platby</a>}{activeLease&&<a href="#komunikace">Upomínky</a>}<a href="#meridla">Měřidla</a><a href="#dokumenty">Dokumenty</a><a href="#kvalita">Kvalita a Capex</a>{!inPreview&&<a href="#osobni-hodnota">Osobní hodnota</a>}</nav>
+    {basic ? <>
+      <div id="prehled" className="basic-unit-summary">
+        <a className="basic-unit-tile basic-unit-tenant" href={activeLease ? "#osoby" : "#smlouva"}>{tenant ? <TenantAvatar tenant={tenant}/> : <span className="basic-unit-icon"><UserRound size={44}/></span>}<div><span className="eyebrow">Nájemník</span><strong>{partyNames.join(" + ") || "Neobsazená jednotka"}</strong><small>{activeLease ? "Otevřít kontakt →" : futureLeases.length ? "Budoucí nájem →" : "Detail smlouvy →"}</small></div></a>
+        <a className={`basic-unit-tile basic-unit-balance balance-${balanceTone}`} href={activeLease ? "#saldo" : unit.leases.length ? "#platby" : "#smlouva"}><span className="basic-unit-icon"><WalletCards size={44}/></span><div><span className="eyebrow">Stav plateb</span><strong>{balance ? `${balance.balanceCents > 0 ? "+" : ""}${money(balance.balanceCents)}` : "—"}</strong><p>{balance ? balance.balanceCents < 0 ? "Dluh po splatnosti" : balance.balanceCents > 0 ? "Přeplatek · bez kauce" : "Vyrovnáno · bez kauce" : "Bez aktuální smlouvy"}</p><small>Detail plateb →</small></div></a>
+        {activeLease ? <Link className="basic-unit-tile basic-unit-charge" href={currentCharge ? `/nemovitosti/${id}/predpisy/mesicni/${currentCharge.id}` : `/nemovitosti/${id}/predpisy/${activeLease.id}`}><span className="basic-unit-icon"><ReceiptText size={44}/></span><div><span className="eyebrow">Měsíční předpis</span><strong>{money(currentCharge?.amountCents ?? recurringCharge)}</strong><p>{currentCharge ? currentPeriod() : "Smluvně měsíčně · předpis nevytvořen"}</p><small>Zobrazit předpis →</small></div></Link> : <div className="basic-unit-tile basic-unit-charge"><span className="basic-unit-icon"><ReceiptText size={44}/></span><div><span className="eyebrow">Měsíční předpis</span><strong>—</strong><p>Bez aktuální smlouvy</p></div></div>}
+      </div>
+      <h2 className="basic-unit-actions-heading">Co potřebujete řešit?</h2>
+      <div className="basic-unit-actions">
+        <a className="basic-unit-tile" href="#smlouva"><span className="basic-unit-icon"><FileText size={40}/></span><div><strong>Smlouva</strong><p>{activeLease ? leaseEnd ? `Platná do ${date(leaseEnd)}` : "Na dobu neurčitou" : "Bez aktuální smlouvy"}</p><small>Otevřít smlouvu →</small></div></a>
+        <a className="basic-unit-tile basic-unit-meters" href="#meridla"><span className="basic-unit-icon"><Gauge size={40}/></span><div><strong>Měřidla</strong><p>Aktivní měřidla: {unit.meters.filter(meter => meter.active).length}</p><small>{canManageMeters ? "Zadat odečet →" : "Zobrazit odečty →"}</small></div></a>
+        <div className="basic-unit-tile basic-unit-tasks"><span className="basic-unit-icon"><ListChecks size={40}/></span><div><strong>Úkoly</strong><p>Otevřené: {unitTaskCount}</p><Link href={`/ukoly?propertyId=${id}`}>Zobrazit úkoly →</Link>{canManage && <Link href={`/ukoly/novy?propertyId=${id}${activeLease ? `&leaseId=${activeLease.id}` : ""}`}>+ Nový úkol →</Link>}</div></div>
+      </div>
+    </> : <><nav className="unit-tabs"><a href="#prehled">Přehled</a><a href="#smlouva">Smlouva</a>{activeLease&&<><a href="#osoby">Osoby</a><a href="#predpisy">Předpisy</a></>}{unit.leases.length>0&&<a href="#platby">Platby</a>}{activeLease&&<a href="#komunikace">Upomínky</a>}<a href="#meridla">Měřidla</a><a href="#dokumenty">Dokumenty</a><a href="#kvalita">Kvalita a Capex</a>{!inPreview&&<a href="#osobni-hodnota">Osobní hodnota</a>}</nav>
     <div id="prehled" className="unit-kpi-grid unit-overview-kpis">
       {activeLease ? <Link className={`card mini-kpi mini-kpi-link status-kpi status-${statusTone}`} href="#osoby"><span>Obsazenost</span><strong>{partyNames.join(" + ")}</strong><small className="unit-occupancy-tag">Obsazená</small><b className="mini-kpi-arrow">↓</b></Link> : <a href="#smlouva" className={`card mini-kpi mini-kpi-link status-kpi status-${statusTone}`}><span>Obsazenost</span><strong>Neobsazená</strong>{unit.operationalStatus !== "STANDARD" && <small>{unitOperationalStatuses[unit.operationalStatus]}</small>}<b className="mini-kpi-arrow">↓</b></a>}
       <a className={`card mini-kpi mini-kpi-link unit-balance-kpi balance-${balanceTone}`} href={activeLease ? "#saldo" : unit.leases.length ? "#platby" : "#smlouva"}><span>Aktuální saldo</span><strong>{balance ? `${balance.balanceCents > 0 ? "+" : ""}${money(balance.balanceCents)}` : "—"}</strong><small>{balance ? balance.balanceCents > 0 ? "Přeplatek · bez kauce" : balance.balanceCents < 0 ? "Dluh po splatnosti" : "Vyrovnáno · bez kauce" : "Bez aktuální smlouvy"}</small><b className="mini-kpi-arrow">↓</b></a>
       {activeLease ? <Link className="card mini-kpi mini-kpi-link" href={currentCharge ? `/nemovitosti/${id}/predpisy/mesicni/${currentCharge.id}` : `/nemovitosti/${id}/predpisy/${activeLease.id}`}><span>Aktuální předpis</span><strong>{money(currentCharge?.amountCents ?? recurringCharge)}</strong><small>{currentCharge ? "Nájemné včetně záloh" : "Smluvně měsíčně · předpis nevytvořen"}</small><b className="mini-kpi-arrow">→</b></Link> : <div className="card mini-kpi"><span>Aktuální předpis</span><strong>—</strong><small>Bez aktuální smlouvy</small></div>}
       <div className="card mini-kpi unit-owner-kpi"><Link className="unit-owner-main" href={`/vlastnici/${owner.id}`}><span>Vlastník</span><strong>{owner.name}</strong><b className="mini-kpi-arrow">→</b></Link><Link className="unit-owner-bank" href={`/nemovitosti/${id}/banka${paymentAccount?`#ucet-${paymentAccount.id}`:""}`}>Bankovní účet vlastníka · {paymentAccount ? unitBankVerified ? "Ověřený" : "Čeká na ověření" : "Není nastaven"} ↗</Link></div>
-    </div>
+    </div></>}
+    <UnitDetails basic={basic}>
 
     {activeLease ? <UnitContractSummary lease={activeLease} unit={unit} owner={owner} propertyName={property.name} canManage={canManage} paymentAccount={paymentAccount} partyNames={partyNames}/> : <section id="smlouva" className="card empty-state"><UserRound size={28}/><h2>Jednotka nemá aktuální nájemní smlouvu</h2><p>Budoucí a ukončené nájemní vztahy najdete v historii smluv níže.</p></section>}
     {(futureLeases.length > 0 || pastLeases.length > 0) && <div className="detail-grid">
@@ -164,5 +190,10 @@ export default async function UnitDetail({ params, searchParams }: { params: Pro
       {personalValues.length>0&&<div className="table-wrap"><table><thead><tr><th>Datum</th><th>Typ</th><th>Hodnota</th><th>Zdroj / období</th></tr></thead><tbody>{personalValues.map(value=><tr key={value.id}><td>{date(value.asOfDate)}</td><td>{value.kind==="OFFICIAL_APPRAISAL"?"Doložené ocenění":"Místní údaj"}</td><td>{money(Number(value.valueCents))}</td><td>{value.sourceName}{value.windowFrom&&value.windowTo?<span className="owner-sub">{date(value.windowFrom)}–{date(value.windowTo)} · {value.transactionCount??"?"} transakcí</span>:null}</td></tr>)}</tbody></table></div>}
     </section>}
 
+    </UnitDetails>
 </div></Shell>;
+}
+
+function UnitDetails({ basic, children }: { basic: boolean; children: React.ReactNode }) {
+  return basic ? <BasicUnitDetails>{children}</BasicUnitDetails> : <>{children}</>;
 }

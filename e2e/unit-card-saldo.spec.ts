@@ -75,5 +75,41 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     await page.goto(`/nemovitosti/${property.id}/jednotky/${paidUnit.id}`);
     await expect(page.locator(".unit-balance-kpi strong")).toHaveText(/0\s*Kč/);
     await expect(page.locator(".unit-balance-kpi small")).toContainText("Vyrovnáno");
+    // The same financial fixtures must retain their meaning in the simpler Basic view.
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}`);
+    await page.locator('.display-mode-switch-mobile button[value="basic"]').click();
+    await expect(page).toHaveURL(new RegExp(`/jednotky/${unit.id}$`));
+    await expect(page.locator(".basic-unit-summary .basic-unit-tile")).toHaveCount(3);
+    await expect(page.locator(".basic-unit-tenant strong")).toHaveText(tenant.name);
+    await expect(page.locator(".basic-unit-balance strong")).toHaveText(/\+2\s*100\s*Kč/);
+    await expect(page.locator(".basic-unit-details")).not.toHaveAttribute("open", "");
+    await page.locator(".basic-unit-balance").click();
+    await expect(page.locator("#saldo")).toBeVisible();
+    await expect(page.locator("#saldo")).toBeInViewport();
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}#meridla`);
+    await expect(page.locator("#meridla")).toBeVisible();
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${vacant.id}`);
+    await expect(page.locator(".basic-unit-status")).toHaveText("Neobsazená");
+    await expect(page.locator(".basic-unit-balance p")).toHaveText("Bez aktuální smlouvy");
+    for (const width of [1440, 1024, 390]) {
+      await page.setViewportSize({width,height:1000});
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+      await expect(page.locator(".basic-unit-cover .entity-avatar-illustration")).toHaveCSS("background-size","cover");
+    }
+    await page.setViewportSize({width:1440,height:1000});
+    const berry = page.locator(".basic-sidebar-berry");
+    await expect(berry).toBeVisible();
+    expect(await berry.evaluate(el=>el.nextElementSibling?.classList.contains("display-mode-switch"))).toBeTruthy();
+    await page.screenshot({path:"test-results/basic-unit-approved-desktop.png",fullPage:true});
+    await page.locator('.sidebar .display-mode-switch button[value="pro"]').click();
+    await expect(berry).toHaveCount(0);
+    await expect(page.locator(".unit-overview-kpis .mini-kpi")).toHaveCount(4);
+    // Unpaid overdue rent stays red in Basic; future paid rent remains balanced.
+    await db.charge.create({data:{leaseId:paidLease.id,period:"2020-02",dueDate:new Date("2020-02-05T12:00:00Z"),amountCents:350000}});
+    await page.goto(`/nemovitosti/${property.id}/jednotky/${paidUnit.id}`);
+    await page.locator('.sidebar .display-mode-switch button[value="basic"]').click();
+    await expect(page.locator(".basic-unit-balance")).toHaveClass(/balance-debt/);
+    await expect(page.locator(".basic-unit-balance strong")).toHaveText(/−?-?3\s*500\s*Kč/);
+    await page.locator('.sidebar .display-mode-switch button[value="pro"]').click();
   } finally { await db.$disconnect(); }
 });

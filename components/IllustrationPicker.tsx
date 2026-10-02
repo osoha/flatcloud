@@ -7,7 +7,7 @@ export function IllustrationPicker({ kind, selected, name = "avatarChoice", allo
   const initial = selected || illustration(kind, 0);
   const [choice, setChoice] = useState(initial);
   const [preview, setPreview] = useState<string | null>(null);
-  return <fieldset className="illustration-picker field-full"><legend>{kind === "person" ? "Avatar osoby" : kind === "house" ? "Obrázek domu" : "Obrázek bytu"}</legend>
+  return <fieldset className={`illustration-picker field-full illustration-picker-${kind}`}><legend>{kind === "person" ? "Avatar osoby" : kind === "house" ? "Obrázek domu" : "Obrázek bytu"}</legend>
     <p className="muted-copy">Vyberte ilustraci z knihovny{allowPhoto ? " nebo nahrajte vlastní fotografii" : ". Fotografii můžete nahrát i později v profilu"}.</p>
     <div className="illustration-picker-grid">{Array.from({ length: illustrationCount[kind] }, (_, index) => {
       const value = illustration(kind, index);
