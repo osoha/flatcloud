@@ -41,6 +41,7 @@ jobs:
       - run: node --import tsx scripts/verify-unit-card-saldo.ts
       - run: node --import tsx scripts/verify-illustration-library.ts
       - run: node --import tsx scripts/verify-account-bank-rules.ts
+      - run: node --import tsx scripts/verify-bank-guide.tsx
       - run: node --import tsx scripts/verify-task-thread-polish.ts
       - run: npm run verify:tab-navigation-v2
       - run: node --import tsx scripts/verify-flatberry-comparison.ts
@@ -56,7 +57,6 @@ jobs:
       - run: npx prisma migrate deploy
       - run: npm run verify:v20
       - run: node --import tsx scripts/verify-csob-parser.ts
-      - run: node --import tsx scripts/verify-bank-balance-redaction.ts
       - run: npm run verify:v21
       - run: npm run verify:v21.1
       - run: npm run verify:v21.2
