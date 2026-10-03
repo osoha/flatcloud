@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { bankNameForCode, CZECH_BANKS } from "./czech-bank-registry";
+import { redactBankBalances } from "./balance-redaction";
 
 export type ParsedBankPayment = {
   bank: string;
@@ -229,11 +230,11 @@ function sourceTrusted(bankCode: string, input: Input) {
 }
 
 export function parseBankNotification(input: Input): ParsedBankPayment {
-  const subject = cleanText(input.subject);
-  const text = cleanText(input.text);
-  const combined = `${subject}\n${text}`.trim();
+  const subject = redactBankBalances(cleanText(input.subject));
+  const text = redactBankBalances(cleanText(input.text));
+  const combined = redactBankBalances(`${subject}\n${text}`.trim());
   const csobNotification = detectBank(combined, input.from, input.returnPath).code === "0300";
-  const hash = createHash("sha256").update(`${input.from || ""}|${subject}|${text}`).digest("hex");
+  const hash = createHash("sha256").update(`${input.from || ""}|${cleanText(input.subject)}|${cleanText(input.text)}`).digest("hex");
   const messageId = input.messageId?.trim() || `bank-email-${hash}`;
   const parsedAmount = amountAndCurrency(combined);
   const outgoing = /(?:odchoz[ií]\s+(?:platba|úhrada)|směr platby\s*:\s*odchozí|odeslan[aá]\s+(?:platba|úhrada)|(?:zůstatek|zustatek)[^\n]{0,100}(?:sn[ií]žil|sn[ií]žen)|outgoing payment|debited amount)/i.test(combined);
@@ -336,6 +337,10 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
     parseNote,
     validPayment: autoProcessEligible,
   };
+}
+
+export function redactedBankEmailExcerpt(input: Pick<Input, "subject" | "text">) {
+  return redactBankBalances(`${cleanText(input.subject)}\n${cleanText(input.text)}`.trim()).slice(0, 4000);
 }
 
 // V20 compatibility: old callers still use this name, but the parser is now bank-agnostic.
