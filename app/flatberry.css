@@ -401,3 +401,24 @@ html.fc-sidebar-collapsed .display-mode-switch-mobile{display:grid}
 @media(max-width:600px){.flatberry-shell .basic-section-page{padding:16px}.basic-section-hero{min-height:170px;padding:20px}.basic-section-hero>div{max-width:90%}.basic-section-hero img{width:120px;opacity:.35;right:-15px}.basic-section-stats{gap:10px}.basic-section-stat{padding:15px;min-height:120px}.basic-section-stat strong{font-size:22px}.basic-section-property-grid{grid-template-columns:1fr}.basic-section-item{flex-wrap:wrap}.basic-section-item-end{margin-left:auto}.basic-task-toolbar{padding:13px}.basic-task-toolbar-actions{width:100%}.basic-task-toolbar-actions>details>summary{min-height:44px}}
 html[data-theme="dark"] .basic-section-hero,html[data-theme="dark"] .basic-task-toolbar{background:#243951;border-color:#38516c;color:#e2ecfc}html[data-theme="dark"] .basic-section-hero :is(h1,p,strong),html[data-theme="dark"] .basic-section-heading h2{color:#e2ecfc}html[data-theme="dark"] .basic-section-stat,html[data-theme="dark"] .basic-section-item,html[data-theme="dark"] .basic-section-property,html[data-theme="dark"] .basic-participant-popover,html[data-theme="dark"] .basic-task-action-popover{background:#192536;border-color:#34445c;color:#e2ecfc}html[data-theme="dark"] .basic-section-page :is(small,.basic-section-item-copy small){color:#adbed4}
 .basic-shell .task-case-page .case-title>.large-status{display:none}.basic-participant.add .basic-participant-popover{left:auto;right:0}
+
+/* Basic task case details sit between the action toolbar and the discussion. */
+.basic-shell .task-case-page .basic-case-summary{margin:0 0 18px;padding:14px 20px;border-radius:16px}
+.basic-case-summary-heading{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.basic-case-summary-heading h2{margin:0;font-size:14px;line-height:1.3}
+.basic-case-summary-heading>span{font-size:11px;color:var(--muted)}
+.basic-case-summary-grid{display:flex;flex-wrap:wrap;row-gap:12px}
+.basic-case-summary-grid>div{flex:1 1 180px;min-width:0;padding:0 15px;border-left:1px solid var(--line)}
+.basic-case-summary-grid>div:first-child{padding-left:0;border-left:0}
+.basic-case-summary-grid span{display:block;margin-bottom:5px;font-size:11px;color:var(--muted)}
+.basic-case-summary-grid strong{display:block;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.basic-case-summary-bottom{display:flex;align-items:center;gap:12px;margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+.basic-case-summary-description{flex:1;min-width:0;display:flex;align-items:baseline;gap:8px;font-size:12px;line-height:1.45;white-space:pre-wrap}
+.basic-case-summary-description strong{color:var(--muted);font-size:11px;white-space:nowrap}
+.basic-case-summary-description span{overflow-wrap:anywhere}
+.basic-case-summary-description a{white-space:nowrap}
+.basic-case-summary-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px;margin-left:auto}
+.basic-case-summary-actions form{margin:0}
+.basic-case-summary-actions button{min-height:32px;padding:6px 9px;font-size:11px;white-space:nowrap}
+@media(max-width:800px){.basic-case-summary-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.basic-case-summary-grid>div:nth-child(odd){padding-left:0;border-left:0}.basic-case-summary-bottom{align-items:flex-start;flex-wrap:wrap}.basic-case-summary-description{flex-basis:100%}.basic-case-summary-actions{margin-left:0}}
+@media(max-width:500px){.basic-shell .task-case-page .basic-case-summary{padding:14px}.basic-case-summary-grid{grid-template-columns:1fr}.basic-case-summary-grid>div{padding-left:0;border-left:0}.basic-case-summary-description{display:block}.basic-case-summary-description strong{margin-right:8px}}
