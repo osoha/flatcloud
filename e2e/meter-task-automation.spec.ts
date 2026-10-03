@@ -2,6 +2,7 @@ import {test,expect} from "@playwright/test";
 import {PrismaClient} from "@prisma/client";
 import {randomUUID} from "node:crypto";
 import {runMeterTaskAutomation} from "../lib/meter-task-automation";
+import {cleanupImmutableMeterReadings} from "./cleanup-immutable-meter-readings";
 
 const db=new PrismaClient();
 test.afterAll(()=>db.$disconnect());
@@ -28,7 +29,7 @@ test("90-day and annual meter reminders share one tracked task and close after r
     expect(await db.task.count({where:{propertyId:property.id}})).toBe(1);
   }finally{
     await db.task.deleteMany({where:{propertyId:property.id}});
-    await db.meterReading.deleteMany({where:{meterId:meter.id}});
+    await cleanupImmutableMeterReadings(db,[meter.id]);
     await db.meter.delete({where:{id:meter.id}});
     await db.unit.delete({where:{id:unit.id}});
     await db.property.delete({where:{id:property.id}});

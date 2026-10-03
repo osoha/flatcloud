@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import {randomUUID} from "node:crypto";
 import {businessTodayKey} from "../lib/calendar";
 import {runAutoTenantPortalInvitations} from "../lib/tenant-portal-auto-invite";
+import {cleanupImmutableMeterReadings} from "./cleanup-immutable-meter-readings";
 
 const db=new PrismaClient();
 test.beforeAll(()=>{if(!process.env.DATABASE_URL||!["localhost","127.0.0.1","postgres"].includes(new URL(process.env.DATABASE_URL).hostname))throw new Error("Isolated CI database required");});
@@ -83,7 +84,7 @@ test("tenant account sees only its lease, can report a defect and record its own
     await db.userInvitation.deleteMany({where:{tenantId:other.id}});
     await db.auditLog.deleteMany({where:{userId:{in:[actor.id,manager.id,payerUser.id]}}});
     await db.task.deleteMany({where:{tenantId:tenant.id}});
-    await db.meterReading.deleteMany({where:{meterId:meter.id}});
+    await cleanupImmutableMeterReadings(db,[meter.id,otherMeter.id]);
     await db.tenantPortalAccess.deleteMany({where:{userId:actor.id}});
     await db.tenantPortalAccess.deleteMany({where:{userId:payerUser.id}});
     await db.meter.deleteMany({where:{propertyId:property.id}});
