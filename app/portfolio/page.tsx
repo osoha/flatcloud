@@ -32,6 +32,7 @@ import { liveSelectedPropertyIds, parsePortfolioSelection, portfolioSelectionLab
 import { businessDateKeyToInstant, businessTodayKey } from "@/lib/calendar";
 import { portfolioPropertyStatus } from "@/lib/portfolio-property-status";
 import { consolidationLabel } from "@/lib/ownership-scope";
+import { hideAlertsCoveredByAutomaticTasks } from "@/lib/task-attention";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,7 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   const revisionHorizon = new Date(Date.now()+60*86_400_000);
 
   const [rawTasks, taskCount, announcements, revisions, revisionCount, overdueRevisionCount] = await Promise.all([
-    prisma.task.findMany({ where: { AND: [taskVisibilityScope, { status: { in: openTaskStatuses } }, { NOT: { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } }] }, include: { property: true, assignee: true, userStates: { where: { userId: user.id } } }, take:60 }),
+    prisma.task.findMany({ where: { AND: [taskVisibilityScope, { status: { in: openTaskStatuses } }, { NOT: { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } }] }, include: { property: true, assignee: true, automationRule: { select: { event:true } }, userStates: { where: { userId: user.id } } }, take:60 }),
     prisma.task.count({ where: { AND: [taskVisibilityScope, { status: { in: openTaskStatuses } }] } }),
     prisma.announcement.findMany({ where: { AND: [activeAnnouncementWhere(user), { NOT: { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } }] }, orderBy: [{ severity: "desc" }, { startsAt: "desc" }], take:10 }),
     prisma.complianceItem.findMany({ where: { ...revisionScope, active:true, nextDueAt:{lte:revisionHorizon} }, include:{property:true}, orderBy:{nextDueAt:"asc"}, take:30 }),
@@ -127,7 +128,7 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   if(unmatchedCount>0)attention.push({title:`${unmatchedCount} nespárovaných plateb`,detail:"Platby čekají na kontrolu",href:`/platby/nesparovane?${scopeQuery.slice(1)}`,tone:"warn"});
   for(const task of tasks.slice(0,4))attention.push({title:task.title,detail:`${task.property?.name||"Obecné týmové vlákno"} · ${taskCategories[task.category]} · ${task.assignee?.name||"bez odpovědného"}`,href:`/ukoly/${task.id}`,tone:task.priority==="URGENT"?"bad":"warn",taskId:task.id});
   for(const item of revisions.slice(0,3))attention.push({title:item.name,detail:`${item.property.name} · ${date(item.nextDueAt)} · ${complianceState(item).label}`,href:`/nemovitosti/${item.propertyId}/provoz#revize`,tone:complianceState(item).key==="overdue"?"bad":"warn"});
-  for(const alert of contractAlerts.slice(0,3))attention.push({title:`${alert.kind==="EXPIRY"?"Expirace":"Výročí"} · ${alert.lease.unit.label}`,detail:`${alert.property.name} · ${alert.lease.tenant.name} · ${date(alert.date)}`,href:`/smlouvy/${alert.lease.id}`,tone:"info"});
+  for(const alert of hideAlertsCoveredByAutomaticTasks(contractAlerts,tasks).slice(0,3))attention.push({title:`${alert.kind==="EXPIRY"?"Expirace":"Výročí"} · ${alert.lease.unit.label}`,detail:`${alert.property.name} · ${alert.lease.tenant.name} · ${date(alert.date)}`,href:`/smlouvy/${alert.lease.id}`,tone:"info"});
 
   const displayReturnTo = selectionValue === null ? "/portfolio" : `/portfolio?properties=${encodeURIComponent(allowedSelection.join(","))}`;
   if (mode === "basic") return <Shell user={user} displayReturnTo={displayReturnTo}><BasicPortfolio name={user.name} period={period} rows={rows} photos={photos} expected={expected} paid={paid} debt={debt} taskCount={taskCount} attention={attention} announcementCount={announcements.length} scopeOptions={availableProperties.map(({id,name,address,city,active,owner,communicationOwner,flatcloudConsolidationBasisPoints})=>({id,name,address,city,active,ownerId:communicationOwner?.id||owner.id,ownerName:communicationOwner?.name||owner.name,scopeKind: !isFlatcloudMember(user) ? undefined : flatcloudConsolidationBasisPoints==null?"UNCLASSIFIED" as const:flatcloudConsolidationBasisPoints>0?"FLATCLOUD" as const:"EXTERNAL" as const}))} selection={selection.mode==="ALL"?selection:{mode:"SELECTED",propertyIds:allowedSelection}}/></Shell>;

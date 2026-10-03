@@ -13,15 +13,16 @@ import { loadPaymentLedgerRows } from "@/lib/payment-ledger";
 import { historicalDebtCents, outstandingCents, overdueDebtCents, paidCents } from "@/lib/charges";
 import { securityDepositSnapshot } from "@/lib/security-deposit";
 import { TenantAvatar } from "@/components/TenantAvatar";
+import {Flash} from "@/components/FormUi";
 
 export const dynamic = "force-dynamic";
 
-export default async function TenantDetail({ params }: { params: Promise<{ tenantId: string }> }) {
+export default async function TenantDetail({ params,searchParams }: { params: Promise<{ tenantId: string }>;searchParams:Promise<{ok?:string;error?:string;invite?:string}> }) {
   const user = await requireUser();
   const { tenantId } = await params;
   const tenant = await prisma.tenant.findFirst({
     where: { id: tenantId, ...tenantAccessWhere(user) },
-    include: { propertyLinks: { include: { property: true }, orderBy: { property: { name: "asc" } } }, leases: { where: leaseAccessWhere(user), include: {
+    include: { portalAccesses: { include: { user: { select: { id: true, name: true, email: true, active: true } } } }, propertyLinks: { include: { property: true }, orderBy: { property: { name: "asc" } } }, leases: { where: leaseAccessWhere(user), include: {
       unit: { include: { property: true } },
       charges: { include: { allocations: true, securityDepositOffsets: true, creditApplications: true } },
       securityDepositTerms: { orderBy: [{ effectiveFrom: "asc" }, { createdAt: "asc" }] },
@@ -47,7 +48,8 @@ export default async function TenantDetail({ params }: { params: Promise<{ tenan
   const historicalRows = leases.flatMap((lease) => lease.charges.filter((charge) => historicalDebtCents(charge) > 0).map((charge) => ({ lease, charge, amountCents: historicalDebtCents(charge) })));
   const heldDepositCents = leases.reduce((sum, lease) => sum + securityDepositSnapshot(lease).heldPrincipalCents, 0);
 
-  return <Shell user={user}><div className="page">
+  const query=await searchParams;
+  return <Shell user={user}><div className="page"><Flash ok={query.ok} error={query.error}/>{user.role==="SUPER_ADMIN"&&<><div className="action-row"><Link className="secondary" href={`/portal/najemnik/${tenant.id}`}>Prohlédnout portál nájemníka</Link><form action={`/api/tenants/${tenant.id}/portal-invite`} method="post"><button className="secondary" type="submit">Pozvat nájemníka do portálu</button></form></div>{tenant.portalAccesses.map(access=><div key={access.userId} className="action-row"><span>Přístup do portálu: {access.user.name} · {access.user.email}{access.user.active?"":" · deaktivován"}</span><form action={`/api/tenants/${tenant.id}/portal-access/${access.userId}/revoke`} method="post"><button className="secondary" type="submit">Odebrat přístup</button></form></div>)}{query.invite&&<p className="notice">Testovací odkaz: <code>{query.invite}</code></p>}</>}
     <div className="breadcrumb"><Link href="/najemnici">Nájemníci</Link><span>›</span><span>{tenant.name}</span></div>
     <div className="page-title"><div className="tenant-title"><TenantAvatar tenant={tenant}/><div><PageHeading>{tenant.name}</PageHeading><p>{tenant.type === "COMPANY" ? "Právnická osoba" : "Fyzická osoba"} · {status === "PROFILE" ? "profil bez smlouvy" : leaseStatuses[status]}</p></div></div><div className="top-actions">{actionProperty && <><Link className="secondary" href={`/nemovitosti/${actionProperty.id}/najemnici/${tenant.id}/upravit`}>Upravit profil</Link><Link className="primary" href={`/nemovitosti/${actionProperty.id}/smlouvy/nova?tenantId=${tenant.id}`}>Přidat do smlouvy</Link></>}</div></div>
     <div className="detail-grid"><div className="card col-5"><h2>Profil</h2><div className="summary-list"><div><span>E-mail</span><strong>{tenant.communicationEmail || tenant.email || "—"}</strong></div><div><span>Telefon</span><strong>{phone(tenant.phone) || "—"}</strong></div><div><span>Adresa</span><strong>{tenant.address || tenant.billingAddress || "—"}</strong></div><div><span>IČO</span><strong>{tenant.ico || "—"}</strong></div><div><span>Známé účty plátce</span><strong>{tenant.payerAccounts.length ? tenant.payerAccounts.join(", ") : "—"}</strong></div></div></div><div className="card col-7"><h2>Smlouvy</h2><div className="table-wrap"><table><thead><tr><th>Nemovitost / jednotka</th><th>Číslo smlouvy</th><th>Období</th><th>Stav</th><th>Částka</th></tr></thead><tbody>{leases.map((lease) => <tr key={lease.id}><td><span className="tenant-lease-location"><Link href={`/smlouvy/${lease.id}`}><strong>{lease.unit.property.name}</strong></Link><small>Jednotka: {lease.unit.label}</small></span></td><td>{lease.contractNumber || "—"}</td><td>{date(lease.startDate)} – {lease.endDate ? date(lease.endDate) : "neurčito"}</td><td>{leaseStatuses[leaseStatusAt(lease)]}</td><td>{money(lease.rentCents)}</td></tr>)}</tbody></table></div></div></div>

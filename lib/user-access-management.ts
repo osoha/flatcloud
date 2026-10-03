@@ -3,7 +3,7 @@ import { prisma } from "./db";
 import { invitationToken } from "./invitations";
 
 export const permissionRank: Record<PropertyPermission, number> = { VIEW: 1, EDIT: 2, ADMIN: 3 };
-export const roleRank: Record<UserRole, number> = { OWNER_VIEWER: 1, PROPERTY_MANAGER: 2, MANAGER: 3, SUPER_ADMIN: 4 };
+export const roleRank: Record<UserRole, number> = { TENANT: 0, OWNER_VIEWER: 1, PROPERTY_MANAGER: 2, MANAGER: 3, SUPER_ADMIN: 4 };
 export const strongerPermission = (a: PropertyPermission, b: PropertyPermission) => permissionRank[a] >= permissionRank[b] ? a : b;
 export const strongerRole = (a: UserRole, b: UserRole) => roleRank[a] >= roleRank[b] ? a : b;
 
@@ -43,6 +43,7 @@ export function shouldRevokeInvitationOnCreate(invitation: InvitationScopeLike, 
 }
 
 export async function grantUserAccess(user: { id: string; role: UserRole; allProperties: boolean }, scope: AccessScope) {
+  if(scope.role===UserRole.TENANT)throw new Error("Nájemnický přístup se uděluje z profilu nájemníka.");
   scope = canonicalizeAccessScope(scope);
   const changed = await prisma.$transaction(async (tx) => {
     let transactionChanged = false;
@@ -67,6 +68,7 @@ export async function grantUserAccess(user: { id: string; role: UserRole; allPro
 }
 
 export async function rotateInvitation(input: { replaceId?: string; createMode?: InvitationCreateMode; email: string; name: string | null; propertyId: string; propertyIds: string[]; unitIds: string[]; allProperties: boolean; permission: PropertyPermission; role: UserRole; invitedById: string }) {
+  if(input.role===UserRole.TENANT)throw new Error("Nájemnický přístup se uděluje z profilu nájemníka.");
   const { token, tokenHash } = invitationToken();
   const scope = canonicalizeAccessScope(input);
   const invitation = await prisma.$transaction(async (tx) => {

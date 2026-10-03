@@ -8,6 +8,24 @@ type Client = Prisma.TransactionClient | typeof prisma;
 type RuleWithOverrides = TaskAutomationRule & { overrides: Array<{ propertyId: string; mode: "INHERIT" | "ENABLED" | "DISABLED" }> };
 export type AutomationCandidate = { ruleId: string; ruleCode: string; ruleName: string; event: TaskAutomationEvent; propertyId: string; propertyName: string; leaseId: string; unitId: string; tenantId: string; title: string; eventDate: Date; eventKey: string; description: string; assigneeId: string | null };
 
+type AutomaticAssigneeInput = {
+  manager: { id: string; active: boolean } | null;
+  propertyOwner: { user: { id: string; active: boolean } | null };
+  unitOwnerships: Array<{ owner: { user: { id: string; active: boolean } | null } }>;
+};
+
+export function resolveAutomaticTaskAssignee(input: AutomaticAssigneeInput) {
+  if (input.manager?.active) return input.manager.id;
+  const unitOwnerUsers = [...new Set(input.unitOwnerships.map((row) => row.owner.user).filter((user): user is { id: string; active: boolean } => Boolean(user?.active)).map((user) => user.id))];
+  if (unitOwnerUsers.length === 1) return unitOwnerUsers[0];
+  if (unitOwnerUsers.length > 1) return null;
+  return input.propertyOwner.user?.active ? input.propertyOwner.user.id : null;
+}
+
+export function shouldBackfillAutomaticAssignee(existing: { assigneeId: string | null; status: string }, candidateAssigneeId: string | null) {
+  return !existing.assigneeId && Boolean(candidateAssigneeId) && !["DONE","CANCELLED"].includes(existing.status);
+}
+
 export function effectiveAutomationEnabled(rule: Pick<TaskAutomationRule,"globalEnabled"|"defaultEnabled">, mode: "INHERIT"|"ENABLED"|"DISABLED" = "INHERIT") {
   return rule.globalEnabled && (mode === "ENABLED" || (mode === "INHERIT" && rule.defaultEnabled));
 }
@@ -23,7 +41,10 @@ export async function previewTaskAutomation(now = new Date(), client: Client = p
   const horizon = addDays(now,maxLead+2);
   const leases = await client.lease.findMany({
     where: { cancelledAt: null, unit: { property: { active: true } }, OR: [{ endDate: { lte: horizon } }, { terminatedOn: { lte: horizon } }, { startDate: { lte: horizon } }] },
-    include: { tenant: true, unit: { include: { property: { select: { id:true,name:true,managerId:true } } } } },
+    include: { tenant: true, unit: { include: {
+      ownerships: { select: { owner: { select: { user: { select: { id:true,active:true } } } } } },
+      property: { select: { id:true,name:true,manager: { select: { id:true,active:true } }, owner: { select: { user: { select: { id:true,active:true } } } } } },
+    } } },
   });
   const todayKey = businessTodayKey(now);
   const candidates: AutomationCandidate[] = [];
@@ -44,19 +65,26 @@ export async function previewTaskAutomation(now = new Date(), client: Client = p
     const eventKey=`${rule.code}:${lease.id}:${eventDateKey}`;
     const subject=`${lease.unit.label} · ${lease.tenant.name}`;
     const title=rule.event==="LEASE_EXPIRY"?`Konec nájmu se blíží · ${subject}`:rule.event==="LEASE_ANNIVERSARY"?`Výročí nájmu · ${subject}`:`Ukončení nájmu · ${subject}`;
-    candidates.push({ ruleId:rule.id,ruleCode:rule.code,ruleName:rule.name,event:rule.event,propertyId:property.id,propertyName:property.name,leaseId:lease.id,unitId:lease.unitId,tenantId:lease.tenantId,title,eventDate:businessDateKeyToInstant(eventDateKey),eventKey,description:rule.templateBody,assigneeId:property.managerId });
+    candidates.push({ ruleId:rule.id,ruleCode:rule.code,ruleName:rule.name,event:rule.event,propertyId:property.id,propertyName:property.name,leaseId:lease.id,unitId:lease.unitId,tenantId:lease.tenantId,title,eventDate:businessDateKeyToInstant(eventDateKey),eventKey,description:rule.templateBody,assigneeId:resolveAutomaticTaskAssignee({ manager:property.manager,propertyOwner:property.owner,unitOwnerships:lease.unit.ownerships }) });
   }
   return candidates.sort((a,b)=>a.eventDate.getTime()-b.eventDate.getTime()||a.title.localeCompare(b.title,"cs"));
 }
 
 export async function runTaskAutomation(now = new Date(), client: Client = prisma) {
   const candidates = await previewTaskAutomation(now,client);
-  let created=0,existing=0;
+  let created=0,existing=0,assignedExisting=0;
   for (const candidate of candidates) {
     const rule = await client.taskAutomationRule.findUniqueOrThrow({ where: { id: candidate.ruleId } });
     const dedupeKey=`automation:${candidate.eventKey}`;
-    if(await client.task.findUnique({where:{dedupeKey},select:{id:true}})){existing++;continue;}
+    const existingTask=await client.task.findUnique({where:{dedupeKey},select:{id:true,assigneeId:true,status:true}});
+    if(existingTask){
+      if(shouldBackfillAutomaticAssignee(existingTask,candidate.assigneeId)){
+        const result=await client.task.updateMany({where:{id:existingTask.id,assigneeId:null,status:{notIn:["DONE","CANCELLED"]}},data:{assigneeId:candidate.assigneeId}});
+        assignedExisting+=result.count;
+      }
+      existing++;continue;
+    }
     try{await client.task.create({data:{ title:candidate.title,description:candidate.description,category:rule.category,priority:rule.priority,propertyId:candidate.propertyId,unitId:candidate.unitId,leaseId:candidate.leaseId,tenantId:candidate.tenantId,assigneeId:candidate.assigneeId||undefined,dueAt:candidate.eventDate,dedupeKey,automationRuleId:rule.id,automationEventKey:candidate.eventKey,checklistItems:{create:checklistItems(rule.checklist).map((title,position)=>({title,position}))},entries:{create:{kind:"SYSTEM",body:`Úkol automaticky vytvořen pravidlem „${rule.name}“. Rozhodné datum: ${businessDateKey(candidate.eventDate)}.`}} }});created++;}catch(error){if(error&&typeof error==="object"&&"code" in error&&error.code==="P2002")existing++;else throw error;}
   }
-  return { candidates:candidates.length,created,existing,summary:`Automatické úkoly: ${created} vytvořeno, ${existing} již existovalo, ${candidates.length} kandidátů.` };
+  return { candidates:candidates.length,created,existing,assignedExisting,summary:`Automatické úkoly: ${created} vytvořeno, ${assignedExisting} existujícím doplněn řešitel, ${existing} již existovalo, ${candidates.length} kandidátů.` };
 }

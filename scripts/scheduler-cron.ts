@@ -6,6 +6,7 @@ import { runRentNotifications } from "../lib/rent-notifications";
 import { runChargeAutomation } from "../lib/charge-automation";
 import { syncLifecycleCaches } from "../lib/lease-lifecycle";
 import { syncMfRentDatasets } from "../lib/reporting/mf-rent/service";
+import { runMeterTaskAutomation } from "../lib/meter-task-automation";
 import { runTaskAutomation } from "../lib/task-automation";
 import { syncCsuApartmentAverage, syncCsuApartmentIndex } from "../lib/reporting/csu-apartment-index";
 
@@ -75,6 +76,8 @@ async function main() {
 
   try {
     const tasks = await runTaskAutomation();
+    const meterTasks = process.env.METER_TASK_AUTOMATION_ENABLED === "true" ? await runMeterTaskAutomation() : {summary:"Automatika odečtů čeká na aktivaci po auditu."};
+    steps.push({name:"meter-tasks",status:"ok",summary:meterTasks.summary});
     steps.push({ name: "task-automation", status: "ok", summary: tasks.summary });
   } catch (error) {
     steps.push({ name: "task-automation", status: "failed", summary: messageOf(error) });

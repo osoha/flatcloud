@@ -1,0 +1,1 @@
+ALTER TABLE "User" ADD COLUMN "profiGraphics" BOOLEAN NOT NULL DEFAULT false;

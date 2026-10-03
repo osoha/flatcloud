@@ -1,3 +1,4 @@
+import { ProfiAppearance } from "@/components/ProfiAppearance";
 import { FirstLoginGuide } from "@/components/FirstLoginGuide";
 import { DisplayPreferences } from "@/components/DisplayPreferences";
 import { DisplayModeSwitch } from "@/components/DisplayModeSwitch";
@@ -25,6 +26,8 @@ import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
 import { SidebarCollapseToggle } from "@/components/SidebarCollapseToggle";
 import { UserActivityHeartbeat } from "@/components/UserActivityHeartbeat";
 import { AdminOperationsPanel } from "@/components/admin/AdminOperationsPanel";
+import {bankAccountScopes} from "@/lib/account-banking-access";
+import {bankAccountMatches} from "@/lib/inbound-bank/bank-email";
 
 type ShellUser = {
   id: string;
@@ -38,6 +41,7 @@ type ShellUser = {
   updatedAt?: Date | string;
   onboardingStatus?: string;
   defaultDisplayMode?: string;
+  profiGraphics?: boolean;
 };
 
 export async function Shell({ user: contentUser, children, taskPropertyId, taskLeaseId, displayReturnTo }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string; displayReturnTo?: string }) {
@@ -58,7 +62,11 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     superAdmin ? Promise.all([
       prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
       prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
-    ]).then((values) => values.reduce((sum, value) => sum + value, 0)) : Promise.resolve(0),
+    ]).then((values) => values.reduce((sum, value) => sum + value, 0)) : bankAccountScopes(contentUser).then(async accounts=>{
+      if(!accounts.length)return 0;
+      const unresolved=await prisma.inboxPayment.findMany({where:{status:{in:["RECEIVED","UNMATCHED","ERROR"]}},select:{recipientAccount:true}});
+      return unresolved.filter(row=>accounts.some(account=>bankAccountMatches(account,row.recipientAccount))).length;
+    }),
     prisma.lease.findMany({ where: leaseAccessWhere(user), select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
   ]);
   const today = new Date();
@@ -79,7 +87,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
 
   return <div className={`app-shell v21-shell flatberry-shell${mode === "basic" ? " basic-shell" : ""}`}>
-    {superAdmin && <AdminOperationsPanel/>}
+    <ProfiAppearance graphics={Boolean(contentUser.profiGraphics)}/>{superAdmin && <AdminOperationsPanel/>}
     {!preview && <FirstLoginGuide userId={user.id}/>}
     <NativeDetailsEscape/>
     <ActiveTabVisibility/>
@@ -103,7 +111,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
 
         <CollapsibleNavGroup id="finance" label="Finance" activeRoots={["/platby","/reporty/predpisy","/reporty/saldo","/kauce"]} forceOpen={unmatchedCount > 0}>
           <Nav href="/platby/banka" icon={<WalletCards size={17}/>} label="Bankovní pohyby"/>
-          {superAdmin && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>}
+          {(superAdmin || unmatchedCount > 0) && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/reporty/predpisy" icon={<ReceiptText size={17}/>} label="Předpisy"/>
           <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
           <Nav href="/kauce" icon={<WalletCards size={17}/>} label="Kauce"/>
@@ -137,6 +145,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           <Nav href="/portfolio#nemovitosti" icon={<House size={20}/>} label="Nemovitosti"/>
           <Nav href="/reporty?view=collections" icon={<WalletCards size={20}/>} label="Platby"/>
           <Nav href="/platby/banka" icon={<WalletCards size={20}/>} label="Bankovní pohyby"/>
+          {(superAdmin || unmatchedCount > 0) && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={20}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/ukoly" icon={<ListChecks size={20}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
           <Nav href="/dokumenty" icon={<FileText size={20}/>} label="Dokumenty"/>
           <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={20}/>} label="Průvodce"/>
