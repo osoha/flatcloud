@@ -53,7 +53,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
   const statusLabel=taskStatuses[task.status];
 
   const bankReviewHref = task.dedupeKey?.startsWith("bank-review:") ? task.description?.match(/Otevřít pohyb: (\/(?:nemovitosti|platby)\/[^\s]+)/)?.[1] : null;
-  return <Shell user={user} taskPropertyId={task.propertyId||undefined} taskLeaseId={task.leaseId||undefined}><div className="page task-case-page">
+  return <Shell displayReturnTo={`/ukoly/${task.id}`} user={user} taskPropertyId={task.propertyId||undefined} taskLeaseId={task.leaseId||undefined}><div className="page task-case-page">
     <TaskReadMarker taskId={task.id}/>
     <div className="breadcrumb"><Link href="/ukoly">Úkoly</Link><span>›</span>{task.property?<><Link href={`/nemovitosti/${task.propertyId}/prehled`}>{task.property.name}</Link><span>›</span></>:<><span>Obecné týmové vlákno</span><span>›</span></>}<span>{task.title}</span></div>
     <div className="page-title case-title"><div><PageHeading>{task.title}</PageHeading><div className="case-context">{task.property?<Link href={`/nemovitosti/${task.propertyId}/prehled`}><Home size={13}/>{task.property.name}</Link>:<span><UserRound size={13}/>Obecné týmové vlákno</span>}{task.unit&&<Link href={`/nemovitosti/${task.propertyId}/jednotky/${task.unit.id}`}>{task.unit.label}</Link>}{task.tenant&&<Link href={`/najemnici/${task.tenant.id}`}><UserRound size={13}/>{task.tenant.name}</Link>}{task.lease&&<Link href={`/smlouvy/${task.lease.id}`}><FileText size={13}/>{task.lease.contractNumber||`VS ${task.lease.variableSymbol}`}</Link>}</div></div><span className={`status large-status ${task.status==="DONE"?"ok":task.status==="WAITING"?"warn":"bad"}`}>{statusLabel}</span></div>
