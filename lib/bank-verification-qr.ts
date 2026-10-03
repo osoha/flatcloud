@@ -1,6 +1,6 @@
 import { czIbanFromDomestic, paymentIban, type OwnerBankAccountLike } from "./owner-bank-account";
 
-function validIban(iban: string) {
+export function validIban(iban: string) {
   if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban)) return false;
   const rearranged = iban.slice(4) + iban.slice(0, 4);
   let remainder = 0;

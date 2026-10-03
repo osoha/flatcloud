@@ -26,6 +26,26 @@ export async function POST(request: Request) {
     const accepted = await prisma.$transaction(async (tx) => {
       const currentInvitation = await tx.userInvitation.findUnique({ where: { tokenHash } });
       if (!currentInvitation || currentInvitation.status !== "PENDING" || currentInvitation.expiresAt.getTime() < Date.now()) throw new Error("Pozvánka už byla změněna, zrušena nebo vypršela.");
+      if (currentInvitation.tenantId) {
+        if(currentInvitation.role!=="TENANT"||currentInvitation.allProperties||currentInvitation.propertyIds.length||currentInvitation.unitIds.length)throw new Error("Pozvánka má neplatný rozsah.");
+        const tenant=await tx.tenant.findUnique({where:{id:currentInvitation.tenantId},select:{id:true,email:true,communicationEmail:true}});
+        if(!tenant||(tenant.communicationEmail||tenant.email||"").trim().toLowerCase()!==currentInvitation.email)throw new Error("Kontakt nájemníka se změnil. Vyžádejte novou pozvánku.");
+        let user;
+        if(existing){
+          const current=await tx.user.findUnique({where:{id:existing.id},select:{id:true,active:true,passwordHash:true,sessionVersion:true}});
+          if(!current?.active||current.passwordHash!==existing.passwordHash||current.sessionVersion!==existing.sessionVersion)throw new Error("Účet se mezitím změnil. Přihlaste se znovu.");
+          user=current;
+        }else{
+          if(await tx.user.findUnique({where:{email:currentInvitation.email}}))throw new Error("Účet byl mezitím vytvořen. Přijměte pozvánku znovu.");
+          user=await tx.user.create({data:{email:currentInvitation.email,name:invitedName,passwordHash:newPasswordHash!,role:"TENANT",allProperties:false},select:{id:true}});
+        }
+        const claimed=await tx.userInvitation.updateMany({where:{id:currentInvitation.id,status:"PENDING"},data:{status:"ACCEPTED",acceptedAt:new Date()}});
+        if(claimed.count!==1)throw new Error("Pozvánka už byla přijata.");
+        await tx.tenantPortalAccess.upsert({where:{userId_tenantId:{userId:user.id,tenantId:tenant.id}},update:{},create:{userId:user.id,tenantId:tenant.id}});
+        await tx.auditLog.create({data:{userId:user.id,propertyId:currentInvitation.propertyId,action:"TENANT_PORTAL_ACCESS_ACCEPTED",entityType:"TenantPortalAccess",entityId:tenant.id,details:{invitationId:currentInvitation.id}}});
+        return {userId:user.id,sessionVersion:existing?.sessionVersion??0,allProperties:false,propertyId:currentInvitation.propertyId,tenantId:tenant.id};
+      }
+      if(currentInvitation.role==="TENANT")throw new Error("Nájemnická pozvánka nemá platný rozsah.");
       const scope = canonicalizeAccessScope({ role: currentInvitation.role, permission: currentInvitation.permission, allProperties: currentInvitation.allProperties, propertyIds: currentInvitation.propertyIds.length ? currentInvitation.propertyIds : currentInvitation.unitIds.length ? [] : [currentInvitation.propertyId], unitIds: currentInvitation.unitIds });
       let user;
       if (existing) {
@@ -51,6 +71,6 @@ export async function POST(request: Request) {
       return { userId: user.id, sessionVersion: existing?.sessionVersion ?? 0, allProperties: scope.allProperties, propertyId: scope.propertyIds[0] || firstUnit?.propertyId };
     });
     await createSession(accepted.userId, accepted.sessionVersion);
-    return goWithMessage(request, accepted.allProperties ? "/portfolio" : `/nemovitosti/${accepted.propertyId}/prehled`, "ok", "Pozvánka byla přijata.");
+    return goWithMessage(request, "tenantId" in accepted ? `/portal/najemnik/${accepted.tenantId}` : accepted.allProperties ? "/portfolio" : `/nemovitosti/${accepted.propertyId}/prehled`, "ok", "Pozvánka byla přijata.");
   } catch (error) { return goWithMessage(request, `/pozvanka/${encodeURIComponent(token)}`, "error", error instanceof Error ? error.message : "Pozvánku se nepodařilo přijmout."); }
 }

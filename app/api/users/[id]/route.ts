@@ -19,7 +19,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const phone = String(form.get("phone") || "").trim() || null;
     const title = String(form.get("title") || "").trim() || null;
     const roleRaw = String(form.get("role") || "OWNER_VIEWER") as UserRole;
-    const role = Object.values(UserRole).includes(roleRaw) ? roleRaw : UserRole.OWNER_VIEWER;
+    const role = Object.values(UserRole).includes(roleRaw) && roleRaw !== UserRole.TENANT ? roleRaw : UserRole.OWNER_VIEWER;
     const active = form.get("active") === "on";
     const allProperties = form.get("allProperties") === "on" || role === UserRole.SUPER_ADMIN || role === UserRole.MANAGER;
 
@@ -55,6 +55,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await prisma.$transaction(async (tx) => {
       const current = await tx.user.findUnique({ where: { id }, select: { active: true, role: true, allProperties: true, flatcloudMember: true, memberships: { select: { propertyId: true, permission: true } }, unitMemberships: { select: { unitId: true, permission: true } } } });
       if (!current) throw new Error("Uživatel nebyl nalezen.");
+      if (current.role === UserRole.TENANT) throw new Error("Nájemnický účet spravujte přes profil nájemníka.");
       if (current.active && current.role === UserRole.SUPER_ADMIN && (!active || role !== UserRole.SUPER_ADMIN)) {
         const activeSuperAdmins = await tx.user.count({ where: { active: true, role: UserRole.SUPER_ADMIN } });
         if (activeSuperAdmins <= 1) throw new Error("Posledního aktivního hlavního administrátora nelze deaktivovat ani změnit jeho roli.");
