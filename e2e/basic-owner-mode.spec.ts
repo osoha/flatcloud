@@ -64,6 +64,8 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await page.locator(".topbar .display-mode-switch button[value=pro]").click();
     await expect(page.locator(".basic-task-toolbar")).toHaveCount(0);
+    await expect(page.locator(".v21-portfolio")).toBeVisible();
+    await page.goto(`/ukoly/${task.id}`);
     await expect(page.locator(".case-sidebar")).toBeVisible();
     await context.clearCookies();
   } finally {
