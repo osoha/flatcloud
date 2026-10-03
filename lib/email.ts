@@ -54,6 +54,8 @@ export async function sendMail(input: MailInput) {
 }
 
 export async function sendInvitationEmail(input: { to: string; inviterName: string; propertyName: string; permissionLabel: string; inviteUrl: string }) {
+  const loginUrl = new URL("/login", input.inviteUrl).toString();
+  const homeUrl = new URL("/", input.inviteUrl).toString();
   return sendMail({
     to: input.to,
     subject: `Pozvánka do FlatBerry – ${input.propertyName}`,

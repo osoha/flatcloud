@@ -37,13 +37,14 @@ type ShellUser = {
   avatarChoice?: string | null;
   updatedAt?: Date | string;
   onboardingStatus?: string;
+  defaultDisplayMode?: string;
 };
 
 export async function Shell({ user: contentUser, children, taskPropertyId, taskLeaseId, displayReturnTo }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string; displayReturnTo?: string }) {
   const context = await previewContext();
   const preview = context.requested && Boolean(context.actor);
   const user = preview ? context.actor! : contentUser;
-  const mode = preview ? "pro" : await displayMode(contentUser.id, contentUser.onboardingStatus === "pending" ? "basic" : "pro");
+  const mode = preview ? "pro" : await displayMode(contentUser.id, contentUser.onboardingStatus === "pending" ? "basic" : contentUser.defaultDisplayMode === "basic" ? "basic" : "pro");
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");
@@ -101,6 +102,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         </CollapsibleNavGroup>
 
         <CollapsibleNavGroup id="finance" label="Finance" activeRoots={["/platby","/reporty/predpisy","/reporty/saldo","/kauce"]} forceOpen={unmatchedCount > 0}>
+          <Nav href="/platby/banka" icon={<WalletCards size={17}/>} label="Bankovní pohyby"/>
           {superAdmin && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/reporty/predpisy" icon={<ReceiptText size={17}/>} label="Předpisy"/>
           <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
@@ -134,12 +136,14 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           <Nav href="/portfolio" icon={<LayoutDashboard size={20}/>} label="Přehled"/>
           <Nav href="/portfolio#nemovitosti" icon={<House size={20}/>} label="Nemovitosti"/>
           <Nav href="/reporty?view=collections" icon={<WalletCards size={20}/>} label="Platby"/>
+          <Nav href="/platby/banka" icon={<WalletCards size={20}/>} label="Bankovní pohyby"/>
           <Nav href="/ukoly" icon={<ListChecks size={20}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
           <Nav href="/dokumenty" icon={<FileText size={20}/>} label="Dokumenty"/>
           <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={20}/>} label="Průvodce"/>
         </>}
       </nav>
       <div className="sidebar-footer">
+        {mode === "basic" && !preview && <Link className="basic-sidebar-berry" href="/metodika?view=guides"><img src="/guide/welcome.webp" alt=""/><span>Poradím vám <span aria-hidden="true">→</span></span></Link>}
         {!preview && <DisplayModeSwitch mode={mode} returnTo={displayReturnTo}/>}
         <DisplayPreferences userId={user.id}/>
         <div className="user-card">

@@ -18,7 +18,8 @@ const css = read("app/globals.css");
 
 assert.match(property, /unit\.property\.name} – \{use\.unit\.label/);
 assert.match(property, /orderBy: \[\{ unit: \{ property: \{ name: "asc"/);
-assert.match(unit, /\/banka\$\{ownershipPaymentAccount\?`#ucet-/);
+assert.match(unit, /const paymentAccount = activeLease\?\.ownerBankAccount \|\| ownershipPaymentAccount/);
+assert.match(unit, /\/banka\$\{paymentAccount\?`#ucet-/);
 assert.match(ownerAccess, /user\.role !== "OWNER_VIEWER"/);
 assert.match(ownerAccess, /email: \{ not: null \}/);
 assert.match(ownerAccess, /userAccesses: \{ some: \{ userId \} \}/);

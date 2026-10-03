@@ -12,7 +12,7 @@ import "./first-login-guide.css";
 import "./auth-footer.css";
 
 export const metadata = {
-  title: "Flatberry",
+  title: "FlatBerry",
   description: "Evidence nájemních plateb",
   robots: { index: false, follow: false },
 };

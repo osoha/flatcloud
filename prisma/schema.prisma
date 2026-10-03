@@ -503,6 +503,7 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  defaultDisplayMode String @default("basic")
   onboardingStatus String @default("available")
   onboardingStep String @default("welcome")
   onboardingVersion Int @default(1)
@@ -549,6 +550,7 @@ model User {
   taskMemberships                      TaskMember[]
   taskStates                           TaskUserState[]
   passwordResetTokens                  PasswordResetToken[]
+  checklistItemsCompleted              TaskChecklistItem[]            @relation("ChecklistCompleter")
   taskAttachmentsUploaded              TaskAttachment[]               @relation("TaskAttachmentUploader")
   announcementsCreated                 Announcement[]                 @relation("AnnouncementCreator")
   announcementAudiences                AnnouncementAudience[]         @relation("AnnouncementAudienceUser")
@@ -654,6 +656,7 @@ model RegistrationRequest {
 }
 
 model OwnerBankAccount {
+  accountRules AccountBankRule[]
   id                     String                   @id @default(cuid())
   ownerId                String
   owner                  Owner                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
@@ -1585,6 +1588,7 @@ model TenantProperty {
 }
 
 model Lease {
+  accountBankRules AccountBankRule[]
   id                          String                      @id @default(cuid())
   unitId                      String
   tenantId                    String
@@ -2076,6 +2080,7 @@ model Task {
   closedAt               DateTime?
   dedupeKey              String?                     @unique
   entries                TaskEntry[]
+  checklistItems         TaskChecklistItem[]
   members                TaskMember[]
   userStates             TaskUserState[]
   attachments            TaskAttachment[]
@@ -2092,6 +2097,20 @@ model Task {
   @@index([assigneeId, status, dueAt])
   @@index([leaseId, category, status])
   @@index([automationRuleId, automationEventKey])
+}
+
+model TaskChecklistItem {
+  id            String   @id @default(cuid())
+  taskId        String
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  position      Int
+  title         String
+  completedAt   DateTime?
+  completedById String?
+  completedBy   User?    @relation("ChecklistCompleter", fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, position])
+  @@index([taskId, completedAt])
 }
 
 enum TaskAutomationEvent {
@@ -2984,4 +3003,29 @@ model TaskNotificationSnapshot {
   status String
   observedAt DateTime
   trackingSince DateTime @default(now())
+}
+
+model AccountBankRule {
+  fingerprint              String           @unique
+  id                       String           @id @default(cuid())
+  ownerBankAccountId       String
+  ownerBankAccount         OwnerBankAccount @relation(fields: [ownerBankAccountId], references: [id], onDelete: Cascade)
+  name                     String
+  action                   MatchRuleAction
+  direction                String
+  currency                 String           @default("CZK")
+  counterpartyAccount      String?
+  counterpartyNameContains String?
+  variableSymbol           String?
+  messageContains          String?
+  amountCents              Int?
+  targetLeaseId            String?
+  targetLease              Lease?           @relation(fields: [targetLeaseId], references: [id], onDelete: Cascade)
+  priority                 Int              @default(100)
+  active                   Boolean          @default(true)
+  createdById              String
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+
+  @@index([ownerBankAccountId, active, priority])
 }

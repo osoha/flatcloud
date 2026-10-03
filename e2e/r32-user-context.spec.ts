@@ -47,7 +47,7 @@ test("R32B: target content, actual sidebar, blocked writes, no target heartbeat,
   test.skip(Boolean(process.env.E2E_BASE_URL),"Isolated database fixtures only.");
   const { prisma } = await import("../lib/db");
   const admin=await prisma.user.findUniqueOrThrow({where:{email}});
-  const target=await prisma.user.create({data:{email:`r32-preview-${Date.now()}@example.test`,name:"R32 Externí náhled",passwordHash:admin.passwordHash,role:"OWNER_VIEWER",flatcloudMember:false}});
+  const target=await prisma.user.create({data:{email:`r32-preview-${Date.now()}@example.test`,name:"R32 Externí náhled",passwordHash:admin.passwordHash,role:"OWNER_VIEWER",flatcloudMember:false,defaultDisplayMode:"pro"}});
   try {
     await login(page);
     await page.goto(`/uzivatele/${target.id}`);
@@ -86,7 +86,7 @@ test("R32C: explicit membership gates direct corporate routes even with group gr
   const {prisma}=await import("../lib/db");
   const admin=await prisma.user.findUniqueOrThrow({where:{email}});
   const property=await prisma.property.findFirstOrThrow({where:{active:true}});
-  const target=await prisma.user.create({data:{email:`r32-member-${Date.now()}@example.test`,name:"R32 Členství",passwordHash:admin.passwordHash,role:"OWNER_VIEWER",flatcloudMember:false,memberships:{create:{propertyId:property.id,permission:"VIEW"}}}});
+  const target=await prisma.user.create({data:{email:`r32-member-${Date.now()}@example.test`,name:"R32 Členství",passwordHash:admin.passwordHash,role:"OWNER_VIEWER",flatcloudMember:false,defaultDisplayMode:"pro",memberships:{create:{propertyId:property.id,permission:"VIEW"}}}});
   const group=await prisma.reportingGroup.create({data:{name:"R32 Vyhrazená skupina",members:{create:{userId:target.id,permission:"EDIT"}}}});
   try {
     await login(page,target.email);

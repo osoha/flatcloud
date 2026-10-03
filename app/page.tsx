@@ -100,7 +100,7 @@ function Logo() {
   return (
     <img
       src="/landing/logo.webp"
-      alt="Flatberry"
+      alt="FlatBerry"
       width="220"
       height="41"
       className={s.logo}
@@ -123,7 +123,7 @@ export default function Page() {
         Přejít na obsah
       </a>
       <header className={s.header}>
-        <a href="#" aria-label="Flatberry — úvod">
+        <a href="#" aria-label="FlatBerry — úvod">
           <Logo />
         </a>
         <nav aria-label="Hlavní navigace">
@@ -478,7 +478,7 @@ export default function Page() {
       <footer id="kontakt" className={s.footer}>
         <div className={s.footerTop}>
           <div>
-            <a href="#" aria-label="Flatberry — úvod">
+            <a href="#" aria-label="FlatBerry — úvod">
               <Logo />
             </a>
             <p>

@@ -13,6 +13,19 @@ test("scope picker fits short/mobile viewports and clears all before searching o
       properties.push(await db.property.create({ data: { name: `R24_AGENT_QA_2026_09 · Scope target ${index}`, city: "Praha", address: "Syntetická 25", ownerId: owner.id, memberships: { create: { userId: actor.id, permission: "VIEW" } } } }));
     }
     await page.goto("/login"); await page.getByLabel("E-mail").fill(actor.email); await page.getByLabel("Heslo").fill(process.env.E2E_ROLE_PASSWORD || R24_ROLE_PASSWORD); await page.getByRole("button", { name: "Přihlásit se" }).click(); await expect(page).toHaveURL(/\/portfolio(?:\?|$)/);
+    await page.locator('.display-mode-switch button[value="basic"]').first().click();
+    await expect(page.locator('.display-mode-switch button[value="basic"]').first()).toHaveAttribute("aria-pressed", "true");
+    await page.setViewportSize({ width: 1440, height: 900 });
+    const basicTrigger = page.locator(".scope-picker-trigger");
+    await basicTrigger.click();
+    const basicDialog = page.getByRole("dialog", { name: "Vybrat zobrazené objekty" });
+    const basicBounds = await basicDialog.boundingBox();
+    const sidebarBounds = await page.locator(".sidebar").boundingBox();
+    expect(basicBounds).not.toBeNull(); expect(sidebarBounds).not.toBeNull();
+    expect(basicBounds!.x).toBeGreaterThanOrEqual(sidebarBounds!.x + sidebarBounds!.width);
+    expect(basicBounds!.x + basicBounds!.width).toBeLessThanOrEqual(1440);
+    await expect(basicDialog.getByRole("button", { name: "Použít výběr" })).toBeInViewport();
+    await page.keyboard.press("Escape");
     await page.goto("/reporty?view=forecast&horizon=12&scenario=conservative");
     const trigger = page.locator(".scope-picker-trigger"), dialog = page.getByRole("dialog", { name: "Vybrat zobrazené objekty" });
     for (const viewport of [{ width: 900, height: 500 }, { width: 390, height: 640 }]) {

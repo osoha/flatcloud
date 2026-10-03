@@ -1,3 +1,8 @@
+-- Preserve the current Pro view for established accounts; accounts created after
+-- this migration start in Basic unless they choose another mode.
+ALTER TABLE "User" ADD COLUMN "defaultDisplayMode" TEXT NOT NULL DEFAULT 'pro';
+ALTER TABLE "User" ALTER COLUMN "defaultDisplayMode" SET DEFAULT 'basic';
+
 CREATE TABLE "PasswordResetToken" (
   "id" TEXT NOT NULL,
   "userId" TEXT NOT NULL,

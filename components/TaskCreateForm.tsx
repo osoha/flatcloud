@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { operationalChecklists, operationalChecklist, type OperationalChecklistCode } from "@/lib/operational-checklists";
 
 type Manager = { id: string; name: string };
 type Person = Manager & { role: string; flatcloudMember: boolean };
@@ -22,6 +23,7 @@ export function TaskCreateForm({ properties, people = [], allowGeneral = false, 
   const [category, setCategory] = useState(initialLease ? "COLLECTION" : "GENERAL");
   const [unitId, setUnitId] = useState(initialLease?.unitId || "");
   const [leaseId, setLeaseId] = useState(initialLease?.id || "");
+  const [checklistCode, setChecklistCode] = useState("");
   const property = properties.find((item) => item.id === propertyId);
   const leases = useMemo(() => property?.units.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unitId: unit.id, unitLabel: unit.label }))) || [], [property]);
   const selectedLease = leases.find((lease) => lease.id === leaseId);
@@ -31,6 +33,7 @@ export function TaskCreateForm({ properties, people = [], allowGeneral = false, 
     setPropertyId(next);
     setUnitId("");
     setLeaseId("");
+    setChecklistCode("");
   }
   function changeLease(next: string) {
     setLeaseId(next);
@@ -44,6 +47,8 @@ export function TaskCreateForm({ properties, people = [], allowGeneral = false, 
     <div className="form-grid">
       <label className="field"><span>Kontext úkolu *</span><select name="propertyId" value={propertyId} onChange={(event) => changeProperty(event.target.value)} required={!allowGeneral}>{allowGeneral&&<option value="">Obecný týmový úkol</option>}{!allowGeneral&&<option value="">Vyberte nemovitost</option>}{properties.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{allowGeneral&&<small>Obecné vlákno je dostupné jen výslovně přidaným lidem.</small>}</label>
       <label className="field"><span>Kategorie *</span><select name="category" value={category} onChange={(event) => setCategory(event.target.value)}><option value="GENERAL">Obecný úkol</option><option value="MAINTENANCE">Provoz / závada</option><option value="COLLECTION">Vymáhání / upomínka</option><option value="LEASE">Smlouva</option><option value="COMPLIANCE">Revize / kontrola</option></select></label>
+      <label className="field field-full"><span>Pracovní postup</span><select name="checklistCode" value={checklistCode} disabled={!property} onChange={(event) => {const code=event.target.value;setChecklistCode(code);const template=operationalChecklist(code);if(template)setCategory(template.category);}}><option value="">Bez checklistu</option>{(Object.keys(operationalChecklists) as OperationalChecklistCode[]).map(code=><option key={code} value={code}>{operationalChecklists[code].label}</option>)}</select><small>Vytvoří odškrtávatelné kroky v úkolu. Nemění smlouvu, měřidla ani dokumenty.</small></label>
+      {checklistCode&&<div className="field field-full"><strong>Kroky postupu</strong><ol>{operationalChecklist(checklistCode)?.items.map(item=><li key={item}>{item}</li>)}</ol></div>}
       <label className="field field-full"><span>Název *</span><input name="title" required placeholder="Např. Upomínka 8/26 nebo Prověřit zatékání ve 4. NP"/></label>
       <label className="field"><span>Jednotka</span><select name="unitId" value={unitId} disabled={!property} onChange={(event) => { setUnitId(event.target.value); setLeaseId(""); }}><option value="">{property?"Celý objekt":"Bez vazby"}</option>{property?.units.map((unit) => <option key={unit.id} value={unit.id}>{unit.label}</option>)}</select></label>
       <label className="field"><span>{category === "COLLECTION" ? "Smlouva / nájemník *" : "Smlouva / nájemník"}</span><select aria-label={category === "COLLECTION" ? "Smlouva / nájemník *" : "Smlouva / nájemník"} name="leaseId" value={leaseId} onChange={(event) => changeLease(event.target.value)} required={category === "COLLECTION"}><option value="">Bez vazby na smlouvu</option>{leases.filter((lease) => !unitId || lease.unitId === unitId).map((lease) => <option key={lease.id} value={lease.id}>{lease.unitLabel} · {lease.tenantName}{lease.contractNumber ? ` · ${lease.contractNumber}` : ""}</option>)}</select>{category === "COLLECTION" && <small>Upomínkový případ musí být navázaný na konkrétní smlouvu, aby ukazoval aktuální dluh a mohl se po úhradě automaticky uzavřít.</small>}</label>

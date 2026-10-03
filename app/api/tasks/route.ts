@@ -9,6 +9,7 @@ import { randomUUID } from "node:crypto";
 import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepareDocumentBatch, storePreparedDocumentBatch } from "@/lib/documents/batch-service";
 import { cleanupTaskAttachments, createTaskAttachmentsInTransaction, storeTaskAttachments } from "@/lib/task-attachments";
 import { taskParticipantWhere } from "@/lib/task-access";
+import { operationalChecklist } from "@/lib/operational-checklists";
 
 const categories = new Set(["COLLECTION", "MAINTENANCE", "LEASE", "COMPLIANCE", "GENERAL"]);
 const priorities = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
@@ -36,6 +37,8 @@ export async function POST(request: Request) {
     const unitId = text(form, "unitId");
     const leaseId = text(form, "leaseId");
     const tenantId = text(form, "tenantId");
+    const checklistCode = text(form, "checklistCode") || "";
+    const checklist = checklistCode ? operationalChecklist(checklistCode) : null;
     const collaboratorIds = form.getAll("collaboratorIds").filter((value): value is string => typeof value === "string" && Boolean(value));
     const watcherIds = form.getAll("watcherIds").filter((value): value is string => typeof value === "string" && Boolean(value) && !collaboratorIds.includes(value));
     const audienceKinds = [form.get("audienceAllUsers") === "on" ? "ALL_USERS" : null, form.get("audienceFlatcloudMembers") === "on" ? "FLATCLOUD_MEMBERS" : null, form.get("audienceManagers") === "on" ? "MANAGERS" : null].filter((value): value is string => Boolean(value));
@@ -44,6 +47,8 @@ export async function POST(request: Request) {
     if (categoryRaw === "COLLECTION" && !leaseId) throw new Error("Upomínkový případ musí být navázaný na konkrétní smlouvu.");
     if (!categories.has(categoryRaw)) throw new Error("Neplatná kategorie úkolu.");
     if (!priorities.has(priorityRaw)) throw new Error("Neplatná priorita úkolu.");
+    if (checklistCode && !checklist) throw new Error("Neplatný pracovní postup.");
+    if (checklist && (!propertyId || categoryRaw !== checklist.category || (checklist.requiresUnit && !unitId && !leaseId))) throw new Error("Pro vybraný postup zvolte nemovitost, správnou kategorii a jednotku.");
 
     if (!propertyId && (unitId || leaseId || tenantId)) throw new Error("Obecný úkol nelze navázat na jednotku, smlouvu ani nájemníka.");
     if (propertyId && audienceKinds.length) throw new Error("Skupinové publikum není dostupné u úkolu nemovitosti.");
@@ -116,12 +121,13 @@ export async function POST(request: Request) {
           ...collaboratorIds.filter((id) => memberIds.includes(id)).map((userId) => ({ userId, role: "COLLABORATOR" as const })),
           ...resolvedWatcherIds.filter((id) => memberIds.includes(id)).map((userId) => ({ userId, role: "WATCHER" as const })),
         ] },
+        ...(checklist ? { checklistItems: { create: checklist.items.map((title,position)=>({position,title})) } } : {}),
         entries: { create: { authorId: user.id, kind: "SYSTEM", body: "Úkol byl založen." } },
       },
     });
     await createStoredDocumentsInTransaction(tx,storedBatch);
     if(taskAttachmentBatch)await createTaskAttachmentsInTransaction(tx,taskAttachmentBatch,task.id);
-    await tx.auditLog.create({data:{userId:user.id,propertyId:propertyId||null,action:"TASK_CREATED",entityType:"Task",entityId:task.id,details:{title,category:categoryRaw,priority:priorityRaw,memberIds,audienceKinds,attachmentCount:preparedFiles.length}}});
+    await tx.auditLog.create({data:{userId:user.id,propertyId:propertyId||null,action:"TASK_CREATED",entityType:"Task",entityId:task.id,details:{title,category:categoryRaw,priority:priorityRaw,memberIds,audienceKinds,checklistCode:checklistCode||null,attachmentCount:preparedFiles.length}}});
     return task;});}catch(error){await cleanupStoredDocumentBatch(storedBatch);if(taskAttachmentBatch)await cleanupTaskAttachments(taskAttachmentBatch);throw error;}
     return goWithMessage(request, `/ukoly/${created.id}`, "ok", "Úkol byl vytvořen.");
   } catch (error) {
