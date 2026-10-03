@@ -7,6 +7,7 @@ import { runChargeAutomation } from "../lib/charge-automation";
 import { syncLifecycleCaches } from "../lib/lease-lifecycle";
 import { syncMfRentDatasets } from "../lib/reporting/mf-rent/service";
 import { runMeterTaskAutomation } from "../lib/meter-task-automation";
+import {runAutoTenantPortalInvitations} from "../lib/tenant-portal-auto-invite";
 import { runTaskAutomation } from "../lib/task-automation";
 import { syncCsuApartmentAverage, syncCsuApartmentIndex } from "../lib/reporting/csu-apartment-index";
 
@@ -65,6 +66,12 @@ async function main() {
     steps.push({ name: "charges", status: "failed", summary: messageOf(error) });
     hardFailure = true;
   }
+
+  try {
+    const invitations=await runAutoTenantPortalInvitations();
+    steps.push({name:"tenant-portal-invitations",status:invitations.failed?"failed":"ok",summary:invitations.summary});
+    if(invitations.failed)hardFailure=true;
+  }catch(error){steps.push({name:"tenant-portal-invitations",status:"failed",summary:messageOf(error)});hardFailure=true;}
 
   try {
     const notifications = await runRentNotifications();

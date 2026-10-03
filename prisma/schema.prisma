@@ -28,6 +28,11 @@ enum InvitationStatus {
   EXPIRED
 }
 
+enum TenantPortalInvitationMode {
+  MANUAL
+  AUTOMATIC
+}
+
 enum PaymentStatus {
   UNMATCHED
   SUGGESTED
@@ -707,6 +712,7 @@ model Property {
   communicationOwnerId              String?
   communicationOwner                Owner?                          @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
   selfManaged                       Boolean                         @default(false)
+  tenantPortalInvitationMode        TenantPortalInvitationMode      @default(MANUAL)
   managerId                         String?
   manager                           User?                           @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
   managementScope                   PropertyManagementScope         @default(FULL_MANAGEMENT)
@@ -1047,6 +1053,9 @@ model UserInvitation {
   email         String
   name          String?
   tokenHash     String             @unique
+  tokenEncrypted String?
+  deliveryError String?
+  sentAt        DateTime?
   propertyId    String
   propertyIds   String[]           @default([])
   unitIds       String[]           @default([])
@@ -1610,6 +1619,7 @@ model Lease {
   id                          String                      @id @default(cuid())
   unitId                      String
   tenantId                    String
+  autoPortalInvitationPending Boolean @default(false)
   unit                        Unit                        @relation(fields: [unitId], references: [id], onDelete: Cascade)
   tenant                      Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   contractNumber              String?
@@ -1665,6 +1675,7 @@ model Lease {
   @@unique([ownerBankAccountId, variableSymbol])
   @@index([unitId, startDate])
   @@index([tenantId, startDate])
+  @@index([autoPortalInvitationPending, startDate])
   @@index([variableSymbol])
   @@index([ownerBankAccountId])
 }
@@ -2089,6 +2100,7 @@ model Task {
   leaseId                String?
   lease                  Lease?                      @relation(fields: [leaseId], references: [id], onDelete: SetNull)
   tenantId               String?
+  tenantPortalRequest     Boolean                     @default(false)
   tenant                 Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   createdById            String?
   createdBy              User?                       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -2114,6 +2126,7 @@ model Task {
   @@index([propertyId, status, dueAt])
   @@index([assigneeId, status, dueAt])
   @@index([leaseId, category, status])
+  @@index([tenantId, tenantPortalRequest, createdAt])
   @@index([automationRuleId, automationEventKey])
 }
 

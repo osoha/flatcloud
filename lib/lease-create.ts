@@ -21,7 +21,7 @@ function percentToBps(value: string | null) {
 
 export async function createLeaseFromForm(tx: Tx, propertyId: string, form: FormData, tenantId?: string, createdById?: string, partySelections: LeasePartySelections = {}) {
   const unitId = text(form, "unitId", true)!;
-  const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
+  const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { property: {select:{tenantPortalInvitationMode:true}}, ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
   if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
   const ownerBankAccountId = unit.ownerships[0]?.ownerBankAccountId;
   if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
@@ -64,7 +64,7 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: tenant.id, propertyId } }, update: {}, create: { tenantId: tenant.id, propertyId } });
 
   const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
-  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : [])] } } });
+  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, autoPortalInvitationPending:unit.property.tenantPortalInvitationMode==="AUTOMATIC", ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : [])] } } });
   const parties = await syncLeaseParties(tx, lease.id, tenant.id, partySelections);
   for (const linkedTenantId of Array.from(new Set(Object.values(parties).flat()))) {
     await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: linkedTenantId, propertyId } }, update: {}, create: { tenantId: linkedTenantId, propertyId } });

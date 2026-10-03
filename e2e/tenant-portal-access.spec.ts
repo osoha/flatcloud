@@ -3,6 +3,7 @@ import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcryptjs";
 import {randomUUID} from "node:crypto";
 import {businessTodayKey} from "../lib/calendar";
+import {runAutoTenantPortalInvitations} from "../lib/tenant-portal-auto-invite";
 
 const db=new PrismaClient();
 test.beforeAll(()=>{if(!process.env.DATABASE_URL||!["localhost","127.0.0.1","postgres"].includes(new URL(process.env.DATABASE_URL).hostname))throw new Error("Isolated CI database required");});
@@ -11,8 +12,9 @@ test.afterAll(()=>db.$disconnect());
 test("tenant account sees only its lease, can report a defect and record its own meter",async({page})=>{
   const tag=randomUUID(),password="Portal-QA-Only-2026";
   const actor=await db.user.create({data:{email:`portal-${tag}@flatcloud.test`,name:"Nájemník QA",passwordHash:await bcrypt.hash(password,10),role:"TENANT",isTestIdentity:true}});
+  const manager=await db.user.create({data:{email:`manager-${tag}@flatcloud.test`,name:"Správce QA",passwordHash:await bcrypt.hash(password,10),role:"PROPERTY_MANAGER",isTestIdentity:true}});
   const owner=await db.owner.create({data:{name:`Portál QA ${tag}`}});
-  const property=await db.property.create({data:{name:`Portál QA ${tag}`,ownerId:owner.id,address:"Testovací 1",city:"Praha"}});
+  const property=await db.property.create({data:{name:`Portál QA ${tag}`,ownerId:owner.id,managerId:manager.id,address:"Testovací 1",city:"Praha"}});
   const unit=await db.unit.create({data:{propertyId:property.id,label:"1"}});
   const otherUnit=await db.unit.create({data:{propertyId:property.id,label:"2"}});
   const tenant=await db.tenant.create({data:{name:`Nájemník ${tag}`,email:actor.email}});
@@ -29,7 +31,7 @@ test("tenant account sees only its lease, can report a defect and record its own
     await expect(page.getByText("Vodoměr")).toBeVisible();
     expect((await page.goto(`/portal/najemnik/${other.id}`))?.status()).toBe(404);
     await page.goto("/portfolio");await expect(page).toHaveURL(/\/portal\/najemnik/);
-    const rejected=await page.request.post(`/api/portal/tenants/${other.id}/readings`,{form:{leaseId:otherLease.id,meterId:otherMeter.id,readAt:businessTodayKey(),value:"20"}});
+    const rejected=await page.request.post(`/api/portal/tenants/${other.id}/readings`,{form:{leaseId:otherLease.id,meterId:otherMeter.id,readAt:businessTodayKey(),value:"20"},maxRedirects:0});
     expect(rejected.status()).toBe(303);
     expect(await db.meterReading.count({where:{meterId:otherMeter.id}})).toBe(0);
     await page.goto(`/portal/najemnik/${tenant.id}`);
@@ -37,6 +39,9 @@ test("tenant account sees only its lease, can report a defect and record its own
     await page.getByRole("button",{name:"Předat závadu"}).click();
     const defect=await db.task.findFirstOrThrow({where:{tenantId:tenant.id,createdById:actor.id}});
     expect(defect.leaseId).toBe(lease.id);expect(defect.category).toBe("MAINTENANCE");
+    expect(defect.tenantPortalRequest).toBe(true);
+    await expect(page.getByText("Moje hlášení")).toBeVisible();
+    await expect(page.getByText("Netěsní kohoutek")).toBeVisible();
     await page.getByLabel("Nový stav (m³)").fill("12.5");await page.getByRole("button",{name:"Uložit odečet"}).click();
     expect((await db.meterReading.findFirstOrThrow({where:{meterId:meter.id}})).value).toBe(12.5);
     expect(await db.meterReading.count({where:{meterId:otherMeter.id}})).toBe(0);
@@ -45,8 +50,17 @@ test("tenant account sees only its lease, can report a defect and record its own
     expect((await page.request.get(`/api/portal/tenants/${tenant.id}/documents/missing`)).status()).toBe(404);
     await page.request.post(`/api/portal/tenants/${tenant.id}/readings`,{form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"13"}});
     expect(await db.meterReading.count({where:{meterId:meter.id}})).toBe(1);
+    process.env.SESSION_SECRET ||= "flatberry-isolated-portal-e2e-secret-2026";
+    process.env.APP_URL ||= "http://127.0.0.1:3100";
+    await db.property.update({where:{id:property.id},data:{tenantPortalInvitationMode:"AUTOMATIC"}});
+    await db.tenant.update({where:{id:other.id},data:{email:`other-${tag}@flatcloud.test`}});
+    await db.lease.update({where:{id:otherLease.id},data:{autoPortalInvitationPending:true}});
+    expect((await runAutoTenantPortalInvitations(otherLease.id)).invited).toBe(1);
+    expect((await runAutoTenantPortalInvitations(otherLease.id)).invited).toBe(0);
+    expect(await db.userInvitation.count({where:{tenantId:other.id,status:"PENDING"}})).toBe(1);
   }finally{
-    await db.auditLog.deleteMany({where:{userId:actor.id}});
+    await db.userInvitation.deleteMany({where:{tenantId:other.id}});
+    await db.auditLog.deleteMany({where:{userId:{in:[actor.id,manager.id]}}});
     await db.task.deleteMany({where:{tenantId:tenant.id}});
     await db.meterReading.deleteMany({where:{meterId:meter.id}});
     await db.tenantPortalAccess.deleteMany({where:{userId:actor.id}});
@@ -56,6 +70,7 @@ test("tenant account sees only its lease, can report a defect and record its own
     await db.unit.deleteMany({where:{propertyId:property.id}});
     await db.property.delete({where:{id:property.id}});
     await db.owner.delete({where:{id:owner.id}});
+    await db.user.delete({where:{id:manager.id}});
     await db.user.delete({where:{id:actor.id}});
   }
 });

@@ -25,7 +25,7 @@ export async function POST(request:Request,{params}:{params:Promise<{tenantId:st
     const taskId=randomUUID();
     try {
       await prisma.$transaction(async tx=>{
-        await tx.task.create({data:{id:taskId,title,description,category:"MAINTENANCE",status:"OPEN",propertyId:lease.unit.propertyId,unitId:lease.unitId,leaseId:lease.id,tenantId,createdById:user.id,assigneeId:resolveAutomaticTaskAssignee({manager:lease.unit.property.manager,propertyOwner:lease.unit.property.owner,unitOwnerships:lease.unit.ownerships})}});
+        await tx.task.create({data:{id:taskId,title,description,category:"MAINTENANCE",status:"OPEN",tenantPortalRequest:true,propertyId:lease.unit.propertyId,unitId:lease.unitId,leaseId:lease.id,tenantId,createdById:user.id,assigneeId:resolveAutomaticTaskAssignee({manager:lease.unit.property.manager,propertyOwner:lease.unit.property.owner,unitOwnerships:lease.unit.ownerships})}});
         if(batch)await createTaskAttachmentsInTransaction(tx,batch,taskId);
         await tx.auditLog.create({data:{userId:user.id,propertyId:lease.unit.propertyId,action:"TENANT_DEFECT_REPORTED",entityType:"Task",entityId:taskId,details:{tenantId,leaseId,photoCount:files.length}}});
       });

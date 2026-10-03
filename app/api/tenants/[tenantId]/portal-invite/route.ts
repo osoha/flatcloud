@@ -4,6 +4,7 @@ import {invitationToken} from "@/lib/invitations";
 import {sendTenantPortalInvitationEmail} from "@/lib/email";
 import {redirectUrl} from "@/lib/redirect-url";
 import {go,goWithMessage} from "@/lib/route-response";
+import {sealSecret} from "@/lib/secret";
 
 export async function POST(request:Request,{params}:{params:Promise<{tenantId:string}>}) {
   const actor=await currentUser();if(actor?.role!=="SUPER_ADMIN")return goWithMessage(request,"/login","error","Přístup byl odepřen.");
@@ -20,13 +21,16 @@ export async function POST(request:Request,{params}:{params:Promise<{tenantId:st
     const {token,tokenHash}=invitationToken();
     const invite=await prisma.$transaction(async tx=>{
       await tx.userInvitation.updateMany({where:{tenantId,status:"PENDING"},data:{status:"REVOKED"}});
-      return tx.userInvitation.create({data:{email,name:tenant.name,tokenHash,tenantId,propertyId,role:"TENANT",permission:"VIEW",invitedById:actor.id,expiresAt:new Date(Date.now()+7*86400000)}});
+      return tx.userInvitation.create({data:{email,name:tenant.name,tokenHash,tokenEncrypted:sealSecret(token),tenantId,propertyId,role:"TENANT",permission:"VIEW",invitedById:actor.id,expiresAt:new Date(Date.now()+7*86400000)}});
     });
     const inviteUrl=redirectUrl(`/pozvanka/${token}`,request).toString();
     const sandbox=process.env.RENDER_GIT_BRANCH?.startsWith("sandbox/")||process.env.RENDER_EXTERNAL_URL?.includes("sandbox");
-    const result=sandbox?{sent:false}:await sendTenantPortalInvitationEmail({to:email,inviterName:actor.name,inviteUrl});
+    let result:{sent:boolean;reason?:string};
+    try{result=sandbox?{sent:false,reason:"Sandbox: e-mail se neposílá."}:await sendTenantPortalInvitationEmail({to:email,inviterName:actor.name,inviteUrl});}
+    catch(error){result={sent:false,reason:error instanceof Error?error.message:"E-mail se nepodařilo odeslat."};}
+    await prisma.userInvitation.update({where:{id:invite.id},data:result.sent?{sentAt:new Date(),deliveryError:null}:{deliveryError:result.reason||"E-mail se nepodařilo odeslat."}});
     await prisma.auditLog.create({data:{userId:actor.id,propertyId,action:"TENANT_PORTAL_INVITED",entityType:"UserInvitation",entityId:invite.id,details:{tenantId,email,sent:result.sent}}});
-    if(!result.sent)return go(request,`${path}?ok=${encodeURIComponent("Pozvánka byla připravena. V sandboxu se e-mail neodesílá.")}&invite=${encodeURIComponent(inviteUrl)}`);
+    if(!result.sent)return go(request,`${path}?ok=${encodeURIComponent(sandbox?"Pozvánka byla připravena. V sandboxu se e-mail neodesílá.":"Pozvánka byla připravena, ale e-mail se nepodařilo odeslat. Předání odkazu je nutné ověřit.")}&invite=${encodeURIComponent(inviteUrl)}`);
     return goWithMessage(request,path,"ok",`Pozvánka byla odeslána na ${email}.`);
   }catch(error){return goWithMessage(request,path,"error",error instanceof Error?error.message:"Pozvánku se nepodařilo připravit.");}
 }
