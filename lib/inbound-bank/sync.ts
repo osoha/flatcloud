@@ -7,6 +7,7 @@ import { parseBankNotification } from "@/lib/inbound-bank/bank-email";
 import { materializeInboxPayment } from "@/lib/inbound-bank/process";
 import { mailboxIdentity } from "@/lib/inbound-bank/mailbox-identity";
 import { reconcileInboxReview } from "@/lib/bank-review-tasks";
+import { failedBankEmailExcerpt } from "@/lib/inbound-bank/email-storage";
 
 function fallbackMessageId(uid: number, source: Buffer) {
   return `imap-${uid}-${createHash("sha256").update(source).digest("hex").slice(0, 20)}`;
@@ -98,10 +99,11 @@ export async function syncInboundMailbox() {
       if (importedResult.imported) imported += 1; else if (importedResult.ignored) ignored += 1; else unmatched += 1;
       await reconcileInboxReview(inbox.id);
       safeLastUid = Math.max(safeLastUid, rawMessage.uid);
-    } catch (error) {
+    } catch {
       errors += 1;
-      const message = error instanceof Error ? error.message : "Neznámá chyba zpracování e-mailu.";
-      console.error(`Chyba zpracování bankovního e-mailu UID ${rawMessage.uid}`, error);
+      // Database/parser errors may contain payloads. Do not persist or log those.
+      const message = "E-mail se nepodařilo zpracovat. Vyžaduje ruční kontrolu.";
+      console.error(`Chyba zpracování bankovního e-mailu UID ${rawMessage.uid}`);
       try {
         if (inboxId) {
           await prisma.inboxPayment.update({ where: { id: inboxId }, data: { status: "ERROR", parseNote: `Chyba zpracování: ${message}` } });
@@ -119,7 +121,7 @@ export async function syncInboundMailbox() {
               imapMailboxIdentity: currentMailboxIdentity,
               receivedAt: new Date(),
               sourceTrusted: false,
-              rawExcerpt: rawMessage.source.toString("utf8").slice(0, 4000),
+              rawExcerpt: failedBankEmailExcerpt(rawMessage.source),
               status: "ERROR",
               parseNote: `Chyba zpracování: ${message}`,
             },
@@ -128,10 +130,10 @@ export async function syncInboundMailbox() {
         }
         await reconcileInboxReview(inboxId);
         safeLastUid = Math.max(safeLastUid, rawMessage.uid);
-      } catch (persistError) {
+      } catch {
         // Do not advance the UID checkpoint. Already persisted messages are deduplicated on retry.
-        console.error(`Nelze uložit chybový e-mail UID ${rawMessage.uid}; checkpoint zůstává na ${safeLastUid}.`, persistError);
-        throw persistError;
+        console.error(`Nelze uložit chybový e-mail UID ${rawMessage.uid}; checkpoint zůstává na ${safeLastUid}.`);
+        throw new Error("Chybový bankovní e-mail se nepodařilo uložit; synchronizace byla zastavena.");
       }
     }
   }
