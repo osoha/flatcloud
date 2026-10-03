@@ -14,6 +14,9 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
     const hidden = await db.unit.create({ data: { propertyId: property.id, label: `${tag} hidden` } });
     const user = await db.user.create({ data: { email: `basic-${crypto.randomUUID()}@flatcloud.test`, name: `${tag} user`, role: "OWNER_VIEWER", active: true, allProperties: false, passwordHash: await bcrypt.hash(password, 8), isTestIdentity: false } });
     await db.userUnit.create({ data: { userId: user.id, unitId: visible.id, permission: "VIEW" } });
+    const participant = await db.user.create({ data: { email: `basic-participant-${crypto.randomUUID()}@flatcloud.test`, name: `${tag} participant`, role: "OWNER_VIEWER", active: true, allProperties: false, passwordHash: await bcrypt.hash(password, 8), isTestIdentity: false } });
+    await db.userUnit.create({ data: { userId: participant.id, unitId: visible.id, permission: "VIEW" } });
+    const task = await db.task.create({ data: { title: `${tag} úkol`, propertyId: property.id, unitId: visible.id, category: "MAINTENANCE", createdById: user.id } });
 
     await page.goto("/login");
     await page.getByLabel("E-mail").fill(user.email);
@@ -42,8 +45,26 @@ test("Basic switch persists and unit-only access stays scoped", async ({ page, c
     await expect(page.locator(".topbar .display-mode-switch button[value=pro]")).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("basic-owner-mobile.png"), fullPage: true });
+    for (const [url, title] of [["/reporty?view=collections", "Platby"], ["/platby/banka", "Bankovní pohyby"], ["/ukoly", "Úkoly"], ["/dokumenty", "Dokumenty"]] as const) {
+      await page.goto(url);
+      await expect(page.locator(".basic-section-hero h1")).toHaveText(title);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    }
+    await page.goto(`/ukoly/${task.id}`);
+    await expect(page.locator(".basic-task-toolbar")).toBeVisible();
+    await expect(page.locator(".basic-task-toolbar-status")).toContainText("Stav případu");
+    await expect(page.locator(".case-thread-card")).toBeVisible();
+    await page.getByLabel("Přidat účastníka", { exact: true }).click();
+    await page.locator(".basic-participant.add select[name=userId]").selectOption(participant.id);
+    await page.locator(".basic-participant.add button[type=submit]").click();
+    await expect(page.locator(`.basic-participant summary[aria-label^='${participant.name}']`)).toBeVisible();
+    await page.locator(`.basic-participant summary[aria-label^='${participant.name}']`).click();
+    await page.getByRole("button", { name: "Odebrat z konverzace" }).click();
+    await expect(page.locator(`.basic-participant summary[aria-label^='${participant.name}']`)).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
     await page.locator(".topbar .display-mode-switch button[value=pro]").click();
-    await expect(page.locator(".v21-portfolio")).toBeVisible();
+    await expect(page.locator(".basic-task-toolbar")).toHaveCount(0);
+    await expect(page.locator(".case-sidebar")).toBeVisible();
     await context.clearCookies();
   } finally {
     await db.$disconnect();
