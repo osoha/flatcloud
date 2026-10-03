@@ -40,6 +40,11 @@ test("tenant account sees only its lease, can report a defect and record its own
     await page.getByLabel("Nový stav (m³)").fill("12.5");await page.getByRole("button",{name:"Uložit odečet"}).click();
     expect((await db.meterReading.findFirstOrThrow({where:{meterId:meter.id}})).value).toBe(12.5);
     expect(await db.meterReading.count({where:{meterId:otherMeter.id}})).toBe(0);
+    await db.tenant.update({where:{id:tenant.id},data:{communicationEmail:`new-${tag}@flatcloud.test`}});
+    expect((await page.goto(`/portal/najemnik/${tenant.id}`))?.status()).toBe(404);
+    expect((await page.request.get(`/api/portal/tenants/${tenant.id}/documents/missing`)).status()).toBe(404);
+    await page.request.post(`/api/portal/tenants/${tenant.id}/readings`,{form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"13"}});
+    expect(await db.meterReading.count({where:{meterId:meter.id}})).toBe(1);
   }finally{
     await db.auditLog.deleteMany({where:{userId:actor.id}});
     await db.task.deleteMany({where:{tenantId:tenant.id}});

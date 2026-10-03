@@ -10,11 +10,12 @@ import {RentPaymentQr} from "@/components/RentPaymentQr";
 import {domesticAccountLabel,formatIban} from "@/lib/owner-bank-account";
 import {Flash} from "@/components/FormUi";
 import {businessTodayKey} from "@/lib/calendar";
+import {hasTenantPortalAccess} from "@/lib/tenant-portal-access";
 export const dynamic="force-dynamic";
 export default async function TenantPortalPreview({params,searchParams}:{params:Promise<{tenantId:string}>;searchParams:Promise<{ok?:string;error?:string}>}) {
  const actor=await actualUser();if(!actor)notFound();
  const {tenantId}=await params;
- if(actor.role!=="SUPER_ADMIN"&&!await prisma.tenantPortalAccess.findUnique({where:{userId_tenantId:{userId:actor.id,tenantId}}}))notFound();
+ if(actor.role!=="SUPER_ADMIN"&&!await hasTenantPortalAccess(actor.id,actor.email,tenantId))notFound();
  const leaseInclude={unit:{include:{property:{include:{manager:true}},meters:{where:{active:true},include:{readings:{orderBy:{readAt:"desc"},take:1}}}}},ownerBankAccount:true,charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true},orderBy:{dueDate:"asc"}},documents:{where:{tenantVisible:true,deletedAt:null}}} as const;
  const tenant=await prisma.tenant.findUnique({where:{id:tenantId}});
  if(!tenant)notFound();
