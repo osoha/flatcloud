@@ -4,6 +4,7 @@ import { parseBankNotification } from "../lib/inbound-bank/bank-email";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const property = read("app/nemovitosti/[id]/[section]/page.tsx");
+const bankGuide = read("components/BankNotificationGuide.tsx");
 const unit = read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx");
 const ownerAccess = read("lib/owner-self-service.ts");
 const ownerRoute = read("app/api/properties/[id]/owner-bank-account/route.ts");
@@ -47,8 +48,8 @@ assert.match(property, /name="unitIds"/);
 assert.match(property, /defaultChecked=\{ownerScope\.unitOwnerships\.length===1\}/);
 assert.match(property, /section === "banka" && !ownerBankView/);
 assert.match(property, /Pokročilá pravidla/);
-assert.match(property, /Česká spořitelna/);
-assert.match(property, /několik minut/);
+assert.match(bankGuide, /Česká spořitelna/);
+assert.match(bankGuide, /několik minut/);
 assert.match(property, /platby@flatcloud\.cz/);
 
 const irrelevant = parseBankNotification({ subject: "Pozvánka", from: "office@example.com", text: "Dobrý den, posíláme zápis ze schůzky." });
