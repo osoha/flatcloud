@@ -5,6 +5,7 @@ import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { processAvatarUpload } from "@/lib/avatar";
 import { editableUserAccessChanged } from "@/lib/user-access-management";
+import { validIllustration } from "@/lib/illustration-library";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await currentUser();
@@ -27,13 +28,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       throw new Error("U vlastního účtu nelze odebrat roli hlavního administrátora ani ho deaktivovat.");
     }
 
-    let avatarUpdate: { avatarData?: Uint8Array<ArrayBuffer> | null; avatarMimeType?: string | null } = {};
+    let avatarUpdate: { avatarData?: Uint8Array<ArrayBuffer> | null; avatarMimeType?: string | null; avatarChoice?: string | null } = {};
     const removeAvatar = form.get("removeAvatar") === "on";
+    const avatarChoice = String(form.get("avatarChoice") || "");
+    if (avatarChoice && !validIllustration(avatarChoice, "person")) throw new Error("Vyberte dostupný avatar.");
     if (removeAvatar) {
-      avatarUpdate = { avatarData: null, avatarMimeType: null };
+      avatarUpdate = { avatarData: null, avatarMimeType: null, avatarChoice: avatarChoice || null };
     } else {
       const processedAvatar = await processAvatarUpload(form.get("avatar"));
-      if (processedAvatar) avatarUpdate = processedAvatar;
+      if (processedAvatar) avatarUpdate = { ...processedAvatar, avatarChoice: null };
+      else if (avatarChoice) avatarUpdate = { avatarChoice, avatarData: null, avatarMimeType: null };
     }
 
     const properties = await prisma.property.findMany({ select: { id: true } });
