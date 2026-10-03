@@ -12,7 +12,8 @@ export function tenantDataFromForm(form: FormData): Prisma.TenantCreateInput {
   const communicationEmail = type === TenantType.COMPANY ? text(form, "communicationEmail") : text(form, "email");
   return {
     type,
-    avatarChoice: type === TenantType.PERSON ? (validIllustration(form.get("avatarChoice"), "person") ? String(form.get("avatarChoice")) : suggestedIllustration("person", crypto.randomUUID())) : null,
+    avatarChoice: validIllustration(form.get("avatarChoice"), type === TenantType.COMPANY ? "company" : "person")
+      ? String(form.get("avatarChoice")) : suggestedIllustration(type === TenantType.COMPANY ? "company" : "person", crypto.randomUUID()),
     name: text(form, "name", true)!,
     email: communicationEmail || billingEmail,
     phone: text(form, "phone"),

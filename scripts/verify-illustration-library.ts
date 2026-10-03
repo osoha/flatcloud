@@ -4,7 +4,7 @@ import { join } from "node:path";
 import sharp from "sharp";
 import { defaultPropertyIllustration, illustration, illustrationCount, illustrationStyle, suggestedIllustration, validIllustration } from "../lib/illustration-library";
 
-for (const kind of ["person", "house", "unit"] as const) {
+for (const kind of ["person", "company", "house", "unit"] as const) {
   const options = Array.from({ length: illustrationCount[kind] }, (_, index) => illustration(kind, index));
   assert.equal(new Set(options).size, illustrationCount[kind]);
   assert(options.every(value => validIllustration(value, kind)));
@@ -15,8 +15,9 @@ for (const kind of ["person", "house", "unit"] as const) {
   for (const value of options) {
     const number = Number(value.split(":")[2]);
     const style = illustrationStyle(value);
-    assert(style.backgroundImage?.includes(kind === "person" && number <= 24 ? "people.webp" : `${kind}-${number}.webp`));
-    if (kind !== "person") assert.equal(style.backgroundSize, "cover", "wide cards crop without stretching");
+    assert(style.backgroundImage?.includes(kind === "person" && number <= 24 ? "people.webp" : kind === "company" ? `company-${Math.ceil(number / 16)}.webp` : `${kind}-${number}.webp`));
+    if (kind === "company") assert.equal(style.backgroundSize, "400% 400%");
+    else if (kind !== "person") assert.equal(style.backgroundSize, "cover", "wide cards crop without stretching");
   }
   for (const invalid of [`library:${kind}:0`, `library:${kind}:01`, `library:${kind}:-1`, `library:${kind}:1.1`, `library:${kind}:49`]) assert.equal(validIllustration(invalid, kind), false);
 }
@@ -37,9 +38,15 @@ for (const asset of ["people", "places"]) {
   assert.equal(metadata.height, 800);
   assert(file.length < 1024 * 1024);
 }
+for (let n = 1; n <= 3; n++) {
+  const file = readFileSync(join(process.cwd(), "public", "illustrations", `company-${n}.webp`));
+  const metadata = await sharp(file).metadata();
+  assert.equal(metadata.width, metadata.height);
+  assert(file.length < 400 * 1024);
+}
 }
 assert.equal(illustrationStyle("library:unit:1").backgroundPosition, "center");
 assert.equal(illustrationStyle("library:unit:18").backgroundPosition, "center");
 assert.equal(new Set(Array.from({length:12}, (_, index) => defaultPropertyIllustration("unit", "one-property", index))).size, 12);
 assert.equal(defaultPropertyIllustration("unit", "one-property", 3), defaultPropertyIllustration("unit", "one-property", 3));
-verifyAssets().then(() => console.log("Illustration library: 48 people, 18 houses, 18 interiors, stable choices, valid assets."));
+verifyAssets().then(() => console.log("Illustration library: 48 people, 48 company portraits, 18 houses, 18 interiors, stable choices, valid assets."));

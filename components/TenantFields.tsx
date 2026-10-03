@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { IllustrationPicker } from "./IllustrationPicker";
+import { suggestedIllustration, validIllustration } from "@/lib/illustration-library";
 
 type TenantDefaults = {
   type?: "PERSON" | "COMPANY";
@@ -16,8 +18,11 @@ type TenantDefaults = {
   note?: string | null;
 };
 
-export function TenantFields({ defaults = {}, typeName = "tenantType", noteName = "tenantNote" }: { defaults?: TenantDefaults; typeName?: string; noteName?: string }) {
+export function TenantFields({ defaults = {}, typeName = "tenantType", noteName = "tenantNote", avatarChoice, avatarSeed }: { defaults?: TenantDefaults; typeName?: string; noteName?: string; avatarChoice?: string | null; avatarSeed?: string }) {
   const [type, setType] = useState<"PERSON" | "COMPANY">(defaults.type || "PERSON");
+  const kind = type === "COMPANY" ? "company" : "person";
+  const selected = avatarChoice === "upload" || validIllustration(avatarChoice, kind) || (kind === "company" && defaults.type === "COMPANY" && validIllustration(avatarChoice, "person"))
+    ? avatarChoice : suggestedIllustration(kind, avatarSeed || "new-tenant");
   return <>
     <label className="field"><span>Typ nájemníka *</span><select name={typeName} value={type} onChange={(event) => setType(event.target.value as "PERSON" | "COMPANY")}><option value="PERSON">Fyzická osoba</option><option value="COMPANY">Právnická osoba</option></select></label>
     <label className="field"><span>{type === "COMPANY" ? "Název firmy" : "Jméno a příjmení"} *</span><input name="name" defaultValue={defaults.name || ""} required/></label>
@@ -35,5 +40,6 @@ export function TenantFields({ defaults = {}, typeName = "tenantType", noteName 
       <label className="field"><span>Komunikační e-mail</span><input name="communicationEmail" type="email" defaultValue={defaults.communicationEmail || defaults.email || ""}/></label>
     </>}
     <label className="field field-full"><span>Poznámka ke kontaktu</span><textarea name={noteName} defaultValue={defaults.note || ""}/></label>
+    <IllustrationPicker key={kind} kind={kind} selected={selected} allowPhoto/>
   </>;
 }

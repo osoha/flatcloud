@@ -63,6 +63,15 @@ test("Basic and Profi keep only five recent completed tasks; archive is paged an
     await expect(page.locator(".basic-section-list .basic-section-item")).toHaveCount(7);
     await page.goto(`/najemnici/${tenant.id}`);
     await expect(page.locator(".tenant-title .tenant-avatar")).toHaveCSS("background-image", /person-25\.webp/);
+    await page.goto(`/nemovitosti/${property.id}/najemnici/novy`);
+    await page.locator('select[name="tenantType"]').selectOption("COMPANY");
+    await expect(page.getByRole("group", { name: "Avatar firmy" }).locator('input[name="avatarChoice"]')).toHaveCount(48);
+    await page.goto(`/nemovitosti/${property.id}/najemnici/${tenant.id}/upravit`);
+    await expect(page.getByRole("group", { name: "Avatar firmy" }).getByTitle("Ponechat současný avatar osoby")).toBeVisible();
+    await page.locator('input[name="avatarChoice"][value="library:company:4"]').check();
+    await page.getByRole("button", { name: "Uložit" }).click();
+    await expect(page.locator(".tenant-title .tenant-avatar")).toHaveCSS("background-image", /company-1\.webp/);
+    expect((await db.tenant.findUniqueOrThrow({ where: { id: tenant.id } })).avatarChoice).toBe("library:company:4");
     const image = await readFile("public/flatberry-logo.png");
     await db.tenant.update({ where: { id: tenant.id }, data: { avatarChoice: null, avatarMimeType: "image/png", avatarData: Uint8Array.from(image) } });
     await page.reload();
