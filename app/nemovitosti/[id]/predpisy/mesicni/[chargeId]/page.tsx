@@ -6,7 +6,7 @@ import { requirePropertyAccess, unitAccessWhere } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Checkbox, Field, Flash, FormPage, Select, Textarea } from "@/components/FormUi";
 import { dateInput, moneyInput } from "@/lib/forms";
-import { money } from "@/lib/format";
+import { moneyPrecise as money } from "@/lib/format";
 import { chargeCategories } from "@/lib/labels";
 import { outstandingCents, paidCents } from "@/lib/charges";
 
@@ -25,7 +25,7 @@ export default async function EditCharge({ params, searchParams }: { params: Pro
   ]);
   if (!property || !charge) notFound();
   const paid = paidCents(charge);
-  const financiallyLocked = paid > 0;
+  const financiallyLocked = paid !== 0;
   const itemTotal = charge.items.reduce((sum, item) => sum + item.amountCents, 0);
 
   return <Shell user={user} taskPropertyId={id} taskLeaseId={charge.leaseId}><FormPage
