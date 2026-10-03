@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
-import { currentReadings, meterPeriodReadings, readingDate, validateReadingPosition } from '../lib/meter-reading-rules';
+import { currentReadings, meterPeriodReadings, readingDate, validateReadingMethod, validateReadingPosition } from '../lib/meter-reading-rules';
 import { recordMeterReading } from '../lib/meter-readings';
 import { loadServiceSettlementPreview } from '../lib/service-settlement-preview';
 const make=(id:string,day:string,value:number,correctsId:string|null=null)=>({id,readAt:readingDate(day),value,correctsId});
@@ -10,7 +10,9 @@ async function main(){
  await check('correction retains original and selects only current version',()=>{assert.deepEqual(currentReadings([c,a,b]).map(r=>r.id),['a','c']);assert.equal(meterPeriodReadings([a,b,c],'2025-01-01','2025-12-31').consumption,90);});
  await check('no inferred boundary or negative consumption',()=>{assert.equal(meterPeriodReadings([a,b],'2025-02-01','2025-12-31').consumption,null);assert.equal(meterPeriodReadings([a,{...b,value:90}],'2025-01-01','2025-12-31').consumption,null);assert.equal(meterPeriodReadings([a,b,{...b,id:'duplicate'}],'2025-01-01','2025-12-31').consumption,null);});
  await check('dates reject overflow and future',()=>{assert.throws(()=>readingDate('2025-02-30'));assert.throws(()=>readingDate('2999-01-01'));});
+ await check('historical readings require a source without claiming a measurement method',()=>{assert.throws(()=>validateReadingMethod('LEGACY'),/zdroj/);assert.throws(()=>validateReadingMethod('LEGACY','   '),/zdroj/);assert.doesNotThrow(()=>validateReadingMethod('LEGACY','REpilot 2026-03-01'));assert.throws(()=>validateReadingMethod('ESTIMATE'),/odhadu/);assert.throws(()=>validateReadingMethod('INVALID'),/Vyberte/);});
  await check('duplicates, stale revisions, and chronology rejected',()=>{assert.throws(()=>validateReadingPosition([a,b],b.readAt,200));assert.throws(()=>validateReadingPosition([a,b,c],b.readAt,180,'b'));assert.throws(()=>validateReadingPosition([a,b],readingDate('2025-06-01'),210));assert.throws(()=>validateReadingPosition([a,b],a.readAt,210,'a'));assert.throws(()=>validateReadingPosition([a,b],a.readAt,NaN,'a'));});
+ await check('sourced anomaly is preserved without calculating negative consumption',()=>{const anomaly=make('anomaly','2025-06-01',90);assert.throws(()=>validateReadingPosition([a,b],anomaly.readAt,anomaly.value));assert.doesNotThrow(()=>validateReadingPosition([a,b],anomaly.readAt,anomaly.value,null,true));assert.equal(meterPeriodReadings([a,anomaly],'2025-01-01','2025-06-01').consumption,null);assert.throws(()=>validateReadingPosition([a,b],b.readAt,90,null,true),/existuje/);});
  if(process.argv.includes('--rules-only'))return;
  const url=process.env.DATABASE_URL;if(!url||!['localhost','127.0.0.1','postgres'].includes(new URL(url).hostname))throw new Error('Isolated CI database required');
  const db=new PrismaClient();

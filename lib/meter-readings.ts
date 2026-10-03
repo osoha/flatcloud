@@ -2,14 +2,13 @@ import { Prisma } from '@prisma/client';
 import { editableUnitWhere } from './access';
 import { documentAccessWhere } from './documents/access';
 import { serializableTransaction } from './serializable';
-import { readingDate, validateReadingPosition } from './meter-reading-rules';
+import { readingDate, validateReadingMethod, validateReadingPosition } from './meter-reading-rules';
 
 type Actor = {id:string;role:string;allProperties?:boolean};
 type Input = {propertyId:string;unitId?:string|null;meterId:string;readAt:string;value:number;method:string;leaseId?:string|null;note?:string|null;correctsId?:string|null;correctionReason?:string|null;evidenceDocumentId?:string|null};
 export async function recordMeterReading(actor:Actor,input:Input) {
   const readAt=readingDate(input.readAt);
-  if (!['PERSONAL','REMOTE','ESTIMATE'].includes(input.method)) throw new Error('Vyberte způsob odečtu: osobní, dálkový nebo odhad.');
-  if (input.method === 'ESTIMATE' && !input.note?.trim()) throw new Error('U odhadu uveďte důvod a způsob stanovení.');
+  validateReadingMethod(input.method,input.note);
   if (input.correctsId && !input.correctionReason?.trim()) throw new Error('Uveďte důvod opravy.');
   try {
     return await serializableTransaction(async tx => {
@@ -18,7 +17,7 @@ export async function recordMeterReading(actor:Actor,input:Input) {
         : {id:input.meterId,propertyId:input.propertyId,unitId:null,scope:{in:['HOUSE_MAIN','HOUSE_SUBMETER']}},include:{readings:true}});
       if(!meter) throw new Error('Měřidlo není dostupné k úpravě nebo je nemovitost archivovaná.');
       const original=input.correctsId ? meter.readings.find(r=>r.id===input.correctsId) : null;
-      validateReadingPosition(meter.readings,readAt,input.value,input.correctsId);
+      validateReadingPosition(meter.readings,readAt,input.value,input.correctsId,input.method==='LEGACY');
       const leaseId=input.unitId ? (original ? original.leaseId : input.leaseId || null) : null;
       if(leaseId && !await tx.lease.findFirst({where:{id:leaseId,unitId:input.unitId!},select:{id:true}})) throw new Error('Nájemní vztah nepatří k jednotce.');
       // A correction cannot silently lose an existing attachment.
