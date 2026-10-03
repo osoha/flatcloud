@@ -7,6 +7,8 @@ import { Shell } from "@/components/Shell";
 import { Field, Flash, FormPage, Select } from "@/components/FormUi";
 import { userRoles } from "@/lib/labels";
 import { UserAvatar } from "@/components/UserAvatar";
+import { IllustrationPicker } from "@/components/IllustrationPicker";
+import { suggestedIllustration } from "@/lib/illustration-library";
 import { PermissionLevelSelect } from "./PermissionLevelSelect";
 import styles from "./user-access.module.css";
 import { isUserOnline } from "@/lib/user-activity-policy";
@@ -18,7 +20,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
   if (admin.role !== "SUPER_ADMIN") redirect("/portfolio");
   const { id } = await params;
   const [edited, properties, query] = await Promise.all([
-    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, phone: true, title: true, role: true, active: true, allProperties: true, flatcloudMember: true, avatarMimeType: true, updatedAt: true, activity: { select: { lastSeenAt: true } }, memberships: true, unitMemberships: true, managedProperties: { select: { id: true, name: true } } } }),
+    prisma.user.findUnique({ where: { id }, select: { id: true, name: true, email: true, phone: true, title: true, role: true, active: true, allProperties: true, flatcloudMember: true, avatarChoice: true, avatarMimeType: true, updatedAt: true, activity: { select: { lastSeenAt: true } }, memberships: true, unitMemberships: true, managedProperties: { select: { id: true, name: true } } } }),
     prisma.property.findMany({ where: { active: true }, orderBy: { name: "asc" }, include: { units: { orderBy: { label: "asc" } } } }),
     searchParams,
   ]);
@@ -63,7 +65,7 @@ export default async function UserEditPage({ params, searchParams }: { params: P
         <div className={styles.sectionHead}><div><h2>Profil uživatele</h2><p></p></div><span className={styles.sectionTag}>Profil</span></div>
         {locksLastAdmin && <div className="notice">Toto je poslední aktivní hlavní administrátor. Jeho roli ani aktivní stav nelze změnit, dokud nevytvoříte dalšího aktivního hlavního administrátora.</div>}
         <div className={styles.profileGrid}>
-          <div className={styles.avatarRow}><UserAvatar user={edited} size="lg" className={online ? "user-online" : ""}/><div className={styles.avatarActions}><div><strong>Avatar uživatele</strong><p>PNG, JPG nebo WebP, maximálně 2 MB. Bez nahrané fotografie zůstávají iniciály.</p></div><input type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/><label className="checkbox-field"><input type="checkbox" name="removeAvatar"/><span>Odstranit současný avatar</span></label></div></div>
+          <div className={styles.avatarRow}><UserAvatar user={edited} size="lg" className={online ? "user-online" : ""}/><div className={styles.avatarActions}><div><strong>Avatar uživatele</strong><p>Vyberte postavu z knihovny nebo nahrajte vlastní fotografii (PNG, JPG nebo WebP, nejvýše 2 MB).</p></div><IllustrationPicker kind="person" selected={edited.avatarMimeType ? "upload" : edited.avatarChoice || suggestedIllustration("person", edited.id)}/><input type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/>{edited.avatarMimeType&&<label className="checkbox-field"><input type="checkbox" name="removeAvatar"/><span>Odstranit současnou fotografii</span></label>}</div></div>
           <Field label="Jméno" name="name" defaultValue={edited.name} required/>
           <Field label="E-mail" name="email" defaultValue={edited.email} type="email" required/>
           <Field label="Telefon" name="phone" defaultValue={edited.phone}/>

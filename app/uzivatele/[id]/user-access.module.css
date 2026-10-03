@@ -16,7 +16,7 @@
 .avatarRow{grid-column:1/-1;display:flex;align-items:center;gap:14px;padding:12px;border:1px solid var(--line);border-radius:13px;background:var(--fb-subtle,#fafbfe)}
 .avatarRow strong,.avatarRow p{display:block;margin:0}
 .avatarRow p{margin-top:4px;color:var(--muted);font-size:9px;line-height:1.45}
-.avatarActions{display:grid;gap:8px;min-width:0}
+.avatarActions{display:grid;gap:8px;flex:1;min-width:0;max-width:760px}
 .accessBasics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
 .fullRow{grid-column:1/-1}
 .roleNote{grid-column:1/-1;padding:11px 12px;border:1px dashed var(--line);border-radius:11px;background:var(--fb-subtle,#f8faff);color:var(--muted);font-size:10px;line-height:1.55}
