@@ -16,11 +16,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!allowed) throw new Error("Nájemník nebyl v této nemovitosti nalezen.");
     const form = await request.formData();
     const choice = String(form.get("avatarChoice") || "");
-    if (choice && choice !== "upload" && !validIllustration(choice, "person")) throw new Error("Vyberte dostupný avatar.");
-    const uploadedAvatar = choice === "upload" ? await processAvatarUpload(form.get("avatar")) : null;
-    if (choice === "upload" && !uploadedAvatar && !allowed.avatarMimeType) throw new Error("Vyberte fotografii avatara.");
     const typeRaw = text(form, "type") || "PERSON";
     const type = Object.values(TenantType).includes(typeRaw as TenantType) ? typeRaw as TenantType : TenantType.PERSON;
+    const validChoice = validIllustration(choice, type === "COMPANY" ? "company" : "person") || (type === "COMPANY" && choice === allowed.avatarChoice && validIllustration(choice, "person"));
+    if (choice && choice !== "upload" && !validChoice) throw new Error("Vyberte dostupný avatar.");
+    const uploadedAvatar = choice === "upload" ? await processAvatarUpload(form.get("avatar")) : null;
+    if (choice === "upload" && !uploadedAvatar && !allowed.avatarMimeType) throw new Error("Vyberte fotografii avatara.");
     const permanentAddress = type === "PERSON" ? text(form, "permanentAddress") : null;
     const billingAddress = type === "COMPANY" ? text(form, "billingAddress") : null;
     const billingEmail = type === "COMPANY" ? text(form, "billingEmail") : null;

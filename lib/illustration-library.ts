@@ -1,7 +1,16 @@
 import type { CSSProperties } from "react";
 
-export type IllustrationKind = "person" | "house" | "unit";
-export const illustrationCount: Record<IllustrationKind, number> = { person: 48, house: 18, unit: 18 };
+export type IllustrationKind = "person" | "company" | "house" | "unit";
+export const illustrationCount: Record<IllustrationKind, number> = { person: 48, company: 48, house: 18, unit: 18 };
+
+export const companyAvatarNames = [
+  "Instalatér", "Elektrikářka", "Malíř", "Truhlář", "Úklid", "Zahradník", "Zedník", "Technika budov",
+  "Umělkyně", "Inženýr", "Právnička", "Architektka", "Účetní", "Fotografka", "Pekař", "Údržba",
+  "Zámečník", "Pokrývačka", "Obkladač", "Sklenářka", "Podlahář", "Fasády", "Izolace", "Kominice",
+  "Deratizace", "Krajinářka", "Ostraha", "Správkyně", "Odhadce", "Geodetka", "Realitní makléř", "Notářka",
+  "Instalatérka", "Elektrikář", "Truhlářka", "Malířka", "Úklid", "Zahradnice", "Zednice", "Technika budov",
+  "Umělec", "Inženýrka", "Právník", "Architekt", "Účetní", "Kurýrka", "Stěhovák", "Údržba",
+] as const;
 
 export function validIllustration(value: unknown, kind: IllustrationKind): value is string {
   return typeof value === "string" && new RegExp(`^library:${kind}:[1-9][0-9]*$`).test(value)
@@ -28,6 +37,14 @@ export function illustrationStyle(value: string): CSSProperties {
   const [source, kind, raw] = value.split(":");
   const number = Number(raw);
   if (source !== "library" || !validIllustration(value, kind as IllustrationKind)) return {};
+  if (kind === "company") {
+    const tile = (number - 1) % 16;
+    return {
+      backgroundImage: `url(/illustrations/company-${Math.floor((number - 1) / 16) + 1}.webp)`,
+      backgroundSize: "400% 400%",
+      backgroundPosition: `${tile % 4 * (100 / 3)}% ${Math.floor(tile / 4) * (100 / 3)}%`,
+    };
+  }
   if (kind !== "person" || number > 24) return {
     backgroundImage: `url(/illustrations/${kind}-${number}.webp)`,
     backgroundSize: "cover",
