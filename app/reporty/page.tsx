@@ -35,12 +35,15 @@ import { calculateRentForecastWithAssumptions, parseRentForecastAssumptions, par
 import { MethodologyCallout } from "@/components/MethodologyCallout";
 import { Flash } from "@/components/FormUi";
 import { listAccessibleRentForecastPlans, rentForecastPlanStatuses, rentForecastSnapshotFingerprint, rentForecastSnapshotFromLiveReport } from "@/lib/reporting/rent-forecast-plans";
+import { displayMode } from "@/lib/display-mode";
+import { BasicSectionHero, BasicSectionStat, BasicSectionItem } from "@/components/BasicSection";
 
 export const dynamic = "force-dynamic";
 const views = { overview: "Přehled", asset: "FlatCloud Asset", forecast: "Valorizace", occupancy: "Obsazenost", collections: "Inkaso", tenancy: "Nájemní vztahy", benchmark: "MF benchmark", deposits: "Kauce", kpis: "KPIs" } as const;
 type View = keyof typeof views;
 export default async function ReportCenter({ searchParams }: { searchParams: Promise<{ view?: string; unitId?: string; contractStatus?: string; properties?: string; propertyId?: string; range?: string; from?: string; to?: string; scenario?: string; horizon?: string; annualGrowthPercent?: string; vacancyPercent?: string; collectionPercent?: string; marketGapCapturePercent?: string; marketAnnualGrowthPercent?: string; marketCatchUpMonths?: string; expiryStrategy?: string; renewalMode?: string; renewalTargetPercent?: string; renewalCustomRent?: string; relettingTargetPercent?: string; relettingVacancyMonths?: string; ok?: string; error?: string }> }) {
   const [user, query] = await Promise.all([requireUser(), searchParams]);
+  const basic = await displayMode(user.id, user.onboardingStatus === "pending" || user.defaultDisplayMode === "basic" ? "basic" : "pro") === "basic";
   const asOf = new Date(), range = parseLiveReportPeriodRange(query, asOf);
   const requestedSelection = parsePortfolioSelection(query), data = await loadLiveReport(user, requestedSelection, asOf, range.periods, query.unitId);
   const allowedIds = selectedPropertyIds(requestedSelection, data.availableProperties.map((property)=>property.id));
@@ -72,6 +75,19 @@ export default async function ReportCenter({ searchParams }: { searchParams: Pro
   const canSaveForecast = !query.unitId && forecastPropertyIds.length > 0 && (fullAccess || forecastPropertyIds.every((propertyId) => editablePropertyIds.has(propertyId)));
   const forecastSnapshotFingerprint = view === "forecast" ? rentForecastSnapshotFingerprint(rentForecastSnapshotFromLiveReport(data), asOf) : "";
   const scopeProperties = data.availableProperties.map((property) => ({ id: property.id, name: property.name, address: property.address, city: property.city, active: property.active, ownerId: property.communicationOwner?.id || property.owner.id, ownerName: property.communicationOwner?.name || property.owner.name, scopeKind: !isFlatcloudMember(user) ? undefined : property.flatcloudConsolidationBasisPoints == null ? "UNCLASSIFIED" as const : property.flatcloudConsolidationBasisPoints > 0 ? "FLATCLOUD" as const : "EXTERNAL" as const }));
+  if(basic && view==="collections") {
+    const due=Math.max(0,data.collectionRange.expectedCents-data.collectionRange.paidCents);
+    const debtProperties=data.propertyRows.filter(row=>(row.collections.overdueDebtCents??0)>0);
+    return <Shell user={user}><div className="page basic-section-page" data-guide="finance">
+      <BasicSectionHero eyebrow={`Platby · ${range.label}`} title="Platby" description="Předpisy, úhrady a dluhy podle vašich nemovitostí." berry="finance" message={debtProperties.length?`${debtProperties.length} ${debtProperties.length===1?"nemovitost má":"nemovitosti mají"} platby po splatnosti.`:"Žádná z vybraných nemovitostí nemá dluh po splatnosti."}/>
+      <div className="basic-section-stats"><BasicSectionStat label="Uhrazeno v období" value={money(data.collectionRange.paidCents)} detail={`z předpisu ${money(data.collectionRange.expectedCents)}`} tone="green"/><BasicSectionStat label="Zbývá z předpisu" value={money(due)} detail="ve zvoleném období" tone="amber"/><BasicSectionStat label="Po splatnosti" value={money(a.overdueDebtCents)} detail="celkem k dnešnímu stavu, všechna období" tone={a.overdueDebtCents?"red":"green"}/></div>
+      <PortfolioScopePicker availableProperties={scopeProperties} selection={selection}/>
+      <details className="card basic-section-filter"><summary>Období a podrobnosti</summary><ReportPeriodPicker view="collections" range={range} properties={selectionValue} unitId={query.unitId}/><p className="muted-copy">Dluh po splatnosti je stav k dnešnímu dni; filtr období ho neomezuje.</p><CollectionChart data={data.trend}/></details>
+      {debtProperties.length>0&&<><div className="basic-section-heading"><h2>Vyžaduje pozornost</h2></div><div className="basic-section-list">{debtProperties.map(row=><BasicSectionItem key={row.property.id} href={`/nemovitosti/${row.property.id}/predpisy`} icon={<AlertCircle size={24}/>} title={row.property.name} context="Dluh po splatnosti · otevřít předpisy" tone="red" end={money(row.collections.overdueDebtCents??0)}/>)}</div></>}
+      <div className="basic-section-heading"><h2>Platby podle nemovitostí</h2><Link href="/platby/banka">Bankovní pohyby →</Link></div>
+      <div className="basic-section-list">{data.propertyRows.length?data.propertyRows.map(row=>{const collected=data.collectionRangeByProperty[row.property.id];return <BasicSectionItem key={row.property.id} href={`/nemovitosti/${row.property.id}/predpisy`} icon={<WalletCards size={24}/>} title={row.property.name} context={`Uhrazeno ${money(collected.paidCents)} z ${money(collected.expectedCents)} · ${range.label}`} tone={(row.collections.overdueDebtCents??0)>0?"red":"green"} end={<>{collected.collectionRateBps===null?"Bez předpisu":`${(collected.collectionRateBps/100).toFixed(0)} %`}<small>{(row.collections.overdueDebtCents??0)>0?`Po splatnosti ${money(row.collections.overdueDebtCents??0)}`:"Bez dluhu"}</small></>}/>;}):<p className="card table-empty">Ve vybraném portfoliu nejsou nemovitosti.</p>}</div>
+    </div></Shell>;
+  }
   return <Shell user={user}><div className="page"><div className="page-title"><div><PageHeading>Reporty</PageHeading><p>Data k {date(new Date(`${data.asOfDate}T12:00:00Z`))}{query.unitId ? ` · jednotka ${data.qualityEntities.units[query.unitId] || "není dostupná"}` : ""}</p>{query.unitId&&<Link className="table-link" href={`/reporty?view=${view}${selectionSuffix}${rangeSuffix}`}>Zrušit filtr jednotky</Link>}</div><PortfolioScopePicker availableProperties={scopeProperties} selection={selection}/></div>
 
     <nav data-guide="finance" className="report-tabs" aria-label="Report Center views">{Object.entries(views).filter(([key])=>key!=="asset"||corporateAccess).map(([key,label])=><Link className={view===key?"active":""} key={key} href={`/reporty?view=${key}${selectionSuffix}${rangeSuffix}${unitSuffix}`}>{label}</Link>)}<Link href="/reporty/rocni-podklady">Roční podklady</Link></nav>

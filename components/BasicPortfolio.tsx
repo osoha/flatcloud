@@ -32,7 +32,7 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
   return <div className="page basic-portfolio" data-guide="portfolio">
     <section className="basic-hero">
       <div className="basic-hero-copy"><span className="basic-eyebrow">Váš domovský přehled</span><h1>Dobrý den, {firstName}!</h1><p>Tady je to nejdůležitější z vašich nemovitostí. Podrobnosti jsou vždy na jedno kliknutí.</p><div className="basic-scope"><PortfolioScopePicker availableProperties={scopeOptions} selection={selection}/></div></div>
-      <div className="basic-berry-note"><img className="basic-berry" src="/landing/berry-guide.webp" alt="" aria-hidden="true"/><div><strong>Berryho přehled</strong><p>{debt > 0 ? "Některé platby už jsou po splatnosti." : remaining > 0 ? "Část plateb za tento měsíc ještě zbývá uhradit." : "Vaše platby jsou pro tento měsíc uhrazené."}</p><Link href="/reporty?view=collections">Otevřít platby <ArrowRight size={16}/></Link></div></div>
+      <div className="basic-berry-note"><img className="basic-berry" src="/guide/properties.webp" alt="" aria-hidden="true"/><div><strong>Berryho přehled</strong><p>{debt > 0 ? "Některé platby už jsou po splatnosti." : remaining > 0 ? "Část plateb za tento měsíc ještě zbývá uhradit." : "Vaše platby jsou pro tento měsíc uhrazené."}</p><Link href="/reporty?view=collections">Otevřít platby <ArrowRight size={16}/></Link></div></div>
     </section>
 
     <div className="basic-summary" aria-label="Souhrn portfolia">
