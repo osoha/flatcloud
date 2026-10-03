@@ -24,6 +24,7 @@ import { complianceResults, contactCategories, leaseStatuses, matchingRuleAction
 import { buildingTypeOptions, constructionTypeOptions, energyRatingOptions, optionLabel, readPropertyTechnicalData } from "@/lib/property-technical";
 import { UserAvatar } from "@/components/UserAvatar";
 import { leaseAlertsForProperties } from "@/lib/lease-alerts";
+import { hideAlertsCoveredByAutomaticTasks } from "@/lib/task-attention";
 import { appSettings } from "@/lib/settings";
 import { complianceState, openTaskStatuses } from "@/lib/operations";
 import { verificationCodeForAccount } from "@/lib/bank-email-verification";
@@ -115,7 +116,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   const allowedPaymentOwnerIds = [...new Set([p.ownerId, ...p.ownerships.map((row)=>row.ownerId), ...p.units.flatMap((unit)=>unit.ownerships.map((row)=>row.ownerId))])];
 
   const [propertyTasks, contacts, complianceItems, activity] = await Promise.all([
-    propertyWide ? prisma.task.findMany({ where: { propertyId: id }, include: { unit: true, tenant: true, assignee: true, _count: { select: { entries: { where: taskEntryVisibilityWhere(user) } } } }, orderBy: [{ status: "asc" }, { dueAt: "asc" }, { updatedAt: "desc" }], take: 50 }) : Promise.resolve([]),
+    propertyWide ? prisma.task.findMany({ where: { propertyId: id }, include: { unit: true, tenant: true, assignee: true, automationRule: { select: { event:true } }, _count: { select: { entries: { where: taskEntryVisibilityWhere(user) } } } }, orderBy: [{ status: "asc" }, { dueAt: "asc" }, { updatedAt: "desc" }], take: 50 }) : Promise.resolve([]),
     section === "prehled" || propertyWide ? prisma.propertyContact.findMany({ where: { propertyId: id, active: true }, orderBy: [{ emergency: "desc" }, { sortOrder: "asc" }, { name: "asc" }] }) : Promise.resolve([]),
     propertyWide ? prisma.complianceItem.findMany({ where: { propertyId: id, active: true }, include: { assignedContact: true, records: { take: section === "provoz" ? undefined : 0, orderBy: [{ performedAt: "desc" }, { createdAt: "desc" }, { id: "desc" }], include: { createdBy: { select: { name: true } }, documents: { where: documentAccessWhere(user), include: { fileAsset: true }, orderBy: { createdAt: "asc" } } } } }, orderBy: { nextDueAt: "asc" } }) : Promise.resolve([]),
     propertyWide ? prisma.auditLog.findMany({ where: { propertyId: id }, include: { user: true }, orderBy: { createdAt: "desc" }, take: 40 }).then(rows => filterTaskEntryActivity(user, rows)) : Promise.resolve([]),
@@ -130,7 +131,7 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   if (unmatchedPropertyPayments.length) attentionItems.push({ title: `${unmatchedPropertyPayments.length} plateb čeká na spárování`, detail: "Zkontrolujte návrhy a nespárované transakce", href: `/nemovitosti/${id}/platby#ke-sparovani`, tone: "warn" });
   for (const task of openTasks.slice(0, 3)) attentionItems.push({ title: task.title, detail: `${taskCategories[task.category]} · ${task.assignee?.name || "bez odpovědného"}`, href: `/ukoly/${task.id}`, tone: task.priority === "URGENT" ? "bad" : "warn" });
   for (const item of dueCompliance.slice(0, 2)) attentionItems.push({ title: item.name, detail: `Revize / kontrola · ${date(item.nextDueAt)} · ${complianceState(item).label}`, href: `/nemovitosti/${id}/provoz#revize`, tone: complianceState(item).key === "overdue" ? "bad" : "warn" });
-  for (const alert of propertyContractAlerts.slice(0, 2)) attentionItems.push({ title: `${alert.kind === "EXPIRY" ? "Expirace" : "Výročí"} smlouvy · ${alert.lease.unit.label}`, detail: `${alert.lease.tenant.name} · ${date(alert.date)}`, href: `/smlouvy/${alert.lease.id}`, tone: "info" });
+  for (const alert of hideAlertsCoveredByAutomaticTasks(propertyContractAlerts, openTasks).slice(0, 2)) attentionItems.push({ title: `${alert.kind === "EXPIRY" ? "Expirace" : "Výročí"} smlouvy · ${alert.lease.unit.label}`, detail: `${alert.lease.tenant.name} · ${date(alert.date)}`, href: `/smlouvy/${alert.lease.id}`, tone: "info" });
 
   let owners = [] as Awaited<ReturnType<typeof prisma.owner.findMany>>;
   let rules: MatchingRuleRow[] = [];
