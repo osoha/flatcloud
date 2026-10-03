@@ -14,6 +14,6 @@ export async function hasTenantPortalAccess(userId:string,email:string,tenantId:
 export async function activeTenantLease(userId:string,tenantId:string,leaseId:string) {
   const user=await prisma.user.findUnique({where:{id:userId},select:{email:true}});
   if(!user||!await hasTenantPortalAccess(userId,user.email,tenantId))return null;
-  const lease=await prisma.lease.findFirst({where:{id:leaseId,OR:[{tenantId},{parties:{some:{tenantId,role:{in:["CONTRACTING_PARTY","PAYER"]}}}}]},include:{unit:{include:{ownerships:{include:{owner:{include:{user:true}}}},property:{include:{manager:true,owner:{include:{user:true}}}}}}}});
+  const lease=await prisma.lease.findFirst({where:{id:leaseId,OR:[{tenantId},{parties:{some:{tenantId,role:"CONTRACTING_PARTY"}}}]},include:{unit:{include:{ownerships:{include:{owner:{include:{user:true}}}},property:{include:{manager:true,owner:{include:{user:true}}}}}}}});
   return lease&&leaseStatusAt(lease)==="ACTIVE"?lease:null;
 }

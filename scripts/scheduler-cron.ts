@@ -83,7 +83,8 @@ async function main() {
 
   try {
     const tasks = await runTaskAutomation();
-    const meterTasks = process.env.METER_TASK_AUTOMATION_ENABLED === "true" ? await runMeterTaskAutomation() : {summary:"Automatika odečtů čeká na aktivaci po auditu."};
+    const sandbox=process.env.RENDER_GIT_BRANCH?.startsWith("sandbox/")||process.env.RENDER_EXTERNAL_URL?.includes("sandbox");
+    const meterTasks = (sandbox||process.env.METER_TASK_AUTOMATION_ENABLED === "true") ? await runMeterTaskAutomation() : {summary:"Automatika odečtů čeká na aktivaci v produkci."};
     steps.push({name:"meter-tasks",status:"ok",summary:meterTasks.summary});
     steps.push({ name: "task-automation", status: "ok", summary: tasks.summary });
   } catch (error) {

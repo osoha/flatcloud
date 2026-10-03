@@ -2101,6 +2101,8 @@ model Task {
   lease                  Lease?                      @relation(fields: [leaseId], references: [id], onDelete: SetNull)
   tenantId               String?
   tenantPortalRequest     Boolean                     @default(false)
+  tenantEntryConsentAt    DateTime?
+  tenantVisitNote         String?
   tenant                 Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   createdById            String?
   createdBy              User?                       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -2136,11 +2138,16 @@ model TaskChecklistItem {
   task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   position      Int
   title         String
+  meterId       String?
+  meterPeriodKey String?
+  baselineReadingId String?
+  requiredFrom  DateTime?
   completedAt   DateTime?
   completedById String?
   completedBy   User?    @relation("ChecklistCompleter", fields: [completedById], references: [id], onDelete: SetNull)
 
   @@unique([taskId, position])
+  @@unique([taskId, meterId, meterPeriodKey])
   @@index([taskId, completedAt])
 }
 

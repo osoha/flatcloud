@@ -24,13 +24,18 @@ Uživatel schválil celý blok pouze do sandboxu. Produkce se nemění.
 - portál nyní zobrazuje stav nahlášených závad z vlastních požadavků; interní komunikace úkolu se nájemníkovi nezpřístupňuje;
 - pro dům lze zvolit ruční nebo automatickou pozvánku (výchozí ručně). Automatika platí jen na nově založené smlouvy, čeká na začátek budoucí smlouvy, vynechá existující přístup a platnou pozvánku. V sandboxu e-mail nepotlačeným způsobem neodchází a testovací odkaz je dostupný na kartě nájemníka;
 - uživatel se současnou rolí vlastníka/správce a nájemnickým přístupem může přejít do „Můj nájem“ bez druhého účtu.
+- po auditním doplnění je finanční karta rozlišená na bankou přiřazenou úhradu, zápočet a zbývající částku; odeslaná, dosud nepřiřazená platba se nevydává za uhrazenou;
+- přímý QR vstup ze stránky smlouvy vede přes přihlášení a kontrolu konkrétního nájemnického přístupu. QR není přístupový token. QR na generovaném PDF smlouvy/předání je stále otevřený;
+- plátce bez postavení smluvní strany vidí platební podklady, nemůže prohlížet dokumenty ani zapisovat odečty či závady; smluvní strana má plný nájemnický rozsah;
+- hlášení závady obsahuje volitelný, auditovaný a z portálu odvolatelný souhlas se vstupem po předchozí domluvě.
+- úkoly odečtů mají stabilní vazbu na ID měřidla a období, hlídají 90 dnů a roční 31. 12., v otevřeném úkolu doplní nové položky a uzavřou je podle uložených odečtů. Automatika se při sandboxovém ověření spouští; v produkci zůstane bez výslovného zapnutí vypnutá.
 
 ## Neuzavřené podmínky společného release
 - průchod migracemi na izolované databázi a browser role testy přihlášení, dokumentů, závad a odečtů;
 - QR vstup do portálu přímo na PDF nájemní smlouvy a předávacího protokolu vyžaduje rozhodnutí o konkrétním generátoru smluv;
 - úplné Basic karty měřidel včetně bytových a hromadného odečtu Profi;
 - propojení skutečné smluvní zálohy s tarifem a doporučení navýšení;
-- transakční a souběžný audit automatiky odečtů, stabilní klíče měřidel checklistu, roční doplnění všech měřidel do otevřeného úkolu;
+- transakční a souběžný audit automatiky odečtů v izolovaném CI a živém sandboxu; implementovaný stabilní klíč a roční doplnění potřebují browser/DB průchod;
 - ověřené screenshoty bank a e-mailových služeb; orientační postupy dalších bank musí projít kontrolou na skutečném prostředí;
 - komplexní audit směrování všech známých účtů včetně bankovních transakcí bez domu a neznámého účtu, KPI ve všech pohledech a rolích;
 - audit a případná fyzická revokace starých přístupů portálu při změně nájemníkova e-mailu či skončení smlouvy; aktuální kontrola e-mailu a aktivní smlouvy zabraňuje přístupu;

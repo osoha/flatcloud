@@ -10,7 +10,7 @@ export async function POST(request:Request,{params}:{params:Promise<{tenantId:st
   const actor=await currentUser();if(actor?.role!=="SUPER_ADMIN")return goWithMessage(request,"/login","error","Přístup byl odepřen.");
   const {tenantId}=await params;const path=`/najemnici/${tenantId}`;
   try {
-    const tenant=await prisma.tenant.findUnique({where:{id:tenantId},select:{name:true,email:true,communicationEmail:true,leases:{select:{unit:{select:{propertyId:true}}},take:1},leaseParties:{select:{lease:{select:{unit:{select:{propertyId:true}}}}},take:1}}});
+    const tenant=await prisma.tenant.findUnique({where:{id:tenantId},select:{name:true,email:true,communicationEmail:true,leases:{select:{unit:{select:{propertyId:true}}},take:1},leaseParties:{where:{role:{in:["CONTRACTING_PARTY","PAYER"]}},select:{lease:{select:{unit:{select:{propertyId:true}}}}},take:1}}});
     if(!tenant)throw new Error("Nájemník nebyl nalezen.");
     const email=(tenant.communicationEmail||tenant.email||"").trim().toLowerCase();
     const propertyId=tenant.leases[0]?.unit.propertyId||tenant.leaseParties[0]?.lease.unit.propertyId;
