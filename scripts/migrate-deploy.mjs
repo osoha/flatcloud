@@ -4,11 +4,12 @@ const prismaCommand = process.platform === "win32" ? "npx.cmd" : "npx";
 
 // These migrations are explicitly safe to retry after Prisma recorded a failed
 // attempt.
-// V21.3 SQL is written idempotently so a partial PostgreSQL application can be
-// resumed.
+// V21.3 and the password-reset SQL are idempotent, so a partial PostgreSQL
+// application can be resumed without removing existing data.
 const recoverableMigrations = [
   "20260716190000_invitation_unit_ids",
   "20260826190000_v21_3_lease_lifecycle",
+  "20260929113000_self_service_password_reset",
 ];
 
 function runPrisma(args, { capture = false } = {}) {
