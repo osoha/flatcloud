@@ -43,6 +43,7 @@ jobs:
       - run: node --import tsx scripts/verify-account-bank-rules.ts
       - run: node --import tsx scripts/verify-bank-guide.tsx
       - run: node --import tsx scripts/verify-task-thread-polish.ts
+      - run: node --import tsx scripts/verify-task-assignee-and-attention.ts
       - run: npm run verify:tab-navigation-v2
       - run: node --import tsx scripts/verify-flatberry-comparison.ts
       - run: npm run verify:valorizace-v3
