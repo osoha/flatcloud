@@ -26,7 +26,7 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
   ]);
   const baseScope = reportingScopeForUser({ ...user, memberships, unitMemberships });
   const unitPropertyIds = Object.fromEntries(unitMemberships.map((membership) => [membership.unitId, membership.unit.propertyId]));
-  const availableProperties=await prisma.property.findMany({ where: {AND:[reportingPropertyAccessWhere(baseScope),...(["SUPER_ADMIN","MANAGER","PROPERTY_MANAGER"].includes(user.role)?[]:[{active:true}])]}, select: { id: true, name: true, address: true, city: true, active: true, flatcloudConsolidationBasisPoints: true, owner: { select: { id: true, name: true } }, communicationOwner: { select: { id: true, name: true } } }, orderBy: { name: "asc" } });
+  const availableProperties=await prisma.property.findMany({ where: {AND:[reportingPropertyAccessWhere(baseScope)??{},...(["SUPER_ADMIN","MANAGER","PROPERTY_MANAGER"].includes(user.role)?[]:[{active:true}])]}, select: { id: true, name: true, address: true, city: true, active: true, flatcloudConsolidationBasisPoints: true, owner: { select: { id: true, name: true } }, communicationOwner: { select: { id: true, name: true } } }, orderBy: { name: "asc" } });
   const livePropertyIds=liveSelectedPropertyIds(selection,availableProperties);
   const scope = applyPortfolioSelection(baseScope, {mode:"SELECTED",propertyIds:livePropertyIds}, unitPropertyIds);
   const [properties, units] = await Promise.all([

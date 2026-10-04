@@ -25,7 +25,7 @@ test("signed receipts use received payments, stay archived, and scoped previews 
  const paid=await db.charge.create({data:{leaseId:lease.id,period:"2026-01",dueDate:new Date("2026-01-05T12:00Z"),amountCents:1250000,items:{create:[{name:"Nájemné",category:"RENT",amountCents:1000000},{name:"Zálohy na vodu",category:"WATER",amountCents:250000}]}}});
  const partial=await db.charge.create({data:{leaseId:lease.id,period:"2026-02",dueDate:new Date("2026-02-05T12:00Z"),amountCents:1250000}});
  const future=await db.charge.create({data:{leaseId:lease.id,period:"2099-01",dueDate:new Date("2099-01-05T12:00Z"),amountCents:1250000}});
- const transactions=await Promise.all([500000,750000,100000].map((amountCents,i)=>db.bankTransaction.create({data:{bankAccountId:bank.id,externalId:`${tag}-${i}`,bookedAt:new Date(`2026-01-${i===0?"04":"05"}T12:00Z`),amountCents,status:"MATCHED",allocations:{create:{chargeId:i<2?paid.id:partial.id,amountCents}}}})));
+ const transactions=await Promise.all([500000,750000,100000,1250000].map((amountCents,i)=>db.bankTransaction.create({data:{bankAccountId:bank.id,externalId:`${tag}-${i}`,bookedAt:new Date(i===3?"2099-01-04T12:00Z":`2026-01-${i===0?"04":"05"}T12:00Z`),amountCents,status:"MATCHED",allocations:{create:{chargeId:i<2?paid.id:i===2?partial.id:future.id,amountCents}}}})));
  const ownerAccount=await db.ownerBankAccount.create({data:{ownerId:owner.id,accountNumber:"123456789",bankCode:"0100"}});await db.lease.update({where:{id:lease.id},data:{ownerBankAccountId:ownerAccount.id}});
  const tenantPage=await browser.newPage(),viewerPage=await browser.newPage();
  try{
@@ -51,6 +51,7 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   const uploadedSignature=(await db.user.findUniqueOrThrow({where:{id:manager.id}})).receiptSignatureData;
   // Switching from an uploaded file to drawing must save the drawing, not the stale file.
   await page.locator('input[name=signature]').setInputFiles({name:"qa-signature.png",mimeType:"image/png",buffer:signature});
+  await page.locator("canvas").scrollIntoViewIfNeeded();
   const area=await page.locator("canvas").boundingBox();expect(area).not.toBeNull();
   await page.mouse.move(area!.x+25,area!.y+55);await page.mouse.down();await page.mouse.move(area!.x+130,area!.y+95,{steps:12});await page.mouse.move(area!.x+230,area!.y+35,{steps:12});await page.mouse.up();
   await expect(page.locator('input[name=drawnSignature]')).not.toHaveValue("");
@@ -72,7 +73,7 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   const repeated=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{form:{chargeId:paid.id},maxRedirects:0});expect(repeated.headers().location).toBe(location);expect(await db.tenantPaymentReceipt.count({where:{chargeId:paid.id}})).toBe(1);
   await db.user.update({where:{id:manager.id},data:{receiptSignatureData:null,receiptIssuanceEnabled:false}});expect(await (await tenantPage.request.get(location)).body()).toEqual(await pdf.body());
   expect((await viewerPage.request.get(location)).status()).toBe(404);
-  await tenantPage.reload();await expect(tenantPage.locator(".portal-document-list")).toContainText("stáhnout PDF");
+  await tenantPage.reload();await expect(tenantPage.locator(".portal-document-list").first()).toContainText("stáhnout PDF");
   await tenantPage.screenshot({path:info.outputPath("tenant-portal-desktop.png"),fullPage:true});
   await info.attach("receipt.pdf",{body:await pdf.body(),contentType:"application/pdf"});
   await tenantPage.setViewportSize({width:390,height:844});expect(await tenantPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await tenantPage.screenshot({path:info.outputPath("tenant-portal-mobile.png"),fullPage:true});
