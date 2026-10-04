@@ -74,7 +74,7 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   const repeated=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{headers:await sessionHeaders(tenantPage),form:{chargeId:paid.id},maxRedirects:0});expect(repeated.headers().location).toBe(location);expect(await db.tenantPaymentReceipt.count({where:{chargeId:paid.id}})).toBe(1);
   await db.user.update({where:{id:manager.id},data:{receiptSignatureData:null,receiptIssuanceEnabled:false}});expect(await (await tenantPage.request.get(location,{headers:await sessionHeaders(tenantPage)})).body()).toEqual(await pdf.body());
   expect((await viewerPage.request.get(location,{headers:await sessionHeaders(viewerPage)})).status()).toBe(404);
-  await tenantPage.reload();await expect(tenantPage.locator(".portal-document-list").first()).toContainText("stáhnout PDF");
+  await tenantPage.reload();await expect(tenantPage.locator(`#dokumenty-${lease.id} .portal-document-list`)).toContainText("stáhnout PDF");
   await tenantPage.screenshot({path:info.outputPath("tenant-portal-desktop.png"),fullPage:true});
   await info.attach("receipt.pdf",{body:await pdf.body(),contentType:"application/pdf"});
   await tenantPage.setViewportSize({width:390,height:844});expect(await tenantPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await tenantPage.screenshot({path:info.outputPath("tenant-portal-mobile.png"),fullPage:true});
