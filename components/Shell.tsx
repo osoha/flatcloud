@@ -26,8 +26,7 @@ import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
 import { SidebarCollapseToggle } from "@/components/SidebarCollapseToggle";
 import { UserActivityHeartbeat } from "@/components/UserActivityHeartbeat";
 import { AdminOperationsPanel } from "@/components/admin/AdminOperationsPanel";
-import {bankAccountScopes} from "@/lib/account-banking-access";
-import {bankAccountMatches} from "@/lib/inbound-bank/bank-email";
+import {unmatchedQueueCount} from "@/lib/inbound-bank/queue-counts";
 import {tenantPortalContactMatches} from "@/lib/tenant-portal-access";
 
 type ShellUser = {
@@ -60,14 +59,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     prisma.task.count({ where: { ...taskWhere, status: { in: openTaskStatuses } } }),
     prisma.announcement.count({ where: unreadAnnouncementWhere(user) }),
     prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
-    superAdmin ? Promise.all([
-      prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
-      prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
-    ]).then((values) => values.reduce((sum, value) => sum + value, 0)) : bankAccountScopes(contentUser).then(async accounts=>{
-      if(!accounts.length)return 0;
-      const unresolved=await prisma.inboxPayment.findMany({where:{status:{in:["RECEIVED","UNMATCHED","ERROR"]}},select:{recipientAccount:true}});
-      return unresolved.filter(row=>accounts.some(account=>bankAccountMatches(account,row.recipientAccount))).length;
-    }),
+    unmatchedQueueCount(user),
     prisma.lease.findMany({ where: leaseAccessWhere(user), select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
   ]);
   const today = new Date();

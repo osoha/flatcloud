@@ -70,7 +70,7 @@ test("tenant account sees only its lease, can report a defect and record its own
     expect(defect.tenantPortalRequest).toBe(true);
     expect(defect.tenantEntryConsentAt).not.toBeNull();
     await expect(page.getByText("Moje hlášení")).toBeVisible();
-    await expect(page.getByText("Netěsní kohoutek")).toBeVisible();
+    await expect(page.locator(".tenant-portal-request-history").getByText("Netěsní kohoutek")).toBeVisible();
     await page.getByRole("button",{name:"Odvolat souhlas se vstupem"}).click();
     expect((await db.task.findUniqueOrThrow({where:{id:defect.id}})).tenantEntryConsentAt).toBeNull();
     await page.getByLabel("Nový stav (m³)").fill("12.5");await page.getByRole("button",{name:"Uložit odečet"}).click();
