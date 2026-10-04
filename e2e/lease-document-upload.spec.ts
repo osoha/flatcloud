@@ -36,7 +36,7 @@ async function fixture() {
   const property = await db.property.create({ data: { ownerId: owner.id, name: tag, address: "QA", city: "QA" } });
   const unit = await db.unit.create({ data: { propertyId: property.id, label: "QA 1" } });
   const tenant = await db.tenant.create({ data: { name: tag, createdById: actor.id, avatarChoice: "library:person:25" } });
-  const lease = await db.lease.create({ data: { unitId: unit.id, tenantId: tenant.id, startDate: new Date("2020-01-01T12:00Z"), financialTrackingFromPeriod: "2020-01", variableSymbol: randomUUID(), contractNumber: tag, rentCents: 100000, servicesCents: 0, autoChargesEnabled: false } });
+  const lease = await db.lease.create({ data: { unitId: unit.id, tenantId: tenant.id, startDate: new Date("2020-01-01T12:00Z"), endDate: new Date("2089-12-31T12:00Z"), financialTrackingFromPeriod: "2020-01", variableSymbol: randomUUID(), contractNumber: tag, rentCents: 100000, servicesCents: 0, autoChargesEnabled: false } });
   const future = await db.lease.create({ data: { unitId: unit.id, tenantId: tenant.id, startDate: new Date("2090-01-01T12:00Z"), financialTrackingFromPeriod: "2090-01", variableSymbol: randomUUID(), contractNumber: `${tag} future`, rentCents: 100000, servicesCents: 0, autoChargesEnabled: false } });
   return { property, unit, tenant, lease, future };
 }
