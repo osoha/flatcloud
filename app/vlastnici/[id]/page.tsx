@@ -34,7 +34,7 @@ export default async function OwnerEdit({ params, searchParams }: { params: Prom
           <Checkbox label="Aktivní vlastník" name="active" defaultChecked={owner.active} full/>
         </FormCard>
       </div>
-      <div className="card col-5">
+      <div className="card col-5" id="bankovni-ucty">
         <div className="card-head"><div><h2>Bankovní účty vlastníka</h2><p className="muted-copy">Účet lze následně vybrat u vlastnictví konkrétní jednotky.</p></div></div>
         <div className="stack-list">
           {owner.paymentAccounts.map((account) => <form className="inline-edit-card" action={`/api/owners/${owner.id}/bank-accounts/${account.id}`} method="post" key={account.id}>

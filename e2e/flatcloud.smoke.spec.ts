@@ -925,6 +925,7 @@ test("správce přidá dalšího smluvního partnera a vztah zůstane čitelný"
   await page.getByRole("link", { name: "Upravit smlouvu", exact: true }).click();
   const partyPicker = page.getByRole("group", { name: "Osoby a role ve smlouvě" });
   await expect(partyPicker).toBeVisible();
+  await partyPicker.getByLabel("Přidat osobu do smlouvy", { exact: true }).selectOption({ label: await partyPicker.getByLabel("Přidat osobu do smlouvy", { exact: true }).locator("option").filter({ hasText: "Petra Malá" }).innerText() });
   const secondParty = partyPicker.locator(".lease-party-role-row").filter({ hasText: "Petra Malá" }).first();
   await secondParty.getByRole("checkbox", { name: "Smluvní strana", exact: true }).check();
   await page.getByRole("button", { name: "Uložit", exact: true }).click();

@@ -16,7 +16,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (text(form, "avatarChoice") === "upload" && !uploadedAvatar) throw new Error("Vyberte fotografii avatara.");
     if (text(form, "creationMode") === "PROFILE") {
       const tenant = await prisma.$transaction(async (tx) => {
-        const created = await tx.tenant.create({ data: { ...tenantDataFromForm(form), ...uploadedAvatar, ...(uploadedAvatar ? { avatarChoice: null } : {}) } });
+        const created = await tx.tenant.create({ data: { ...tenantDataFromForm(form), createdBy: { connect: { id: access.user.id } }, ...uploadedAvatar, ...(uploadedAvatar ? { avatarChoice: null } : {}) } });
         await tx.tenantProperty.create({ data: { tenantId: created.id, propertyId: id } });
         return created;
       });

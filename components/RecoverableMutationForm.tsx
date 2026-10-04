@@ -122,7 +122,11 @@ export function RecoverableMutationForm({
     const restore = () => {
       if (historyRecord(HISTORY_SUBMITTED)[draftKey]) { setCompleted(true); form?.reset(); return; }
       const draft = volatileDrafts.get(draftKey) || historyDraft(draftKey);
-      if (form && draft) { restoreDraft(form, draft); window.setTimeout(() => restoreDraft(form, draft), 0); }
+      if (form && draft) {
+        restoreDraft(form, draft);
+        form.dispatchEvent(new CustomEvent("flatberry:restore-form-draft", { bubbles: true, detail: { form, draft } }));
+        window.setTimeout(() => restoreDraft(form, draft), 0);
+      }
     };
     restore();
     window.addEventListener("pageshow", restore);
@@ -148,6 +152,12 @@ export function RecoverableMutationForm({
       action={action}
       method="post"
       onInput={(event) => persistDraft(draftKey, readDraft(event.currentTarget))}
+      onClick={(event) => {
+        const form = event.currentTarget;
+        if (event.target instanceof Element && event.target.closest('button[type="button"]')) {
+          window.setTimeout(() => persistDraft(draftKey, readDraft(form)), 0);
+        }
+      }}
       onSubmit={async (event) => {
         event.preventDefault();
         if (submitting) return;

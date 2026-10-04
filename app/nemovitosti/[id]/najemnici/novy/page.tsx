@@ -5,6 +5,8 @@ import { requirePropertyAccess } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Field, Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
 import { TenantFields } from "@/components/TenantFields";
+import { LeaseOccupantFields } from "@/components/LeaseOccupantFields";
+import { LeaseServiceFields } from "@/components/LeaseServiceFields";
 import { LeaseCoreFields } from "@/components/LeaseCoreFields";
 import { dateInput } from "@/lib/forms";
 import { proposedLeaseIdentity } from "@/lib/variable-symbol";
@@ -29,7 +31,8 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
   const identities = Object.fromEntries(availableUnits.map((unit) => [unit.id, proposedLeaseIdentity(property, unit, used)]));
   const proposals = Object.fromEntries(availableUnits.map((unit) => [unit.id, identities[unit.id]?.variableSymbol ?? null]));
   const contractNumberProposals = Object.fromEntries(availableUnits.map((unit) => [unit.id, identities[unit.id]?.contractNumber ?? null]));
-  const ownerAccountsByUnit = Object.fromEntries(availableUnits.map((unit) => { const account = unit.ownerships[0]?.ownerBankAccount; return [unit.id, account ? { id: account.id, label: ownerBankAccountLabel(account) } : null]; }));
+  const ownersByUnit = Object.fromEntries(availableUnits.map(unit => [unit.id, unit.ownerships[0]?.owner ? { id: unit.ownerships[0].owner.id, name: unit.ownerships[0].owner.name } : null]));
+  const ownerAccountsByUnit = Object.fromEntries(availableUnits.map((unit) => { const account = unit.ownerships[0]?.ownerBankAccount; return [unit.id, account?.active ? { id: account.id, label: ownerBankAccountLabel(account) } : null]; }));
   const withLease = query.mode === "lease";
   const avatarSeed = crypto.randomUUID();
 
@@ -47,9 +50,10 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
       <TenantFields avatarSeed={avatarSeed}/>
       <Textarea label="Známé účty plátce" name="payerAccounts" placeholder="Jeden účet na řádek nebo oddělený čárkou"/>
       <h2 className="form-section-title field-full">Nájemní smlouva</h2>
-      <LeaseCoreFields propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, `${unit.label}${unit.floor ? ` · ${unit.floor}` : ""}`])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownerAccountsByUnit={ownerAccountsByUnit} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
+      <LeaseCoreFields propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, `${unit.label}${unit.floor ? ` · ${unit.floor}` : ""}`])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownersByUnit={ownersByUnit} ownerAccountsByUnit={ownerAccountsByUnit} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
-      <Field label="Zálohy na služby Kč / měsíc" name="services" type="number" step="0.01" min={0}/>
+      <LeaseServiceFields/>
+      <LeaseOccupantFields/>
       <Textarea label="Poznámka ke smlouvě" name="leaseNote"/>
     </FormCard> : <div className="card empty-state"><h2>Nejprve přidejte jednotku</h2><p>Samostatný profil lze založit v režimu „Pouze profil“. Pro společné založení smlouvy je nutná jednotka.</p></div>}
   </FormPage></Shell>;
