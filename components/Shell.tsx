@@ -1,3 +1,5 @@
+import {headers} from "next/headers";
+import {parsePortfolioSelection} from "@/lib/portfolio-selection";
 import { ProfiAppearance } from "@/components/ProfiAppearance";
 import { FirstLoginGuide } from "@/components/FirstLoginGuide";
 import { DisplayPreferences } from "@/components/DisplayPreferences";
@@ -52,7 +54,9 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");
-  const taskWhere = taskAccessWhere(user);
+  const navigationQuery=new URLSearchParams((await headers()).get("x-flatberry-search")||"");
+  const selection=parsePortfolioSelection({properties:navigationQuery.has("properties")?navigationQuery.get("properties")!:undefined,propertyId:navigationQuery.get("propertyId")||undefined});
+  const taskWhere = {AND:[taskAccessWhere(user),...(selection.mode==="SELECTED"?[{OR:[{propertyId:{in:selection.propertyIds}},{propertyId:null}]}]:[])]};
   const revisionWhere = fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } };
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
   const [openTasks, announcementCount, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
@@ -141,7 +145,6 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           {hasTenantPortal&&<Nav href="/portal/najemnik" icon={<House size={20}/>} label="Můj nájem"/>}
           <Nav href="/portfolio#nemovitosti" icon={<House size={20}/>} label="Nemovitosti"/>
           <Nav href="/reporty?view=collections" icon={<WalletCards size={20}/>} label="Platby"/>
-          <Nav href="/platby/banka" icon={<WalletCards size={20}/>} label="Bankovní pohyby"/>
           {(superAdmin || unmatchedCount > 0) && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={20}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/ukoly" icon={<ListChecks size={20}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
           <Nav href="/dokumenty" icon={<FileText size={20}/>} label="Dokumenty"/>

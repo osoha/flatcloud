@@ -44,6 +44,7 @@ jobs:
       - run: node --import tsx scripts/verify-bank-guide.tsx
       - run: node --import tsx scripts/verify-rent-payment-qr.ts
       - run: node --import tsx scripts/verify-lease-feedback.ts
+      - run: node --import tsx scripts/verify-portal-receipts.ts
       - run: node --import tsx scripts/verify-task-thread-polish.ts
       - run: node --import tsx scripts/verify-task-assignee-and-attention.ts
       - run: npm run verify:tab-navigation-v2

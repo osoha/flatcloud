@@ -12,6 +12,7 @@ const scopedRoots = [
   "/ukoly",
   "/revize",
   "/smlouvy",
+  "/platby/banka",
   "/platby/nesparovane",
   "/platby/nova",
   "/distribuce",
@@ -54,7 +55,7 @@ export function ScopeAwareLink({
     if (currentScope !== null) {
       window.sessionStorage.setItem(STORAGE_KEY, currentScope);
       setRememberedScope(currentScope);
-    } else if (pathname === "/portfolio" || pathname === "/reporty" || pathname === "/dokumenty") {
+    } else if (scopedRoots.includes(pathname)) {
       window.sessionStorage.removeItem(STORAGE_KEY);
       setRememberedScope(null);
     } else {

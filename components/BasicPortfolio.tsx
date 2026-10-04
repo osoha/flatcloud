@@ -1,4 +1,5 @@
-import Link from "next/link";
+import {ScopeAwareLink as Link} from "@/components/ScopeAwareLink";
+import {greeting} from "@/lib/greeting";
 import { AlertCircle, ArrowRight, Bell, CheckCircle2, House, ListChecks, WalletCards } from "lucide-react";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { TenantAvatar } from "@/components/TenantAvatar";
@@ -6,7 +7,7 @@ import { defaultPropertyIllustration } from "@/lib/illustration-library";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
 import { currentLeaseForUnit } from "@/lib/lease-lifecycle-core";
 import { money } from "@/lib/format";
-import { paidCents, overdueDebtCents } from "@/lib/charges";
+import { paidCents, overdueDebtCents, isPastDue } from "@/lib/charges";
 import type { accessibleProperties } from "@/lib/access";
 import type { EntityPhotos } from "@/lib/entity-photos";
 import type { PortfolioSelection } from "@/lib/portfolio-selection";
@@ -26,18 +27,18 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
   const units = activeRows.flatMap((row) => row.property.units);
   const occupied = units.filter((unit) => currentLeaseForUnit(unit.leases)).length;
   const remaining = Math.max(0, expected - paid);
-  const firstName = name.trim().split(/\s+/)[0] || "vás";
+  const beforeDue=units.flatMap(unit=>unit.leases.flatMap(lease=>lease.charges)).filter(c=>c.active&&c.period===period&&c.debtTreatment==="CURRENT"&&!isPastDue(c.dueDate)).reduce((sum,c)=>sum+Math.max(0,c.amountCents-paidCents(c)),0);
   const month = new Intl.DateTimeFormat("cs-CZ", { month: "long", year: "numeric" }).format(new Date(`${period}-01T12:00:00Z`));
 
   return <div className="page basic-portfolio" data-guide="portfolio">
     <section className="basic-hero">
-      <div className="basic-hero-copy"><span className="basic-eyebrow">Váš domovský přehled</span><h1>Dobrý den, {firstName}!</h1><p>Tady je to nejdůležitější z vašich nemovitostí. Podrobnosti jsou vždy na jedno kliknutí.</p><div className="basic-scope"><PortfolioScopePicker availableProperties={scopeOptions} selection={selection}/></div></div>
-      <div className="basic-berry-note"><img className="basic-berry" src="/guide/properties.webp" alt="" aria-hidden="true"/><div><strong>Berryho přehled</strong><p>{debt > 0 ? "Některé platby už jsou po splatnosti." : remaining > 0 ? "Část plateb za tento měsíc ještě zbývá uhradit." : "Vaše platby jsou pro tento měsíc uhrazené."}</p><Link href="/reporty?view=collections">Otevřít platby <ArrowRight size={16}/></Link></div></div>
+      <div className="basic-hero-copy"><span className="basic-eyebrow">Váš domovský přehled</span><h1>{greeting(name)}</h1><p>Tady je to nejdůležitější z vašich nemovitostí. Podrobnosti jsou vždy na jedno kliknutí.</p><div className="basic-scope"><PortfolioScopePicker availableProperties={scopeOptions} selection={selection}/></div></div>
+      <div className="basic-berry-note"><img className="basic-berry" src="/guide/properties.webp" alt="" aria-hidden="true"/><div><strong>Berryho přehled</strong><p>{debt > 0 ? "Některé platby už jsou po splatnosti." : remaining > 0 ? "Část předpisů teprve čeká na splatnost. Aktuální dluh je zobrazen zvlášť." : "Vaše platby jsou pro tento měsíc uhrazené."}</p><Link href="/reporty?view=collections">Otevřít platby <ArrowRight size={16}/></Link></div></div>
     </section>
 
     <div className="basic-summary" aria-label="Souhrn portfolia">
       <Link href="#nemovitosti" className="basic-summary-card basic-homes"><span className="basic-summary-main"><span className="basic-summary-icon"><House size={38}/></span><span className="basic-summary-body"><span className="basic-summary-title">Nájmy a lidé</span><strong>{occupied} <span>z {units.length}</span></strong><small>{units.length ? "obsazených jednotek" : "zatím bez jednotek"}</small></span></span><span className="basic-summary-link">Moje nemovitosti <ArrowRight size={17}/></span></Link>
-      <Link href="/reporty?view=collections" className="basic-summary-card basic-payments" data-guide="basic-payments"><span className="basic-summary-main"><span className="basic-summary-icon"><WalletCards size={38}/></span><span className="basic-summary-body"><span className="basic-summary-title">Platby · {month}</span><strong>{money(paid)}</strong><small>uhrazeno z {money(expected)}</small></span></span><span className="basic-progress" role="img" aria-label={`Uhrazeno ${expected ? Math.round(paid / expected * 100) : 0} procent`}><span style={{ width: `${expected ? Math.max(0, Math.min(100, Math.round(paid / expected * 100))) : 0}%` }}/></span><small className="basic-payment-remaining">Za tento měsíc zbývá {money(remaining)}</small>{debt > 0 && <span className="basic-overdue-chip"><AlertCircle size={19}/><span>Po splatnosti celkem <strong>{money(debt)}</strong></span></span>}<span className="basic-summary-link">Přehled plateb <ArrowRight size={17}/></span></Link>
+      <Link href="/reporty?view=collections" className="basic-summary-card basic-payments" data-guide="basic-payments"><span className="basic-summary-main"><span className="basic-summary-icon"><WalletCards size={38}/></span><span className="basic-summary-body"><span className="basic-summary-title">Platby · {month}</span><strong>{money(paid)}</strong><small>uhrazeno z {money(expected)}</small></span></span><span className="basic-progress" role="img" aria-label={`Uhrazeno ${expected ? Math.round(paid / expected * 100) : 0} procent`}><span style={{ width: `${expected ? Math.max(0, Math.min(100, Math.round(paid / expected * 100))) : 0}%` }}/></span><small className="basic-payment-remaining">Před splatností v tomto měsíci {money(beforeDue)}</small>{debt > 0 && <span className="basic-overdue-chip"><AlertCircle size={19}/><span>Po splatnosti celkem <strong>{money(debt)}</strong></span></span>}<span className="basic-summary-link">Přehled plateb <ArrowRight size={17}/></span></Link>
       <Link href="/ukoly" className="basic-summary-card basic-tasks" data-guide="basic-tasks"><span className="basic-summary-main"><span className="basic-summary-icon"><ListChecks size={38}/></span><span className="basic-summary-body"><span className="basic-summary-title">Úkoly a termíny</span><strong>{taskCount}</strong><small>{taskCount === 1 ? "otevřený úkol" : "otevřených úkolů"}</small></span></span><span className="basic-summary-link">Otevřít úkoly <ArrowRight size={17}/></span></Link>
     </div>
 
@@ -63,8 +64,8 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
         const href = `/nemovitosti/${property.id}/jednotky/${unit.id}`;
         return <article className="basic-property-card" key={unit.id}><Link className="basic-property-photo" href={href} aria-label={`Otevřít ${unit.label}`}><EntityAvatar photoId={photos.units[unit.id] || defaultPropertyIllustration("unit", property.id, unitIndex)} kind="unit" size="lg"/></Link>
           <div className="basic-property-body"><Link href={href} className="basic-property-name">{unit.label} <span className={`basic-unit-state${lease ? " is-occupied" : ""}`}>{lease ? "Pronajato" : "Volná"}</span></Link><p>{property.name} · {property.city}</p>
-            <div className="basic-tenant">{lease ? <TenantAvatar tenant={lease.tenant} className="basic-person-avatar"/> : <span className="basic-person-avatar" aria-hidden="true">–</span>}<strong>{lease?.tenant.name || "Zatím bez nájemníka"}</strong></div>
-            <div className="basic-rent"><span>{unitExpected ? <><strong>{money(unitExpected)}</strong> / {month}</> : "Bez předpisu v tomto měsíci"}</span>{unitDebt > 0 ? <b className="basic-payment-late">Po splatnosti {money(unitDebt)}</b> : unitExpected > 0 ? <b className={unitPaid >= unitExpected ? "basic-payment-ok" : "basic-payment-pending"}>{unitPaid >= unitExpected ? "Uhrazeno" : `Zbývá ${money(Math.max(0, unitExpected - unitPaid))}`}</b> : null}</div>
+            <div className="basic-tenant">{lease ? <TenantAvatar tenant={lease.tenant} className="basic-person-avatar"/> : <span className="basic-person-avatar" aria-hidden="true">–</span>}{lease?<Link href={`/najemnici/${lease.tenant.id}`}>{lease.tenant.name}</Link>:<strong>Zatím bez nájemníka</strong>}</div>
+            <div className="basic-rent"><span>{unitExpected ? <><strong>{money(unitExpected)}</strong> / {month}</> : "Bez předpisu v tomto měsíci"}</span>{unitDebt > 0 ? <b className="basic-payment-late">Po splatnosti {money(unitDebt)}</b> : unitExpected > 0 ? <b className={unitPaid >= unitExpected ? "basic-payment-ok" : "basic-payment-pending"}>{unitPaid >= unitExpected ? "Uhrazeno" : `Před splatností ${money(Math.max(0, unitExpected - unitPaid))}`}</b> : null}</div>
           </div></article>;
       }) : [<article className="basic-property-card" key={property.id}><Link className="basic-property-photo" href={`/nemovitosti/${property.id}/prehled`} aria-label={`Otevřít ${property.name}`}><EntityAvatar photoId={photos.properties[property.id]} identity={property.id} size="lg"/></Link><div className="basic-property-body"><Link href={`/nemovitosti/${property.id}/prehled`} className="basic-property-name">{property.name} <ArrowRight size={17}/></Link><p>{property.address}, {property.city}</p><small>Zatím bez jednotek</small></div></article>])}{!activeRows.length && <div className="basic-empty-properties"><House size={30}/><strong>Zde nejsou žádné aktivní nemovitosti.</strong><span>{archivedRows.length ? "Vybraný neaktivní objekt najdete níže." : "Vyberte jiné portfolio nebo přidejte nemovitost."}</span></div>}</div>
       {archivedRows.length > 0 && <div className="basic-archived-properties" aria-labelledby="basic-archived-heading">

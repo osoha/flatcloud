@@ -80,7 +80,8 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
     const charges = allLeases.flatMap((lease) => lease.charges.map((charge) => ({ charge, propertyId: lease.unit.propertyId }))).filter((row) => row.charge.active && periods.includes(row.charge.period) && (!propertyId || row.propertyId === propertyId));
     const expectedCents = charges.reduce((sum, row) => sum + row.charge.amountCents, 0);
     const paidCents = charges.reduce((sum, row) => sum + paidCentsAsOf(row.charge, asOf), 0);
-    return { expectedCents, paidCents, collectionRateBps: expectedCents ? Math.round(paidCents * 10_000 / expectedCents) : null };
+    const pendingBeforeDueCents=charges.filter(row=>row.charge.debtTreatment==="CURRENT"&&businessDateKey(row.charge.dueDate)>=asOfKey).reduce((sum,row)=>sum+Math.max(0,row.charge.amountCents-paidCentsAsOf(row.charge,asOf)),0);
+    return { expectedCents, paidCents, pendingBeforeDueCents, collectionRateBps: expectedCents ? Math.round(paidCents * 10_000 / expectedCents) : null };
   };
   const trend = periods.map((period) => { const charges = allLeases.flatMap((lease) => lease.charges).filter((charge) => charge.active && charge.period === period); return { label: period, expected: charges.reduce((sum, charge) => sum + charge.amountCents, 0), paid: charges.reduce((sum, charge) => sum + paidCentsAsOf(charge, asOf), 0) }; });
   const collectionRange = collectionRangeFor();

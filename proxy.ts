@@ -8,6 +8,7 @@ export function proxy(request: NextRequest) {
   // including Next server actions and routes added after this feature.
   const headers = new Headers(request.headers);
   headers.set("x-flatberry-path", path);
+  headers.set("x-flatberry-search", request.nextUrl.search);
   headers.set("x-flatberry-method", request.method);
   if (preview && !previewRequestAllowed(request.method, path)) {
     return NextResponse.json({error:"Pohled uživatele je pouze pro čtení. Nejprve ukončete náhled."},{status:403,headers:{"Cache-Control":"no-store"}});
