@@ -35,6 +35,15 @@ test("tenant account sees only its lease, can report a defect and record its own
     await page.getByRole("button",{name:"Přihlásit se",exact:true}).click();
     await expect(page).toHaveURL(new RegExp(`/portal/najemnik/${tenant.id}`));
     await expect(page.getByText("Vodoměr")).toBeVisible();
+    expect((await page.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=contract`)).status()).toBe(404);
+    const adminPage=await browser.newPage();
+    try{
+      await adminPage.goto("/login");await adminPage.getByLabel("E-mail").fill(process.env.E2E_ADMIN_EMAIL!);await adminPage.getByLabel("Heslo").fill(process.env.E2E_ADMIN_PASSWORD!);
+      await adminPage.getByRole("button",{name:"Přihlásit se",exact:true}).click();
+      const pdf=await adminPage.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=handover`);
+      expect(pdf.status()).toBe(200);expect(pdf.headers()["content-type"]).toContain("application/pdf");expect((await pdf.body()).subarray(0,4).toString()).toBe("%PDF");
+      expect((await adminPage.request.get(`/api/leases/${otherLease.id}/portal-entry-pdf?kind=invalid`)).status()).toBe(404);
+    }finally{await adminPage.close();}
     expect((await page.goto(`/portal/najemnik/${other.id}`))?.status()).toBe(404);
     await page.goto("/portfolio");await expect(page).toHaveURL(/\/portal\/najemnik/);
     const rejected=await page.request.post(`/api/portal/tenants/${other.id}/readings`,{form:{leaseId:otherLease.id,meterId:otherMeter.id,readAt:businessTodayKey(),value:"20"},maxRedirects:0});

@@ -25,15 +25,16 @@ Uživatel schválil celý blok pouze do sandboxu. Produkce se nemění.
 - pro dům lze zvolit ruční nebo automatickou pozvánku (výchozí ručně). Automatika platí jen na nově založené smlouvy, čeká na začátek budoucí smlouvy, vynechá existující přístup a platnou pozvánku. V sandboxu e-mail nepotlačeným způsobem neodchází a testovací odkaz je dostupný na kartě nájemníka;
 - uživatel se současnou rolí vlastníka/správce a nájemnickým přístupem může přejít do „Můj nájem“ bez druhého účtu.
 - po auditním doplnění je finanční karta rozlišená na bankou přiřazenou úhradu, zápočet a zbývající částku; odeslaná, dosud nepřiřazená platba se nevydává za uhrazenou;
-- přímý QR vstup ze stránky smlouvy vede přes přihlášení a kontrolu konkrétního nájemnického přístupu. QR není přístupový token. QR na generovaném PDF smlouvy/předání je stále otevřený;
+- přímý QR vstup ze stránky smlouvy vede přes přihlášení a kontrolu konkrétního nájemnického přístupu. QR není přístupový token. Ke smlouvě i předání lze stáhnout samostatnou tiskovou PDF přílohu; původní nahrané dokumenty a podpisy se nemění;
 - plátce bez postavení smluvní strany vidí platební podklady, nemůže prohlížet dokumenty ani zapisovat odečty či závady; smluvní strana má plný nájemnický rozsah;
 - hlášení závady obsahuje volitelný, auditovaný a z portálu odvolatelný souhlas se vstupem po předchozí domluvě.
 - úkoly odečtů mají stabilní vazbu na ID měřidla a období, hlídají 90 dnů a roční 31. 12., v otevřeném úkolu doplní nové položky a uzavřou je podle uložených odečtů. Automatika se při sandboxovém ověření spouští; v produkci zůstane bez výslovného zapnutí vypnutá.
+- Basic karta jednotkových měřidel zobrazuje poslední stav a jednoduchý vstup k odečtu, odhad spotřeby a tarify jsou sbalené. Profi má souhrnnou tabulku měřidel na objektu.
 
 ## Neuzavřené podmínky společného release
 - průchod migracemi na izolované databázi a browser role testy přihlášení, dokumentů, závad a odečtů;
-- QR vstup do portálu přímo na PDF nájemní smlouvy a předávacího protokolu vyžaduje rozhodnutí o konkrétním generátoru smluv;
-- úplné Basic karty měřidel včetně bytových a hromadného odečtu Profi;
+- automatické vložení QR do originálních smluv a protokolů se nedělá: aplikace ukládá nahrané dokumenty a nemá generátor originálů. Uživatel zvolil samostatnou tiskovou QR přílohu;
+- hromadný odečet měřidel Profi zůstává rozšířením; jednotlivé odečty a souhrnná tabulka jsou dostupné;
 - propojení skutečné smluvní zálohy s tarifem a doporučení navýšení;
 - transakční a souběžný audit automatiky odečtů v izolovaném CI a živém sandboxu; implementovaný stabilní klíč a roční doplnění potřebují browser/DB průchod;
 - ověřené screenshoty bank a e-mailových služeb; orientační postupy dalších bank musí projít kontrolou na skutečném prostředí;
@@ -42,4 +43,4 @@ Uživatel schválil celý blok pouze do sandboxu. Produkce se nemění.
 - audit referenčních aplikací v aktuální konsolidované pipeline požaduje QR vstup na smlouvě/předání, viditelnost žádosti a propojené workflow závada→schválení→dodavatel→náklad. Základ žádosti se stavem je součástí PR; následné dodavatelské a finanční kroky patří do P04 po pilotu portálu. Přesný výstup dalšího paralelního auditu dosud není v repozitáři dostupný;
 - izolované DB a browser smoke, role a mobilní audit celého bloku.
 
-Neoznačovat READY a nenasazovat částečný blok jako kompletní.
+Vydání do sandboxu až po průchodu CI na posledním commitu, kontrole diffu a živém ověření nasazeného SHA. Neoznačovat produkci za nasazenou.
