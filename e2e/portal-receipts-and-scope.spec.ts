@@ -8,6 +8,7 @@ const db=new PrismaClient(),password="Portal-Receipts-Isolated-2026";
 test.beforeAll(()=>{if(!process.env.DATABASE_URL||!["localhost","127.0.0.1","postgres"].includes(new URL(process.env.DATABASE_URL).hostname))throw new Error("Isolated CI database required");});
 test.afterAll(()=>db.$disconnect());
 async function login(page:Page,email:string){await page.goto("/login");await page.getByLabel("E-mail").fill(email);await page.getByLabel("Heslo").fill(password);await page.getByRole("button",{name:"Přihlásit se",exact:true}).click();await expect(page).not.toHaveURL(/\/login/);}
+async function sessionHeaders(page:Page){return {Cookie:(await page.context().cookies()).map(c=>`${c.name}=${c.value}`).join("; ")};}
 test("signed receipts use received payments, stay archived, and scoped previews cannot write or see other units",async({page,browser},info)=>{
  test.setTimeout(90000);
  const tag=randomUUID(),hash=await bcrypt.hash(password,8);
@@ -34,10 +35,10 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   await page.locator(".unit-portal-access").getByRole("link",{name:"Prohlédnout očima nájemníka"}).click();
   await expect(page.locator("main")).toContainText("Byt 1");await expect(page.locator("main")).not.toContainText(hidden.label);
   await expect(page.getByRole("button",{name:"Předat závadu"})).toHaveCount(0);
-  expect((await page.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{form:{chargeId:paid.id},maxRedirects:0})).status()).toBe(303);
+  expect((await page.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{headers:await sessionHeaders(page),form:{chargeId:paid.id},maxRedirects:0})).status()).toBe(303);
   expect(await db.tenantPaymentReceipt.count({where:{chargeId:paid.id}})).toBe(0);
   await login(viewerPage,viewer.email);expect((await viewerPage.goto(`/portal/najemnik/${tenant.id}`))?.status()).toBe(404);
-  await viewerPage.request.post(`/api/tenants/${tenant.id}/portal-invite`,{maxRedirects:0});expect(await db.userInvitation.count({where:{tenantId:tenant.id}})).toBe(0);
+  await viewerPage.request.post(`/api/tenants/${tenant.id}/portal-invite`,{headers:await sessionHeaders(viewerPage),maxRedirects:0});expect(await db.userInvitation.count({where:{tenantId:tenant.id}})).toBe(0);
   await db.userInvitation.create({data:{email:account.email,tenantId:tenant.id,propertyId:property.id,role:"TENANT",permission:"VIEW",invitedById:manager.id,tokenHash:tag,expiresAt:new Date(Date.now()+86400000)}});
   await page.goto(`/najemnici/${tenant.id}`);await expect(page.locator("#portal .portal-access-badge")).toContainText("Čeká na přijetí");
   await db.tenantPortalAccess.create({data:{userId:account.id,tenantId:tenant.id}});
@@ -64,15 +65,15 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   await expect(tenantPage.locator(".portal-payment-history tr.portal-paid")).toContainText("Připsáno");await expect(tenantPage.locator(".portal-payment-history tr.portal-overdue")).toContainText("Částečně");
   await expect(tenantPage.locator(".portal-payment-history tr.portal-scheduled")).toContainText("2099");
   await expect(tenantPage.locator(".tenant-portal-call").first()).toHaveAttribute("href",`tel:${manager.phone}`);
-  expect((await tenantPage.request.post("/api/account/receipt-signature",{form:{issuerName:"Podvrh",issuerAddress:"Podvrh",issuanceEnabled:"on"},maxRedirects:0})).status()).toBe(403);
-  for(const chargeId of [partial.id,future.id]){await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{form:{chargeId},maxRedirects:0});expect(await db.tenantPaymentReceipt.count({where:{chargeId}})).toBe(0);}
-  const issued=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{form:{chargeId:paid.id},maxRedirects:0});expect(issued.status()).toBe(303);
+  expect((await tenantPage.request.post("/api/account/receipt-signature",{headers:await sessionHeaders(tenantPage),form:{issuerName:"Podvrh",issuerAddress:"Podvrh",issuanceEnabled:"on"},maxRedirects:0})).status()).toBe(403);
+  for(const chargeId of [partial.id,future.id]){await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{headers:await sessionHeaders(tenantPage),form:{chargeId},maxRedirects:0});expect(await db.tenantPaymentReceipt.count({where:{chargeId}})).toBe(0);}
+  const issued=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{headers:await sessionHeaders(tenantPage),form:{chargeId:paid.id},maxRedirects:0});expect(issued.status()).toBe(303);
   const location=issued.headers().location;expect(location).toContain("/receipts/D-");
-  const pdf=await tenantPage.request.get(location);expect(pdf.status()).toBe(200);expect((await pdf.body()).subarray(0,4).toString()).toBe("%PDF");
+  const pdf=await tenantPage.request.get(location,{headers:await sessionHeaders(tenantPage)});expect(pdf.status()).toBe(200);expect((await pdf.body()).subarray(0,4).toString()).toBe("%PDF");
   const stored=await db.tenantPaymentReceipt.findFirstOrThrow({where:{chargeId:paid.id}});expect(stored.issuerId).toBe(manager.id);expect(stored.snapshot).toMatchObject({amountCents:1250000,tenantName:tenant.name,items:[{name:"Nájemné",amountCents:1000000},{name:"Zálohy na vodu",amountCents:250000}]});
-  const repeated=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{form:{chargeId:paid.id},maxRedirects:0});expect(repeated.headers().location).toBe(location);expect(await db.tenantPaymentReceipt.count({where:{chargeId:paid.id}})).toBe(1);
-  await db.user.update({where:{id:manager.id},data:{receiptSignatureData:null,receiptIssuanceEnabled:false}});expect(await (await tenantPage.request.get(location)).body()).toEqual(await pdf.body());
-  expect((await viewerPage.request.get(location)).status()).toBe(404);
+  const repeated=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{headers:await sessionHeaders(tenantPage),form:{chargeId:paid.id},maxRedirects:0});expect(repeated.headers().location).toBe(location);expect(await db.tenantPaymentReceipt.count({where:{chargeId:paid.id}})).toBe(1);
+  await db.user.update({where:{id:manager.id},data:{receiptSignatureData:null,receiptIssuanceEnabled:false}});expect(await (await tenantPage.request.get(location,{headers:await sessionHeaders(tenantPage)})).body()).toEqual(await pdf.body());
+  expect((await viewerPage.request.get(location,{headers:await sessionHeaders(viewerPage)})).status()).toBe(404);
   await tenantPage.reload();await expect(tenantPage.locator(".portal-document-list").first()).toContainText("stáhnout PDF");
   await tenantPage.screenshot({path:info.outputPath("tenant-portal-desktop.png"),fullPage:true});
   await info.attach("receipt.pdf",{body:await pdf.body(),contentType:"application/pdf"});
@@ -102,7 +103,7 @@ test("Basic preserves selected property, badges match open tasks and completed w
   await expect(page.locator(".basic-section-list")).toContainText(open.title);await expect(page.locator(".basic-section-list")).not.toContainText(done.title);await expect(page.locator(".basic-section-list")).not.toContainText(foreign.title);
   await expect(page.locator(".scope-picker-trigger").first()).toContainText("1 z 3");
   await page.locator('.sidebar a[aria-label="Dokumenty"]').click();await expect(page).toHaveURL(new RegExp(`properties=${selected.id}`));
-  await page.locator(".basic-section-filter summary").click();await page.locator('form[method="get"] input[name=q]').fill("nenalezeno");await page.locator('form[method="get"] button').first().click();await expect(page).toHaveURL(new RegExp(`properties=${selected.id}`));
+  await page.locator(".basic-section-filter summary").click();await page.locator('.basic-section-filter form input[name=q]').fill("nenalezeno");await page.locator('.basic-section-filter form button').first().click();await expect(page).toHaveURL(new RegExp(`properties=${selected.id}`));
   await page.locator('.sidebar a[aria-label="Úkoly"]').click();await expect(page).toHaveURL(new RegExp(`properties=${selected.id}`));
   await page.getByRole("link",{name:"Archiv",exact:true}).click();await expect(page.locator(".basic-section-list")).toContainText(done.title);
   await expect(page.locator(".basic-section-list")).not.toContainText(open.title);
