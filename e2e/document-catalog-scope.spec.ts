@@ -7,8 +7,10 @@ test("document catalog carries portfolio scope through navigation, filters, pagi
   if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname)) throw new Error("Isolated database required");
   const db = new PrismaClient();
   try {
-    const actor = await db.user.findUniqueOrThrow({ where: { email: R24_ROLE_USERS.advanced } });
     const tag = `Document scope QA ${randomUUID()}`;
+    const template = await db.user.findUniqueOrThrow({ where: { email: R24_ROLE_USERS.advanced } });
+    // A separate actor keeps these extra memberships out of shared cost fixtures.
+    const actor = await db.user.create({ data: { email: `document-scope-${randomUUID()}@flatcloud.test`, name: tag, role: "PROPERTY_MANAGER", passwordHash: template.passwordHash, active: true, defaultDisplayMode: "pro", isTestIdentity: true } });
     const owner = await db.owner.create({ data: { name: tag } });
     const properties: { id: string; name: string }[] = [];
     for (let i = 0; i < 3; i++) properties.push(await db.property.create({ data: { name: `${tag} property ${i}`, ownerId: owner.id, address: "QA", city: "QA", ...(i < 2 ? { memberships: { create: { userId: actor.id, permission: "VIEW" } } } : {}) } }));
@@ -61,5 +63,10 @@ test("document catalog carries portfolio scope through navigation, filters, pagi
     await expect(page.locator(".document-card")).toHaveCount(1);
     await expect(page.locator(".document-grid")).toContainText(reportPhoto);
     await expect(page.locator(".document-grid")).not.toContainText(denied);
+    await page.locator('.display-mode-switch button[value="basic"]').first().click();
+    await expect(page.locator(".basic-section-property")).toHaveCount(0);
+    await expect(page.locator(".document-card")).toHaveCount(1);
+    expect(new URL(page.url()).searchParams.get("properties")).toBe(properties[1].id);
+    expect(new URL(page.url()).searchParams.get("q")).toBe(tag);
   } finally { await db.$disconnect(); }
 });
