@@ -14,6 +14,8 @@ Základ: sandbox/ux-agent, 431dd7afd11b84a0aa08aae6a0b44d44ac8144e4. Obsahuje ji
 - Avatary: karta hlavního nájemníka na jednotce používá TenantAvatar. Výslovně uložená ilustrace nebo fotka identity je vidět i při vypnuté dekorativní grafice Profi.
 - Dokumenty: screenshot ukazuje jednotku a její záložku #smlouva, nikoli samostatný detail smlouvy. Upload na jednotce nyní nabízí nájemní smlouvu a dodatek a váže je na vybraný nájemní vztah. Při více smlouvách je výběr povinný. Dokument je dostupný na jednotce i odpovídající smlouvě. Přímo u shrnutí nájmu je též odkaz na nahrání smlouvy/dodatku. Server kontroluje shodu kontextových rodičů a odmítne chybějící smlouvu při uploadu smlouvy jednotky.
 
+- Katalog dokumentů: navigace přenáší rozsah portfolia do Basic i Profi. Seznam, počty a karty nemovitostí se omezí na tento rozsah; lokální filtr nemovitosti se s ním protíná. Hledání, stránkování, zrušení lokálních filtrů i přepnutí zobrazení zachovávají rozsah. Prázdný výběr neznamená všechny objekty. Fotografie vložené přes report jsou existující dokumenty objektu a v katalogu zůstávají pouze pro odpovídající rozsah.
+
 ## Migrace a dopady
 
 Aditivní migrace přidává volitelná pole Tenant a autora s ON DELETE SET NULL. Autor historických profilů se doplní pouze z jednoznačného zaznamenaného TENANT_CREATED / TENANT_AND_LEASE_CREATED auditu; importovaným a nejasným profilům se autor nevymýšlí. Bez data narození/dokladů zůstávají stávající profily beze změny. Nové rozpisy používají stávající model platebních položek, bez migrace finančních dat. Nahrazení budoucího souhrnu služeb ukončí všechny kategorie služeb před novým souhrnem, aby nedošlo k dvojímu účtování; minulá historie zůstává zachována.

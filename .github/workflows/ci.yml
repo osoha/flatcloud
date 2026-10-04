@@ -253,6 +253,16 @@ jobs:
           S3_FORCE_PATH_STYLE: "true"
           S3_ACCESS_KEY_ID: qa-only
           S3_SECRET_ACCESS_KEY: qa-only
+      - name: Upload contract upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-upload-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            contract-upload-report/
+            contract-upload-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - run: npm run test:e2e
         if: ${{ !cancelled() }}
       - name: Upload browser evidence
