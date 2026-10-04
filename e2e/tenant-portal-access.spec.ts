@@ -40,7 +40,9 @@ test("tenant account sees only its lease, can report a defect and record its own
     try{
       await adminPage.goto("/login");await adminPage.getByLabel("E-mail").fill(process.env.E2E_ADMIN_EMAIL!);await adminPage.getByLabel("Heslo").fill(process.env.E2E_ADMIN_PASSWORD!);
       await adminPage.getByRole("button",{name:"Přihlásit se",exact:true}).click();
-      const pdf=await adminPage.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=handover`);
+      await expect(adminPage).toHaveURL(/\/portfolio/);
+      const session=(await adminPage.context().cookies()).find(cookie=>cookie.name==="fc_session");expect(session).toBeDefined();
+      const pdf=await adminPage.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=handover`,{headers:{Cookie:`fc_session=${session!.value}`}});
       expect(pdf.status()).toBe(200);expect(pdf.headers()["content-type"]).toContain("application/pdf");expect((await pdf.body()).subarray(0,4).toString()).toBe("%PDF");
       expect((await adminPage.request.get(`/api/leases/${otherLease.id}/portal-entry-pdf?kind=invalid`)).status()).toBe(404);
     }finally{await adminPage.close();}
