@@ -14,9 +14,12 @@ assert.match(portfolio, /activeProperties = properties\.filter/);
 assert.match(portfolio, /Neaktivní \/ archivované/);
 assert.match(portfolio, /leaseAlertsForProperties\(activeProperties\)/);
 assert.match(portfolio, /taskScope = fullAccess \? \{ propertyId: \{ in: propertyIds \} \}/);
-assert.match(portfolio, /managerPropertyIds = fullAccess \? propertyIds : activeProperties\.filter\(property => property\.memberships\.some\(member => member\.userId === user\.id && \["EDIT", "ADMIN"\]\.includes\(member\.permission\)\)\)/);
-assert.match(portfolio, /bankAccount: \{ propertyId: \{ in: managerPropertyIds \} \}/);
-assert.match(portfolio, /OR: \[\{ propertyId: null \}, \{ propertyId: \{ in: propertyIds \} \}\]/);
+assert.match(portfolio, /unmatchedQueueCount\(user,propertyIds\)/);
+const queueCounts = read("lib/inbound-bank/queue-counts.ts");
+assert.match(queueCounts, /bankAccountScopes\(actor\)/);
+assert.match(queueCounts, /bankAccount:\{propertyId:\{in:propertyIds\}\}/);
+assert.match(queueCounts, /recipient===actor\.id&&\(scopes\.some\(account=>bankAccountMatches\(account,row\.recipientAccount\)\)\|\|payer===actor\.id\)/);
+assert.match(queueCounts, /actor\.role==="SUPER_ADMIN"\?!recipient/);
 
 const task = read("app/ukoly/\[id\]/page.tsx");
 assert.match(task, /orderBy:\{createdAt:"desc"\}/);
