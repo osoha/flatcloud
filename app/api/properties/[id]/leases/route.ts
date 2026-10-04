@@ -5,6 +5,7 @@ import { go, goWithMessage } from "@/lib/route-response";
 import { createLeaseFromForm } from "@/lib/lease-create";
 import { stringArray } from "@/lib/forms";
 import { allSelectedPartyIds, normalizeLeasePartySelections } from "@/lib/lease-parties";
+import {runAutoTenantPortalInvitations} from "@/lib/tenant-portal-auto-invite";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,7 +28,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (allowedTenants.length !== requestedTenantIds.length) throw new Error("Některá další smluvní strana není v rozsahu vašich oprávnění.");
     const result = await prisma.$transaction((tx) => createLeaseFromForm(tx, id, form, tenantId, access.user.id, partySelections));
     await audit(access.user.id, "LEASE_CREATED", "Lease", result.lease.id, { propertyId: id, leaseId: result.lease.id, tenantId, contractingPartyIds: result.contractingPartyIds, partyRoles: result.parties, unitId: result.unitId, legalStartDate: result.lease.startDate.toISOString(), financialTrackingFrom: result.financialTrackingFromPeriod, openingBalanceType: result.openingBalanceType, openingBalanceCents: result.openingBalanceCents, openingChargeId: result.openingChargeId, openingCreditId: result.openingCreditId, agreedDepositCents: result.agreedDepositCents, openingDepositStatus: result.openingDepositStatus, openingDepositHeldCents: result.openingDepositHeldCents, openingDepositMovementId: result.openingDepositMovementId, lifecycleStatus: result.derivedStatus, ownerBankAccountId: result.ownerBankAccountId, tenantBankAccount: Boolean(result.tenantBankAccount), autoChargesEnabled: result.autoChargesEnabled, indexationEnabled: result.indexationEnabled }, id);
-    return goWithMessage(request, `/nemovitosti/${id}/predpisy/${result.lease.id}`, "ok", result.autoChargesEnabled ? "Smlouva i automatické předpisy byly vytvořeny." : "Smlouva byla vytvořena bez automatických předpisů.");
+    let invitations:Awaited<ReturnType<typeof runAutoTenantPortalInvitations>>|null=null;
+    if(result.lease.autoPortalInvitationPending)try{invitations=await runAutoTenantPortalInvitations(result.lease.id);}catch(error){console.error("Tenant portal invitation failed after lease creation",{leaseId:result.lease.id,error});invitations={invited:0,waiting:0,skipped:0,failed:1,summary:"Pozvánku se nepodařilo připravit."};}
+    const invitationNote=invitations?.failed?" Pozvánku se nepodařilo odeslat; zkontrolujte kartu nájemníka.":invitations?.invited?" Pozvánka do portálu byla připravena.":invitations?.waiting?" Pozvánka do portálu čeká na začátek smlouvy.":"";
+    return goWithMessage(request, `/nemovitosti/${id}/predpisy/${result.lease.id}`, "ok", (result.autoChargesEnabled ? "Smlouva i automatické předpisy byly vytvořeny." : "Smlouva byla vytvořena bez automatických předpisů.")+invitationNote);
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/nova`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo vytvořit.");
   }

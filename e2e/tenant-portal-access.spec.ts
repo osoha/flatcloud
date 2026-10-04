@@ -1,0 +1,112 @@
+import {test,expect} from "@playwright/test";
+import {PrismaClient} from "@prisma/client";
+import bcrypt from "bcryptjs";
+import {randomUUID} from "node:crypto";
+import {businessTodayKey} from "../lib/calendar";
+import {runAutoTenantPortalInvitations} from "../lib/tenant-portal-auto-invite";
+import {cleanupImmutableMeterReadings} from "./cleanup-immutable-meter-readings";
+
+const db=new PrismaClient();
+test.beforeAll(()=>{if(!process.env.DATABASE_URL||!["localhost","127.0.0.1","postgres"].includes(new URL(process.env.DATABASE_URL).hostname))throw new Error("Isolated CI database required");});
+test.afterAll(()=>db.$disconnect());
+
+test("tenant account sees only its lease, can report a defect and record its own meter",async({page,browser})=>{
+  const tag=randomUUID(),password="Portal-QA-Only-2026";
+  const actor=await db.user.create({data:{email:`portal-${tag}@flatcloud.test`,name:"Nájemník QA",passwordHash:await bcrypt.hash(password,10),role:"TENANT",isTestIdentity:true}});
+  const manager=await db.user.create({data:{email:`manager-${tag}@flatcloud.test`,name:"Správce QA",passwordHash:await bcrypt.hash(password,10),role:"PROPERTY_MANAGER",isTestIdentity:true}});
+  const payerUser=await db.user.create({data:{email:`payer-${tag}@flatcloud.test`,name:"Plátce QA",passwordHash:await bcrypt.hash(password,10),role:"TENANT",isTestIdentity:true}});
+  const owner=await db.owner.create({data:{name:`Portál QA ${tag}`}});
+  const property=await db.property.create({data:{name:`Portál QA ${tag}`,ownerId:owner.id,managerId:manager.id,address:"Testovací 1",city:"Praha"}});
+  const unit=await db.unit.create({data:{propertyId:property.id,label:"1"}});
+  const otherUnit=await db.unit.create({data:{propertyId:property.id,label:"2"}});
+  const tenant=await db.tenant.create({data:{name:`Nájemník ${tag}`,email:actor.email}});
+  const other=await db.tenant.create({data:{name:`Cizí nájemník ${tag}`}});
+  const payer=await db.tenant.create({data:{name:`Plátce ${tag}`,email:payerUser.email}});
+  const lease=await db.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date("2025-01-01T12:00:00Z"),financialTrackingFromPeriod:"2025-01",variableSymbol:"7654321",rentCents:120000,servicesCents:0}});
+  const otherLease=await db.lease.create({data:{unitId:otherUnit.id,tenantId:other.id,startDate:new Date("2025-01-01T12:00:00Z"),financialTrackingFromPeriod:"2025-01",variableSymbol:"7654322",rentCents:120000,servicesCents:0}});
+  await db.leaseParty.create({data:{leaseId:lease.id,tenantId:payer.id,role:"PAYER"}});
+  const meter=await db.meter.create({data:{propertyId:property.id,unitId:unit.id,scope:"UNIT",type:"COLD_WATER",unitOfMeasure:"m³",label:"Vodoměr"}});
+  const otherMeter=await db.meter.create({data:{propertyId:property.id,unitId:otherUnit.id,scope:"UNIT",type:"COLD_WATER",unitOfMeasure:"m³",label:"Cizí vodoměr"}});
+  await db.tenantPortalAccess.create({data:{userId:actor.id,tenantId:tenant.id}});
+  await db.tenantPortalAccess.create({data:{userId:payerUser.id,tenantId:payer.id}});
+  try {
+    await page.goto(`/portal/najemnik/${tenant.id}`);await expect(page).toHaveURL(new RegExp(`/login\\?portal=${tenant.id}`));
+    await page.getByLabel("E-mail").fill(actor.email);await page.getByLabel("Heslo").fill(password);
+    await page.getByRole("button",{name:"Přihlásit se",exact:true}).click();
+    await expect(page).toHaveURL(new RegExp(`/portal/najemnik/${tenant.id}`));
+    await expect(page.getByText("Vodoměr")).toBeVisible();
+    expect((await page.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=contract`)).status()).toBe(404);
+    const adminPage=await browser.newPage();
+    try{
+      await adminPage.goto("/login");await adminPage.getByLabel("E-mail").fill(process.env.E2E_ADMIN_EMAIL!);await adminPage.getByLabel("Heslo").fill(process.env.E2E_ADMIN_PASSWORD!);
+      await adminPage.getByRole("button",{name:"Přihlásit se",exact:true}).click();
+      await expect(adminPage).toHaveURL(/\/portfolio/);
+      const session=(await adminPage.context().cookies()).find(cookie=>cookie.name==="fc_session");expect(session).toBeDefined();
+      const pdf=await adminPage.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=handover`,{headers:{Cookie:`fc_session=${session!.value}`}});
+      expect(pdf.status()).toBe(200);expect(pdf.headers()["content-type"]).toContain("application/pdf");expect((await pdf.body()).subarray(0,4).toString()).toBe("%PDF");
+      expect((await adminPage.request.get(`/api/leases/${otherLease.id}/portal-entry-pdf?kind=invalid`)).status()).toBe(404);
+    }finally{await adminPage.close();}
+    expect((await page.goto(`/portal/najemnik/${other.id}`))?.status()).toBe(404);
+    await page.goto("/portfolio");await expect(page).toHaveURL(/\/portal\/najemnik/);
+    const rejected=await page.request.post(`/api/portal/tenants/${other.id}/readings`,{form:{leaseId:otherLease.id,meterId:otherMeter.id,readAt:businessTodayKey(),value:"20"},maxRedirects:0});
+    expect(rejected.status()).toBe(303);
+    expect(await db.meterReading.count({where:{meterId:otherMeter.id}})).toBe(0);
+    const payerPage=await browser.newPage();
+    try{
+      await payerPage.goto("/login");await payerPage.getByLabel("E-mail").fill(payerUser.email);await payerPage.getByLabel("Heslo").fill(password);await payerPage.getByRole("button",{name:"Přihlásit se",exact:true}).click();
+      await expect(payerPage).toHaveURL(new RegExp(`/portal/najemnik/${payer.id}`));
+      await expect(payerPage.getByText("Zaplatit nájem")).toBeVisible();
+      await expect(payerPage.getByText("Odečty měřidel")).toHaveCount(0);
+      await expect(payerPage.getByText("Nahlásit závadu")).toHaveCount(0);
+      expect((await payerPage.request.post(`/api/portal/tenants/${payer.id}/readings`,{form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"20"},maxRedirects:0})).status()).toBe(303);
+      expect(await db.meterReading.count({where:{meterId:meter.id}})).toBe(0);
+    }finally{await payerPage.close();}
+    await page.goto(`/portal/najemnik/${tenant.id}`);
+    await page.getByLabel("Co se stalo?").fill("Netěsní kohoutek");await page.getByLabel("Popis závady").fill("Kohoutek v kuchyni kapká již dva dny.");
+    await page.getByRole("checkbox",{name:/Souhlasím se vstupem/}).check();
+    await page.getByRole("button",{name:"Předat závadu"}).click();
+    const defect=await db.task.findFirstOrThrow({where:{tenantId:tenant.id,createdById:actor.id}});
+    expect(defect.leaseId).toBe(lease.id);expect(defect.category).toBe("MAINTENANCE");
+    expect(defect.tenantPortalRequest).toBe(true);
+    expect(defect.tenantEntryConsentAt).not.toBeNull();
+    await expect(page.getByText("Moje hlášení")).toBeVisible();
+    await expect(page.getByText("Netěsní kohoutek")).toBeVisible();
+    await page.getByRole("button",{name:"Odvolat souhlas se vstupem"}).click();
+    expect((await db.task.findUniqueOrThrow({where:{id:defect.id}})).tenantEntryConsentAt).toBeNull();
+    await page.getByLabel("Nový stav (m³)").fill("12.5");await page.getByRole("button",{name:"Uložit odečet"}).click();
+    expect((await db.meterReading.findFirstOrThrow({where:{meterId:meter.id}})).value).toBe(12.5);
+    expect(await db.meterReading.count({where:{meterId:otherMeter.id}})).toBe(0);
+    await page.request.post(`/api/portal/tenants/${tenant.id}/readings`,{form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"11"},maxRedirects:0});
+    expect(await db.meterReading.count({where:{meterId:meter.id}})).toBe(1);
+    await db.tenant.update({where:{id:tenant.id},data:{communicationEmail:`new-${tag}@flatcloud.test`}});
+    expect((await page.goto(`/portal/najemnik/${tenant.id}`))?.status()).toBe(404);
+    expect((await page.request.get(`/api/portal/tenants/${tenant.id}/documents/missing`)).status()).toBe(404);
+    await page.request.post(`/api/portal/tenants/${tenant.id}/readings`,{form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"13"}});
+    expect(await db.meterReading.count({where:{meterId:meter.id}})).toBe(1);
+    process.env.SESSION_SECRET ||= "flatberry-isolated-portal-e2e-secret-2026";
+    process.env.APP_URL ||= "http://127.0.0.1:3100";
+    await db.property.update({where:{id:property.id},data:{tenantPortalInvitationMode:"AUTOMATIC"}});
+    await db.tenant.update({where:{id:other.id},data:{email:`other-${tag}@flatcloud.test`}});
+    await db.lease.update({where:{id:otherLease.id},data:{autoPortalInvitationPending:true}});
+    expect((await runAutoTenantPortalInvitations(otherLease.id)).invited).toBe(1);
+    expect((await runAutoTenantPortalInvitations(otherLease.id)).invited).toBe(0);
+    expect(await db.userInvitation.count({where:{tenantId:other.id,status:"PENDING"}})).toBe(1);
+  }finally{
+    await db.userInvitation.deleteMany({where:{tenantId:other.id}});
+    await db.auditLog.deleteMany({where:{userId:{in:[actor.id,manager.id,payerUser.id]}}});
+    await db.task.deleteMany({where:{tenantId:tenant.id}});
+    await cleanupImmutableMeterReadings(db,[meter.id,otherMeter.id]);
+    await db.tenantPortalAccess.deleteMany({where:{userId:actor.id}});
+    await db.tenantPortalAccess.deleteMany({where:{userId:payerUser.id}});
+    await db.meter.deleteMany({where:{propertyId:property.id}});
+    await db.leaseParty.deleteMany({where:{leaseId:lease.id}});
+    await db.lease.deleteMany({where:{id:{in:[lease.id,otherLease.id]}}});
+    await db.tenant.deleteMany({where:{id:{in:[tenant.id,other.id,payer.id]}}});
+    await db.unit.deleteMany({where:{propertyId:property.id}});
+    await db.property.delete({where:{id:property.id}});
+    await db.owner.delete({where:{id:owner.id}});
+    await db.user.delete({where:{id:manager.id}});
+    await db.user.delete({where:{id:payerUser.id}});
+    await db.user.delete({where:{id:actor.id}});
+  }
+});

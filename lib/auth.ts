@@ -15,7 +15,7 @@ function getSessionSecret() {
 }
 export async function createSession(userId: string, sessionVersion: number) { const token=await new SignJWT({userId,sessionVersion}).setProtectedHeader({alg:"HS256"}).setIssuedAt().setExpirationTime("12h").sign(getSessionSecret()); const store=await cookies(); store.set("fc_session",token,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:43200,priority:"high"}); }
 export async function clearSession(){const store=await cookies();store.delete("fc_session");store.delete(PREVIEW_COOKIE);}
-export async function actualUser(){const store=await cookies();const token=store.get("fc_session")?.value;if(!token)return null;try{const{payload}=await jwtVerify(token,getSessionSecret());if(typeof payload.userId!=="string")return null;const user=await prisma.user.findFirst({where:{id:payload.userId,active:true},select:{id:true,email:true,name:true,passwordHash:true,sessionVersion:true,role:true,active:true,allProperties:true,flatcloudMember:true,phone:true,title:true,avatarMimeType:true,avatarChoice:true,onboardingStatus:true,defaultDisplayMode:true,createdAt:true,updatedAt:true}});return user && sessionVersionMatches(payload.sessionVersion,user.sessionVersion) ? user : null}catch{return null}}
+export async function actualUser(){const store=await cookies();const token=store.get("fc_session")?.value;if(!token)return null;try{const{payload}=await jwtVerify(token,getSessionSecret());if(typeof payload.userId!=="string")return null;const user=await prisma.user.findFirst({where:{id:payload.userId,active:true},select:{id:true,email:true,name:true,passwordHash:true,sessionVersion:true,role:true,active:true,allProperties:true,flatcloudMember:true,phone:true,title:true,avatarMimeType:true,avatarChoice:true,onboardingStatus:true,defaultDisplayMode:true,profiGraphics:true,createdAt:true,updatedAt:true}});return user && sessionVersionMatches(payload.sessionVersion,user.sessionVersion) ? user : null}catch{return null}}
 export async function requireUser(){const user=await currentUser();if(!user)redirect((await cookies()).has(PREVIEW_COOKIE)?"/nahled/omezeni":"/login");return user}
 export function canSeeAll(role:string){return role==="SUPER_ADMIN"||role==="MANAGER"}
 export function hasAllPropertyAccess(user:{role:string;allProperties?:boolean}){return canSeeAll(user.role)||Boolean(user.allProperties)}
@@ -29,7 +29,7 @@ export async function previewContext() {
     if (actor.role !== "SUPER_ADMIN") throw new Error("Forbidden");
     const { payload } = await jwtVerify(token, getSessionSecret(), { audience: "flatberry-user-preview", algorithms: ["HS256"] });
     if (payload.actorId !== actor.id || payload.actorVersion !== actor.sessionVersion || typeof payload.targetId !== "string") throw new Error("Invalid preview");
-    const target = await prisma.user.findFirst({where:{id:payload.targetId,active:true},select:{id:true,email:true,name:true,passwordHash:true,sessionVersion:true,role:true,active:true,allProperties:true,flatcloudMember:true,phone:true,title:true,avatarMimeType:true,avatarChoice:true,onboardingStatus:true,defaultDisplayMode:true,createdAt:true,updatedAt:true}});
+    const target = await prisma.user.findFirst({where:{id:payload.targetId,active:true},select:{id:true,email:true,name:true,passwordHash:true,sessionVersion:true,role:true,active:true,allProperties:true,flatcloudMember:true,phone:true,title:true,avatarMimeType:true,avatarChoice:true,onboardingStatus:true,defaultDisplayMode:true,profiGraphics:true,createdAt:true,updatedAt:true}});
     if (!target || target.sessionVersion !== payload.targetVersion) throw new Error("Target changed");
     return { actor, target, requested: true };
   } catch { return { actor, target: null, requested: true }; }
@@ -48,6 +48,10 @@ export async function currentUser() {
   const requestHeaders = await headers();
   const path = requestHeaders.get("x-flatberry-path") || "";
   if (context.requested && !previewRequestAllowed(requestHeaders.get("x-flatberry-method") || "POST", path)) return null;
+  if (user?.role === "TENANT" && !path.startsWith("/portal/najemnik") && !path.startsWith("/api/portal/") && path !== "/api/account/password") {
+    if (path.startsWith("/api/")) return null;
+    redirect("/portal/najemnik");
+  }
   if (user && isCorporatePath(path) && !isFlatcloudMember(user)) {
     if (path.startsWith("/api/")) return null;
     redirect("/portfolio");

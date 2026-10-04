@@ -1,3 +1,4 @@
+import { ProfiAppearanceSettings } from "@/components/ProfiAppearanceSettings";
 import { GuideLauncher } from "@/components/GuideLauncher";
 import { prisma } from "@/lib/db";
 import { notificationDefaults, notificationFields } from "@/lib/task-discussion-shared";
@@ -29,7 +30,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
   return (
     <Shell user={user}>
-      <div className="page">
+      <div className="page account-full-width">
         <div className="page-title">
           <div>
             <PageHeading>Můj účet</PageHeading>
@@ -65,6 +66,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </form>
         </div>
 
+        <ProfiAppearanceSettings graphics={user.profiGraphics}/>
         <div className="card account-card">
           <div className="card-head"><h2>Změna hesla</h2></div>
           {query.changed && <div className="notice success-notice">Heslo bylo úspěšně změněno.</div>}

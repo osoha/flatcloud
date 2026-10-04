@@ -92,6 +92,7 @@ test("Flatberry: dostupná fotografie se načte a její chyba přejde na velký 
   const href = await page.locator('a.property-cell[href$="/prehled"]').first().getAttribute("href");
   const propertyId = href!.split("/")[2];
   const actor = await prisma.user.findUniqueOrThrow({ where: { email: process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test" } });
+  await prisma.user.update({where:{id:actor.id},data:{profiGraphics:true}});
   const previous = await prisma.property.findUniqueOrThrow({ where: { id: propertyId }, select: { avatarPhotoId: true, avatarData: true, avatarMimeType: true } });
   const photoBytes = await readFile("public/flatberry-logo.png");
   const asset = await prisma.fileAsset.create({ data: { storageKey: `r31-avatar-test-${Date.now()}.png`, originalName: "R31 isolated photo fixture.png", mimeType: "image/png", sizeBytes: photoBytes.length, sha256: "0".repeat(64), uploadedById: actor.id } });
@@ -112,6 +113,7 @@ test("Flatberry: dostupná fotografie se načte a její chyba přejde na velký 
     await expect(page.locator(".property-header-identity .entity-avatar-glyph")).toBeVisible();
     await expect(image).toHaveCount(0);
   } finally {
+    await prisma.user.update({where:{id:actor.id},data:{profiGraphics:actor.profiGraphics}});
     await prisma.property.update({ where: { id: propertyId }, data: previous });
     await prisma.document.delete({ where: { id: document.id } });
     await prisma.fileAsset.delete({ where: { id: asset.id } });
@@ -126,8 +128,8 @@ test("Sdílený avatar domu vidí správce i uživatel s přístupem; osobní ba
   const property = await prisma.property.findFirstOrThrow({ where: { active: true } });
   const previous = { avatarPhotoId: property.avatarPhotoId, avatarData: property.avatarData, avatarMimeType: property.avatarMimeType };
   const suffix = Date.now();
-  const manager = await prisma.user.create({ data: { email: `avatar-manager-${suffix}@example.test`, name: "Správce avataru", passwordHash: admin.passwordHash, defaultDisplayMode: "pro", role: "PROPERTY_MANAGER", memberships: { create: { propertyId: property.id, permission: "EDIT" } } } });
-  const viewer = await prisma.user.create({ data: { email: `avatar-viewer-${suffix}@example.test`, name: "Čtenář avataru", passwordHash: admin.passwordHash, defaultDisplayMode: "pro", role: "OWNER_VIEWER", allProperties: true, memberships: { create: { propertyId: property.id, permission: "VIEW" } } } });
+  const manager = await prisma.user.create({ data: { email: `avatar-manager-${suffix}@example.test`, name: "Správce avataru", passwordHash: admin.passwordHash, defaultDisplayMode: "pro", profiGraphics:true, role: "PROPERTY_MANAGER", memberships: { create: { propertyId: property.id, permission: "EDIT" } } } });
+  const viewer = await prisma.user.create({ data: { email: `avatar-viewer-${suffix}@example.test`, name: "Čtenář avataru", passwordHash: admin.passwordHash, defaultDisplayMode: "pro", profiGraphics:true, role: "OWNER_VIEWER", allProperties: true, memberships: { create: { propertyId: property.id, permission: "VIEW" } } } });
   const viewerContext = await browser.newContext();
   try {
     await login(page, manager.email);

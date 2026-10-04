@@ -20,7 +20,7 @@ export function MeterReadingHistory({readings,unitOfMeasure,action,canManage,lea
   const current=currentReadings(readings),latest=current.at(-1),activeIds=new Set(current.map(r=>r.id));
   return <>
     <div className="meter-value"><strong>{latest?latest.value.toLocaleString('cs-CZ'):'—'}</strong><span>{latest?.unitOfMeasure||unitOfMeasure}</span><small>{latest?businessDateKey(latest.readAt):'Bez odečtu'}</small></div>
-    <details className="module-add" open={readings.length>0}><summary>Historie odečtů ({readings.length})</summary>
+    <details className="module-add" ><summary>Historie odečtů ({readings.length})</summary>
       <div className={styles.history}>{[...readings].sort((a,b)=>b.readAt.getTime()-a.readAt.getTime()||b.createdAt.getTime()-a.createdAt.getTime()).map(reading=><div key={reading.id} className={styles.reading}>
         <span>{businessDateKey(reading.readAt)} · {activeIds.has(reading.id)?'Platná verze':'Nahrazený záznam'}</span>
         <strong>{reading.value.toLocaleString('cs-CZ')} {reading.unitOfMeasure||unitOfMeasure}</strong>

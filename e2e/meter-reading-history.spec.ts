@@ -19,10 +19,12 @@ test('R26C1: reading evidence, estimate and correction preserve the original',as
  const form=card.locator('form').filter({has:page.getByRole('button',{name:'Uložit odečet',exact:true})});
  await form.getByLabel('Datum odečtu',{exact:true}).fill('2025-12-31');await form.getByLabel('Stav (m³)',{exact:true}).fill('200');await form.getByLabel('Způsob odečtu').selectOption('ESTIMATE');await form.getByLabel('Poznámka / zdůvodnění odhadu').fill(`${tag} syntetický odhad`);await form.getByLabel('Fotografie nebo předávací protokol').selectOption(doc.id);await form.getByRole('button',{name:'Uložit odečet',exact:true}).click();
  await expect(page.getByText('Odečet byl uložen. Původní historie zůstává zachována.',{exact:true})).toBeVisible();
+ await card.getByText(/Historie odečtů/).click();
  await expect(card.getByText(/Odhad · Zapsal\/a:/)).toBeVisible();await expect(card.getByRole('link',{name:'Otevřít důkaz odečtu'})).toHaveAttribute('href',`/api/documents/${doc.id}/download`);
  await card.getByText('Opravit odečet z 2025-12-31',{exact:true}).click();
  const correction=card.locator('form').filter({has:page.getByLabel('Datum odečtu').and(page.locator('[value="2025-12-31"]'))});
  await correction.getByLabel('Stav (m³)',{exact:true}).fill('190');await correction.getByLabel('Způsob odečtu').selectOption('REMOTE');await correction.getByLabel('Důvod opravy').fill(`${tag} potvrzený dálkový odečet`);await correction.getByRole('button',{name:'Uložit opravu odečtu',exact:true}).click();
+ await card.getByText(/Historie odečtů/).click();
  await expect(card.locator('.meter-value strong')).toHaveText('190');await expect(card.getByText('2025-12-31 · Nahrazený záznam',{exact:true})).toBeVisible();
  const rows=await db.meterReading.findMany({where:{meterId:meter.id}});expect(rows.length).toBe(3);const revised=rows.find(r=>r.correctsId);expect(revised?.value).toBe(190);expect(revised?.evidenceDocumentId).toBe(doc.id);expect(rows.find(r=>r.id===revised?.correctsId)?.value).toBe(200);
  await card.getByRole('button',{name:'Vyřadit měřidlo',exact:true}).click();await expect(card.getByText(/Vyřazené – historie zachována/)).toBeVisible();await expect(card.locator('.meter-value strong')).toHaveText('190');

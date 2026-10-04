@@ -3,7 +3,7 @@ import { PREVIEW_COOKIE } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { LoginForm } from "@/components/LoginForm";
-export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; reset?: string }> }) {
+export default async function Login({ searchParams }: { searchParams: Promise<{ error?: string; reset?: string;portal?:string }> }) {
   const params = await searchParams;
   const preview = (await cookies()).has(PREVIEW_COOKIE);
   return (
@@ -14,7 +14,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
         <p>Evidence nájemních plateb a správa portfolia.</p>
         {params.error && <div className="error">Neplatný e-mail nebo heslo.</div>}
         {params.reset && <div className="notice">Heslo bylo změněno. Přihlaste se novým heslem.</div>}
-        {preview ? <form action="/api/admin/user-preview/exit" method="post"><p>Před přihlášením ukončete předchozí náhled uživatele.</p><button className="primary">Ukončit náhled</button></form> : <LoginForm failed={Boolean(params.error)}/>}
+        {preview ? <form action="/api/admin/user-preview/exit" method="post"><p>Před přihlášením ukončete předchozí náhled uživatele.</p><button className="primary">Ukončit náhled</button></form> : <LoginForm failed={Boolean(params.error)} portal={params.portal}/>}
         <nav className="auth-footer-links" aria-label="Další možnosti">
           <Link href="/zapomenute-heslo">Zapomněli jste heslo?</Link>
           {process.env.PUBLIC_REGISTRATION_ENABLED === "true" && <Link href="/registrace">Jsem vlastník – vytvořit účet</Link>}
