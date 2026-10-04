@@ -30,7 +30,7 @@ test("lease creation: owner account refresh retains entered values and current o
   const f = await fixture();
   await login(page);
   await page.goto(`/nemovitosti/${f.property.id}/smlouvy/nova?unitId=${f.unit.id}`);
-  await expect(page.getByRole("alert")).toContainText(f.owner.name);
+  await expect(page.locator(".missing-owner-account[role=alert]")).toContainText(f.owner.name);
   await expect(page.getByRole("link", { name: "Nastavit příjemce plateb jednotky v nové kartě →" })).toHaveAttribute("href", `/nemovitosti/${f.property.id}/jednotky/${f.unit.id}/upravit#prijemce-plateb`);
   await page.locator('input[name="rent"]').fill("12345");
   await page.locator('input[name="note"], textarea[name="note"]').fill("Rozpracovaná smlouva");
@@ -45,7 +45,7 @@ test("lease creation: owner account refresh retains entered values and current o
   const account = await db.ownerBankAccount.findFirstOrThrow({ where: { ownerId: f.owner.id } });
   // Creating an account alone must not silently change the unit's payment recipient.
   await page.getByRole("button", { name: "Znovu načíst účet vlastníka" }).click();
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.locator(".missing-owner-account[role=alert]")).toBeVisible();
   await accountPage.goto(`/nemovitosti/${f.property.id}/jednotky/${f.unit.id}/upravit#prijemce-plateb`);
   await accountPage.locator('#prijemce-plateb textarea[name="reason"]').fill("Doplnění příjemce QA");
   await accountPage.locator('#prijemce-plateb input[name="confirm"]').check();
@@ -135,7 +135,7 @@ test("reload recovers primary tenant, parties, service rows and resident rows wi
   await login(page);
   await page.goto(`/nemovitosti/${f.property.id}/smlouvy/nova`);
   await page.locator('select[name="tenantId"]').selectOption(f.first.id);
-  await page.getByLabel("Přidat osobu do smlouvy", { exact: true }).selectOption(f.second.id);
+  await page.getByLabel("Přidat osobu do smlouvy").selectOption(f.second.id);
   await page.locator(`input[name="contractingPartyIds"][value="${f.second.id}"]`).check();
   await page.getByLabel("Zadání záloh").selectOption("ITEMIZED");
   await page.locator('input[name="serviceName:0"]').fill("Voda QA");
@@ -166,7 +166,7 @@ test("lease creation: tenant accounts and optional party rows follow deliberate 
   await page.locator('select[name="tenantId"]').selectOption(f.company.id);
   await expect(page.locator('input[name="tenantBankAccount"]')).toHaveValue("");
   await expect(page.locator("#tenant-bank-accounts option")).toHaveCount(0);
-  await page.getByLabel("Přidat osobu do smlouvy", { exact: true }).selectOption(f.first.id);
+  await page.getByLabel("Přidat osobu do smlouvy").selectOption(f.first.id);
   await expect(page.locator(".lease-party-role-row")).toHaveCount(1);
   await page.locator(`input[name="contractingPartyIds"][value="${f.first.id}"]`).check();
   await page.getByRole("button", { name: "Načíst nově založené profily" }).click();

@@ -52,7 +52,7 @@ test("unit contract tab and documents upload contract scans to the deliberately 
   await page.locator('.unit-tabs a[href="#dokumenty"]').click();
   await page.locator("#dokumenty details>summary").click();
   const form = page.locator("#dokumenty form.document-upload");
-  await form.getByLabel("Kategorie", { exact: true }).selectOption("CONTRACT");
+  await form.locator('select[name="category"]').selectOption("CONTRACT");
   await expect(form.locator('select[name="leaseId"]')).toHaveValue("");
   await form.locator('select[name="leaseId"]').selectOption(f.lease.id);
   const title = `Sken smlouvy QA ${randomUUID()}`;
@@ -77,7 +77,7 @@ test("canonical lease upload stores addendum and unit shows selected avatar with
   await page.goto(`/smlouvy/${f.lease.id}#dokumenty`);
   await page.getByText("Nahrát dokument smlouvy", { exact: true }).click();
   const form = page.locator("#dokumenty form.document-upload");
-  await form.getByLabel("Kategorie", { exact: true }).selectOption("CONTRACT_ADDENDUM");
+  await form.locator('select[name="category"]').selectOption("CONTRACT_ADDENDUM");
   const title = `Dodatek QA ${randomUUID()}`;
   await form.getByLabel("Název", { exact: true }).fill(title);
   await form.locator('input[type="file"]').setInputFiles(file);
