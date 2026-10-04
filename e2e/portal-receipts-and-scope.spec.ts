@@ -106,6 +106,12 @@ test("Basic preserves selected property, badges match open tasks and completed w
   await page.locator('.sidebar a[aria-label="Úkoly"]').click();await expect(page).toHaveURL(new RegExp(`properties=${selected.id}`));
   await page.getByRole("link",{name:"Archiv",exact:true}).click();await expect(page.locator(".basic-section-list")).toContainText(done.title);
   await expect(page.locator(".basic-section-list")).not.toContainText(open.title);
+  await page.locator('.sidebar .display-mode-switch button[value=pro]').click();
+  await expect(page).toHaveURL(new RegExp(`/portfolio\\?properties=${selected.id}`));
+  await expect(page.locator(".v21-portfolio")).toBeVisible();
+  await expect(page.locator(".scope-picker-trigger").first()).toContainText("1 z 3");
+  await page.locator('.sidebar .display-mode-switch button[value=basic]').click();
+  await expect(page).toHaveURL(new RegExp(`properties=${selected.id}`));
   // Applying ALL at Tasks must clear the remembered subset, as it does at Portfolio.
   await page.goto("/ukoly");await page.locator('.sidebar a[aria-label="Dokumenty"]').click();await expect(page).toHaveURL(/\/dokumenty$/);
  }finally{await db.task.deleteMany({where:{id:{in:[open.id,done.id,foreign.id]}}});await db.property.deleteMany({where:{id:{in:[selected.id,other.id,archived.id]}}});await db.owner.delete({where:{id:owner.id}});await db.user.delete({where:{id:user.id}});}
