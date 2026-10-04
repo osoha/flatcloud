@@ -44,6 +44,7 @@ jobs:
       - run: node --import tsx scripts/verify-bank-guide.tsx
       - run: node --import tsx scripts/verify-rent-payment-qr.ts
       - run: node --import tsx scripts/verify-lease-feedback.ts
+      - run: node --import tsx scripts/verify-portal-receipts.ts
       - run: node --import tsx scripts/verify-task-thread-polish.ts
       - run: node --import tsx scripts/verify-task-assignee-and-attention.ts
       - run: npm run verify:tab-navigation-v2
@@ -261,6 +262,16 @@ jobs:
           path: |
             contract-upload-report/
             contract-upload-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Portal receipts and navigation regression
+        run: npx playwright test e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/task-archive-admin-avatar.spec.ts --reporter=line --output=portal-smoke-results
+      - name: Upload portal regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: portal-smoke-results/
           if-no-files-found: ignore
           retention-days: 7
       - run: npm run test:e2e

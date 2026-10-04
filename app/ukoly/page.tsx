@@ -26,7 +26,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const user = await requireUser();
   const basic = await displayMode(user.id, user.onboardingStatus === "pending" || user.defaultDisplayMode === "basic" ? "basic" : "pro") === "basic";
   const query = await searchParams;
-  const availableProperties = await accessibleProperties(user);
+  const availableProperties = await accessibleProperties(user,{includeInactive:true});
   const selection = parsePortfolioSelection(query);
   const allowedIds = selectedPropertyIds(selection, availableProperties.map((property) => property.id));
   const properties = availableProperties.filter((property) => allowedIds.includes(property.id));
@@ -37,7 +37,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   const defaultView = !query.status && !query.view;
   const requestedPage = Math.max(1, Number.parseInt(query.page || "1", 10) || 1);
   const archivedStatuses = ["DONE", "CANCELLED"] as const;
-  const statusWhere = query.status === "open" ? { status: { in: openTaskStatuses } } : archive ? { status: { in: [...archivedStatuses] } } : {};
+  const statusWhere = (query.status === "open" || (basic&&!archive&&!query.status)) ? { status: { in: openTaskStatuses } } : archive ? { status: { in: [...archivedStatuses] } } : {};
   const stateWhere = query.view === "favorites" ? { userStates: { some: { userId: user.id, favorite: true } } } : query.view === "hidden" ? { userStates: { some: { userId: user.id, dismissedAt: { not: null } } } } : {};
   const archiveWhere: Prisma.TaskWhereInput = { AND: [accessScope, selectionScope, { status: { in: [...archivedStatuses] } }] };
   const archiveCount = defaultView || archive ? await prisma.task.count({ where: archiveWhere }) : 0;
@@ -48,7 +48,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     include: { property: true, unit: true, tenant: true, assignee: true, userStates: { where: { userId: user.id } }, members: { include: { user: true } }, _count: { select: { entries: { where: taskEntryVisibilityWhere(user) } } } },
   });
   const rawTasks = defaultView
-    ? [...await listTasks({ AND: [accessScope, selectionScope, { status: { in: openTaskStatuses } }] }), ...await listTasks({ AND: [accessScope, selectionScope, { status: "DONE" }] }, recentCompletedCount)]
+    ? [...await listTasks({ AND: [accessScope, selectionScope, { status: { in: openTaskStatuses } }] }), ...(basic?[]:await listTasks({ AND: [accessScope, selectionScope, { status: "DONE" }] }, recentCompletedCount))]
     : await listTasks({ AND: [accessScope, selectionScope, statusWhere, stateWhere] }, archive ? archivePageSize : undefined, archive ? (page - 1) * archivePageSize : undefined);
   const now = Date.now();
   const urgency = (task: typeof rawTasks[number]) => !openTaskStatuses.includes(task.status) ? 9 : task.dueAt && task.dueAt.getTime() < now ? 0 : task.priority === "URGENT" ? 1 : task.priority === "HIGH" ? 2 : task.dueAt && task.dueAt.getTime() < now + 7*86_400_000 ? 3 : task.priority === "NORMAL" ? 4 : 5;
@@ -68,7 +68,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     <div className="basic-section-stats"><BasicSectionStat label="Otevřené" value={String(open)} detail="případy k řešení" tone="amber"/><BasicSectionStat label="Po termínu" value={String(overdue)} detail="nejvyšší priorita" tone={overdue?"red":"green"}/><BasicSectionStat label="Upomínky" value={String(collection)} detail="aktivní případy plateb" tone="blue"/></div>
     <PortfolioScopePicker availableProperties={availableProperties.map((property)=>({id:property.id,name:property.name,address:property.address,city:property.city,active:property.active,ownerId:property.communicationOwner?.id||property.owner.id,ownerName:property.communicationOwner?.name||property.owner.name,scopeKind: !isFlatcloudMember(user) ? undefined : property.flatcloudConsolidationBasisPoints==null?"UNCLASSIFIED" as const:property.flatcloudConsolidationBasisPoints>0?"FLATCLOUD" as const:"EXTERNAL" as const}))} selection={selection.mode==="ALL"?selection:{mode:"SELECTED",propertyIds:allowedIds}}/>
     <TaskSectionNav user={user} active="tasks"/>
-    <div className="task-status-tabs"><Link className={!query.status&&!query.view?"active":""} href={`/ukoly?${selectionValue.slice(1)}`}>Vše</Link><Link className={query.status==="open"?"active":""} href={`/ukoly?status=open${selectionValue}`}>Otevřené</Link><Link className={query.status==="done"?"active":""} href={archiveHref}>Archiv</Link><Link className={query.view==="favorites"?"active":""} href={`/ukoly?view=favorites${selectionValue}`}>★ Oblíbené</Link><Link className={query.view==="hidden"?"active":""} href={`/ukoly?view=hidden${selectionValue}`}>Skryté</Link></div>
+    <div className="task-status-tabs"><Link className={!query.status&&!query.view?"active":""} href={`/ukoly?${selectionValue.slice(1)}`}>K vyřízení</Link><Link className={query.status==="open"?"active":""} href={`/ukoly?status=open${selectionValue}`}>Otevřené</Link><Link className={query.status==="done"?"active":""} href={archiveHref}>Archiv</Link><Link className={query.view==="favorites"?"active":""} href={`/ukoly?view=favorites${selectionValue}`}>★ Oblíbené</Link><Link className={query.view==="hidden"?"active":""} href={`/ukoly?view=hidden${selectionValue}`}>Skryté</Link></div>
     <div className="basic-section-heading"><h2>{archive?"Dokončené a zrušené":query.view==="favorites"?"Oblíbené":query.view==="hidden"?"Skryté":"K vyřízení"}</h2><Link className="primary" href="/ukoly/novy">＋ Nový úkol</Link></div>
     <div className="basic-section-list">{tasks.length?tasks.map(task=><BasicSectionItem key={task.id} href={`/ukoly/${task.id}`} icon={<ListChecks size={24}/>} title={task.title} context={`${task.property?.name||"Obecné vlákno"}${task.unit?` · ${task.unit.label}`:""} · ${task.assignee?.name||"Bez odpovědného"} · ${task.dueAt?date(task.dueAt):"bez termínu"}`} tone={task.dueAt&&task.dueAt.getTime()<now&&openTaskStatuses.includes(task.status)?"red":task.status==="DONE"?"green":"amber"} end={<span className={`status ${task.status==="DONE"?"ok":task.status==="WAITING"?"warn":"bad"}`}>{taskStatuses[task.status]}</span>}/>):<p className="card table-empty">Žádné úkoly pro zvolený filtr.</p>}</div>
     {archiveLink}{archivePages}

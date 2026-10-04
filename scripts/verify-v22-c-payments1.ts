@@ -482,32 +482,24 @@ async function main() {
     },
   );
   await check(
-    "tenant summary separates unpaid prescriptions from overdue debt",
+    "tenant summary promotes overdue debt and keeps all-period totals in details",
     () => {
       const page = read("app/najemnici/[tenantId]/page.tsx");
-      for (const label of [
-        "Předepsáno",
-        "Uhrazeno / započteno",
-        "Neuhrazené předpisy",
-        "Dluh po splatnosti",
-      ])
-        assert.ok(page.includes(label));
-      assert.match(
-        page,
-        /charges\.filter\(\(charge\) => charge\.active\).*outstandingCents/,
-      );
-      assert.match(page, /overdueDebtCents\(charge\)/);
+      assert.match(page,/label="Dluh po splatnosti"/);
+      assert.match(page,/overdueDebtCents\(charge\)/);
+      assert.match(page,/<details className="card tenant-charge-totals">/);
+      assert.match(page,/Součty předpisů za všechna evidovaná období/);
+      assert.doesNotMatch(page,/label="Neuhrazené předpisy"/);
+      const summary=page.slice(page.indexOf('<div className="stat-grid tenant-finance-summary">'),page.indexOf('<details className="card tenant-charge-totals">'));
+      assert.equal((summary.match(/<FinanceStat /g)||[]).length,3);
     },
   );
   await check(
-    "inactive charges do not inflate normal prescribed paid or outstanding summaries",
+    "inactive charges do not inflate prescribed and paid totals in details",
     () => {
-      const page = read("app/najemnici/[tenantId]/page.tsx");
-      assert.equal(
-        (page.match(/charges\.filter\(\(charge\) => charge\.active\)/g) || [])
-          .length,
-        3,
-      );
+      const page=read("app/najemnici/[tenantId]/page.tsx");
+      assert.match(page,/const prescribedCents = charges\.filter\(\(charge\) => charge\.active\)/);
+      assert.match(page,/const paidAllocatedCents = charges\.filter\(\(charge\) => charge\.active\)/);
     },
   );
   await check(

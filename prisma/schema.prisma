@@ -509,6 +509,11 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  receiptSignatureData Bytes?
+  receiptIssuerName String?
+  receiptIssuerAddress String?
+  receiptIssuanceEnabled Boolean @default(false)
+  paymentReceipts TenantPaymentReceipt[] @relation("PaymentReceiptIssuer")
   createdTenants Tenant[] @relation("TenantCreator")
   defaultDisplayMode String @default("basic")
   profiGraphics Boolean @default(false)
@@ -1797,6 +1802,7 @@ model LeasePaymentItem {
 }
 
 model Charge {
+  paymentReceipts TenantPaymentReceipt[]
   id                        String                     @id @default(cuid())
   leaseId                   String
   lease                     Lease                      @relation(fields: [leaseId], references: [id], onDelete: Cascade)
@@ -3074,4 +3080,19 @@ model AccountBankRule {
   updatedAt                DateTime         @updatedAt
 
   @@index([ownerBankAccountId, active, priority])
+}
+
+/// Immutable issued PDF: repeated requests return the same financial snapshot.
+model TenantPaymentReceipt {
+  id String @id @default(cuid())
+  chargeId String
+  charge Charge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+  issuerId String
+  issuer User @relation("PaymentReceiptIssuer", fields: [issuerId], references: [id], onDelete: Restrict)
+  snapshotHash String
+  snapshot Json
+  pdfData Bytes
+  issuedAt DateTime @default(now())
+  @@unique([chargeId, snapshotHash])
+  @@index([issuerId])
 }

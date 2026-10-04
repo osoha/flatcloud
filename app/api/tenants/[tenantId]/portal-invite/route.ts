@@ -1,3 +1,4 @@
+import {manageableTenantLeaseIds} from "@/lib/tenant-portal-access";
 import {currentUser} from "@/lib/auth";
 import {prisma} from "@/lib/db";
 import {invitationToken} from "@/lib/invitations";
@@ -7,10 +8,13 @@ import {go,goWithMessage} from "@/lib/route-response";
 import {sealSecret} from "@/lib/secret";
 
 export async function POST(request:Request,{params}:{params:Promise<{tenantId:string}>}) {
-  const actor=await currentUser();if(actor?.role!=="SUPER_ADMIN")return goWithMessage(request,"/login","error","Přístup byl odepřen.");
+  const actor=await currentUser();
   const {tenantId}=await params;const path=`/najemnici/${tenantId}`;
+  if(!actor)return goWithMessage(request,"/login","error","Přístup byl odepřen.");
+  const manageableIds=await manageableTenantLeaseIds(actor,tenantId);
+  if(!manageableIds.length)return goWithMessage(request,path,"error","Nemáte oprávnění spravovat portál této osoby.");
   try {
-    const tenant=await prisma.tenant.findUnique({where:{id:tenantId},select:{name:true,email:true,communicationEmail:true,leases:{select:{unit:{select:{propertyId:true}}},take:1},leaseParties:{where:{role:{in:["CONTRACTING_PARTY","PAYER"]}},select:{lease:{select:{unit:{select:{propertyId:true}}}}},take:1}}});
+    const tenant=await prisma.tenant.findUnique({where:{id:tenantId},select:{name:true,email:true,communicationEmail:true,leases:{where:{id:{in:manageableIds}},select:{unit:{select:{propertyId:true}}},take:1},leaseParties:{where:{role:{in:["CONTRACTING_PARTY","PAYER"]},leaseId:{in:manageableIds}},select:{lease:{select:{unit:{select:{propertyId:true}}}}},take:1}}});
     if(!tenant)throw new Error("Nájemník nebyl nalezen.");
     const email=(tenant.communicationEmail||tenant.email||"").trim().toLowerCase();
     const propertyId=tenant.leases[0]?.unit.propertyId||tenant.leaseParties[0]?.lease.unit.propertyId;

@@ -36,7 +36,7 @@ test("super-admin can select a library avatar for another user without changing 
   }
 });
 
-test("Basic and Profi keep only five recent completed tasks; archive is paged and company avatar is respected", async ({ page }) => {
+test("Basic keeps completed tasks in archive; Profi keeps five recent tasks; archive is paged and company avatar is respected", async ({ page }) => {
   requireIsolatedDatabase();
   const db = new PrismaClient();
   const password = "Task-Archive-E2E-2026";
@@ -54,8 +54,10 @@ test("Basic and Profi keep only five recent completed tasks; archive is paged an
     ] });
     await login(page, user.email, password);
     await page.goto("/ukoly");
-    await expect(page.locator(".basic-section-list .basic-section-item")).toHaveCount(6);
-    await expect(page.getByRole("link", { name: /Zobrazit archivované dokončené úkoly/ })).toContainText("27 dalších");
+    await expect(page.locator(".basic-section-list .basic-section-item")).toHaveCount(1);
+    await expect(page.locator(".basic-section-list")).toContainText(`${tag} otevřený`);
+    await expect(page.locator(".basic-section-list")).not.toContainText(`${tag} hotový`);
+    await expect(page.getByRole("link", { name: /Zobrazit archivované dokončené úkoly/ })).toContainText("32 dalších");
     await page.getByRole("link", { name: /Zobrazit archivované dokončené úkoly/ }).click();
     await expect(page.locator(".basic-section-list .basic-section-item")).toHaveCount(25);
     await expect(page.getByRole("navigation", { name: "Stránky archivu" })).toContainText("Strana 1 z 2");

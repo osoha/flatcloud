@@ -1,3 +1,5 @@
+import {ReceiptSignatureSettings} from "@/components/ReceiptSignatureSettings";
+import {portalEditableUnitWhere} from "@/lib/tenant-portal-access";
 import { ProfiAppearanceSettings } from "@/components/ProfiAppearanceSettings";
 import { GuideLauncher } from "@/components/GuideLauncher";
 import { prisma } from "@/lib/db";
@@ -17,6 +19,8 @@ type Search = { changed?: string; error?: string; ok?: string };
 export default async function AccountPage({ searchParams }: { searchParams: Promise<Search> }) {
   const user = await requireUser();
   const query = await searchParams;
+  const receiptSettings=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{receiptIssuerName:true,receiptIssuerAddress:true,receiptIssuanceEnabled:true,receiptSignatureData:true}});
+  const canIssueReceipts=user.role!=="TENANT"&&await prisma.unit.count({where:portalEditableUnitWhere(user)})>0;
   const preference = await prisma.taskNotificationPreference.findUnique({ where: { userId: user.id } }) || notificationDefaults;
   const deliveries = await prisma.taskNotification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, status: true } });
   const deliveryLabels: Record<string, string> = { PENDING: "Ve frontě", SENDING: "Odesílání", SENT: "Odesláno", RETRY: "Čeká na opakování", SKIPPED: "Neodesláno dle nastavení nebo přístupu", FAILED: "Odeslání selhalo", UNKNOWN: "Odeslání nepotvrzeno" };
@@ -66,6 +70,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </form>
         </div>
 
+        {canIssueReceipts&&<ReceiptSignatureSettings name={receiptSettings.receiptIssuerName||user.name} address={receiptSettings.receiptIssuerAddress||""} enabled={receiptSettings.receiptIssuanceEnabled} hasSignature={Boolean(receiptSettings.receiptSignatureData)}/>}
         <ProfiAppearanceSettings graphics={user.profiGraphics}/>
         <div className="card account-card">
           <div className="card-head"><h2>Změna hesla</h2></div>
