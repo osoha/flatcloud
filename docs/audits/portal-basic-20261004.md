@@ -6,7 +6,7 @@ Autorizace uživatele: implementace, push a merge do sandboxu. Produkce není c�
 ## Rozsah a provedení
 
 1. Odkazy v Basic přehledu, sekcích a navigaci přenášejí výběr properties. Přepnutí na všechny objekty také v Úkolech vymaže zapamatovaný podvýběr.
-2. Basic pracovní fronta obsahuje otevřené úkoly, dokončené jsou v archivu. Odznak v navigaci používá aktuální výběr. Výběr objektů napříč sekcemi zahrnuje stejné dostupné aktivní i neaktivní objekty; provozní finanční KPI zůstávají omezené na aktivní.
+2. Basic pracovní fronta obsahuje otevřené úkoly, dokončené jsou v archivu. Odznak v navigaci používá aktuální výběr. Výběr objektů napříč sekcemi zahrnuje stejné objekty dostupné dané roli (správcům i neaktivní); provozní finanční KPI zůstávají omezené na aktivní.
 3. Český pozdrav používá výslovně známé tvary jmen, pro neznámé jméno, titul či firmu neutrální pozdrav.
 4. Název nemovitosti a jednotka mají oddělovač; kontaktní karta vede do celého profilu nájemníka.
 5. Basic má primární Platby; kontrola a párování účtů je dostupné z této sekce. Samostatná bankovní položka zůstává v Profi.

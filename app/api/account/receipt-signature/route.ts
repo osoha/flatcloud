@@ -17,8 +17,8 @@ export async function POST(request:Request) {
     const name=String(form.get("issuerName")||"").trim(),address=String(form.get("issuerAddress")||"").trim();
     if(!name||name.length>160||!address||address.length>240)throw new Error("Vyplňte jméno a adresu vystavitele.");
     let source:Buffer|undefined;const file=form.get("signature"),drawn=String(form.get("drawnSignature")||"");
-    if(!remove&&file instanceof File&&file.size){if(file.size>2*1024*1024)throw new Error("Podpis může mít nejvýše 2 MB.");source=Buffer.from(await file.arrayBuffer());}
-    else if(!remove&&drawn){if(drawn.length>2800000||!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(drawn))throw new Error("Neplatný obrázek podpisu.");source=Buffer.from(drawn.split(",")[1],"base64");}
+    if(!remove&&drawn){if(drawn.length>2800000||!/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(drawn))throw new Error("Neplatný obrázek podpisu.");source=Buffer.from(drawn.split(",")[1],"base64");}
+    else if(!remove&&file instanceof File&&file.size){if(file.size>2*1024*1024)throw new Error("Podpis může mít nejvýše 2 MB.");source=Buffer.from(await file.arrayBuffer());}
     let signature:Buffer|undefined;
     if(source){const image=sharp(source,{limitInputPixels:12000000}),meta=await image.metadata();if(!["png","jpeg","webp"].includes(meta.format||""))throw new Error("Podpis musí být PNG, JPG nebo WebP.");const stats=await sharp(source).flatten({background:"white"}).greyscale().stats();if(stats.channels[0].min>200||stats.channels[0].stdev<1)throw new Error("Obrázek neobsahuje čitelný podpis.");signature=await image.rotate().resize({width:900,height:300,fit:"inside",withoutEnlargement:true}).png().toBuffer();}
     const existing=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{receiptSignatureData:true}});

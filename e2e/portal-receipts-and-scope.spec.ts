@@ -48,6 +48,15 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   await expect(page.getByAltText("Náhled nahraného podpisu")).toBeVisible();
   await page.getByRole("checkbox",{name:/Jsem oprávněn/}).check();await page.getByRole("button",{name:"Uložit podpis a vystavování"}).click();
   await expect(page.getByAltText("Uložený podpis vystavitele")).toBeVisible();
+  const uploadedSignature=(await db.user.findUniqueOrThrow({where:{id:manager.id}})).receiptSignatureData;
+  // Switching from an uploaded file to drawing must save the drawing, not the stale file.
+  await page.locator('input[name=signature]').setInputFiles({name:"qa-signature.png",mimeType:"image/png",buffer:signature});
+  const area=await page.locator("canvas").boundingBox();expect(area).not.toBeNull();
+  await page.mouse.move(area!.x+25,area!.y+55);await page.mouse.down();await page.mouse.move(area!.x+130,area!.y+95,{steps:12});await page.mouse.move(area!.x+230,area!.y+35,{steps:12});await page.mouse.up();
+  await expect(page.locator('input[name=drawnSignature]')).not.toHaveValue("");
+  await page.getByRole("button",{name:"Uložit podpis a vystavování"}).click();
+  const drawnSignature=(await db.user.findUniqueOrThrow({where:{id:manager.id}})).receiptSignatureData;expect(drawnSignature).not.toEqual(uploadedSignature);
+
   await login(tenantPage,account.email);await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
   await expect(tenantPage.getByRole("heading",{level:1})).toHaveText("Dobrý den, Jano!");
   const choices=tenantPage.locator(`select[name=chargeId] option`);await expect(choices).toHaveCount(1);await expect(choices).toContainText(periodLabel(paid.period));
