@@ -15,6 +15,9 @@ type Proposal = { effectiveFrom: Date; status: string };
 const recurringCategories = new Set<ChargeCategory>([
   ChargeCategory.RENT,
   ChargeCategory.SERVICES,
+  ChargeCategory.WATER,
+  ChargeCategory.HEATING,
+  ChargeCategory.ELECTRICITY,
 ]);
 
 function nextBusinessDay(value: Date) {
@@ -58,7 +61,7 @@ export async function closeLeaseFinancialVersionsAt(
       paymentItems: {
         where: {
           active: true,
-          category: { in: [ChargeCategory.RENT, ChargeCategory.SERVICES] },
+          category: { in: [...recurringCategories] },
         },
         orderBy: [{ validFrom: "asc" }, { createdAt: "asc" }],
       },
@@ -69,7 +72,7 @@ export async function closeLeaseFinancialVersionsAt(
   const amountAtCutoff = (category: ChargeCategory) => {
     const effective = paymentItems.filter(
       (item) =>
-        item.category === category &&
+        (category === ChargeCategory.SERVICES ? item.category !== ChargeCategory.RENT : item.category === category) &&
         businessDateKey(item.validFrom) <= cutoffKey &&
         (!item.validTo || businessDateKey(item.validTo) >= cutoffKey),
     );

@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { leaseServiceItemsFromForm } from "../lib/lease-service-items";
 import { rentRollAmountsAt } from "../lib/reporting/rent-roll";
 import { tenantIdentityFromForm } from "../lib/tenant-form";
+import { closeLeaseFinancialVersionsAt, futureLeaseFinancialChangeDates } from "../lib/lease-financial-versions";
+import type { Prisma } from "@prisma/client";
 
+async function main() {
 const form = new FormData();
 form.set("services", "2500,50");
 assert.equal(leaseServiceItemsFromForm(form)[0].amountCents, 250050);
@@ -16,6 +19,16 @@ const paymentItems = items.map(item => ({ ...item, active: true, validFrom: new 
 const lease = { rentCents: 1000000, servicesCents: 0, paymentItems };
 assert.equal(rentRollAmountsAt(lease, new Date("2026-10-04")).services.amountCents, 250050, "live reporting includes all service categories");
 assert.equal(rentRollAmountsAt({ ...lease, charges: [{ active: true, period: "2026-10", items }] }, new Date("2026-10-04")).services.amountCents, 250050);
+const versions = paymentItems.map((item, index) => ({ ...item, id: String(index), validTo: null }));
+assert.deepEqual(futureLeaseFinancialChangeDates({ paymentItems: versions.map(item => ({ ...item, validTo: new Date("2026-10-31T12:00Z") })) }, new Date("2026-10-04T12:00Z")), ["2026-11-01"], "all itemized services carry a detectable time boundary");
+const closed: string[] = [];
+const tx = {
+  lease: { findUniqueOrThrow: async () => ({ ...lease, paymentItems: versions }), update: async () => ({}) },
+  leasePaymentItem: { update: async (input: { where: { id: string } }) => { closed.push(input.where.id); } },
+} as unknown as Prisma.TransactionClient;
+const finalAmounts = await closeLeaseFinancialVersionsAt(tx, "qa-only", new Date("2026-10-31T12:00Z"));
+assert.equal(finalAmounts.servicesCents, 250050);
+assert.deepEqual(closed.sort(), ["0", "1"], "terminating the lease preserves and closes every service version");
 form.set("serviceAmount:0", "-1"); assert.throws(() => leaseServiceItemsFromForm(form));
 form.set("serviceAmount:0", "1e3"); assert.throws(() => leaseServiceItemsFromForm(form));
 form.set("dateOfBirth", "1986-05-23"); form.set("identityDocumentNumber", "QA-ID-ONLY"); form.set("passportNumber", "QA-PASSPORT-ONLY");
@@ -24,3 +37,6 @@ assert.deepEqual(tenantIdentityFromForm(form, "COMPANY"), { dateOfBirth: null, i
 form.set("dateOfBirth", "1986-02-31"); assert.throws(() => tenantIdentityFromForm(form, "PERSON"));
 form.set("dateOfBirth", "2099-01-01"); assert.throws(() => tenantIdentityFromForm(form, "PERSON"));
 console.log("Lease feedback: service totals, reporting and personal identity passed.");
+
+}
+main().catch(error => { console.error(error); process.exitCode = 1; });
