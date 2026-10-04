@@ -509,6 +509,7 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  createdTenants Tenant[] @relation("TenantCreator")
   defaultDisplayMode String @default("basic")
   profiGraphics Boolean @default(false)
   onboardingStatus String @default("available")
@@ -1564,6 +1565,12 @@ model UnitOwnership {
 }
 
 model Tenant {
+  dateOfBirth           DateTime?        @db.Date
+  identityDocumentNumber String?
+  passportNumber        String?
+  createdById           String?
+  createdBy             User?            @relation("TenantCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  @@index([createdById, name])
   id                    String           @id @default(cuid())
   avatarChoice          String?
   avatarData            Bytes?
