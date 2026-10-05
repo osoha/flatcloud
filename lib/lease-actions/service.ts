@@ -225,8 +225,19 @@ export async function publishPacket(
         select: { details: true },
       });
       const snap = audit?.details as {
-        contractSnapshot?: { input?: { landlord?: { signer?: string } } };
+        contractSnapshot?: { input?: { landlord?: { signer?: string }; tenants?:Array<{name:string;birthDate:string}> } };
       } | null;
+      const declaredTenants=snap?.contractSnapshot?.input?.tenants;
+      const identity=(value:string)=>value.trim().toLocaleLowerCase("cs");
+      if(declaredTenants){
+        const remaining=[...tenants];
+        for(const declaredTenant of declaredTenants){
+          const index=remaining.findIndex(t=>identity(t.name)===identity(declaredTenant.name)&&(!t.dateOfBirth||t.dateOfBirth.toISOString().slice(0,10)===declaredTenant.birthDate));
+          if(index<0)throw new Error("Ve vygenerovaném PDF jsou jiné smluvní osoby než u nájmu. Opravte smluvní strany nebo vytvořte nové PDF.");
+          remaining.splice(index,1);
+        }
+        if(remaining.length)throw new Error("PDF neobsahuje všechny smluvní nájemce. Opravte smluvní strany nebo vytvořte nové PDF.");
+      }
       const declared = snap?.contractSnapshot?.input?.landlord?.signer;
       if (
         declared &&

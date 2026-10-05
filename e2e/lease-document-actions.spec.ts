@@ -452,10 +452,13 @@ test("notice opening is separate from consent, scoped to current portal contact;
     });
     expect(await accessiblePacket(f.other, p.id)).toBeNull();
     await login(page, f.user.email);
+    await page.request.get(`/portal/najemnik/potvrzeni/${p.id}`,{headers:await sessionHeaders(page)});
+    expect((await db.leaseActionRecipient.findFirstOrThrow({where:{packetId:p.id}})).openedAt).toBeNull();
     await page.goto(`/portal/najemnik/potvrzeni/${p.id}`);
     await expect(
       page.getByText(/Nepotvrzuji tím souhlas/, { exact: false }).first(),
     ).toBeVisible();
+    await expect.poll(async()=>Boolean((await db.leaseActionRecipient.findFirst({where:{packetId:p.id}}))?.openedAt)).toBe(true);
     const opened = await db.leaseActionRecipient.findFirstOrThrow({
       where: { packetId: p.id },
     });
@@ -610,6 +613,10 @@ test("explicit tenant and landlord signatures freeze the exact PDF and personal 
     });
     const key = `/qa-documents/${doc.fileAsset.storageKey}`,
       original = objects.get(key)!;
+    const mismatch=await page.request.post(`/api/leases/${f.lease.id}/contract`,{headers:await sessionHeaders(page),data:{mode:"save",version:CONTRACT_TEMPLATE_VERSION,input:{...leaseContractFixture,tenancy:"JOINT",occupantCount:2,tenants:[...leaseContractFixture.tenants,{...leaseContractFixture.tenants[0],name:"Jana Jiná",birthDate:"1990-01-01"}]}}});
+    expect(mismatch.status()).toBe(200);
+    const mismatchDoc=await db.document.findFirstOrThrow({where:{leaseId:f.lease.id,id:{not:doc.id}}});
+    await expect(publishPacket(f.admin,f.lease.id,{kind:"SIGN",title:"Chybný seznam osob",body:"Smlouva k podpisu",documentId:mismatchDoc.id,staffSignerId:f.admin.id,authority:"Osobně",confirmed:true})).rejects.toThrow(/jiné smluvní osoby/);
     const p = await publishPacket(f.admin, f.lease.id, {
       kind: "SIGN",
       title: "Nájemní smlouva",
@@ -704,6 +711,9 @@ test("explicit tenant and landlord signatures freeze the exact PDF and personal 
         `data:image/png;base64,${png.toString("base64")}`,
         password,
       );
+      await db.user.update({where:{id:f.admin.id},data:{role:"OWNER_VIEWER",allProperties:true}});
+      await expect(completePacket(f.admin,p.id,{contentHash:p.contentHash,password,accepted:true})).rejects.toThrow(/změnil/);
+      await db.user.update({where:{id:f.admin.id},data:{role:"SUPER_ADMIN",allProperties:false}});
       await page.goto(`/portal/najemnik/potvrzeni/${p.id}`);
       await page.locator('input[name="accepted"]').check();
       await page

@@ -1,7 +1,8 @@
+import {RecordActionOpened} from "@/components/RecordActionOpened";
 import { TenantPortalFrame } from "@/components/TenantPortalFrame";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { workflowActor, markPacketOpened } from "@/lib/lease-actions/service";
+import { workflowActor, accessiblePacket } from "@/lib/lease-actions/service";
 import {
   actionKind,
   actionLabels,
@@ -20,7 +21,7 @@ export default async function Action({
   const actor = await workflowActor();
   if (!actor) notFound();
   const { id } = await params,
-    p = await markPacketOpened(actor, id);
+    p = await accessiblePacket(actor, id);
   if (!p) notFound();
   const kind = actionKind(p.kind),
     pending = p.mine.filter((r) => !r.completedAt),
@@ -34,6 +35,7 @@ export default async function Action({
   return (
     <TenantPortalFrame user={actor}>
       <main className="page" style={{ maxWidth: 950, margin: "auto" }}>
+        <RecordActionOpened packetId={id}/>
         <Link href="/portal/najemnik/potvrzeni">Moje podpisy a potvrzení</Link>
         <div className="card">
           <h1>{p.title}</h1>

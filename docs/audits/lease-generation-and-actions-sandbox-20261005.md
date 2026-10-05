@@ -19,3 +19,9 @@ Lokální statické kontroly: všech 36 variant smlouvy, chybné vstupy, výběr
 Databázové migrace, finální build a Playwright musí projít na přesném PR commitu v izolovaném CI. Nová sada testuje obě zakládací cesty, předvyplnění, vlastní účet a změnu hesla, náhled, únik heslového hashe, odebraný kontakt, cizí účet, CSRF, současná potvrzení, připomínky, osobní podpis, heslo, porušené PDF, neměnnost podpisu a původního PDF i export.
 
 **Stav před CI: BLOCKED pro nasazení; čeká na výsledky izolovaných testů.** Lokální PostgreSQL není v pracovním prostředí spustitelný. Není proveden žádný produkční zápis ani komunikace s reálnými příjemci. Migrace je pouze rozšiřující. Generický `lib/documents/service.ts` zůstává beze změny. Sandbox nasazení proběhne až po ověření CI a auditu diffu.
+
+## Dokončení místních kontrol a vnější blokace
+
+Finální lokální TypeScript a production build prošly, návrhy PDF záznamů byly vyrenderované a vizuálně zkontrolované. Serverové přednačtení stránky už nezaznamenává otevření; zaznamená je až přihlášený prohlížeč po zobrazení. Podpis vygenerovaného PDF navíc vyžaduje shodné smluvní nájemce, aby záznam nemohl označit smlouvu za podepsanou všemi při chybějící smluvní osobě. Práva a kontaktní e-mail se znovu kontrolují uvnitř potvrzovací transakce.
+
+GitHub 2026-10-05 hlásí incident Actions od 19:11 UTC, prodlevy při přidělování běhových strojů: https://www.githubstatus.com/. CI běhy tohoto PR zůstávají queued bez provedeného kroku. PR #258 je proto draft a sandbox nebyl aktualizovaný. Povinné databázové migrace a Playwright nebyly označené za úspěšné ani obejité.

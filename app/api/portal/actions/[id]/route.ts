@@ -3,6 +3,7 @@ import {
   workflowActor,
   accessiblePacket,
   completePacket,
+  markPacketOpened,
   packetFile,
 } from "@/lib/lease-actions/service";
 import { actionEvidencePdf } from "@/lib/lease-actions/pdf";
@@ -53,6 +54,10 @@ export async function POST(
     return new Response("Too large", { status: 413 });
   try {
     const form = await request.formData();
+    if(form.get("mode")==="open"){
+      const packet=await markPacketOpened(actor,id);
+      return packet?NextResponse.json({ok:true}):new Response("Not found",{status:404});
+    }
     await completePacket(actor, id, {
       contentHash: String(form.get("contentHash") || ""),
       password: String(form.get("password") || ""),
