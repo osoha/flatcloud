@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { buildContract, CONTRACT_TEMPLATE_VERSION } from "@/lib/lease-contracts/core";
-import { contractActor, contractLease } from "@/lib/lease-contracts/service";
+import { contractActor, contractLease, archiveContract } from "@/lib/lease-contracts/service";
 import { contractPdf } from "@/lib/lease-contracts/pdf";
-import { createDocumentFromUpload } from "@/lib/documents/service";
 import { portalEntryUrl } from "@/lib/tenant-portal-entry-pdf";
 import { guideOriginMatches } from "@/lib/guide-origin";
 export const dynamic="force-dynamic";
@@ -23,7 +22,7 @@ export async function POST(request:Request,{params}:{params:Promise<{leaseId:str
     const bytes=await contractPdf(contract.input,data.mode==="pdf",portalEntryUrl(lease.tenantId));
     if(data.mode==="pdf")return new Response(Buffer.from(bytes),{headers:{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=flatberry-najemni-smlouva-nahled.pdf","Cache-Control":"private, no-store"}});
     // This creates a fresh private file. Existing and signed originals are never rewritten.
-    const document=await createDocumentFromUpload({actor:{...actor,allProperties:false},propertyId:lease.unit.propertyId,unitId:lease.unitId,leaseId:lease.id,bytes,mimeType:"application/pdf",originalName:`najemni-smlouva-${lease.id}-${Date.now()}.pdf`,category:"CONTRACT",title:`Nájemní smlouva · ${contract.input.tenants.map(t=>t.name).join(" + ")}`,description:`Připraveno k podpisu. Vzor ${contract.version}; ${contract.input.term}; ${contract.input.tenancy}. Smlouva není podepsaná.`,documentDate:new Date(contract.input.signingDate+"T12:00:00Z"),contractSnapshot:JSON.parse(JSON.stringify(contract))});
+    const document=await archiveContract(actor,lease,contract,bytes);
     return NextResponse.json({documentId:document.id,downloadUrl:`/api/documents/${document.id}/download`,returnUrl:`/nemovitosti/${lease.unit.propertyId}/jednotky/${lease.unitId}#dokumenty`});
   }catch(error){
     if(error instanceof ZodError)return NextResponse.json({error:"Doplňte nebo opravte údaje před vytvořením smlouvy.",issues:error.issues.map(i=>({path:i.path.join("."),message:i.code==="custom"?i.message:i.path[0]==="confirmed"?"Potvrďte kontrolu smluvních údajů.":"Doplňte platnou hodnotu; povinné údaje nemohou zůstat prázdné."}))},{status:422});

@@ -66,7 +66,7 @@ export async function requireDocumentCreateAccess(actor: Actor, scope: Authorita
 export async function authorizeDocumentContext(actor: Actor, context: DocumentContext) { const resolved = await resolveDocumentContext(context); const scope = resolveAuthoritativeDocumentScope(context, resolved); await requireDocumentCreateAccess(actor, scope); return scope; }
 function auditDetails(input: DocumentContext & { originalName: string }, document: { id: string; fileAssetId: string; category: DocumentCategory }): Prisma.InputJsonObject { return { propertyId: input.propertyId, documentId: document.id, fileAssetId: document.fileAssetId, category: document.category, originalName: input.originalName, ...(input.unitId ? { unitId: input.unitId } : {}), ...(input.leaseId ? { leaseId: input.leaseId } : {}), ...(input.taskId ? { taskId: input.taskId } : {}), ...(input.taskEntryId ? { taskEntryId: input.taskEntryId } : {}), ...(input.complianceRecordId ? { complianceRecordId: input.complianceRecordId } : {}), ...(input.propertyCostId ? { propertyCostId: input.propertyCostId } : {}) }; }
 
-export async function createDocumentFromUpload(input: DocumentContext & { actor: Actor; bytes: Uint8Array; mimeType: string; originalName: string; category: DocumentCategory; photoStage?: DocumentPhotoStage; title: string; description?: string; documentDate?: Date; contractSnapshot?: Prisma.InputJsonObject }, storage: FileStorage = createFileStorage()) {
+export async function createDocumentFromUpload(input: DocumentContext & { actor: Actor; bytes: Uint8Array; mimeType: string; originalName: string; category: DocumentCategory; photoStage?: DocumentPhotoStage; title: string; description?: string; documentDate?: Date }, storage: FileStorage = createFileStorage()) {
   const resolved = await resolveDocumentContext(input), scope = resolveAuthoritativeDocumentScope(input, resolved);
   await requireDocumentCreateAccess(input.actor, scope);
   const metadata = validateFile(input), key = randomStorageKey(), stored: string[] = [];
@@ -79,7 +79,7 @@ export async function createDocumentFromUpload(input: DocumentContext & { actor:
       await requireDocumentCreateAccess(input.actor, scope, tx);
       const asset = await tx.fileAsset.create({ data: { storageKey, previewStorageKey, thumbnailStorageKey, uploadedById: input.actor.id, ...metadata } });
       const document = await tx.document.create({ data: { propertyId: input.propertyId, fileAssetId: asset.id, category: input.category, photoStage: input.photoStage, title: input.title, description: input.description, documentDate: input.documentDate, unitId: input.unitId, leaseId: input.leaseId, taskId: input.taskId, taskEntryId: input.taskEntryId, complianceRecordId: input.complianceRecordId, propertyCostId: input.propertyCostId, createdById: input.actor.id } });
-      await tx.auditLog.create({ data: { userId: input.actor.id, propertyId: input.propertyId, action: "DOCUMENT_UPLOADED", entityType: "Document", entityId: document.id, details: {...auditDetails(input, document), ...(input.contractSnapshot ? {contractSnapshot:input.contractSnapshot} : {})} } });
+      await tx.auditLog.create({ data: { userId: input.actor.id, propertyId: input.propertyId, action: "DOCUMENT_UPLOADED", entityType: "Document", entityId: document.id, details: auditDetails(input, document) } });
       return document;
     });
   } catch (error) { await Promise.allSettled(stored.map((storedKey) => storage.deleteObject(storedKey))); throw error; }

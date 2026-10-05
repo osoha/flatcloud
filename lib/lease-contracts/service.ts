@@ -2,6 +2,11 @@ import { prisma } from "../db";
 import { previewContext } from "../auth";
 import { portalEditableUnitWhere } from "../tenant-portal-access";
 import { CONTRACT_TEMPLATE_VERSION, addYear } from "./core";
+import type { buildContract } from "./core";
+import { authorizeDocumentContext, requireDocumentCreateAccess } from "../documents/service";
+import { randomStorageKey, validateFile } from "../documents/file-validation";
+import { createFileStorage } from "../storage";
+import { documentStoragePlacement } from "../storage/locations";
 
 export async function contractActor() {const context=await previewContext();return context.requested||!context.actor||context.actor.role==="TENANT"?null:context.actor;}
 export async function contractLease(actor:NonNullable<Awaited<ReturnType<typeof contractActor>>>,leaseId:string){return prisma.lease.findFirst({where:{id:leaseId,unit:portalEditableUnitWhere(actor)},include:{tenant:true,parties:{where:{role:"CONTRACTING_PARTY"},include:{tenant:true}},unit:{include:{property:{include:{owner:true,manager:true}}}},ownerBankAccount:true,paymentItems:{where:{active:true},orderBy:{sortOrder:"asc"}},securityDepositTerms:{orderBy:{effectiveFrom:"desc"}},landlordPeriods:{where:{active:true},include:{owner:true},orderBy:{fromPeriod:"desc"}}}});}
@@ -22,4 +27,27 @@ export function contractPrefill(lease:NonNullable<Awaited<ReturnType<typeof cont
     startDate:start,endDate:end,handoverDate:start,signingDate:"",signingPlace:lease.unit.property.city||"",rentCents:lease.rentCents,
     services:services.length?services.map(s=>({name:s.name,amountCents:s.amountCents})):lease.servicesCents?[{name:"Zálohy na služby – doplňte rozpis",amountCents:lease.servicesCents}]:[],dueDay:lease.dueDay,account:lease.ownerBankAccount?.iban||[lease.ownerBankAccount?.accountNumber,lease.ownerBankAccount?.bankCode].filter(Boolean).join("/"),variableSymbol:lease.variableSymbol||"",firstPaymentDate:"",depositCents:terms?.agreedAmountCents??lease.depositCents,depositDueDate:"",depositAnnualRateBps:terms?.annualRateBps??null,directEnergy:"",occupantCount:tenants.length,attachments:"",confirmed:false,
   }};
+}
+
+/** Contract-only archive; the integrity-pinned generic upload service is unchanged. */
+export async function archiveContract(actor:NonNullable<Awaited<ReturnType<typeof contractActor>>>,lease:NonNullable<Awaited<ReturnType<typeof contractLease>>>,contract:ReturnType<typeof buildContract>,bytes:Uint8Array) {
+  const restricted={...actor,allProperties:false},context={propertyId:lease.unit.propertyId,unitId:lease.unitId,leaseId:lease.id};
+  const scope=await authorizeDocumentContext(restricted,context),storage=createFileStorage();
+  const originalName=`najemni-smlouva-${lease.id}-${Date.now()}.pdf`,mimeType="application/pdf",metadata=validateFile({bytes,mimeType,originalName});
+  const placement=await documentStoragePlacement(storage,context.propertyId,"CONTRACT",originalName);
+  let storedKey:string|undefined;
+  try {
+    const stored=await storage.putObject({key:randomStorageKey(),body:bytes,contentType:mimeType,displayName:placement.displayName,folderId:placement.folderId});storedKey=stored.key;
+    return await prisma.$transaction(async tx=>{
+      const currentActor=await tx.user.findFirst({where:{id:actor.id,active:true},select:{id:true,role:true}});
+      if(!currentActor||currentActor.role==="TENANT")throw new Error("Contract edit access revoked.");
+      const currentLease=await tx.lease.findFirst({where:{id:lease.id,unitId:lease.unitId,currency:"CZK",tenant:{type:"PERSON"},parties:{none:{role:"CONTRACTING_PARTY",tenant:{type:"COMPANY"}}},unit:{...portalEditableUnitWhere(currentActor),propertyId:context.propertyId,type:"APARTMENT"}},select:{id:true}});
+      if(!currentLease)throw new Error("Contract scope changed or edit access revoked.");
+      await requireDocumentCreateAccess({...currentActor,allProperties:false},scope,tx);
+      const asset=await tx.fileAsset.create({data:{storageKey:stored.key,uploadedById:actor.id,...metadata}});
+      const document=await tx.document.create({data:{...context,fileAssetId:asset.id,category:"CONTRACT",tenantVisible:false,title:`Nájemní smlouva · ${contract.input.tenants.map(t=>t.name).join(" + ")}`,description:`Připraveno k podpisu. Vzor ${contract.version}; ${contract.input.term}; ${contract.input.tenancy}. Smlouva není podepsaná.`,documentDate:new Date(contract.input.signingDate+"T12:00:00Z"),createdById:actor.id}});
+      await tx.auditLog.create({data:{userId:actor.id,propertyId:context.propertyId,action:"DOCUMENT_UPLOADED",entityType:"Document",entityId:document.id,details:{...context,documentId:document.id,fileAssetId:asset.id,category:"CONTRACT",originalName,contractSnapshot:JSON.parse(JSON.stringify(contract))}}});
+      return document;
+    });
+  }catch(error){if(storedKey)await storage.deleteObject(storedKey).catch(()=>{});throw error;}
 }
