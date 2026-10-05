@@ -27,34 +27,27 @@ export async function actionEvidencePdf(
   };
   function text(value: string, size = 10, strong = false) {
     const f = strong ? bold : font;
-    for (const p of value.split("\n")) {
-      let line = "";
-      for (const word of p.split(/\s+/)) {
-        for (const ch of (line ? " " : "") + word) {
-          if (f.widthOfTextAtSize(line + ch, size) > 499) {
-            if (y < 58) newPage();
-            page.drawText(line, {
-              x: 48,
-              y,
-              size,
-              font: f,
-              color: rgb(0.12, 0.19, 0.24),
-            });
-            y -= size + 5;
-            line = "";
-          }
-          line += ch;
-        }
-      }
+    const drawLine = (line: string) => {
       if (y < 58) newPage();
-      page.drawText(line, {
-        x: 48,
-        y,
-        size,
-        font: f,
-        color: rgb(0.12, 0.19, 0.24),
-      });
+      page.drawText(line, {x:48,y,size,font:f,color:rgb(0.12,0.19,0.24)});
       y -= size + 5;
+    };
+    for (const paragraph of value.split("\n")) {
+      let line = "";
+      for (const word of paragraph.split(/\s+/)) {
+        const candidate = line ? line + " " + word : word;
+        if (line && f.widthOfTextAtSize(candidate,size) > 499) {
+          drawLine(line);line = "";
+        }
+        // Keep normal words together; split only a token wider than the page.
+        if (f.widthOfTextAtSize(word,size) > 499) {
+          for (const ch of word) {
+            if (f.widthOfTextAtSize(line+ch,size) > 499) {drawLine(line);line="";}
+            line += ch;
+          }
+        } else line = line ? line + " " + word : word;
+      }
+      drawLine(line);
     }
     y -= 6;
   }
@@ -87,6 +80,7 @@ export async function actionEvidencePdf(
       9,
     );
     if (r.signatureEncrypted) {
+      if(y<125)newPage();
       const image = await pdf.embedPng(signatureImage(r.signatureEncrypted));
       page.drawImage(image, { x: 48, y: y - 55, width: 180, height: 55 });
       y -= 65;
