@@ -45,6 +45,7 @@ jobs:
       - run: node --import tsx scripts/verify-rent-payment-qr.ts
       - run: node --import tsx scripts/verify-lease-feedback.ts
       - run: node --import tsx scripts/verify-portal-receipts.ts
+      - run: node --import tsx scripts/verify-lease-contracts.ts
       - run: node --import tsx scripts/verify-tenant-portal-contact.ts
       - run: node --import tsx scripts/verify-task-thread-polish.ts
       - run: node --import tsx scripts/verify-task-assignee-and-attention.ts
@@ -251,7 +252,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Contract upload with isolated storage
-        run: npx playwright test e2e/lease-document-upload.spec.ts --output=contract-upload-results
+        run: npx playwright test e2e/lease-document-upload.spec.ts e2e/lease-contract-generator.spec.ts --output=contract-upload-results
         env:
           PLAYWRIGHT_HTML_OUTPUT_DIR: contract-upload-report
           FILE_STORAGE_DRIVER: s3
