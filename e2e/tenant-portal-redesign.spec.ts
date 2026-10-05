@@ -74,14 +74,46 @@ async function cleanup(f: Fixture) {
 }
 
 async function screenshot(page: Page, info: TestInfo, name: string) {
-  await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    if (!document.querySelector("dialog[open]")) {
+      (document.activeElement as HTMLElement | null)?.blur();
+      window.scrollTo(0, 0);
+    }
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
   const path = info.outputPath(`${name}.png`);
-  await page.screenshot({path, fullPage: true, animations: "disabled"});
+  await page.screenshot({path, fullPage: !(await page.locator("dialog[open]").count()), animations: "disabled"});
   await info.attach(name, {path, contentType: "image/png"});
 }
 
 async function noPageOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+}
+
+async function readableMobileRent(page: Page) {
+  const amount = await page.locator(".tp-rent-amount").evaluate(element => {
+    const range = document.createRange(); range.selectNodeContents(element);
+    const bounds = range.getBoundingClientRect();
+    return {x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height};
+  });
+  const qr = await page.getByAltText("QR kód pro úhradu otevřeného předpisu").boundingBox();
+  expect(amount).not.toBeNull(); expect(qr).not.toBeNull();
+  const separated = amount!.x + amount!.width <= qr!.x + 1 || qr!.x + qr!.width <= amount!.x + 1
+    || amount!.y + amount!.height <= qr!.y + 1 || qr!.y + qr!.height <= amount!.y + 1;
+  expect(separated, "The rent amount must remain readable beside or above the QR code").toBe(true);
+  const months = await page.locator(".portal-payment-history tbody tr").evaluateAll(rows => rows.map(row => {
+    const month = row.querySelector("th") as HTMLElement;
+    const text = month.querySelector("strong") as HTMLElement;
+    const style = getComputedStyle(text);
+    const lineHeight = Number.parseFloat(style.lineHeight) || Number.parseFloat(style.fontSize) * 1.5;
+    return {rowWidth: row.getBoundingClientRect().width, monthWidth: month.getBoundingClientRect().width, textHeight: text.getBoundingClientRect().height, lineHeight};
+  }));
+  expect(months.length).toBeGreaterThan(0);
+  for (const month of months) {
+    expect(month.monthWidth, "A mobile payment month must span the card").toBeGreaterThanOrEqual(month.rowWidth * 0.8);
+    expect(month.textHeight, "The month name must not break into fragments").toBeLessThanOrEqual(month.lineHeight * 1.5);
+  }
 }
 
 async function openDocuments(page: Page, leaseId: string, receipts = false) {
@@ -130,6 +162,7 @@ test("portal gives rent and human contact priority, keeps actions in dialogs and
     await expect(defectDialog.getByRole("tab", {name: "Nové hlášení"})).toHaveAttribute("aria-selected", "true");
     await page.keyboard.press("Escape");
     await expect(defectDialog).not.toBeVisible();
+    await expect(page.locator(`main a[href="#zavady-${f.lease.id}"]`)).toBeFocused();
     await openDocuments(page, f.lease.id);
     const docs = page.getByRole("dialog", {name: "Dokumenty", exact: true});
     await expect(docs.getByRole("tab", {name: "Smlouvy a předání"})).toHaveAttribute("aria-selected", "true");
@@ -202,9 +235,20 @@ test("rent wording and totals distinguish paid, future, overdue and partial paym
     await expect(page.locator("select[name=chargeId] option")).toHaveCount(1);
     await page.keyboard.press("Escape");
     await screenshot(page, info, "portal-partial-offset-desktop");
+    await page.setViewportSize({width: 1024, height: 768});
+    await noPageOverflow(page);
+    expect((await qr.boundingBox())!.width).toBeGreaterThanOrEqual(164);
+    await screenshot(page, info, "portal-partial-offset-tablet");
     await page.setViewportSize({width: 390, height: 844});
     await noPageOverflow(page);
+    await readableMobileRent(page);
     await screenshot(page, info, "portal-partial-offset-mobile");
+    for (const width of [375, 320]) {
+      await page.setViewportSize({width, height: 844});
+      await noPageOverflow(page);
+      await readableMobileRent(page);
+    }
+    await screenshot(page, info, "portal-partial-offset-mobile-320");
 
     // Excluded debt stays identifiable in history, but must not drive the payment banner.
     await db.charge.update({where: {id: overdue.id}, data: {debtTreatment: "EXCLUDED"}});
@@ -228,7 +272,7 @@ test("only explicitly published tenant notices and tasks are visible, with read-
     await login(managerPage, f.manager.email);
     await managerPage.goto("/ukoly/oznameni/najemnici");
     const noticeForm = managerPage.locator('form[action="/api/tenant-announcements"]');
-    await noticeForm.getByLabel("Příjemci *", {exact: true}).selectOption(`property:${f.property.id}`);
+    await noticeForm.getByLabel(/^Příjemci \*/).selectOption(`property:${f.property.id}`);
     await noticeForm.getByLabel("Název *", {exact: true}).fill("Odstávka vody v domě");
     await noticeForm.getByLabel("Sdělení *", {exact: true}).fill("Ve středu prosím počítejte s odstávkou vody mezi 10. a 11. hodinou.");
     await noticeForm.getByLabel("Důležitost").selectOption("IMPORTANT");
@@ -260,13 +304,17 @@ test("only explicitly published tenant notices and tasks are visible, with read-
       await expect(page.locator("main")).not.toContainText(hidden);
     }
     await screenshot(page, info, "portal-messages-desktop");
+    await page.request.post("/api/tenant-announcements", {headers: await headers(page), form: {audience: `property:${f.property.id}`, title: "PODVRŽENÉ OZNÁMENÍ", body: "Pokus nájemníka zveřejnit zprávu jménem správy.", severity: "INFO"}, maxRedirects: 0});
+    expect(await db.announcement.count({where: {createdById: f.actor.id}})).toBe(0);
+    await page.request.post(`/api/tasks/${privateTask.id}/tenant-portal`, {headers: await headers(page), form: {action: "publish", revision: privateTask.updatedAt.toISOString(), tenantPortalTitle: "PODVRŽENÉ ZADÁNÍ", tenantPortalBody: "Pokus nájemníka zveřejnit interní úkol."}, maxRedirects: 0});
+    expect((await db.task.findUniqueOrThrow({where: {id: privateTask.id}})).tenantPortalPublishedAt).toBeNull();
 
     await managerPage.goto(`/portal/najemnik/${f.tenant.id}`);
     await expect(managerPage.locator("main")).toContainText(posted.tenantPortalTitle!);
     await expect(managerPage.getByRole("button", {name: "Potvrdit přijetí", exact: true})).toBeDisabled();
     await managerPage.request.post(`/api/portal/tenants/${f.tenant.id}/messages`, {headers: await headers(managerPage), form: {leaseId: f.lease.id, kind: "task", itemId: posted.id, action: "confirm", revision: posted.tenantPortalPublishedAt!.toISOString()}, maxRedirects: 0});
     expect(await db.taskUserState.count({where: {taskId: posted.id, tenantConfirmedAt: {not: null}}})).toBe(0);
-    await managerPage.request.post(`/api/portal/tenants/${f.tenant.id}/messages`, {headers: await headers(managerPage), form: {leaseId: f.lease.id, kind: "announcement", itemId: propertyNotice.id, action: "dismiss"}, maxRedirects: 0});
+    await managerPage.request.post(`/api/portal/tenants/${f.tenant.id}/messages`, {headers: await headers(managerPage), form: {leaseId: f.lease.id, kind: "announcement", itemId: propertyNotice.id, action: "dismiss", revision: propertyNotice.updatedAt.toISOString()}, maxRedirects: 0});
     expect(await db.announcementUserState.count({where: {announcementId: propertyNotice.id}})).toBe(0);
 
     // Another tenant can read the house-wide notice, but cannot acknowledge this lease's messages.
@@ -277,7 +325,7 @@ test("only explicitly published tenant notices and tasks are visible, with read-
     await expect(otherPage.locator("main")).not.toContainText(posted.tenantPortalTitle!);
     for (const targetTenant of [f.tenant.id, f.otherTenant.id]) {
       await otherPage.request.post(`/api/portal/tenants/${targetTenant}/messages`, {headers: await headers(otherPage), form: {leaseId: f.lease.id, kind: "task", itemId: posted.id, action: "confirm", revision: posted.tenantPortalPublishedAt!.toISOString()}, maxRedirects: 0});
-      await otherPage.request.post(`/api/portal/tenants/${targetTenant}/messages`, {headers: await headers(otherPage), form: {leaseId: f.lease.id, kind: "announcement", itemId: ownNotice.id, action: "read"}, maxRedirects: 0});
+      await otherPage.request.post(`/api/portal/tenants/${targetTenant}/messages`, {headers: await headers(otherPage), form: {leaseId: f.lease.id, kind: "announcement", itemId: ownNotice.id, action: "read", revision: ownNotice.updatedAt.toISOString()}, maxRedirects: 0});
     }
     expect(await db.taskUserState.count({where: {taskId: posted.id, userId: f.otherActor.id}})).toBe(0);
     expect(await db.announcementUserState.count({where: {announcementId: ownNotice.id, userId: f.otherActor.id}})).toBe(0);
@@ -288,7 +336,7 @@ test("only explicitly published tenant notices and tasks are visible, with read-
     await payerPage.goto(`/portal/najemnik/${f.payer.id}`);
     await expect(payerPage.locator("main")).not.toContainText(propertyNotice.title);
     await expect(payerPage.locator("main")).not.toContainText(posted.tenantPortalTitle!);
-    await payerPage.request.post(`/api/portal/tenants/${f.payer.id}/messages`, {headers: await headers(payerPage), form: {leaseId: f.lease.id, kind: "announcement", itemId: propertyNotice.id, action: "read"}, maxRedirects: 0});
+    await payerPage.request.post(`/api/portal/tenants/${f.payer.id}/messages`, {headers: await headers(payerPage), form: {leaseId: f.lease.id, kind: "announcement", itemId: propertyNotice.id, action: "read", revision: propertyNotice.updatedAt.toISOString()}, maxRedirects: 0});
     expect(await db.announcementUserState.count({where: {announcementId: propertyNotice.id, userId: f.payerActor.id}})).toBe(0);
 
     const ownTask = messages.locator("article").filter({has: page.getByRole("heading", {name: posted.tenantPortalTitle!, exact: true})});
@@ -322,8 +370,9 @@ test("only explicitly published tenant notices and tasks are visible, with read-
     await managerPage.goto("/ukoly/oznameni/najemnici");
     const noticeEditor = managerPage.locator(`article[id="${ownNotice.id}"]`);
     await noticeEditor.getByText("Upravit sdělení", {exact: true}).click();
-    const noticeEditForm = noticeEditor.locator('form').filter({has: managerPage.getByRole("button", {name: "Uložit sdělení", exact: true})});
-    await noticeEditForm.getByLabel("Sdělení", {exact: true}).fill("Klíče budou nově připravené až ve čtvrtek. Přečtěte si prosím nové sdělení.");
+    const noticeEditForm = noticeEditor.locator(`details[open] form[action="/api/tenant-announcements/${ownNotice.id}"]`);
+    await expect(noticeEditForm).toHaveCount(1);
+    await noticeEditForm.getByRole("textbox", {name: "Sdělení", exact: true}).fill("Klíče budou nově připravené až ve čtvrtek. Přečtěte si prosím nové sdělení.");
     await noticeEditForm.getByRole("button", {name: "Uložit sdělení", exact: true}).click();
     await page.request.post(`/api/portal/tenants/${f.tenant.id}/messages`, {headers: await headers(page), form: {leaseId: f.lease.id, kind: "announcement", itemId: ownNotice.id, action: "read", revision: ownNotice.updatedAt.toISOString()}, maxRedirects: 0});
     expect((await db.announcementUserState.findUnique({where: {announcementId_userId: {announcementId: ownNotice.id, userId: f.actor.id}}}))?.readAt ?? null).toBeNull();

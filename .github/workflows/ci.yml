@@ -267,7 +267,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Portal receipts and navigation regression
-        run: npx playwright test e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/task-archive-admin-avatar.spec.ts --reporter=line --output=portal-smoke-results
+        run: npx playwright test e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/tenant-portal-meter-photo.spec.ts e2e/task-archive-admin-avatar.spec.ts --reporter=line --output=portal-smoke-results
+        env:
+          FILE_STORAGE_DRIVER: s3
+          S3_ENDPOINT: http://127.0.0.1:3201
+          S3_REGION: eu-central-1
+          S3_BUCKET: qa-documents
+          S3_FORCE_PATH_STYLE: "true"
+          S3_ACCESS_KEY_ID: qa-only
+          S3_SECRET_ACCESS_KEY: qa-only
       - name: Upload portal regression evidence
         if: always()
         uses: actions/upload-artifact@v4

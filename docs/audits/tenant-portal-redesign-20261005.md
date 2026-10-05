@@ -28,10 +28,16 @@ Adiční migrace `20261005070000_tenant_portal_messages` přidává zveřejněn�
 
 ## Ověření
 
-Probíhá integrační a vizuální kontrola. Za READY lze označit až po finálním production buildu, statických kontrolách, izolovaných migracích, relevantních prohlížečových regresích a kontrole skutečných desktopových/mobilních screenshotů. Lokální vizuální prostředí používá izolovaný PGlite; nativní PostgreSQL v CI je závazná kontrola migrací a souběhů.
+Lokálně prošly TypeScript, `git diff --check`, produkční build v Node 22.23.1, všech 105 migrací nad izolovanou databází, verifikátory kontaktu, dokladů, QR, odečtů a finančních omezení. Verifikátor fotografií odečtu prošel všemi 10 kontrolami. Nezávislá kontrola přístupů a diffu nemá zbývající blokující nález.
+
+Finální prohlížečová kontrola: šest scénářů ve třech portálových sadách prošlo bez opakování (31,9 s); samostatný scénář fotografie odečtu se skutečným nahráním a stažením přes izolované S3 prošel (5,3 s). Kontroly používají přihlášené uživatele také pro přímé API požadavky. Zahrnují vystavení/archiv dokladu, náhled správce, plátce a cizí smlouvy, původní text závady, zveřejnění/archivaci zpráv a odmítnutí potvrzení zastaralé verze.
+
+Skutečné screenshoty prošly vizuální kontrolou: desktop 1280 px, tablet 1024 px a mobil 390/375/320 px. Kontrola odhalila a opravila zmenšený QR, návrat focusu po zavření dialogu, překrytí částky QR na mobilu a lámání názvů měsíců. Regrese ověřují také skutečné hranice textu, nikoli jen nepřetékání stránky.
+
+Lokální vizuální prostředí používá izolovaný PGlite. Nativní PostgreSQL v CI je závazná kontrola migrací a souběhů; finální stav kontrol konkrétního SHA a vydání je evidován v [PR #248](https://github.com/osoha/flatcloud/pull/248). READY a merge jsou podmíněny zelenými kontrolami finálního SHA.
 
 Kontroly zahrnují původní přístupy, pozvánky, podpisy, doklady a rozsah nemovitostí; nové zveřejnění/odebrání obsahu, cizí tenanty, plátce, náhled správce, revize potvrzení, příjem plateb, fotografie a nezobrazení interních textů. Screenshoty jsou součástí CI artefaktů.
 
 ## Vydání
 
-Zatím nevydáno. Po úspěšných kontrolách jediný merge do `sandbox/ux-agent`, následně ověření přesného SHA a stavu LIVE na Renderu včetně migrace a provozních chyb.
+Vydání proběhne přes PR #248 jediným merge do `sandbox/ux-agent` po úspěšných kontrolách. Následuje ověření přesného SHA a stavu LIVE na Renderu včetně migrace a provozních chyb. Stav nasazení je zaznamenán v PR; produkce není součástí tohoto vydání.

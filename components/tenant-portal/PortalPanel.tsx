@@ -21,16 +21,21 @@ export function PortalPanel({id, title, subtitle, aliases = [], tabs, children, 
   useEffect(() => {
     const node = dialog.current;
     if (!node) return;
+    const targets = targetKeys.split("|");
+    const tabIds = tabKeys ? tabKeys.split("|") : [];
+    const matchesTarget = (hash: string) => targets.includes(hash) || tabIds.some(key => targets.some(target => hash === `${target}-${key}`));
+    const captureOpener = (event: MouseEvent) => {
+      const anchor = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null;
+      if (anchor && matchesTarget(anchor.hash.slice(1))) opener.current = anchor;
+    };
     const sync = () => {
-      const hash = decodeURIComponent(window.location.hash.slice(1));
-      const targets = targetKeys.split("|");
-      const tabIds = tabKeys ? tabKeys.split("|") : [];
+      const hash = window.location.hash.slice(1);
       const suffix = tabIds.find(key => targets.some(target => hash === `${target}-${key}`));
       const matches = targets.includes(hash) || Boolean(suffix);
       if (matches) {
         setSelected(suffix || tabIds[0] || "");
         if (!node.open) {
-          opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          if (!opener.current) opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
           document.querySelectorAll<HTMLDialogElement>(".tenant-portal-v2 .tp-dialog[open]").forEach(other => {if (other !== node) other.close();});
           node.showModal();
           heading.current?.focus({preventScroll: true});
@@ -39,7 +44,8 @@ export function PortalPanel({id, title, subtitle, aliases = [], tabs, children, 
     };
     sync();
     window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
+    document.addEventListener("click", captureOpener, true);
+    return () => {window.removeEventListener("hashchange", sync); document.removeEventListener("click", captureOpener, true);};
   }, [targetKeys, tabKeys]);
 
   function close() {
@@ -47,6 +53,7 @@ export function PortalPanel({id, title, subtitle, aliases = [], tabs, children, 
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     opener.current?.focus({preventScroll: true});
+    opener.current = null;
   }
 
   return <dialog ref={dialog} id={id} className="tp-dialog" aria-labelledby={`${id}-title`}
