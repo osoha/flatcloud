@@ -398,7 +398,7 @@ export async function completePacket(
     });
     if (!user) throw new Error("Účet se změnil. Přihlaste se znovu.");
     await db.$queryRaw`SELECT "id" FROM "LeaseActionPacket" WHERE "id" = ${id} FOR UPDATE`;
-    const packet = await accessiblePacket(actor, id, db);
+    const packet = await accessiblePacket(user, id, db);
     if (
       !packet ||
       packet.cancelledAt ||
@@ -430,8 +430,8 @@ export async function completePacket(
           contentHash: packet.contentHash,
           recipientId: recipient.id,
           actorId: actor.id,
-          name: actor.name,
-          email: actor.email,
+          name: user.name,
+          email: user.email,
           action: actionMeanings[kind],
           completedAt: now.toISOString(),
           signatureHash: signature?.imageHash || null,
@@ -450,8 +450,8 @@ export async function completePacket(
           completedAt: now,
           openedAt: recipient.openedAt || now,
           completedById: actor.id,
-          completedByName: actor.name,
-          completedByEmail: actor.email,
+          completedByName: user.name,
+          completedByEmail: user.email,
           signatureEncrypted: signature?.encryptedImage || null,
           signatureHash: signature?.imageHash || null,
           evidenceHash,
