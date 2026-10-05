@@ -1,3 +1,4 @@
+import { publishTenantAnnouncementNotification } from "@/lib/tenant-portal-notifications";
 import { currentUser } from "@/lib/auth";
 import { serializableTransaction } from "@/lib/serializable";
 import { go, goWithMessage } from "@/lib/route-response";
@@ -17,6 +18,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
   const data=action==="edit"?{title,body}:{active:action==="activate"};
   const changed=await tx.announcement.updateMany({where:{id,updatedAt:before.updatedAt},data});if(changed.count!==1)throw new Error("Oznámení se mezitím změnilo.");
   if(reset)await tx.announcementUserState.updateMany({where:{announcementId:id},data:{readAt:null,dismissedAt:null}});
+  if(action!=="deactivate"&&await tx.announcementAudience.count({where:{announcementId:id,kind:{in:["TENANT_LEASE","TENANT_PROPERTY"]}}}))await publishTenantAnnouncementNotification(tx,id);
   await tx.auditLog.create({data:{userId:user.id,action:action==="edit"?"ANNOUNCEMENT_EDITED":action==="activate"?"ANNOUNCEMENT_ACTIVATED":"ANNOUNCEMENT_DEACTIVATED",entityType:"Announcement",entityId:id,details:{before:{title:before.title,body:before.body,active:before.active},after:data,notifyAgain:reset}}});
  });return goWithMessage(request,`/nastaveni/oznameni#${id}`,"ok","Oznámení bylo upraveno.");
  }catch(e){return goWithMessage(request,"/nastaveni/oznameni","error",e instanceof Error?e.message:"Úprava se nezdařila.");}

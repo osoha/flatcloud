@@ -1,3 +1,4 @@
+import { publishTenantAnnouncementNotification } from "@/lib/tenant-portal-notifications";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { canPublishLeaseMessage, canPublishPropertyMessage } from "@/lib/tenant-portal-messages";
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
     const created = await prisma.$transaction(async tx => {
       const item = await tx.announcement.create({ data: { title, body, severity: severity as AnnouncementSeverity, startsAt, expiresAt, createdById: user.id, audiences: { create: audience } } });
       await tx.auditLog.create({ data: { userId: user.id, propertyId: lease?.unit.propertyId || id, action: "TENANT_ANNOUNCEMENT_CREATED", entityType: "Announcement", entityId: item.id, details: { audience, startsAt, expiresAt } } });
+      await publishTenantAnnouncementNotification(tx, item.id);
       return item;
     });
     return goWithMessage(request, `${target}#${created.id}`, "ok", "Oznámení bylo zveřejněno pro vybrané nájemníky.");

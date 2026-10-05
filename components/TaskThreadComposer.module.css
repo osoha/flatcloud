@@ -1,0 +1,9 @@
+.publicReply.publicReply{border-color:#90b9eb;background:linear-gradient(120deg,#f0f7ff,#fff);box-shadow:0 0 0 2px #dcecff55}
+.publicReply :global(.composer-title){color:#155cad}
+.publicReply :global(.composer-visibility){color:#155cad}
+.publicReply :global(.composer-visibility select){background:#eaf3ff;color:#174e97;border-color:#b7d3f4}
+.publicReply :global(.composer-body)>label{font-size:13px;font-weight:650;color:#244f86;margin:2px 0 5px}
+.publicReply :global(.composer-body)>textarea{border-color:#bdd3ec;background:#fff;min-height:108px}
+.publicReply :global(.muted-copy){display:flex;align-items:flex-start;gap:7px;font-size:12px;line-height:1.55;color:#5b7698;margin:8px 0 3px}
+.publicReply :global(.muted-copy)>svg{flex:0 0 15px;margin-top:2px}
+.publicReply :global(.composer-actions)>small{color:#315e95}

@@ -7,7 +7,7 @@ export type TaskAuthorizationTarget = { id?: string; propertyId: string | null; 
 export function authoritativeTaskUnitId(task: TaskAuthorizationTarget) { return task.unitId || task.lease?.unitId || null; }
 /** A task participant must be able to open the exact property or unit in its context. */
 export function taskParticipantWhere(propertyId:string,unitId:string|null):Prisma.UserWhereInput {
-  return {active:true,OR:[
+  return {active:true,role:{not:"TENANT"},OR:[
     {role:{in:["SUPER_ADMIN","MANAGER"]}},
     {allProperties:true},
     {memberships:{some:{propertyId}}},
@@ -17,6 +17,7 @@ export function taskParticipantWhere(propertyId:string,unitId:string|null):Prism
 export function taskEditScope(task:TaskAuthorizationTarget){const unitId=authoritativeTaskUnitId(task);return task.propertyId ? (unitId?{mode:"UNIT" as const,propertyId:task.propertyId,unitId}:{mode:"PROPERTY" as const,propertyId:task.propertyId}) : {mode:"GENERAL" as const,propertyId:null}}
 export function canEditTaskFromGrants(scope:ReturnType<typeof taskEditScope>,grants:{wholePropertyIds:string[];unitIds:string[]},allProperties=false){return allProperties||(scope.mode!=="GENERAL"&&grants.wholePropertyIds.includes(scope.propertyId))||(scope.mode==="UNIT"&&grants.unitIds.includes(scope.unitId))}
 export async function canEditTask(user: User, task: TaskAuthorizationTarget, client: Prisma.TransactionClient | typeof prisma = prisma) {
+  if (user.role === "TENANT") return false;
   if (hasAllPropertyAccess(user)) return true;
   if (!task.propertyId) {
     if (task.createdById === user.id || task.assigneeId === user.id) return true;
@@ -32,6 +33,7 @@ export async function canEditTask(user: User, task: TaskAuthorizationTarget, cli
 
 /** Same authoritative unit precedence as canEditTask, usable in relational filters. */
 export function taskEditWhere(user: User): Prisma.TaskWhereInput {
+  if (user.role === "TENANT") return { id: { in: [] } };
   if (hasAllPropertyAccess(user)) return {};
   const permission = { userId: user.id, permission: { in: ["EDIT", "ADMIN"] as ("EDIT" | "ADMIN")[] } };
   return { OR: [
@@ -45,6 +47,7 @@ export function taskEditWhere(user: User): Prisma.TaskWhereInput {
 }
 
 export function taskViewWhere(user: User): Prisma.TaskWhereInput {
+  if (user.role === "TENANT") return { id: { in: [] } };
   if (hasAllPropertyAccess(user)) return {};
   return { OR: [
     { propertyId: null, OR: [{ createdById: user.id }, { assigneeId: user.id }, { members: { some: { userId: user.id } } }] },
@@ -56,12 +59,13 @@ export function taskViewWhere(user: User): Prisma.TaskWhereInput {
 
 /** Apply inside an already authorized task/document scope. */
 export function taskEntryVisibilityWhere(user: User): Prisma.TaskEntryWhereInput {
-  return hasAllPropertyAccess(user) ? {} : { OR: [{ visibility: "OWNER_VISIBLE" }, { task: taskEditWhere(user) }, { task: { createdById: user.id } }, { task: { assigneeId: user.id } }, { task: { members: { some: { userId: user.id } } } }] };
+  if (user.role === "TENANT") return { id: { in: [] } };
+  return hasAllPropertyAccess(user) ? {} : { OR: [{ visibility: { in: ["OWNER_VISIBLE", "TENANT_VISIBLE"] } }, { task: taskEditWhere(user) }, { task: { createdById: user.id } }, { task: { assigneeId: user.id } }, { task: { members: { some: { userId: user.id } } } }] };
 }
 
-export function parseTaskEntryVisibility(form: FormData) {
+export function parseTaskEntryVisibility(form: FormData, allowTenant = false) {
   const value = form.get("visibility") || "INTERNAL";
-  if (value !== "INTERNAL" && value !== "OWNER_VISIBLE") throw new Error("Vyberte platnou viditelnost záznamu.");
+  if (value !== "INTERNAL" && value !== "OWNER_VISIBLE" && !(allowTenant && value === "TENANT_VISIBLE")) throw new Error("Vyberte platnou viditelnost záznamu.");
   return value;
 }
 

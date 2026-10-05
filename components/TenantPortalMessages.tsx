@@ -1,4 +1,4 @@
-import { Bell, CheckCheck, ClipboardCheck } from "lucide-react";
+import { ArrowRight, Bell, CheckCheck, ClipboardCheck } from "lucide-react";
 import { tenantPortalMessages, type PortalMessageUser } from "@/lib/tenant-portal-messages";
 import { date } from "@/lib/format";
 import { taskStatuses } from "@/lib/labels";
@@ -35,7 +35,7 @@ export async function TenantPortalMessages({ tenantId, leaseId, user, preview }:
   }
   function task(item: MessageContent["tasks"][number], archived = false) {
     const confirmed = item.userStates[0]?.tenantConfirmedAt;
-    return <article className="tp-message tp-message-task" key={item.id}><span className="tp-message-icon"><ClipboardCheck size={20} aria-hidden="true"/></span><div className="tp-message-content"><div className="tp-message-meta"><span>{item.tenantPortalPublishedBy?.name || "Správa domu"}</span><span>Úkol pro vás</span><span>{taskStatuses[item.status]}</span></div><h3>{item.tenantPortalTitle}</h3>{body(item.tenantPortalBody || "")}{item.dueAt && <strong className="tp-message-due">Prosíme vyřídit do {date(item.dueAt)}</strong>}<div className="tp-message-actions">{confirmed ? <span className="tp-message-confirmed"><CheckCheck size={16} aria-hidden="true"/> Přijetí potvrzeno {date(confirmed)}</span> : !archived && action("task", item.id, "confirm", "Potvrdit přijetí", item.tenantPortalPublishedAt!.toISOString())}</div></div></article>;
+    return <article className="tp-message tp-message-task" key={item.id}><span className="tp-message-icon"><ClipboardCheck size={20} aria-hidden="true"/></span><div className="tp-message-content"><div className="tp-message-meta"><span>{item.tenantPortalPublishedBy?.name || "Správa domu"}</span><span>Úkol pro vás</span><span>{taskStatuses[item.status]}</span></div><h3>{item.tenantPortalTitle}</h3>{body(item.tenantPortalBody || "")}{item.dueAt && <strong className="tp-message-due">Prosíme vyřídit do {date(item.dueAt)}</strong>}<div className="tp-message-actions">{confirmed ? <span className="tp-message-confirmed"><CheckCheck size={16} aria-hidden="true"/> Přijetí potvrzeno {date(confirmed)}</span> : !archived && action("task", item.id, "confirm", "Potvrdit přijetí", item.tenantPortalPublishedAt!.toISOString())}<a className="tp-text-link" href={`#zpravy-spravci-${leaseId}--${item.id}`}>Otevřít konverzaci <ArrowRight size={15}/></a></div></div></article>;
   }
   const activeItems = [
     ...activeNotices.filter(item => item.severity !== "INFO").map(item => notice(item)),
