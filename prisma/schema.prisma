@@ -563,6 +563,7 @@ model User {
   taskEntries                          TaskEntry[]
   taskMemberships                      TaskMember[]
   taskStates                           TaskUserState[]
+  portalPublishedTasks                 Task[] @relation("TenantPortalTaskPublisher")
   passwordResetTokens                  PasswordResetToken[]
   checklistItemsCompleted              TaskChecklistItem[]            @relation("ChecklistCompleter")
   taskAttachmentsUploaded              TaskAttachment[]               @relation("TaskAttachmentUploader")
@@ -1660,6 +1661,7 @@ model Lease {
   meterReadings               MeterReading[]
   notifications               RentNotification[]
   tasks                       Task[]
+  portalAnnouncementAudiences AnnouncementAudience[]
   remindersPausedUntil        DateTime?
   reminderPauseReason         String?
   promisedPaymentDate         DateTime?
@@ -2114,6 +2116,11 @@ model Task {
   lease                  Lease?                      @relation(fields: [leaseId], references: [id], onDelete: SetNull)
   tenantId               String?
   tenantPortalRequest     Boolean                     @default(false)
+  tenantPortalPublishedAt DateTime?
+  tenantPortalPublishedById String?
+  tenantPortalPublishedBy User? @relation("TenantPortalTaskPublisher", fields: [tenantPortalPublishedById], references: [id], onDelete: SetNull)
+  tenantPortalTitle       String?
+  tenantPortalBody        String?
   tenantEntryConsentAt    DateTime?
   tenantVisitNote         String?
   tenant                 Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
@@ -2142,6 +2149,7 @@ model Task {
   @@index([assigneeId, status, dueAt])
   @@index([leaseId, category, status])
   @@index([tenantId, tenantPortalRequest, createdAt])
+  @@index([leaseId, tenantId, tenantPortalPublishedAt])
   @@index([automationRuleId, automationEventKey])
 }
 
@@ -2241,6 +2249,7 @@ model TaskUserState {
   favorite    Boolean   @default(false)
   dismissedAt DateTime?
   lastReadAt  DateTime?
+  tenantConfirmedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -2255,6 +2264,8 @@ enum AnnouncementSeverity {
 }
 
 enum AnnouncementAudienceKind {
+  TENANT_PROPERTY
+  TENANT_LEASE
   ALL_USERS
   FLATCLOUD_MEMBERS
   ROLE
@@ -2285,6 +2296,8 @@ model AnnouncementAudience {
   announcementId String
   announcement   Announcement             @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   kind           AnnouncementAudienceKind
+  leaseId        String?
+  lease          Lease?                   @relation(fields: [leaseId], references: [id], onDelete: Cascade)
   role           UserRole?
   propertyId     String?
   property       Property?                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -2293,6 +2306,7 @@ model AnnouncementAudience {
   createdAt      DateTime                 @default(now())
 
   @@index([announcementId, kind])
+  @@index([leaseId])
   @@index([propertyId])
   @@index([userId])
 }

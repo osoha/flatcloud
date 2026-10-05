@@ -1,4 +1,4 @@
-import {test,expect} from "@playwright/test";
+import {test,expect,type Page} from "@playwright/test";
 import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcryptjs";
 import {randomUUID} from "node:crypto";
@@ -7,6 +7,7 @@ import {runAutoTenantPortalInvitations} from "../lib/tenant-portal-auto-invite";
 import {cleanupImmutableMeterReadings} from "./cleanup-immutable-meter-readings";
 
 const db=new PrismaClient();
+async function sessionHeaders(page:Page){return {Cookie:(await page.context().cookies()).map(cookie=>`${cookie.name}=${cookie.value}`).join("; ")};}
 test.beforeAll(()=>{if(!process.env.DATABASE_URL||!["localhost","127.0.0.1","postgres"].includes(new URL(process.env.DATABASE_URL).hostname))throw new Error("Isolated CI database required");});
 test.afterAll(()=>db.$disconnect());
 
@@ -34,8 +35,10 @@ test("tenant account sees only its lease, can report a defect and record its own
     await page.getByLabel("E-mail").fill(actor.email);await page.getByLabel("Heslo").fill(password);
     await page.getByRole("button",{name:"Přihlásit se",exact:true}).click();
     await expect(page).toHaveURL(new RegExp(`/portal/najemnik/${tenant.id}`));
-    await expect(page.getByText("Vodoměr")).toBeVisible();
-    expect((await page.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=contract`)).status()).toBe(404);
+    await page.locator(`a[href="#odecty-${lease.id}"]`).last().click();
+    await expect(page.getByRole("dialog",{name:"Měřidla a odečty"}).getByText("Vodoměr",{exact:true})).toBeVisible();
+    await page.getByRole("dialog").getByRole("button",{name:"Zavřít",exact:true}).click();
+    expect((await page.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=contract`,{headers:await sessionHeaders(page)})).status()).toBe(404);
     const adminPage=await browser.newPage();
     try{
       await adminPage.goto("/login");await adminPage.getByLabel("E-mail").fill(process.env.E2E_ADMIN_EMAIL!);await adminPage.getByLabel("Heslo").fill(process.env.E2E_ADMIN_PASSWORD!);
@@ -44,24 +47,26 @@ test("tenant account sees only its lease, can report a defect and record its own
       const session=(await adminPage.context().cookies()).find(cookie=>cookie.name==="fc_session");expect(session).toBeDefined();
       const pdf=await adminPage.request.get(`/api/leases/${lease.id}/portal-entry-pdf?kind=handover`,{headers:{Cookie:`fc_session=${session!.value}`}});
       expect(pdf.status()).toBe(200);expect(pdf.headers()["content-type"]).toContain("application/pdf");expect((await pdf.body()).subarray(0,4).toString()).toBe("%PDF");
-      expect((await adminPage.request.get(`/api/leases/${otherLease.id}/portal-entry-pdf?kind=invalid`)).status()).toBe(404);
+      expect((await adminPage.request.get(`/api/leases/${otherLease.id}/portal-entry-pdf?kind=invalid`,{headers:await sessionHeaders(adminPage)})).status()).toBe(404);
     }finally{await adminPage.close();}
     expect((await page.goto(`/portal/najemnik/${other.id}`))?.status()).toBe(404);
     await page.goto("/portfolio");await expect(page).toHaveURL(/\/portal\/najemnik/);
-    const rejected=await page.request.post(`/api/portal/tenants/${other.id}/readings`,{form:{leaseId:otherLease.id,meterId:otherMeter.id,readAt:businessTodayKey(),value:"20"},maxRedirects:0});
+    const rejected=await page.request.post(`/api/portal/tenants/${other.id}/readings`,{headers:await sessionHeaders(page),form:{leaseId:otherLease.id,meterId:otherMeter.id,readAt:businessTodayKey(),value:"20"},maxRedirects:0});
     expect(rejected.status()).toBe(303);
     expect(await db.meterReading.count({where:{meterId:otherMeter.id}})).toBe(0);
     const payerPage=await browser.newPage();
     try{
       await payerPage.goto("/login");await payerPage.getByLabel("E-mail").fill(payerUser.email);await payerPage.getByLabel("Heslo").fill(password);await payerPage.getByRole("button",{name:"Přihlásit se",exact:true}).click();
       await expect(payerPage).toHaveURL(new RegExp(`/portal/najemnik/${payer.id}`));
-      await expect(payerPage.getByText("Zaplatit nájem")).toBeVisible();
+      await expect(payerPage.getByRole("heading",{name:"Můj nájem",exact:true})).toBeVisible();
       await expect(payerPage.getByText("Odečty měřidel")).toHaveCount(0);
       await expect(payerPage.getByText("Nahlásit závadu")).toHaveCount(0);
-      expect((await payerPage.request.post(`/api/portal/tenants/${payer.id}/readings`,{form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"20"},maxRedirects:0})).status()).toBe(303);
+      expect((await payerPage.request.post(`/api/portal/tenants/${payer.id}/readings`,{headers:await sessionHeaders(payerPage),form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"20"},maxRedirects:0})).status()).toBe(303);
       expect(await db.meterReading.count({where:{meterId:meter.id}})).toBe(0);
     }finally{await payerPage.close();}
     await page.goto(`/portal/najemnik/${tenant.id}`);
+    await page.locator(`main a[href="#zavady-${lease.id}"]`).click();
+    await expect(page.getByRole("dialog",{name:"Požadavky"})).toBeVisible();
     await page.getByLabel("Co se stalo?").fill("Netěsní kohoutek");await page.getByLabel("Popis závady").fill("Kohoutek v kuchyni kapká již dva dny.");
     await page.getByRole("checkbox",{name:/Souhlasím se vstupem/}).check();
     await page.getByRole("button",{name:"Předat závadu"}).click();
@@ -69,19 +74,32 @@ test("tenant account sees only its lease, can report a defect and record its own
     expect(defect.leaseId).toBe(lease.id);expect(defect.category).toBe("MAINTENANCE");
     expect(defect.tenantPortalRequest).toBe(true);
     expect(defect.tenantEntryConsentAt).not.toBeNull();
-    await expect(page.getByText("Moje hlášení")).toBeVisible();
+    await page.goto(`/portal/najemnik/${tenant.id}#zavady-${lease.id}-historie`);
+    await expect(page.getByRole("dialog",{name:"Požadavky"}).getByRole("tab",{name:"Moje hlášení"})).toBeVisible();
     await expect(page.locator(".tenant-portal-request-history").getByText("Netěsní kohoutek")).toBeVisible();
+    // The tenant history keeps the submitted snapshot, even after staff adds internal notes.
+    expect(defect.tenantPortalTitle).toBe("Netěsní kohoutek");
+    expect(defect.tenantPortalBody).toBe("Kohoutek v kuchyni kapká již dva dny.");
+    await db.task.update({where:{id:defect.id},data:{title:"Interní servisní klasifikace",description:"INTERNÍ POZNÁMKA: soukromé vyjádření správce."}});
+    await page.reload();
+    await expect(page.locator(".tenant-portal-request-history").getByText("Netěsní kohoutek")).toBeVisible();
+    await expect(page.locator(".tenant-portal-request-history")).toContainText("Kohoutek v kuchyni kapká již dva dny.");
+    await expect(page.locator("main")).not.toContainText("Interní servisní klasifikace");
+    await expect(page.locator("main")).not.toContainText("INTERNÍ POZNÁMKA");
     await page.getByRole("button",{name:"Odvolat souhlas se vstupem"}).click();
     expect((await db.task.findUniqueOrThrow({where:{id:defect.id}})).tenantEntryConsentAt).toBeNull();
-    await page.getByLabel("Nový stav (m³)").fill("12.5");await page.getByRole("button",{name:"Uložit odečet"}).click();
+    await page.goto(`/portal/najemnik/${tenant.id}#odecty-${lease.id}`);
+    await expect(page.getByRole("dialog",{name:"Měřidla a odečty"})).toBeVisible();
+    await page.getByLabel("Nový stav (m³)").fill("12.5");
+    await page.getByRole("button",{name:"Uložit odečet"}).click();
     expect((await db.meterReading.findFirstOrThrow({where:{meterId:meter.id}})).value).toBe(12.5);
     expect(await db.meterReading.count({where:{meterId:otherMeter.id}})).toBe(0);
-    await page.request.post(`/api/portal/tenants/${tenant.id}/readings`,{form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"11"},maxRedirects:0});
+    await page.request.post(`/api/portal/tenants/${tenant.id}/readings`,{headers:await sessionHeaders(page),form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"11"},maxRedirects:0});
     expect(await db.meterReading.count({where:{meterId:meter.id}})).toBe(1);
     await db.tenant.update({where:{id:tenant.id},data:{communicationEmail:`new-${tag}@flatcloud.test`}});
     expect((await page.goto(`/portal/najemnik/${tenant.id}`))?.status()).toBe(404);
-    expect((await page.request.get(`/api/portal/tenants/${tenant.id}/documents/missing`)).status()).toBe(404);
-    await page.request.post(`/api/portal/tenants/${tenant.id}/readings`,{form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"13"}});
+    expect((await page.request.get(`/api/portal/tenants/${tenant.id}/documents/missing`,{headers:await sessionHeaders(page)})).status()).toBe(404);
+    await page.request.post(`/api/portal/tenants/${tenant.id}/readings`,{headers:await sessionHeaders(page),form:{leaseId:lease.id,meterId:meter.id,readAt:businessTodayKey(),value:"13"}});
     expect(await db.meterReading.count({where:{meterId:meter.id}})).toBe(1);
     process.env.SESSION_SECRET ||= "flatberry-isolated-portal-e2e-secret-2026";
     process.env.APP_URL ||= "http://127.0.0.1:3100";
