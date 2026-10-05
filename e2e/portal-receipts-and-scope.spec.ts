@@ -2,7 +2,7 @@ import {test,expect,Page} from "@playwright/test";
 import {PrismaClient} from "@prisma/client";
 import bcrypt from "bcryptjs";
 import sharp from "sharp";
-import {randomUUID} from "node:crypto";
+import {createHash,randomUUID} from "node:crypto";
 import {periodLabel} from "../lib/period";
 const db=new PrismaClient(),password="Portal-Receipts-Isolated-2026";
 test.beforeAll(()=>{if(!process.env.DATABASE_URL||!["localhost","127.0.0.1","postgres"].includes(new URL(process.env.DATABASE_URL).hostname))throw new Error("Isolated CI database required");});
@@ -47,7 +47,7 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   const signature=await sharp(Buffer.from('<svg width="500" height="140"><rect width="500" height="140" fill="white"/><path d="M30 90 Q80 10 100 80 T200 80 Q260 0 270 100 L420 75" fill="none" stroke="black" stroke-width="4"/></svg>')).png().toBuffer();
   await page.locator('input[name=signature]').setInputFiles({name:"qa-signature.png",mimeType:"image/png",buffer:signature});
   await expect(page.getByAltText("Náhled nahraného podpisu")).toBeVisible();
-  await page.getByRole("checkbox",{name:/Jsem oprávněn/}).check();await page.getByRole("button",{name:"Uložit podpis a vystavování"}).click();
+  await page.getByRole("checkbox",{name:/Ukládám vlastní podpis/}).check();await page.getByRole("button",{name:"Uložit osobní podpis"}).click();
   await expect(page.getByAltText("Uložený podpis vystavitele")).toBeVisible();
   const uploadedSignature=(await db.user.findUniqueOrThrow({where:{id:manager.id}})).receiptSignatureData;
   // Switching from an uploaded file to drawing must save the drawing, not the stale file.
@@ -56,10 +56,19 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   const area=await page.locator("canvas").boundingBox();expect(area).not.toBeNull();
   await page.mouse.move(area!.x+25,area!.y+55);await page.mouse.down();await page.mouse.move(area!.x+130,area!.y+95,{steps:12});await page.mouse.move(area!.x+230,area!.y+35,{steps:12});await page.mouse.up();
   await expect(page.locator('input[name=drawnSignature]')).not.toHaveValue("");
-  await page.getByRole("button",{name:"Uložit podpis a vystavování"}).click();
+  await page.getByRole("button",{name:"Uložit osobní podpis"}).click();
   const drawnSignature=(await db.user.findUniqueOrThrow({where:{id:manager.id}})).receiptSignatureData;expect(drawnSignature).not.toEqual(uploadedSignature);
+  // The personal signature alone must not authorise receipts for an unrelated legal entity.
+  await login(tenantPage,account.email);
+  const unconfigured=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{headers:await sessionHeaders(tenantPage),form:{chargeId:paid.id},maxRedirects:0});
+  expect(unconfigured.status()).toBe(303);expect(unconfigured.headers().location).not.toContain("/receipts/D-");
+  expect(await db.tenantPaymentReceipt.count({where:{chargeId:paid.id}})).toBe(0);
+  await db.ownerReceiptProfile.create({data:{ownerId:owner.id,issuerName:owner.name,issuerAddress:"Testovací 12, Praha",enabled:true,revision:1,updatedById:manager.id}});
+  const representative=await db.ownerRepresentative.create({data:{ownerId:owner.id,userId:manager.id,createdById:manager.id,active:true,signatureData:drawnSignature!,signatureHash:createHash("sha256").update(drawnSignature!).digest("hex"),consentProfileRevision:1,consentedAt:new Date()}});
+  await db.ownerReceiptProfile.update({where:{ownerId:owner.id},data:{designatedRepresentativeId:representative.id}});
+  await db.leaseLandlordPeriod.create({data:{leaseId:lease.id,ownerId:owner.id,fromPeriod:"2025-01",confirmedById:manager.id}});
 
-  await login(tenantPage,account.email);await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
+  await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
   await expect(tenantPage.getByRole("heading",{level:1})).toHaveText("Dobrý den, Jano!");
   await tenantPage.locator(`a[href="#dokumenty-${lease.id}-doklady"]`).last().click();
   await expect(tenantPage.getByRole("dialog",{name:"Dokumenty",exact:true})).toBeVisible();
@@ -75,15 +84,23 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   const pdf=await tenantPage.request.get(location,{headers:await sessionHeaders(tenantPage)});expect(pdf.status()).toBe(200);expect((await pdf.body()).subarray(0,4).toString()).toBe("%PDF");
   const stored=await db.tenantPaymentReceipt.findFirstOrThrow({where:{chargeId:paid.id}});expect(stored.issuerId).toBe(manager.id);expect(stored.snapshot).toMatchObject({amountCents:1250000,tenantName:tenant.name,items:[{name:"Nájemné",amountCents:1000000},{name:"Zálohy na vodu",amountCents:250000}]});
   const repeated=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{headers:await sessionHeaders(tenantPage),form:{chargeId:paid.id},maxRedirects:0});expect(repeated.headers().location).toBe(location);expect(await db.tenantPaymentReceipt.count({where:{chargeId:paid.id}})).toBe(1);
-  await db.user.update({where:{id:manager.id},data:{receiptSignatureData:null,receiptIssuanceEnabled:false}});expect(await (await tenantPage.request.get(location,{headers:await sessionHeaders(tenantPage)})).body()).toEqual(await pdf.body());
+  await db.ownerRepresentative.update({where:{id:representative.id},data:{revokedAt:new Date()}});expect(await (await tenantPage.request.get(location,{headers:await sessionHeaders(tenantPage)})).body()).toEqual(await pdf.body());
   expect((await viewerPage.request.get(location,{headers:await sessionHeaders(viewerPage)})).status()).toBe(404);
+  // A later bookkeeping deactivation must not erase an already issued immutable document.
+  await db.charge.update({where:{id:paid.id},data:{active:false}});
+  expect(await (await tenantPage.request.get(location,{headers:await sessionHeaders(tenantPage)})).body()).toEqual(await pdf.body());
+  await page.goto(`/portal/najemnik/${tenant.id}#dokumenty-${lease.id}-doklady`);
+  const staffArchive=page.getByRole("dialog",{name:"Dokumenty",exact:true}).getByRole("link",{name:/stáhnout PDF/i});
+  await expect(staffArchive).toHaveAttribute("href",`/api/leases/${lease.id}/receipts/${stored.id}`);
+  const staffPdf=await page.request.get(await staffArchive.getAttribute("href") as string,{headers:await sessionHeaders(page)});
+  expect(staffPdf.status()).toBe(200);expect(await staffPdf.body()).toEqual(await pdf.body());
   await tenantPage.reload();await tenantPage.locator(`a[href="#dokumenty-${lease.id}-doklady"]`).last().click();await expect(tenantPage.getByRole("dialog",{name:"Dokumenty",exact:true}).getByRole("link",{name:/stáhnout PDF/i})).toBeVisible();
   await tenantPage.getByRole("dialog").getByRole("button",{name:"Zavřít",exact:true}).click();
   await tenantPage.screenshot({path:info.outputPath("tenant-portal-desktop.png"),fullPage:true});
   await info.attach("receipt.pdf",{body:await pdf.body(),contentType:"application/pdf"});
   await tenantPage.setViewportSize({width:390,height:844});expect(await tenantPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await tenantPage.screenshot({path:info.outputPath("tenant-portal-mobile.png"),fullPage:true});
  }finally{
-  await tenantPage.close();await viewerPage.close();await db.tenantPaymentReceipt.deleteMany({where:{chargeId:paid.id}});await db.userInvitation.deleteMany({where:{tenantId:tenant.id}});await db.auditLog.deleteMany({where:{userId:{in:[account.id,manager.id,viewer.id]}}});await db.tenantPortalAccess.deleteMany({where:{tenantId:tenant.id}});await db.charge.deleteMany({where:{leaseId:{in:[lease.id,hiddenLease.id]}}});await db.bankTransaction.deleteMany({where:{id:{in:transactions.map(t=>t.id)}}});await db.bankAccount.delete({where:{id:bank.id}});await db.lease.deleteMany({where:{id:{in:[lease.id,hiddenLease.id]}}});await db.tenant.delete({where:{id:tenant.id}});await db.unit.deleteMany({where:{propertyId:property.id}});await db.property.delete({where:{id:property.id}});await db.ownerBankAccount.delete({where:{id:ownerAccount.id}});await db.owner.delete({where:{id:owner.id}});await db.user.deleteMany({where:{id:{in:[account.id,manager.id,viewer.id]}}});
+  await tenantPage.close();await viewerPage.close();await db.tenantPaymentReceipt.deleteMany({where:{chargeId:paid.id}});await db.leaseLandlordPeriod.deleteMany({where:{leaseId:lease.id}});await db.ownerReceiptProfile.deleteMany({where:{ownerId:owner.id}});await db.ownerRepresentative.deleteMany({where:{ownerId:owner.id}});await db.userInvitation.deleteMany({where:{tenantId:tenant.id}});await db.auditLog.deleteMany({where:{userId:{in:[account.id,manager.id,viewer.id]}}});await db.tenantPortalAccess.deleteMany({where:{tenantId:tenant.id}});await db.charge.deleteMany({where:{leaseId:{in:[lease.id,hiddenLease.id]}}});await db.bankTransaction.deleteMany({where:{id:{in:transactions.map(t=>t.id)}}});await db.bankAccount.delete({where:{id:bank.id}});await db.lease.deleteMany({where:{id:{in:[lease.id,hiddenLease.id]}}});await db.tenant.delete({where:{id:tenant.id}});await db.unit.deleteMany({where:{propertyId:property.id}});await db.property.delete({where:{id:property.id}});await db.ownerBankAccount.delete({where:{id:ownerAccount.id}});await db.owner.delete({where:{id:owner.id}});await db.user.deleteMany({where:{id:{in:[account.id,manager.id,viewer.id]}}});
  }
 });
 

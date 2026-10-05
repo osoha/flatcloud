@@ -1,0 +1,12 @@
+.sharing{display:flex;align-items:center;flex-wrap:wrap;gap:7px 12px;margin:9px 0 3px;min-width:0}
+.sharing .badge{display:inline-flex;align-items:center;gap:5px;border:1px solid transparent;border-radius:99px;padding:4px 8px;font-size:11px;font-weight:600;line-height:1.35;white-space:normal}
+.sharing .badge>svg{flex-shrink:0}
+.sharing .shared{background:#eaf7ed;color:#287342;border-color:#d5ebda}
+.sharing .private{background:#f0f4fa;color:#516880;border-color:#e1e8f1}
+.sharing .unbound{background:#fff7e8;color:#8b671c;border-color:#f1e6c9}
+.sharing small{font-size:11px;color:var(--muted,#718096);line-height:1.45}
+.sharing form{margin:0}
+.sharing form>button{min-height:30px;text-align:left;font-size:12px;white-space:normal;line-height:1.4}
+:global(html[data-theme="dark"]) .sharing .shared{background:#16392b;color:#a6dec0;border-color:#28523e}
+:global(html[data-theme="dark"]) .sharing .private{background:#213247;color:#c3d2e7;border-color:#36475c}
+:global(html[data-theme="dark"]) .sharing .unbound{background:#3c3320;color:#ead29c;border-color:#594a2b}

@@ -16,11 +16,8 @@
 .tenant-portal-v2 .tp-skip{position:fixed;z-index:100;left:12px;top:-100px;padding:12px 18px;border-radius:10px;background:white;box-shadow:0 2px 10px #1234}
 .tenant-portal-v2 .tp-skip:focus{top:12px}
 .tenant-portal-v2 .tp-topbar{min-height:62px;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 28px;background:#fff;border-bottom:1px solid var(--tp-line)}
-.tenant-portal-v2 .tp-brand{display:flex;align-items:center;font-size:25px;font-weight:850;letter-spacing:-.8px;color:#183568;white-space:nowrap}
-.tenant-portal-v2 .tp-brand>span:last-child{color:var(--tp-blue)}
-.tenant-portal-v2 .tp-brand-mark{display:flex;gap:4px;align-items:center;margin-right:10px}
-.tenant-portal-v2 .tp-brand-mark i{display:block;width:10px;height:10px;border-radius:50%;background:#1265ff}
-.tenant-portal-v2 .tp-brand-mark i:last-child{background:#5396ff}
+.tenant-portal-v2 .tp-brand{display:flex;align-items:center;min-height:32px;flex-shrink:0}
+.tenant-portal-v2 .tp-brand .flatberry-brand-bitmap{filter:none;mix-blend-mode:normal;background-color:transparent;border-radius:0}
 .tenant-portal-v2 .tp-topbar-context{display:flex;align-items:center;gap:7px;color:var(--tp-muted);font-size:13px}
 .tenant-portal-v2 .tp-back{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;min-height:36px}
 .tenant-portal-v2 .tp-shell{display:grid;grid-template-columns:184px minmax(0,1fr);max-width:1570px;margin:0 auto;align-items:start}
@@ -87,6 +84,8 @@
 .tenant-portal-v2 .tp-status:before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
 .tenant-portal-v2 .tp-status-overdue{color:#be3544;background:#ffe8eb}
 .tenant-portal-v2 .tp-status-scheduled{color:#1256ba;background:#e5f0ff}
+.tenant-portal-v2 .tp-status-current{color:#995000;background:#fff0d9}
+.tenant-portal-v2 .tp-status-neutral{color:#58697e;background:#edf0f4}
 .tenant-portal-v2 .tp-status-paid{color:#19743b;background:#e1f5e6}
 .tenant-portal-v2 .tp-paid-message{display:flex;align-items:center;gap:14px;color:#248448;padding:22px 0}
 .tenant-portal-v2 .tp-paid-message strong{display:block;font-size:26px;line-height:1.22;letter-spacing:-.5px}
@@ -196,7 +195,8 @@
 .tenant-portal-v2 .portal-payment-history .portal-paid{background:#f0faf2}
 .tenant-portal-v2 .portal-payment-history .portal-overdue{background:#fff1f2}
 .tenant-portal-v2 .portal-payment-history .portal-scheduled{background:#f0f6ff}
-.tenant-portal-v2 .portal-payment-history .portal-future{background:#f7faff}
+.tenant-portal-v2 .portal-payment-history .portal-current{background:#fff6e9}
+.tenant-portal-v2 .portal-payment-history .portal-neutral{background:#f4f5f7}
 .tenant-portal-v2 .portal-payment-history strong{font-weight:650}
 .tenant-portal-v2 .portal-payment-history th strong{color:#1d3866}
 .tenant-portal-v2 .portal-payment-history small{display:flex;align-items:baseline;gap:2px;font-size:10px;line-height:1.4;margin-top:4px;color:#67809f}

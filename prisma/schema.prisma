@@ -514,6 +514,7 @@ model User {
   receiptIssuerAddress String?
   receiptIssuanceEnabled Boolean @default(false)
   paymentReceipts TenantPaymentReceipt[] @relation("PaymentReceiptIssuer")
+  ownerRepresentations OwnerRepresentative[]
   createdTenants Tenant[] @relation("TenantCreator")
   defaultDisplayMode String @default("basic")
   profiGraphics Boolean @default(false)
@@ -651,6 +652,10 @@ model Owner {
   communicationProperties            Property[]                  @relation("PropertyCommunicationOwner")
   distributionWelcomeLettersAsSeller DistributionWelcomeLetter[] @relation("DistributionWelcomeLetterSeller")
   ownershipPeriods                   OwnershipPeriod[]
+  receiptProfile                     OwnerReceiptProfile?
+  representatives                    OwnerRepresentative[]
+  landlordPeriods                    LeaseLandlordPeriod[]
+  issuedPaymentReceipts               TenantPaymentReceipt[] @relation("ReceiptOwner")
   createdAt                          DateTime                    @default(now())
   updatedAt                          DateTime                    @updatedAt
 
@@ -1669,6 +1674,7 @@ model Lease {
   collectionNote              String?
   ownerBankAccountId          String?
   ownerBankAccount            OwnerBankAccount?           @relation(fields: [ownerBankAccountId], references: [id], onDelete: SetNull)
+  landlordPeriods             LeaseLandlordPeriod[]
   tenantBankAccount           String?
   autoChargesEnabled          Boolean                     @default(true)
   indexationEnabled           Boolean                     @default(false)
@@ -3166,10 +3172,71 @@ model TenantPaymentReceipt {
   charge Charge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
   issuerId String
   issuer User @relation("PaymentReceiptIssuer", fields: [issuerId], references: [id], onDelete: Restrict)
+  issuerOwnerId String?
+  issuerOwner Owner? @relation("ReceiptOwner", fields: [issuerOwnerId], references: [id], onDelete: Restrict)
+  representativeId String?
+  representative OwnerRepresentative? @relation(fields: [representativeId], references: [id], onDelete: Restrict)
+  requestedById String?
+  issuanceMode String?
   snapshotHash String
   snapshot Json
   pdfData Bytes
   issuedAt DateTime @default(now())
   @@unique([chargeId, snapshotHash])
   @@index([issuerId])
+}
+
+/// Legal issuer identity is separate from the person signing and from the bank recipient.
+model OwnerReceiptProfile {
+  ownerId String @id
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  issuerName String
+  issuerAddress String
+  enabled Boolean @default(false)
+  revision Int @default(1)
+  designatedRepresentativeId String? @unique
+  designatedRepresentative OwnerRepresentative? @relation("DesignatedReceiptRepresentative", fields: [designatedRepresentativeId], references: [id], onDelete: Restrict)
+  updatedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Membership never grants portfolio access; only the named user can consent to their signature.
+model OwnerRepresentative {
+  id String @id @default(cuid())
+  ownerId String
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  roleLabel String?
+  active Boolean @default(true)
+  signatureData Bytes?
+  signatureHash String?
+  consentProfileRevision Int?
+  consentedAt DateTime?
+  revokedAt DateTime?
+  createdById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  designatedProfile OwnerReceiptProfile? @relation("DesignatedReceiptRepresentative")
+  paymentReceipts TenantPaymentReceipt[]
+  @@unique([ownerId, userId])
+  @@index([userId, active])
+}
+
+/// Explicit contract party for a confirmed range of monthly charges; never inferred from ownership.
+model LeaseLandlordPeriod {
+  id String @id @default(cuid())
+  leaseId String
+  lease Lease @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  ownerId String
+  owner Owner @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  fromPeriod String
+  toPeriod String?
+  active Boolean @default(true)
+  confirmedById String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([leaseId, active, fromPeriod])
+  @@index([ownerId])
 }
