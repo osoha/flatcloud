@@ -21,13 +21,13 @@ export async function LeaseReceiptDocuments({ user, leaseId, returnTo }: { user:
 
     <details className="create-panel" open={needsSetup}>
       <summary>Kdo vystavuje doklady</summary>
-      <p className={styles.note}>Pro každé období potvrďte smluvního pronajímatele. Doklad používá jeho údaje a vlastní podpis vybrané jednající osoby. Příjemce plateb a bankovní účet se tím nemění.</p>
+      <p className={styles.note}>Smluvního pronajímatele potvrďte jednou od počátku nájmu. Platí bez koncového měsíce; další období založte pouze při prodeji nebo změně pronajímatele. Již vystavené doklady se nepřepisují.</p>
       <div className={styles.periods}>
         {periodStatuses.map(({ period, status }) => <div className={styles.period} key={period.id}>
           <div className={styles.header}><div><strong>{period.owner.name}</strong><span className={styles.meta}>{periodLabel(period.fromPeriod)} – {period.toPeriod ? periodLabel(period.toPeriod) : "bez konce"}</span>{period.active && <span className={styles.meta}>Podepisuje: {status.signerName || "zatím neurčeno"}</span>}</div><span className={`status ${!period.active ? "neutral" : status.ready ? "ok" : "warn"}`}>{!period.active ? "Neaktivní období" : status.ready ? "Připraveno" : "Vyžaduje doplnění"}</span></div>
           {period.active && <p className={styles.note}>{status.reason}</p>}
           {canManage && (["SUPER_ADMIN", "MANAGER"].includes(user.role) || data.ownerChoices.some(owner => owner.id === period.ownerId && owner.canViewSettings)) ? <div className={styles.actions}><Link className="secondary" href={`/vlastnici/${period.ownerId}/doklady`}>Údaje a podpisy pronajímatele</Link></div> : period.active && !status.ready && <p className={styles.note}>Údaje a podpis doplní oprávněná osoba pronajímatele ve svém nastavení dokladů.</p>}
-          {canManage && <details className="create-panel"><summary>Upravit pronajímatele nebo období</summary><form className={styles.form} action={`/api/leases/${leaseId}/landlord`} method="post">
+          {canManage && <details className="create-panel"><summary>Změna pronajímatele nebo oprava období</summary><form className={styles.form} action={`/api/leases/${leaseId}/landlord`} method="post">
             <input type="hidden" name="action" value="update"/><input type="hidden" name="periodId" value={period.id}/><input type="hidden" name="revision" value={period.updatedAt.toISOString()}/><input type="hidden" name="returnTo" value={destination}/>
             <div className={styles.fields}>
               <label className="field"><span>Smluvní pronajímatel</span><select name="ownerId" defaultValue={period.ownerId} required>{!data.ownerChoices.some(owner => owner.id === period.ownerId) && <option value={period.ownerId}>{period.owner.name}</option>}{data.ownerChoices.map(owner => <option value={owner.id} key={owner.id}>{owner.name}</option>)}</select></label>
@@ -41,14 +41,14 @@ export async function LeaseReceiptDocuments({ user, leaseId, returnTo }: { user:
         </div>)}
       </div>
       {!activePeriods.length && <p className={styles.note}>Pronajímatel pro období nájmu zatím není potvrzený. Samotné vlastnictví jednotky ani účet pro inkaso tuto volbu nenahrazují.</p>}
-      {canManage && <details className="create-panel" open={!activePeriods.length}><summary>Přiřadit pronajímatele pro období</summary><form className={styles.form} action={`/api/leases/${leaseId}/landlord`} method="post">
+      {canManage && <details className="create-panel" open={!activePeriods.length}><summary>{activePeriods.length ? "Přidat nového pronajímatele po změně" : "Potvrdit smluvního pronajímatele pro celý nájem"}</summary><form className={styles.form} action={`/api/leases/${leaseId}/landlord`} method="post">
         <input type="hidden" name="action" value="add"/><input type="hidden" name="active" value="on"/><input type="hidden" name="returnTo" value={destination}/>
         <div className={styles.fields}>
           <label className="field"><span>Smluvní pronajímatel</span><select name="ownerId" defaultValue="" required><option value="" disabled>Vyberte podle smlouvy</option>{data.ownerChoices.map(owner => <option value={owner.id} key={owner.id}>{owner.name}</option>)}</select></label>
-          <label className="field"><span>Od období včetně</span><input type="month" name="fromPeriod" required/></label>
+          <label className="field"><span>Od období včetně</span><input type="month" name="fromPeriod" defaultValue={activePeriods.length ? "" : data.initialPeriod} required/></label>
           <label className="field"><span>Do období včetně</span><input type="month" name="toPeriod"/></label>
         </div>
-        <small>Uveďte období, za která tento pronajímatel vystavuje doklady. Prázdný konec znamená bez časového omezení. Již vystavené doklady se nepřepisují.</small>
+        <small>Pronajímatel platí od počátku nájmu bez konce. Konec vyplňte teprve při změně smluvní strany. Již vystavené doklady se nepřepisují.</small>
         <button className="primary" type="submit" disabled={!data.ownerChoices.length}>Potvrdit pronajímatele pro období</button>
         {!data.ownerChoices.length && <p className={styles.note}>Pro tuto správu není dostupný žádný pronajímatel. Požádejte správce aplikace o doplnění vlastníka.</p>}
       </form></details>}

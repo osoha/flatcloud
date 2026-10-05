@@ -18,7 +18,7 @@ export async function currentReceiptActor(actor: ReceiptActor, db: Prisma.Transa
   return user;
 }
 async function ownerManagement(actor: ReceiptActor, ownerId: string, db: Prisma.TransactionClient) {
-  const user = await currentReceiptActor(actor, db), owner = await db.owner.findUnique({ where: { id: ownerId }, select: { id: true, name: true, address: true, userId: true, active: true } });
+  const user = await currentReceiptActor(actor, db), owner = await db.owner.findUnique({ where: { id: ownerId }, select: { id: true, name: true, address: true, userId: true, active: true, type: true, user: { select: { name: true, active: true, receiptIssuanceEnabled: true, receiptSignatureData: true } } } });
   if (!owner) return null;
   const canManage = ["SUPER_ADMIN", "MANAGER"].includes(user.role) || owner.userId === user.id;
   return { user, owner, canManage };
@@ -39,9 +39,11 @@ export async function getOwnerReceiptSettings(actor: ReceiptActor, ownerId: stri
       tx.ownerRepresentative.findMany({ where: { ownerId, ...(scope.canManage ? {} : { userId: scope.user.id }) }, select: representativeSelect, orderBy: [{ createdAt: "asc" }, { id: "asc" }] }),
     ]);
     const selected = profile?.designatedRepresentative;
-    const ready = Boolean(scope.owner.active && profile?.enabled && selected?.ownerId === ownerId && selected.active && selected.user.active && selected.signatureHash && selected.consentedAt && !selected.revokedAt && selected.consentProfileRevision === profile.revision);
-    const publicProfile = profile ? (() => { const { designatedRepresentative: _privateSelected, ...safe } = profile; return { ...safe, designatedRepresentativeName: selected?.user.name || null }; })() : null;
-    return { owner: scope.owner, canManage: scope.canManage, profile: publicProfile, status: { ready, reason: ready ? "Vystavování je připravené." : "Zkontrolujte zapnutí vystavování, určenou osobu a její osobní souhlas." }, representatives: rows.map(row => ({ ...row, hasSignature: Boolean(row.signatureHash), canConsent: row.userId === actor.id && row.active && row.user.active && scope.owner.active, canRevoke: row.userId === actor.id && Boolean(row.consentedAt && !row.revokedAt), consentCurrent: Boolean(row.active && row.user.active && row.consentedAt && !row.revokedAt && row.signatureHash && row.consentProfileRevision === profile?.revision) })) };
+    const personal = scope.owner.type === "PERSON";
+    const ready = Boolean(scope.owner.active && profile?.enabled && (personal ? scope.owner.user?.active && scope.owner.user.receiptIssuanceEnabled && scope.owner.user.receiptSignatureData?.byteLength : selected?.ownerId === ownerId && selected.active && selected.user.active && selected.signatureHash && selected.consentedAt && !selected.revokedAt && selected.consentProfileRevision === profile.revision));
+    const publicProfile = profile ? (() => { const { designatedRepresentative: _privateSelected, stampData: _privateStamp, ...safe } = profile; return { ...safe, hasStamp: Boolean(profile.stampData), designatedRepresentativeName: personal ? scope.owner.user?.name || null : selected?.user.name || null }; })() : null;
+    const { user: _privateOwnerUser, ...publicOwner } = scope.owner;
+    return { owner: publicOwner, canManage: scope.canManage, profile: publicProfile, status: { ready, reason: ready ? "Vystavování je připravené." : personal ? !scope.owner.userId ? "K fyzické osobě je třeba propojit její vlastní účet." : "Pronajímatel uloží svůj podpis a zapne vystavování ve svém účtu." : "Zkontrolujte zapnutí vystavování a osobní souhlas určeného zástupce." }, representatives: rows.map(row => ({ ...row, hasSignature: Boolean(row.signatureHash), canConsent: row.userId === actor.id && row.active && row.user.active && scope.owner.active, canRevoke: row.userId === actor.id && Boolean(row.consentedAt && !row.revokedAt), consentCurrent: Boolean(row.active && row.user.active && row.consentedAt && !row.revokedAt && row.signatureHash && row.consentProfileRevision === profile?.revision) })) };
   });
 }
 export async function getMyOwnerReceiptSettings(actor: ReceiptActor) {
@@ -50,19 +52,37 @@ export async function getMyOwnerReceiptSettings(actor: ReceiptActor) {
   return rows.map(owner => ({ id: owner.id, name: owner.name, canManage: ["SUPER_ADMIN", "MANAGER"].includes(user.role) || owner.userId === user.id }));
 }
 
-export async function saveOwnerReceiptProfile(actor: ReceiptActor, ownerId: string, input: { revision: string; issuerName: string; issuerAddress: string; enabled: boolean; designatedRepresentativeId?: string }) {
+export async function receiptStampFromForm(form: FormData) {
+  const file = form.get("stamp");
+  if (!(file instanceof File) || !file.size) return undefined;
+  if (file.size > 2 * 1024 * 1024) throw new Error("Razítko může mít nejvýše 2 MB.");
+  const source = Buffer.from(await file.arrayBuffer());
+  const image = sharp(source, { limitInputPixels: 12000000 });
+  const metadata = await image.metadata();
+  if (!["png", "jpeg", "webp"].includes(metadata.format || "")) throw new Error("Razítko musí být PNG, JPG nebo WebP.");
+  const normalized = await image.rotate().resize({ width: 800, height: 400, fit: "inside", withoutEnlargement: true }).png().toBuffer();
+  return new Uint8Array(normalized);
+}
+export async function saveOwnerReceiptProfile(actor: ReceiptActor, ownerId: string, input: { revision: string; issuerName: string; issuerAddress: string; enabled: boolean; designatedRepresentativeId?: string; stamp?: Uint8Array; removeStamp?: boolean }) {
   const issuerName = input.issuerName.trim(), issuerAddress = input.issuerAddress.trim();
   if (!issuerName || issuerName.length > 160 || !issuerAddress || issuerAddress.length > 240) throw new Error("Vyplňte název vystavitele do 160 a adresu do 240 znaků.");
   return serializableTransaction(async tx => {
-    const { user } = await requireOwnerManagement(actor, ownerId, tx);
+    const { user, owner } = await requireOwnerManagement(actor, ownerId, tx);
     const previous = await tx.ownerReceiptProfile.findUnique({ where: { ownerId } });
     if (input.revision !== (previous?.updatedAt.toISOString() || "new")) throw new Error("Nastavení se změnilo. Obnovte stránku.");
-    const designatedRepresentativeId = input.designatedRepresentativeId || null;
+    const available = owner.type === "PERSON" ? [] : await tx.ownerRepresentative.findMany({ where: { ownerId, active: true, user: { active: true, role: { not: "TENANT" } } }, select: { id: true }, take: 2 });
+    const designatedRepresentativeId = owner.type === "PERSON" ? null : input.designatedRepresentativeId || previous?.designatedRepresentativeId || (available.length === 1 ? available[0].id : null);
     if (designatedRepresentativeId && !await tx.ownerRepresentative.count({ where: { id: designatedRepresentativeId, ownerId, active: true, user: { active: true, role: { not: "TENANT" } } } })) throw new Error("Vyberte aktivní osobu jednající právě za tohoto vlastníka.");
     const identityChanged = Boolean(previous && (previous.issuerName !== issuerName || previous.issuerAddress !== issuerAddress));
-    const data = { issuerName, issuerAddress, enabled: input.enabled, designatedRepresentativeId, updatedById: user.id, revision: (previous?.revision || 1) + (identityChanged ? 1 : 0) };
+    const stampData = input.removeStamp ? null : input.stamp || previous?.stampData || null;
+    const stampHash = stampData ? createHash("sha256").update(stampData).digest("hex") : null;
+    const data = { issuerName, issuerAddress, enabled: input.enabled, designatedRepresentativeId, stampData, stampHash, updatedById: user.id, revision: (previous?.revision || 1) + (identityChanged ? 1 : 0) };
     const profile = await tx.ownerReceiptProfile.upsert({ where: { ownerId }, create: { ownerId, ...data }, update: data });
-    await tx.auditLog.create({ data: { userId: user.id, action: "OWNER_RECEIPT_PROFILE_CONFIGURED", entityType: "OwnerReceiptProfile", entityId: ownerId, details: { before: previous ? { issuerName: previous.issuerName, issuerAddress: previous.issuerAddress, enabled: previous.enabled, revision: previous.revision, designatedRepresentativeId: previous.designatedRepresentativeId } : null, after: data, existingConsentsInvalidated: identityChanged } } });
+    if (identityChanged && designatedRepresentativeId) {
+      const rep = await tx.ownerRepresentative.findUnique({ where: { id: designatedRepresentativeId }, select: { userId: true } });
+      if (rep) await tx.task.upsert({ where: { dedupeKey: `owner-receipt-consent:${designatedRepresentativeId}` }, create: { title: `Potvrdit zastoupení pro doklady · ${owner.name}`, description: `Údaje vystavitele se změnily. Potvrďte svůj podpis znovu: /vlastnici/${ownerId}/doklady#doklady-a-podpisy`, category: "GENERAL", status: "OPEN", assigneeId: rep.userId, createdById: user.id, dedupeKey: `owner-receipt-consent:${designatedRepresentativeId}` }, update: { status: "OPEN", closedAt: null, assigneeId: rep.userId } });
+    }
+    await tx.auditLog.create({ data: { userId: user.id, action: "OWNER_RECEIPT_PROFILE_CONFIGURED", entityType: "OwnerReceiptProfile", entityId: ownerId, details: { before: previous ? { issuerName: previous.issuerName, issuerAddress: previous.issuerAddress, enabled: previous.enabled, revision: previous.revision, designatedRepresentativeId: previous.designatedRepresentativeId, stampHash: previous.stampHash } : null, after: { issuerName, issuerAddress, enabled: input.enabled, designatedRepresentativeId, stampHash, revision: data.revision }, existingConsentsInvalidated: identityChanged } } });
     return profile;
   });
 }
@@ -70,7 +90,8 @@ export async function saveOwnerRepresentative(actor: ReceiptActor, ownerId: stri
   const roleLabel = input.roleLabel?.trim() || null;
   if (roleLabel && roleLabel.length > 120) throw new Error("Označení oprávnění může mít nejvýše 120 znaků.");
   return serializableTransaction(async tx => {
-    const { user } = await requireOwnerManagement(actor, ownerId, tx);
+    const { user, owner } = await requireOwnerManagement(actor, ownerId, tx);
+    if (owner.type === "PERSON") throw new Error("Fyzická osoba používá svůj vlastní podpis uložený v účtu.");
     let row;
     if (input.action === "add") {
       const email = input.userEmail?.trim().toLowerCase();
@@ -78,6 +99,7 @@ export async function saveOwnerRepresentative(actor: ReceiptActor, ownerId: stri
       if (!representative) throw new Error("Aktivní uživatelský účet s tímto e-mailem nebyl nalezen.");
       if (await tx.ownerRepresentative.count({ where: { ownerId, userId: representative.id } })) throw new Error("Tato osoba už je evidována. Upravte její existující zastoupení.");
       row = await tx.ownerRepresentative.create({ data: { ownerId, userId: representative.id, roleLabel, active: input.active, createdById: user.id } });
+      if (row.active) await tx.ownerReceiptProfile.updateMany({ where: { ownerId, designatedRepresentativeId: null }, data: { designatedRepresentativeId: row.id } });
     } else if (input.action === "update") {
       const previous = await tx.ownerRepresentative.findFirst({ where: { id: input.representativeId || "", ownerId } });
       if (!previous || previous.updatedAt.toISOString() !== input.revision) throw new Error("Zastoupení se změnilo. Obnovte stránku.");
@@ -86,6 +108,9 @@ export async function saveOwnerRepresentative(actor: ReceiptActor, ownerId: stri
       row = await tx.ownerRepresentative.update({ where: { id: previous.id }, data: { active: input.active, roleLabel, ...(invalidate ? { revokedAt: new Date() } : {}) } });
     } else throw new Error("Neplatná akce.");
     await tx.auditLog.create({ data: { userId: user.id, action: "OWNER_REPRESENTATIVE_CONFIGURED", entityType: "OwnerRepresentative", entityId: row.id, details: { ownerId, representativeUserId: row.userId, active: row.active, roleLabel: row.roleLabel, personalConsentGranted: false } } });
+    if (row.active && (input.action === "add" || input.action === "update" && row.revokedAt)) {
+      await tx.task.upsert({ where: { dedupeKey: `owner-receipt-consent:${row.id}` }, create: { title: `Potvrdit zastoupení pro doklady · ${owner.name}`, description: `Otevřete nastavení dokladů a potvrďte oprávnění i svůj podpis: /vlastnici/${ownerId}/doklady#doklady-a-podpisy`, category: "GENERAL", priority: "NORMAL", status: "OPEN", assigneeId: row.userId, createdById: user.id, dedupeKey: `owner-receipt-consent:${row.id}`, entries: { create: { kind: "SYSTEM", body: "Po potvrzení oprávnění a podpisu se tento úkol automaticky uzavře." } } }, update: { status: "OPEN", closedAt: null, assigneeId: row.userId } });
+    }
     return row.id;
   });
 }
@@ -121,9 +146,12 @@ export async function consentOwnerReceiptSignature(actor: ReceiptActor, ownerId:
       if (!input.authorization || !input.signature?.byteLength) throw new Error("Potvrďte své oprávnění a použití vlastního podpisu za tohoto vystavitele.");
       const signatureHash = createHash("sha256").update(input.signature).digest("hex");
       await tx.ownerRepresentative.update({ where: { id: rep.id }, data: { signatureData: new Uint8Array(input.signature), signatureHash, consentProfileRevision: profile.revision, consentedAt: new Date(), revokedAt: null } });
+      await tx.ownerReceiptProfile.updateMany({ where: { ownerId, designatedRepresentativeId: null }, data: { designatedRepresentativeId: rep.id } });
+      await tx.task.updateMany({ where: { dedupeKey: `owner-receipt-consent:${rep.id}`, status: { not: "DONE" } }, data: { status: "DONE", closedAt: new Date() } });
       await tx.auditLog.create({ data: { userId: user.id, action: "OWNER_RECEIPT_SIGNATURE_CONSENTED", entityType: "OwnerRepresentative", entityId: rep.id, details: { ownerId, representativeUserId: user.id, issuerName: profile.issuerName, issuerAddress: profile.issuerAddress, roleLabel: rep.roleLabel, profileRevision: profile.revision, signatureHash } } });
     } else if (input.action === "revoke") {
       await tx.ownerRepresentative.update({ where: { id: rep.id }, data: { revokedAt: new Date() } });
+      await tx.task.updateMany({ where: { dedupeKey: `owner-receipt-consent:${rep.id}` }, data: { status: "OPEN", closedAt: null } });
       await tx.auditLog.create({ data: { userId: user.id, action: "OWNER_RECEIPT_SIGNATURE_REVOKED", entityType: "OwnerRepresentative", entityId: rep.id, details: { ownerId, representativeUserId: user.id } } });
     } else throw new Error("Neplatná akce.");
   });

@@ -3194,6 +3194,8 @@ model OwnerReceiptProfile {
   issuerAddress String
   enabled Boolean @default(false)
   revision Int @default(1)
+  stampData Bytes?
+  stampHash String?
   designatedRepresentativeId String? @unique
   designatedRepresentative OwnerRepresentative? @relation("DesignatedReceiptRepresentative", fields: [designatedRepresentativeId], references: [id], onDelete: Restrict)
   updatedById String
