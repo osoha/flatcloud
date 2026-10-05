@@ -12,6 +12,6 @@ const historical={...base,allocations:[],debtTreatment:"HISTORICAL" as const,deb
 assert.equal(overdueDebtCentsAsOf(historical,before),170000);
 assert.equal(overdueDebtCentsAsOf(historical,after),0);
 const tenant=readFileSync("app/najemnici/[tenantId]/page.tsx","utf8"),detail=readFileSync("app/nemovitosti/[id]/predpisy/mesicni/[chargeId]/page.tsx","utf8");
-assert.match(tenant,/Historické pohledávky/);assert.match(tenant,/Aktuální dluh po splatnosti/);
+assert.match(tenant,/Historické pohledávky/);assert.match(tenant,/label="Dluh po splatnosti"/);
 assert.match(detail,/Nezobrazovat v dluhových KPI/);assert.match(detail,/Zařazení pohledávky/);
 console.log("Debt treatment verification passed.");

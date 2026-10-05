@@ -1,4 +1,5 @@
 import { Fragment } from "react";
+import { TaskTenantPortalPublisher } from "@/components/TaskTenantPortalPublisher";
 import { TaskDiscussion, TaskReplyButton } from "@/components/TaskDiscussion";
 import { taskComposerMode } from "@/lib/task-discussion-shared";
 import { discussionParticipants } from "@/lib/task-discussion";
@@ -104,6 +105,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
       </div>
 
       <aside className="col-4 stack-column case-sidebar">
+        <TaskTenantPortalPublisher user={user} task={task}/>
         {task.checklistItems.length>0&&<section className="card task-checklist"><h2>Pracovní postup</h2><p className="muted-copy">{task.checklistItems.filter(item=>item.completedAt).length} z {task.checklistItems.length} kroků hotovo. Změna kroku se ukládá do historie; provozní údaje je nutné zapsat v příslušném modulu.</p><ol>{task.checklistItems.map(item=><li key={item.id} className={item.completedAt?"task-checklist-done":undefined}><form action={`/api/tasks/${task.id}/checklist/${item.id}`} method="post"><input type="hidden" name="action" value={item.completedAt?"reopen":"complete"}/><button type="submit" className="secondary" disabled={!canManage||task.status==="DONE"||task.status==="CANCELLED"} aria-label={`${item.completedAt?"Znovu otevřít":"Dokončit"}: ${item.title}`}>{item.completedAt?"✓":"○"}</button><span>{item.title}</span></form></li>)}</ol></section>}
         {!basic&&<div className="card case-summary-card"><div className="card-head"><h2>Stav případu</h2>{task.status==="DONE"&&<CheckCircle2 size={18} className="positive"/>}</div><div className="summary-list">
           <div><span>Stav</span><strong>{statusLabel}</strong></div>

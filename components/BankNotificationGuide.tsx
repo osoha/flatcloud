@@ -1,5 +1,6 @@
 "use client";
 
+import { BankConnectionWizard } from "./BankConnectionWizard";
 import { useState } from "react";
 import Image from "next/image";
 
@@ -32,7 +33,7 @@ export function BankNotificationGuide({ mailbox, includeAssignment = false, acco
   const selectedName = bank?.name || knownOther?.name || (selectedCode && selectedCode !== "OTHER" ? `Banka /${selectedCode}` : "jiná banka");
   const offset = includeAssignment ? 1 : 0;
 
-  return <div className="owner-bank-guide">
+  return <div className="owner-bank-guide"><BankConnectionWizard mailbox={mailbox} bank={bank} selectedName={selectedName}/>
     <div className="bank-guide-intro">
       <Image src="/guide/finance.webp" width={82} height={82} alt="Berry provází nastavením banky"/>
       <div><strong>Berry vás provede propojením banky</strong><p>Vyberte banku účtu, na který chodí nájemné. Potom postupujte podle kroků níže.</p></div>

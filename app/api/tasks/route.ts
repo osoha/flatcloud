@@ -1,4 +1,5 @@
 import { currentUser } from "@/lib/auth";
+import { tenantPublicationText, validateTaskPublication } from "@/lib/tenant-portal-messages";
 import { prisma } from "@/lib/db";
 import { dateValue, text } from "@/lib/forms";
 import { hasPropertyPermission } from "@/lib/management";
@@ -97,6 +98,11 @@ export async function POST(request: Request) {
       if (activeMembers !== memberIds.length) throw new Error("Některý vybraný účastník není aktivní.");
     }
 
+    let portalPublication = {};
+    if (form.get("tenantPortalPublish") === "on") {
+      await validateTaskPublication(user, { leaseId: leaseId || null, tenantId: resolvedTenantId || null, propertyId: propertyId || null, unitId: resolvedUnitId || null });
+      portalPublication = { ...tenantPublicationText(form), tenantPortalPublishedAt: new Date(), tenantPortalPublishedById: user.id };
+    }
     const taskId=randomUUID();
     const documentInputs=propertyId?preparedFiles.map(file=>({propertyId,unitId:resolvedUnitId||undefined,leaseId:leaseId||undefined,taskId,...file,category:documentCategory(null,file),photoStage:categoryRaw==="MAINTENANCE"&&file.mimeType.startsWith("image/")?DocumentPhotoStage.BEFORE:undefined,title:file.originalName})):[];
     const documentScope=resolvedUnitId?{mode:"UNIT" as const,propertyId,unitId:resolvedUnitId}:{mode:"PROPERTY" as const,propertyId};
@@ -108,6 +114,7 @@ export async function POST(request: Request) {
       data: { id:taskId,
         title,
         description,
+        ...portalPublication,
         category: categoryRaw as "COLLECTION" | "MAINTENANCE" | "LEASE" | "COMPLIANCE" | "GENERAL",
         priority: priorityRaw as "LOW" | "NORMAL" | "HIGH" | "URGENT",
         propertyId: propertyId || undefined,
@@ -127,7 +134,7 @@ export async function POST(request: Request) {
     });
     await createStoredDocumentsInTransaction(tx,storedBatch);
     if(taskAttachmentBatch)await createTaskAttachmentsInTransaction(tx,taskAttachmentBatch,task.id);
-    await tx.auditLog.create({data:{userId:user.id,propertyId:propertyId||null,action:"TASK_CREATED",entityType:"Task",entityId:task.id,details:{title,category:categoryRaw,priority:priorityRaw,memberIds,audienceKinds,checklistCode:checklistCode||null,attachmentCount:preparedFiles.length}}});
+    await tx.auditLog.create({data:{userId:user.id,propertyId:propertyId||null,action:"TASK_CREATED",entityType:"Task",entityId:task.id,details:{title,category:categoryRaw,priority:priorityRaw,memberIds,audienceKinds,checklistCode:checklistCode||null,attachmentCount:preparedFiles.length,tenantPortalPublished:form.get("tenantPortalPublish")==="on",portalRecipientTenantId:form.get("tenantPortalPublish")==="on"?resolvedTenantId:null}}});
     return task;});}catch(error){await cleanupStoredDocumentBatch(storedBatch);if(taskAttachmentBatch)await cleanupTaskAttachments(taskAttachmentBatch);throw error;}
     return goWithMessage(request, `/ukoly/${created.id}`, "ok", "Úkol byl vytvořen.");
   } catch (error) {

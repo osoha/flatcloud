@@ -77,6 +77,7 @@ async function main() {
       const tenant = await prisma.tenant.create({
         data: {
           name: tenantName,
+          createdById: admin.id,
           email: `najemnik${propertyIndex}${index}@example.cz`,
           payerAccounts: [`CZMOCK${propertyIndex}${index}`],
         },

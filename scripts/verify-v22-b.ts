@@ -37,6 +37,8 @@ check("safe return rejects external URL",()=>assert.equal(safeInternalReturnPath
 check("safe return rejects protocol-relative URL",()=>assert.equal(safeInternalReturnPath("//evil.example","/dokumenty"),"/dokumenty"));
 check("safe return accepts internal query",()=>assert.equal(safeInternalReturnPath("/dokumenty?x=1","/fallback"),"/dokumenty?x=1"));
 check("catalog pagination omits undefined",()=>assert.equal(cleanDocumentCatalogParams({q:"nájem",property:undefined},2),"q=n%C3%A1jem&page=2"));
+check("catalog pagination preserves empty portfolio selection",()=>assert.equal(cleanDocumentCatalogParams({properties:""},2),"properties=&page=2"));
+check("catalog pagination preserves selected portfolio",()=>assert.equal(new URLSearchParams(cleanDocumentCatalogParams({properties:"b,a,b",property:"a"},2)).get("properties"),"a,b"));
 check("catalog pagination preserves real filters",()=>assert.match(cleanDocumentCatalogParams({category:"PHOTO",dateFrom:"2026-01-01"},3),/dateFrom=2026-01-01/));
 check("document date range uses Prague boundaries",()=>{const range=documentDateRange({dateFrom:"2026-03-29",dateTo:"2026-03-29"});assert.equal(range.from?.toISOString(),"2026-03-28T23:00:00.000Z");assert.equal(range.to?.toISOString(),"2026-03-29T21:59:59.999Z")});
 const emptyCharge={amountCents:10000,allocations:[],securityDepositOffsets:[],creditApplications:[]};

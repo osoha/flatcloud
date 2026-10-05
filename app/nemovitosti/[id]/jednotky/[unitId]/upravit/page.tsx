@@ -48,7 +48,7 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
       </form>
       <Link className="table-link inline-profile-link" href={`/vlastnici/${currentOwner}`}>Otevřít profil vlastníka →</Link>
     </div>
-    <div className="card"><h2>Příjemce plateb</h2><p>Samostatné potvrzení mění účet pro nové smlouvy a dosud neskončené smlouvy jednotky. Již uložené doklady ani platební záznamy se nepřepisují.</p><form className="compact-form" action={`/api/properties/${id}/units/${unit.id}/ownerships`} method="post"><UnitOwnerFields owners={ownerOptions.filter(o=>o.id===currentOwner)} defaultOwnerId={currentOwner} defaultAccountId={currentAccount} showSubmit={false}/><OwnershipTransferFields currentOwnerId={currentOwner} currentAccountId={currentAccount} payment/></form></div>
+    <div className="card" id="prijemce-plateb"><h2>Příjemce plateb</h2><p>Samostatné potvrzení mění účet pro nové smlouvy a dosud neskončené smlouvy jednotky. Již uložené doklady ani platební záznamy se nepřepisují.</p><form className="compact-form" action={`/api/properties/${id}/units/${unit.id}/ownerships`} method="post"><UnitOwnerFields owners={ownerOptions.filter(o=>o.id===currentOwner)} defaultOwnerId={currentOwner} defaultAccountId={currentAccount} showSubmit={false}/><OwnershipTransferFields currentOwnerId={currentOwner} currentAccountId={currentAccount} payment/></form></div>
     <OwnershipHistory propertyId={id} unitId={unitId}/>
   </FormPage></Shell>;
 }

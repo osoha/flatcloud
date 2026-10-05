@@ -1,3 +1,5 @@
+import { createLeaseOccupants } from "./lease-create-occupants";
+import { leaseServiceItemsFromForm } from "./lease-service-items";
 import { LeaseStatus, Prisma, RentTiming } from "@prisma/client";
 import { boolValue, dateValue, intValue, moneyToCents, text } from "./forms";
 import { normalizePayerAccount } from "./owner-bank-account";
@@ -21,7 +23,7 @@ function percentToBps(value: string | null) {
 
 export async function createLeaseFromForm(tx: Tx, propertyId: string, form: FormData, tenantId?: string, createdById?: string, partySelections: LeasePartySelections = {}) {
   const unitId = text(form, "unitId", true)!;
-  const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
+  const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { property: {select:{tenantPortalInvitationMode:true}}, ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
   if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
   const ownerBankAccountId = unit.ownerships[0]?.ownerBankAccountId;
   if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
@@ -32,7 +34,8 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   if (endDate && endDate < startDate) throw new Error("Konec smlouvy nesmí být před jejím začátkem.");
   const variableSymbol = validateVariableSymbol(text(form, "variableSymbol", true)!);
   const rentCents = moneyToCents(form, "rent");
-  const servicesCents = moneyToCents(form, "services");
+  const serviceItems = leaseServiceItemsFromForm(form);
+  const servicesCents = serviceItems.reduce((sum, item) => sum + item.amountCents, 0);
   const depositCents = moneyToCents(form, "deposit");
   const depositInterestBps = ratePercentToBps(text(form, "depositInterest") || "0");
   const tenantBankAccount = normalizePayerAccount(text(form, "tenantBankAccount")) || null;
@@ -58,13 +61,14 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   } else {
     const tenantData = tenantDataFromForm(form);
     tenantData.payerAccounts = Array.from(new Set([...(tenantData.payerAccounts as string[]), ...(tenantBankAccount ? [tenantBankAccount] : [])]));
-    tenant = await tx.tenant.create({ data: tenantData });
+    tenant = await tx.tenant.create({ data: { ...tenantData, ...(createdById ? { createdBy: { connect: { id: createdById } } } : {}) } });
   }
 
   await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: tenant.id, propertyId } }, update: {}, create: { tenantId: tenant.id, propertyId } });
 
   const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
-  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...(servicesCents ? [{ name: "Zálohy na služby", category: "SERVICES" as const, amountCents: servicesCents, validFrom: startDate, sortOrder: 20 }] : [])] } } });
+  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, autoPortalInvitationPending:unit.property.tenantPortalInvitationMode==="AUTOMATIC", ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...serviceItems.map((item, index) => ({ ...item, validFrom: startDate, sortOrder: 20 + index }))] } } });
+  await createLeaseOccupants(tx, lease.id, tenant.id, form, createdById);
   const parties = await syncLeaseParties(tx, lease.id, tenant.id, partySelections);
   for (const linkedTenantId of Array.from(new Set(Object.values(parties).flat()))) {
     await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: linkedTenantId, propertyId } }, update: {}, create: { tenantId: linkedTenantId, propertyId } });

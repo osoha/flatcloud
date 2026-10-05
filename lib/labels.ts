@@ -114,6 +114,7 @@ export const propertyPermissions: Record<string, string> = {
 };
 
 export const userRoles: Record<string, string> = {
+  TENANT: "Nájemník",
   SUPER_ADMIN: "Hlavní administrátor",
   MANAGER: "Generální správce",
   PROPERTY_MANAGER: "Správce nemovitosti",

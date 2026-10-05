@@ -26,7 +26,7 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
   ]);
   const baseScope = reportingScopeForUser({ ...user, memberships, unitMemberships });
   const unitPropertyIds = Object.fromEntries(unitMemberships.map((membership) => [membership.unitId, membership.unit.propertyId]));
-  const availableProperties=await prisma.property.findMany({ where: reportingPropertyAccessWhere(baseScope), select: { id: true, name: true, address: true, city: true, active: true, flatcloudConsolidationBasisPoints: true, owner: { select: { id: true, name: true } }, communicationOwner: { select: { id: true, name: true } } }, orderBy: { name: "asc" } });
+  const availableProperties=await prisma.property.findMany({ where: {AND:[reportingPropertyAccessWhere(baseScope)??{},...(["SUPER_ADMIN","MANAGER","PROPERTY_MANAGER"].includes(user.role)?[]:[{active:true}])]}, select: { id: true, name: true, address: true, city: true, active: true, flatcloudConsolidationBasisPoints: true, owner: { select: { id: true, name: true } }, communicationOwner: { select: { id: true, name: true } } }, orderBy: { name: "asc" } });
   const livePropertyIds=liveSelectedPropertyIds(selection,availableProperties);
   const scope = applyPortfolioSelection(baseScope, {mode:"SELECTED",propertyIds:livePropertyIds}, unitPropertyIds);
   const [properties, units] = await Promise.all([
@@ -80,7 +80,8 @@ export async function loadLiveReport(user: User, selection: PortfolioSelection, 
     const charges = allLeases.flatMap((lease) => lease.charges.map((charge) => ({ charge, propertyId: lease.unit.propertyId }))).filter((row) => row.charge.active && periods.includes(row.charge.period) && (!propertyId || row.propertyId === propertyId));
     const expectedCents = charges.reduce((sum, row) => sum + row.charge.amountCents, 0);
     const paidCents = charges.reduce((sum, row) => sum + paidCentsAsOf(row.charge, asOf), 0);
-    return { expectedCents, paidCents, collectionRateBps: expectedCents ? Math.round(paidCents * 10_000 / expectedCents) : null };
+    const pendingBeforeDueCents=charges.filter(row=>row.charge.debtTreatment==="CURRENT"&&businessDateKey(row.charge.dueDate)>=asOfKey).reduce((sum,row)=>sum+Math.max(0,row.charge.amountCents-paidCentsAsOf(row.charge,asOf)),0);
+    return { expectedCents, paidCents, pendingBeforeDueCents, collectionRateBps: expectedCents ? Math.round(paidCents * 10_000 / expectedCents) : null };
   };
   const trend = periods.map((period) => { const charges = allLeases.flatMap((lease) => lease.charges).filter((charge) => charge.active && charge.period === period); return { label: period, expected: charges.reduce((sum, charge) => sum + charge.amountCents, 0), paid: charges.reduce((sum, charge) => sum + paidCentsAsOf(charge, asOf), 0) }; });
   const collectionRange = collectionRangeFor();

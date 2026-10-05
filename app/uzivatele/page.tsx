@@ -16,7 +16,7 @@ import { RefreshActivity } from "@/components/admin/RefreshActivity";
 
 export const dynamic = "force-dynamic";
 
-export default async function UsersPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; invite?: string; activity?: string }> }) {
+export default async function UsersPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; invite?: string; activity?: string; kind?: string; property?: string; sort?: string; q?: string }> }) {
   const user = await requireUser();
   if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
 
@@ -35,6 +35,10 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
         activity: { select: { lastSeenAt: true } },
         memberships: { include: { property: true } },
         unitMemberships: { include: { unit: { include: { property: true } } } },
+        tenantPortalAccesses: { include: { tenant: { include: {
+          leases: { select: { unit: { select: { propertyId: true } } } },
+          leaseParties: { select: { lease: { select: { unit: { select: { propertyId: true } } } } } },
+        } } } },
       },
       orderBy: { name: "asc" },
     }),
@@ -51,7 +55,14 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
   const propertyOverview=await userPropertyOverview();
   const now = new Date(), activityView = parseActivityView(query.activity);
   const loginDates = new Map(logins.map(row => [row.userId, row._max.createdAt]));
-  const users = filterAndSortActivity(storedUsers.map(row => ({ ...row, lastActivityAt: latestActivityAt(row.activity?.lastSeenAt, loginDates.get(row.id)), online: isUserOnline(row.active, row.activity?.lastSeenAt, now) })), activityView, now);
+  const baseUsers = filterAndSortActivity(storedUsers.map(row => ({ ...row, lastActivityAt: latestActivityAt(row.activity?.lastSeenAt, loginDates.get(row.id)), online: isUserOnline(row.active, row.activity?.lastSeenAt, now) })), activityView, now);
+  const portalPropertyIds=(row:typeof baseUsers[number])=>new Set(row.tenantPortalAccesses.flatMap(access=>[...access.tenant.leases.map(lease=>lease.unit.propertyId),...access.tenant.leaseParties.map(party=>party.lease.unit.propertyId)]));
+  const users=baseUsers.filter(row=>{
+    const kind=query.kind||"all", portal=row.tenantPortalAccesses.length>0;
+    const matchesKind=kind==="all"||kind==="tenant"&&portal||kind==="manager"&&["PROPERTY_MANAGER","MANAGER"].includes(row.role)||kind==="owner"&&row.role==="OWNER_VIEWER";
+    const matchesProperty=!query.property||query.property==="all"||row.allProperties||row.memberships.some(m=>m.propertyId===query.property)||row.unitMemberships.some(m=>m.unit.propertyId===query.property)||portalPropertyIds(row).has(query.property);
+    return matchesKind&&matchesProperty&&(!query.q||`${row.name} ${row.email}`.toLocaleLowerCase("cs").includes(query.q.toLocaleLowerCase("cs")));
+  }).sort((a,b)=>query.sort==="recent"?(b.lastActivityAt?.getTime()||0)-(a.lastActivityAt?.getTime()||0):query.sort==="property"?(a.memberships[0]?.property.name||a.tenantPortalAccesses[0]?.tenant.leases[0]?.unit.propertyId||"").localeCompare(b.memberships[0]?.property.name||b.tenantPortalAccesses[0]?.tenant.leases[0]?.unit.propertyId||"","cs"):a.name.localeCompare(b.name,"cs"));
 
   return <Shell user={user}><div className="page">
     <div className="page-title"><div><PageHeading>Uživatelé a oprávnění</PageHeading><p>Jeden člen může mít přístup k více objektům nebo ke všem současným i budoucím nemovitostem.</p></div></div>
@@ -94,7 +105,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
 
     <div className="card portfolio-table-card" id="seznam-uzivatelu" style={{ marginTop: 16 }}>
       <div className="table-toolbar"><div><h2>Uživatelské účty</h2><p>Kliknutím na libovolné místo řádku otevřete profil a oprávnění uživatele.</p></div></div>
-      <div className="user-activity-controls">
+      <div className="user-activity-controls"><form method="get" action="/uzivatele#seznam-uzivatelu" className="registry-filters"><label>Hledat<input name="q" defaultValue={query.q||""} placeholder="Jméno nebo e-mail"/></label><label>Typ osoby<select name="kind" defaultValue={query.kind||"all"}><option value="all">Všichni</option><option value="owner">Vlastníci a členové</option><option value="manager">Správci</option><option value="tenant">S přístupem nájemníka</option></select></label><label>Nemovitost<select name="property" defaultValue={query.property||"all"}><option value="all">Všechny</option>{properties.map(property=><option value={property.id} key={property.id}>{property.name}</option>)}</select></label><label>Řadit<select name="sort" defaultValue={query.sort||"name"}><option value="name">Jméno</option><option value="recent">Poslední aktivita</option><option value="property">Nemovitost</option></select></label><input type="hidden" name="activity" value={activityView}/><button className="secondary">Filtrovat</button></form>
     <form action="/uzivatele#seznam-uzivatelu" method="get" className="user-activity-filters">
       <label className="field"><span>Aktivita uživatelů</span><select name="activity" defaultValue={activityView}><option value="name">Běžné řazení — podle jména</option><option value="online">Online přednostně</option><option value="inactive">Neaktivní déle než 30 dní</option><option value="unseen">Bez záznamu aktivity</option></select></label>
       <button type="submit" className="secondary">Zobrazit účty</button><RefreshActivity/>
@@ -102,7 +113,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     <p className="user-activity-note">Online = viditelná karta aplikace během posledních 2 minut. Stav k {now.toLocaleTimeString("cs-CZ", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Prague" })}. Bez záznamu aktivity znamená, že zatím nemáme potvrzenou aktivitu ani historické přihlášení; nejde o deaktivovaný účet.</p>
       </div>
       <div className="table-wrap"><table>
-        <thead><tr><th>Uživatel</th><th>Role</th><th>Nemovitosti</th><th>Vztah k portfoliu</th><th>Stav</th><th>Poslední aktivita</th><th></th></tr></thead>
+        <thead><tr><th>Uživatel</th><th>Role</th><th>Nemovitosti</th><th>Vztah k portfoliu</th><th>Portál nájemníka</th><th>Stav</th><th>Poslední aktivita</th><th></th></tr></thead>
         <tbody>{users.length ? users.map((row) => {
           const href = `/uzivatele/${row.id}`;
           const relations=propertyOverview(row.id);
@@ -117,11 +128,11 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
             <td><Link className="row-cell-link" href={href}><div className="user-table-cell"><UserAvatar user={row} className={row.online ? "user-online" : ""}/><div><strong>{row.name}</strong><span className="owner-sub">{row.email}</span>{row.online && <span className="user-activity-online">Online</span>}</div></div></Link></td>
             <td><Link className="row-cell-link" href={href}>{userRoles[row.role]}<small className="owner-sub">{isFlatcloudMember(row)?"Skupina FlatCloud":"Externí prostředí"}</small></Link></td>
             <td><Link className="row-cell-link" href={href}>{accessLabel}</Link></td><td><Link className="row-cell-link" href={`${href}#nemovitosti`}>{relations.length} domů / {relations.reduce((n,p)=>n+(p.roles.some(r=>["Založil","Spravuje","Vlastník"].includes(r))?p.units:p.accessibleUnits),0)} jednotek<small className="owner-sub">Založil {relations.filter(p=>p.roles.includes("Založil")).length} · spravuje {relations.filter(p=>p.roles.includes("Spravuje")).length} · vlastník {relations.filter(p=>p.roles.includes("Vlastník")).length}</small></Link></td>
-            <td><Link className="row-cell-link" href={href}><span className={`status ${row.active ? "ok" : "bad"}`}>{row.active ? "Aktivní" : "Deaktivovaný"}</span></Link></td>
+            <td>{row.tenantPortalAccesses.length?row.tenantPortalAccesses.map(access=><Link className="entity-link" key={access.tenantId} href={`/najemnici/${access.tenantId}`}>{access.tenant.name}</Link>):"—"}</td><td><Link className="row-cell-link" href={href}><span className={`status ${row.active ? "ok" : "bad"}`}>{row.active ? "Aktivní" : "Deaktivovaný"}</span></Link></td>
             <td><Link className="row-cell-link" href={href}>{row.lastActivityAt ? <time dateTime={row.lastActivityAt.toISOString()}>{row.lastActivityAt.toLocaleString("cs-CZ", { timeZone: "Europe/Prague", dateStyle: "short", timeStyle: "short" })}</time> : "Dosud nezaznamenána"}</Link></td>
             <td><Link className="table-link" href={href}>Upravit</Link>{row.active && row.id !== user.id && <form action="/api/admin/user-preview" method="post"><input type="hidden" name="userId" value={row.id}/><button className="secondary">Pohled uživatele</button></form>}</td>
           </tr>;
-        }) : <tr><td colSpan={7} className="table-empty">Vybranému filtru neodpovídá žádný účet.</td></tr>}</tbody>
+        }) : <tr><td colSpan={8} className="table-empty">Vybranému filtru neodpovídá žádný účet.</td></tr>}</tbody>
       </table></div>
     </div>
 

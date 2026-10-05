@@ -3,6 +3,9 @@ import { prisma } from "./db";
 import { hasAllPropertyAccess } from "./auth";
 import { bankAccountMatches } from "./inbound-bank/bank-email";
 import { samePhysicalBankAccount } from "./owner-bank-account";
+import {normalizeExpenseAccount} from "./bank-expense-rule-policy";
+import {leaseStatusAt} from "./lease-lifecycle-core";
+import {payerRecipientUserId,payerRouteLeases} from "./inbound-bank/queue-routing";
 
 export type BankActor = { id: string; role: string; allProperties?: boolean };
 export const bankScopeInclude = {
@@ -39,7 +42,10 @@ export async function requireInboxBankAccess(actor: BankActor, inboxId: string) 
   if (!row) throw new Error("Bankovní pohyb není dostupný.");
   const scopes=await bankAccountScopes(actor);
   const accounts=scopes.filter(account=>bankAccountMatches(account,row.recipientAccount));
-  if (actor.role !== "SUPER_ADMIN" && !accounts.length) throw new Error("Nemáte oprávnění k tomuto bankovnímu účtu.");
+  if (actor.role !== "SUPER_ADMIN" && !accounts.length) {
+    const [leases,users]=await Promise.all([payerRouteLeases(),prisma.user.findMany({where:{active:true},select:{id:true}})]);
+    if(row.recipientAccount||!row.amountCents||row.amountCents<=0||payerRecipientUserId(row,leases,new Set(users.map(user=>user.id)))!==actor.id)throw new Error("Nemáte oprávnění k tomuto bankovnímu účtu.");
+  }
   return { row, accounts };
 }
 
@@ -50,11 +56,14 @@ export async function requireBankRuleAccount(actor: BankActor, accountId: string
   return account;
 }
 
-export async function requireInboxLeaseTarget(actor: BankActor, row: { recipientAccount: string|null }, leaseId: string) {
-  const lease=await prisma.lease.findFirst({where:{id:leaseId,unit:hasAllPropertyAccess(actor)?{}:{OR:[
-    {property:{memberships:{some:{userId:actor.id,permission:{in:["EDIT","ADMIN"]}}}}},
-    {userAccesses:{some:{userId:actor.id,permission:{in:["EDIT","ADMIN"]}}}},
-  ]}},include:{ownerBankAccount:true,unit:true}});
-  if (!lease || (actor.role!=="SUPER_ADMIN" && !bankAccountMatches(lease.ownerBankAccount || {},row.recipientAccount))) throw new Error("Vybraná smlouva není dostupná pro tento účet.");
+export async function requireInboxLeaseTarget(actor: BankActor, row: { recipientAccount: string|null; counterpartyAccount?:string|null }, leaseId: string) {
+  const lease=await prisma.lease.findFirst({where:{id:leaseId,...(hasAllPropertyAccess(actor)?{}:{OR:[
+    {ownerBankAccount:{owner:{userId:actor.id}}},
+    {unit:{property:{memberships:{some:{userId:actor.id,permission:{in:["EDIT","ADMIN"]}}}}}},
+    {unit:{userAccesses:{some:{userId:actor.id,permission:{in:["EDIT","ADMIN"]}}}}},
+  ]})},include:{ownerBankAccount:true,unit:true,tenant:true}});
+  const knownRecipient=lease&&bankAccountMatches(lease.ownerBankAccount||{},row.recipientAccount);
+  const knownPayer=lease&&row.recipientAccount==null&&leaseStatusAt(lease)==="ACTIVE"&&Boolean(row.counterpartyAccount)&&[lease.tenantBankAccount,...lease.tenant.payerAccounts].filter((a):a is string=>Boolean(a)).some(a=>normalizeExpenseAccount(a)===normalizeExpenseAccount(row.counterpartyAccount||""));
+  if (!lease || (actor.role!=="SUPER_ADMIN" && !knownRecipient&&!knownPayer)) throw new Error("Vybraná smlouva není dostupná pro tento účet.");
   return lease;
 }

@@ -1,3 +1,6 @@
+import {headers} from "next/headers";
+import {parsePortfolioSelection} from "@/lib/portfolio-selection";
+import { ProfiAppearance } from "@/components/ProfiAppearance";
 import { FirstLoginGuide } from "@/components/FirstLoginGuide";
 import { DisplayPreferences } from "@/components/DisplayPreferences";
 import { DisplayModeSwitch } from "@/components/DisplayModeSwitch";
@@ -25,6 +28,8 @@ import { CollapsibleNavGroup } from "@/components/CollapsibleNavGroup";
 import { SidebarCollapseToggle } from "@/components/SidebarCollapseToggle";
 import { UserActivityHeartbeat } from "@/components/UserActivityHeartbeat";
 import { AdminOperationsPanel } from "@/components/admin/AdminOperationsPanel";
+import {unmatchedQueueCount} from "@/lib/inbound-bank/queue-counts";
+import {tenantPortalContactMatches} from "@/lib/tenant-portal-access";
 
 type ShellUser = {
   id: string;
@@ -38,6 +43,7 @@ type ShellUser = {
   updatedAt?: Date | string;
   onboardingStatus?: string;
   defaultDisplayMode?: string;
+  profiGraphics?: boolean;
 };
 
 export async function Shell({ user: contentUser, children, taskPropertyId, taskLeaseId, displayReturnTo }: { user: ShellUser; children: React.ReactNode; taskPropertyId?: string; taskLeaseId?: string; displayReturnTo?: string }) {
@@ -48,17 +54,17 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");
-  const taskWhere = taskAccessWhere(user);
+  const navigationQuery=new URLSearchParams((await headers()).get("x-flatberry-search")||"");
+  const selection=parsePortfolioSelection({properties:navigationQuery.has("properties")?navigationQuery.get("properties")!:undefined,propertyId:navigationQuery.get("propertyId")||undefined});
+  const scopedDisplayReturnTo=displayReturnTo||(selection.mode==="ALL"?"/portfolio":`/portfolio?properties=${encodeURIComponent(selection.propertyIds.join(","))}`);
+  const taskWhere = {AND:[taskAccessWhere(user),...(selection.mode==="SELECTED"?[{OR:[{propertyId:{in:selection.propertyIds}},{propertyId:null}]}]:[])]};
   const revisionWhere = fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } };
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
   const [openTasks, announcementCount, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
     prisma.task.count({ where: { ...taskWhere, status: { in: openTaskStatuses } } }),
     prisma.announcement.count({ where: unreadAnnouncementWhere(user) }),
     prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
-    superAdmin ? Promise.all([
-      prisma.bankTransaction.count({ where: { amountCents: { gt: 0 }, status: { in: ["UNMATCHED", "SUGGESTED"] } } }),
-      prisma.inboxPayment.count({ where: { status: { in: ["RECEIVED", "UNMATCHED", "ERROR"] } } }),
-    ]).then((values) => values.reduce((sum, value) => sum + value, 0)) : Promise.resolve(0),
+    unmatchedQueueCount(user),
     prisma.lease.findMany({ where: leaseAccessWhere(user), select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
   ]);
   const today = new Date();
@@ -77,9 +83,11 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     select: { _count: { select: { memberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } }, unitMemberships: { where: { permission: { in: ["EDIT", "ADMIN"] } } } } } },
   }).then((row) => row && (row._count.memberships > 0 || row._count.unitMemberships > 0)));
   const canSeeQuarterlyReports = await hasReportingBackofficeAccess(user);
+  const tenantPortalAccesses=preview?[]:await prisma.tenantPortalAccess.findMany({where:{userId:user.id},select:{tenant:{select:{email:true,communicationEmail:true}}}});
+  const hasTenantPortal=tenantPortalAccesses.some(row=>tenantPortalContactMatches(user.email,row.tenant));
 
   return <div className={`app-shell v21-shell flatberry-shell${mode === "basic" ? " basic-shell" : ""}`}>
-    {superAdmin && <AdminOperationsPanel/>}
+    <ProfiAppearance graphics={Boolean(contentUser.profiGraphics)}/>{superAdmin && <AdminOperationsPanel/>}
     {!preview && <FirstLoginGuide userId={user.id}/>}
     <NativeDetailsEscape/>
     <ActiveTabVisibility/>
@@ -91,6 +99,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         {mode === "pro" ? <>
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
+        {hasTenantPortal&&<Nav href="/portal/najemnik" icon={<House size={17}/>} label="Můj nájem"/>}
         <Nav href="/reporty" icon={<BarChart3 size={17}/>} label="Reporty"/>
         {canSeeQuarterlyReports && <Nav href="/reporty/akcionarske" icon={<CalendarRange size={17}/>} label="Akcionářské reporty"/>}
         {canAddProperty && isFlatcloudMember(user) && <><Nav href="/distribuce" icon={<Handshake size={17}/>} label="Distribuce"/><Nav href="/distribuce/zajemci" icon={<UsersRound size={17}/>} label="Zájemci"/></>}
@@ -103,7 +112,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
 
         <CollapsibleNavGroup id="finance" label="Finance" activeRoots={["/platby","/reporty/predpisy","/reporty/saldo","/kauce"]} forceOpen={unmatchedCount > 0}>
           <Nav href="/platby/banka" icon={<WalletCards size={17}/>} label="Bankovní pohyby"/>
-          {superAdmin && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>}
+          {(superAdmin || unmatchedCount > 0) && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/reporty/predpisy" icon={<ReceiptText size={17}/>} label="Předpisy"/>
           <Nav href="/reporty/saldo" icon={<WalletCards size={17}/>} label="Dlužníci"/>
           <Nav href="/kauce" icon={<WalletCards size={17}/>} label="Kauce"/>
@@ -134,9 +143,10 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         </> : <>
           <div className="nav-label">Moje FlatBerry</div>
           <Nav href="/portfolio" icon={<LayoutDashboard size={20}/>} label="Přehled"/>
+          {hasTenantPortal&&<Nav href="/portal/najemnik" icon={<House size={20}/>} label="Můj nájem"/>}
           <Nav href="/portfolio#nemovitosti" icon={<House size={20}/>} label="Nemovitosti"/>
           <Nav href="/reporty?view=collections" icon={<WalletCards size={20}/>} label="Platby"/>
-          <Nav href="/platby/banka" icon={<WalletCards size={20}/>} label="Bankovní pohyby"/>
+          {(superAdmin || unmatchedCount > 0) && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={20}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/ukoly" icon={<ListChecks size={20}/>} label="Úkoly" count={openTasks} noticeCount={announcementCount}/>
           <Nav href="/dokumenty" icon={<FileText size={20}/>} label="Dokumenty"/>
           <Nav href="/metodika?view=guides" activeQuery={{view:"guides"}} icon={<Compass size={20}/>} label="Průvodce"/>
@@ -144,7 +154,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
       </nav>
       <div className="sidebar-footer">
         {mode === "basic" && !preview && <Link className="basic-sidebar-berry" href="/metodika?view=guides"><img src="/guide/welcome.webp" alt=""/><span>Poradím vám <span aria-hidden="true">→</span></span></Link>}
-        {!preview && <DisplayModeSwitch mode={mode} returnTo={displayReturnTo}/>}
+        {!preview && <DisplayModeSwitch mode={mode} returnTo={scopedDisplayReturnTo}/>}
         <DisplayPreferences userId={user.id}/>
         <div className="user-card">
           <Link className="user-card-profile" href="/ucet" title="Můj účet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small className="user-card-meta">{userRoles[user.role]||user.role}</small></div></Link>
@@ -159,7 +169,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
-          {!preview && <DisplayModeSwitch mode={mode} mobile returnTo={displayReturnTo}/>}
+          {!preview && <DisplayModeSwitch mode={mode} mobile returnTo={scopedDisplayReturnTo}/>}
           <DisplayPreferences userId={user.id} mobile/>
           {mode === "pro" && !preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {mode === "pro" && !preview && canAddTask && <Link data-guide="add-task" className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}

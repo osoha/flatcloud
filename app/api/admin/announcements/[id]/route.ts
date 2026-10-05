@@ -1,5 +1,5 @@
 import { currentUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
+import { serializableTransaction } from "@/lib/serializable";
 import { go, goWithMessage } from "@/lib/route-response";
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}) {
  const user=await currentUser();if(!user)return go(request,"/login");
@@ -8,7 +8,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
  try{
  const form=await request.formData(),action=String(form.get("action")||"");
  if(!["activate","deactivate","edit"].includes(action))throw new Error("Neplatná akce.");
- await prisma.$transaction(async tx=>{
+ await serializableTransaction(async tx=>{
   const before=await tx.announcement.findUnique({where:{id}});if(!before)throw new Error("Oznámení nebylo nalezeno.");
   if(form.get("revision")!==before.updatedAt.toISOString())throw new Error("Oznámení se změnilo. Obnovte stránku.");
   const title=String(form.get("title")||"").trim(),body=String(form.get("body")||"").trim();

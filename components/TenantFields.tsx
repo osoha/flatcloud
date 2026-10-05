@@ -10,6 +10,9 @@ type TenantDefaults = {
   email?: string | null;
   phone?: string | null;
   ico?: string | null;
+  dateOfBirth?: string;
+  identityDocumentNumber?: string | null;
+  passportNumber?: string | null;
   permanentAddress?: string | null;
   correspondenceAddress?: string | null;
   billingAddress?: string | null;
@@ -27,6 +30,9 @@ export function TenantFields({ defaults = {}, typeName = "tenantType", noteName 
     <label className="field"><span>Typ nájemníka *</span><select name={typeName} value={type} onChange={(event) => setType(event.target.value as "PERSON" | "COMPANY")}><option value="PERSON">Fyzická osoba</option><option value="COMPANY">Právnická osoba</option></select></label>
     <label className="field"><span>{type === "COMPANY" ? "Název firmy" : "Jméno a příjmení"} *</span><input name="name" defaultValue={defaults.name || ""} required/></label>
     {type === "PERSON" ? <>
+      <label className="field"><span>Datum narození</span><input name="dateOfBirth" type="date" max={new Date().toISOString().slice(0, 10)} defaultValue={defaults.dateOfBirth || ""}/></label>
+      <label className="field"><span>Číslo občanského / identifikačního dokladu</span><input name="identityDocumentNumber" maxLength={80} defaultValue={defaults.identityDocumentNumber || ""}/></label>
+      <label className="field"><span>Číslo cestovního pasu</span><input name="passportNumber" maxLength={80} defaultValue={defaults.passportNumber || ""}/></label>
       <label className="field"><span>E-mail</span><input name="email" type="email" defaultValue={defaults.email || ""}/></label>
       <label className="field"><span>Telefon</span><input name="phone" defaultValue={defaults.phone || ""}/></label>
       <label className="field field-full"><span>Adresa trvalého pobytu</span><input name="permanentAddress" defaultValue={defaults.permanentAddress || ""}/></label>

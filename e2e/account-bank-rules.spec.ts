@@ -40,6 +40,10 @@ test("shared account owner can find ignored mail and create a scoped rule; parti
   expect((await db.task.findUniqueOrThrow({where:{dedupeKey:`bank-review:inbox:${row.id}`}})).assigneeId).toBe(f.user.id);
   const historical=await f.inbox(-30000,{status:"IGNORED",message:"Dříve ručně ignorováno"});
   await login(page,f.user.email);await page.goto("/platby/banka");
+  await page.goto("/platby/nesparovane");
+  await page.getByText(/Ignorované notifikace/).click();
+  await expect(page.locator(`a[href='/platby/nesparovane/email/${historical.id}']`)).toBeVisible();
+  await page.goto("/platby/banka");
   await expect(page.locator(`a[href='/platby/nesparovane/email/${row.id}']`)).toBeVisible();
   await page.locator(`a[href='/platby/nesparovane/email/${row.id}']`).click();
   await page.getByRole("button",{name:"Ignorovat a připravit pravidlo",exact:true}).click();

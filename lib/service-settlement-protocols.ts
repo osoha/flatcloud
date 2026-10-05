@@ -18,7 +18,7 @@ export type ServiceSettlementSnapshot = {
   unit: { id: string; label: string };
   lease: { id: string; contractNumber: string | null; tenantNames: string[] };
   totals: { advancesCents: number; actualCostsCents: number; balanceCents: number };
-  advances: Array<{ period: string; amountCents: number }>;
+  advances: Array<{ period: string; amountCents: number; items?: Array<{ name: string; category: string; amountCents: number }> }>;
   costs: Array<{ sourceCostId: string; title: string; effectiveAt: string; sourceAmountCents: number; allocatedAmountCents: number; allocationLabel: string; documentCount: number }>;
   meters: Array<{ label: string; unitOfMeasure: string; opening: { date: string; value: number; id?: string; method?: string } | null; closing: { date: string; value: number; id?: string; method?: string } | null; consumption: number | null }>;
   confirmedCosts?: SettlementEvidenceRow[];
@@ -62,7 +62,7 @@ export async function issueServiceSettlementProtocol(actor: Actor, leaseId: stri
         unit: { id: preview.lease.unitId, label: preview.lease.unit.label },
         lease: { id: preview.lease.id, contractNumber: preview.lease.contractNumber, tenantNames: preview.lease.parties.length ? preview.lease.parties.map((party) => party.tenant.name) : [preview.lease.tenant.name] },
         totals: { advancesCents: preview.advancesCents, actualCostsCents: preview.actualCostsCents, balanceCents: preview.balanceCents },
-        advances: preview.advanceRows.map((row) => ({ period: row.period, amountCents: row.amountCents })),
+        advances: preview.advanceRows.map((row) => ({ period: row.period, amountCents: row.amountCents, items: row.items })),
         costs: preview.costRows.map((row) => ({ sourceCostId: row.id, title: row.title, effectiveAt: businessDateKey(row.effectiveAt), sourceAmountCents: row.sourceAmountCents, allocatedAmountCents: row.allocatedAmountCents, allocationLabel: row.allocationLabel, documentCount: row.documentCount })),
         meters: preview.meterRows.map((row) => ({ label: row.label, unitOfMeasure: row.unitOfMeasure, opening: row.opening ? { date: businessDateKey(row.opening.readAt), value: row.opening.value, id: row.opening.id, method: row.opening.method } : null, closing: row.closing ? { date: businessDateKey(row.closing.readAt), value: row.closing.value, id: row.closing.id, method: row.closing.method } : null, consumption: row.consumption })),
         confirmedCosts: preview.evidenceRows,

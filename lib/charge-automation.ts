@@ -48,7 +48,7 @@ export async function replaceRecurringAmount(
   const overlapping = await tx.leasePaymentItem.findMany({
     where: {
       leaseId,
-      category: category as ChargeCategory,
+      category: category === "SERVICES" ? { in: ["SERVICES", "WATER", "HEATING", "ELECTRICITY"] } : category as ChargeCategory,
       active: true,
       ...(options.preserveFutureFrom ? { validFrom: { lt: options.preserveFutureFrom } } : {}),
       OR: [{ validTo: null }, { validTo: { gte: effectiveFrom } }],

@@ -1,0 +1,21 @@
+import assert from "node:assert/strict";
+import {tenantPortalContact} from "../lib/tenant-portal-contact";
+
+const owner={id:"owner",name:"Pronajímatel",email:"owner@example.test",phone:null,active:true};
+const manager={id:"manager",name:"Správce",email:"manager@example.test",phone:"+420777000111",active:true};
+const other={id:"other",name:"Jiný vlastník",email:"other@example.test",phone:null,active:true};
+const base={unit:{property:{owner,manager,ownershipMode:"WHOLE_OBJECT"}}};
+assert.equal(tenantPortalContact(base)?.kind,"manager");
+assert.equal(tenantPortalContact({...base,ownerBankAccount:{owner:other}})?.name,"Správce");
+const withoutManager={unit:{property:{owner,manager:null,ownershipMode:"WHOLE_OBJECT"}}};
+assert.equal(tenantPortalContact(withoutManager)?.name,"Pronajímatel");
+assert.equal(tenantPortalContact({...withoutManager,ownerBankAccount:{owner:other}})?.name,"Jiný vlastník");
+const divided={unit:{property:{owner,manager:null,ownershipMode:"UNIT_BASED"},ownerships:[{owner},{owner:other}]}};
+assert.equal(tenantPortalContact(divided),null,"Ambiguous unit ownership must not fall back to building owner");
+assert.equal(tenantPortalContact({...divided,unit:{...divided.unit,ownerships:[{owner:other}]}})?.name,"Jiný vlastník");
+assert.equal(tenantPortalContact({...divided,unit:{...divided.unit,property:{...divided.unit.property,communicationOwner:other}}})?.name,"Jiný vlastník");
+const inactiveUser={...manager,active:false};
+const fallback={...owner,email:null,user:inactiveUser};
+assert.equal(tenantPortalContact({...withoutManager,ownerBankAccount:{owner:fallback}})?.user,null);
+assert.equal(tenantPortalContact({...withoutManager,ownerBankAccount:{owner:fallback}})?.email,null);
+console.log("Tenant portal contact: manager/owner precedence, ambiguity and inactive identity checks passed.");
