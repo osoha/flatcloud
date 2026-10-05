@@ -26,6 +26,7 @@ assert.equal(checked,36);
 assert.equal(firstIndexationDate("2026-04-01"),"2027-04-01");assert.equal(firstIndexationDate("2026-04-02"),"2028-04-01");assert.equal(firstIndexationDate("2024-02-29"),"2025-04-01");
 const invalid=(change:Partial<ContractInput>)=>assert(!contractInputSchema.safeParse({...structuredClone(leaseContractFixture),...change}).success);
 invalid({depositCents:4500001});invalid({depositAnnualRateBps:null as unknown as number});invalid({firstPaymentDate:"2026-10-19"});invalid({endDate:"2026-02-31"});invalid({term:"INDEFINITE"});invalid({term:"LONG_FIXED"});invalid({endDate:"2027-11-01"});invalid({dueDay:4});invalid({tenancy:"SPOUSES"});invalid({confirmed:false as unknown as true});invalid({services:[{name:"[nedoplněná služba]",amountCents:1}]});invalid({landlord:{...leaseContractFixture.landlord,represented:true}});
+invalid({landlord:{...leaseContractFixture.landlord,name:"W".repeat(201)}});
 const zero=structuredClone(leaseContractFixture);zero.depositCents=0;zero.depositDueDate="";zero.depositAnnualRateBps=0;zero.services=[];zero.manager={name:"",email:"",phone:""};zero.directEnergy="Žádné";
 const z=buildContract(zero),zt=z.sections.flatMap(s=>s.paragraphs).join("\n");assert(!zt.includes("5.2"));assert(zt.includes("Jistota se nesjednává"));assert(!zt.includes("informuje správce"));assert(!zt.includes("výtah"));assert(zt.includes("Energie přímo na nájemce se nesjednávají"));
 if(process.env.CONTRACT_QA_OUTPUT){
@@ -34,6 +35,6 @@ if(process.env.CONTRACT_QA_OUTPUT){
   stress.tenancy="JOINT";stress.tenants=Array.from({length:8},(_,i)=>({...stress.tenants[0],name:`Nájemce ${i+1} ${"VelmiDlouhéPříjmení".repeat(4)}`,address:"Dlouhá adresa bydliště ".repeat(10)}));stress.occupantCount=8;stress.services=Array.from({length:30},(_,i)=>({name:`Skutečně zajišťovaná služba číslo ${i+1}`,amountCents:1000+i}));
   for(const [name,input]of [["short-fixed",samples[0]],["indefinite-spouses-company",samples[35]],["zero-deposit",zero],["stress",stress]] as const){await writeFile(`${dir}/${name}.pdf`,await contractPdf(input,false,"https://flatcloud.example.test/portal/najemnik/qa-tenant"));await writeFile(`${dir}/${name}.json`,JSON.stringify(buildContract(input),null,2));}
 }
-console.log(`PASS: ${checked} mutací, společný přehled a články, podpisy všech osob, inflační termíny, 12 odmítnutých chybných zadání a nulová jistota.`);
+console.log(`PASS: ${checked} mutací, společný přehled a články, podpisy všech osob, inflační termíny, 13 odmítnutých chybných zadání a nulová jistota.`);
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -3,12 +3,14 @@ import template from "./approved-template.json";
 
 const text = z.string().trim().min(1).max(700).refine(v => !/[\[\]\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(v), "Odstraňte nevyplněná pole a řídicí znaky.");
 const optionalText = z.string().trim().max(700).refine(v => !/[\[\]\u0000-\u0008\u000b\u000c\u000e-\u001f]/.test(v));
+// Identity and authority must fit a complete signature block even with wide glyphs.
+const name=text.pipe(z.string().max(200)),authority=text.pipe(z.string().max(350));
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(v => { const d = new Date(v+"T12:00:00Z"); return !isNaN(+d) && d.toISOString().slice(0,10) === v; }, "Datum není platné.");
 const cents = z.number().int().min(0).max(2147483647);
-const person = z.object({name:text,birthDate:date,address:text,deliveryAddress:text,email:optionalText,phone:optionalText}).strict();
+const person = z.object({name,birthDate:date,address:text,deliveryAddress:text,email:optionalText,phone:optionalText}).strict();
 export const contractInputSchema = z.object({
   term:z.enum(["SHORT_FIXED","LONG_FIXED","INDEFINITE"]), tenancy:z.enum(["SINGLE","JOINT","SPOUSES"]),
-  landlord:z.object({type:z.enum(["PERSON","COMPANY"]),name:text,identifier:text,address:text,email:optionalText,phone:optionalText,registry:optionalText,signer:text,authority:text,represented:z.boolean()}).strict(),
+  landlord:z.object({type:z.enum(["PERSON","COMPANY"]),name,identifier:text,address:text,email:optionalText,phone:optionalText,registry:optionalText,signer:name,authority,represented:z.boolean()}).strict(),
   tenants:z.array(person).min(1).max(8), manager:z.object({name:optionalText,email:optionalText,phone:optionalText}).strict(),
   unit:z.object({address:text,label:text,floor:text,disposition:text,areaM2:z.number().positive().max(10000),cadastral:text,accessories:text}).strict(),
   startDate:date,endDate:z.union([date,z.literal("")]),handoverDate:date,signingDate:date,signingPlace:text,

@@ -52,8 +52,9 @@ export async function contractPdf(raw:unknown,preview=false,portalUrl?:string) {
   const signatureRows:Array<{lines:string[];height:number}[]>=[];
   for(let i=0;i<c.signatures.length;i+=2)signatureRows.push(c.signatures.slice(i,i+2).map(s=>{const lines=wrap(`${s.role}: ${s.name}\n${s.detail}`,9.5,font,columnWidth);return {lines,height:lines.length*13+66};}));
   const qrInLastColumn=Boolean(qrImage&&signatureRows.at(-1)?.length===1);
-  const allHeight=signatureRows.reduce((s,row,i)=>s+Math.max(...row.map(v=>v.height),qrInLastColumn&&i===signatureRows.length-1?110:0),0)+42+(qrImage&&!qrInLastColumn?114:0);
-  if(allHeight<height-76-bottom)ensure(allHeight);else ensure(100);
+  const signingHeight=wrap(c.signing,11,bold,right-left).length*15+18;
+  const allHeight=signatureRows.reduce((s,row,i)=>s+Math.max(...row.map(v=>v.height),qrInLastColumn&&i===signatureRows.length-1?110:0),0)+signingHeight+(qrImage&&!qrInLastColumn?114:0);
+  if(allHeight<height-76-bottom)ensure(allHeight);else ensure(signingHeight+Math.max(...signatureRows[0].map(v=>v.height)));
   paragraph(c.signing,11,bold,18);
   for(const [rowIndex,row]of signatureRows.entries()){const qrHere=qrInLastColumn&&rowIndex===signatureRows.length-1,rowHeight=Math.max(...row.map(v=>v.height),qrHere?110:0);ensure(rowHeight);
     for(const [column,signature]of row.entries()){const x=left+column*(columnWidth+26);let sy=y;for(const t of signature.lines){page.drawText(t,{x,y:sy,size:9.5,font,color:ink});sy-=13;}sy-=30;page.drawLine({start:{x,y:sy},end:{x:x+columnWidth-15,y:sy},color:muted,thickness:.6});page.drawText("Podpis",{x,y:sy-16,size:8,font,color:muted});}

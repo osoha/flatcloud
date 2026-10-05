@@ -40,7 +40,7 @@ souboru při selhání databázové transakce.
 
 - `scripts/verify-lease-contracts.ts`: 36 kombinací, shoda přehledu a
   článků, úrok, celková částka, termíny indexace včetně přestupného roku,
-  nulová jistota, žádné služby/správce, odmítnutí 12 chybných zadání.
+  nulová jistota, žádné služby/správce, odmítnutí 13 chybných zadání.
 - Prisma validate a aplikace všech 107 existujících migrací na novou
   izolovanou databázi. Balík nepotřebuje novou migraci.
 - Produkční build a TypeScript; Playwright ověření formuláře, mobilního
