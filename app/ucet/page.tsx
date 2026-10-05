@@ -8,7 +8,9 @@ import { PageHeading } from "@/components/PageHeading";
 import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
 import { UserAvatar } from "@/components/UserAvatar";
-import { requireUser } from "@/lib/auth";
+import { requireUser, previewContext } from "@/lib/auth";
+import { getMyOwnerReceiptSettings } from "@/lib/owner-receipt-settings";
+import Link from "next/link";
 import { IllustrationPicker } from "@/components/IllustrationPicker";
 import { suggestedIllustration } from "@/lib/illustration-library";
 
@@ -20,7 +22,11 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const user = await requireUser();
   const query = await searchParams;
   const receiptSettings=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{receiptIssuerName:true,receiptIssuerAddress:true,receiptIssuanceEnabled:true,receiptSignatureData:true}});
-  const canIssueReceipts=user.role!=="TENANT"&&await prisma.unit.count({where:portalEditableUnitWhere(user)})>0;
+  const [ownerReceiptSettings, preview] = await Promise.all([
+    user.role === "TENANT" ? [] : getMyOwnerReceiptSettings(user),
+    previewContext(),
+  ]);
+  const canIssueReceipts=user.role!=="TENANT"&&!preview.requested&&await prisma.unit.count({where:portalEditableUnitWhere(user)})>0;
   const preference = await prisma.taskNotificationPreference.findUnique({ where: { userId: user.id } }) || notificationDefaults;
   const deliveries = user.role === "TENANT" ? await prisma.tenantPortalNotification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, status: true } }) : await prisma.taskNotification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, status: true } });
   const deliveryLabels: Record<string, string> = { PENDING: "Ve frontě", SENDING: "Odesílání", SENT: "Odesláno", RETRY: "Čeká na opakování", SKIPPED: "Neodesláno dle nastavení nebo přístupu", FAILED: "Odeslání selhalo", UNKNOWN: "Odeslání nepotvrzeno" };
@@ -72,6 +78,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
           </form>
         </div>
 
+        {ownerReceiptSettings.length > 0 && <section className="card account-card" id="zastoupeni"><h2>Jednám za pronajímatele</h2><p className="muted-copy">Za každého pronajímatele potvrzujete vlastní oprávnění a podpis zvlášť. Souhlas za jinou osobu udělit nelze.</p><div className="stack-list">{ownerReceiptSettings.map(owner => <div className="inline-edit-card" key={owner.id}><div className="rule-summary"><div><strong>{owner.name}</strong><small>{owner.canManage ? "Údaje pronajímatele a jednající osoby" : "Můj podpis a osobní souhlas"}</small></div><Link className="secondary" href={`/vlastnici/${owner.id}/doklady`}>Otevřít nastavení</Link></div></div>)}</div></section>}
         {canIssueReceipts&&<ReceiptSignatureSettings name={receiptSettings.receiptIssuerName||user.name} address={receiptSettings.receiptIssuerAddress||""} enabled={receiptSettings.receiptIssuanceEnabled} hasSignature={Boolean(receiptSettings.receiptSignatureData)}/>}
         <ProfiAppearanceSettings graphics={user.profiGraphics}/>
         <div className="card account-card">

@@ -2,6 +2,7 @@ import { accessibleProperties } from "@/lib/access";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
 import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { cleanDocumentCatalogParams } from "@/lib/documents/catalog";
+import {Flash} from "@/components/FormUi";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { DocumentCategory, Prisma } from "@prisma/client";
@@ -18,7 +19,7 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { loadEntityPhotos } from "@/lib/entity-photos";
 
 export const dynamic = "force-dynamic";
-type Query = { properties?: string; propertyId?: string; q?: string; property?: string; category?: string; type?: string; dateFrom?: string; dateTo?: string; page?: string };
+type Query = { properties?: string; propertyId?: string; q?: string; property?: string; category?: string; type?: string; dateFrom?: string; dateTo?: string; page?: string; ok?: string; error?: string };
 const validDate = (value?: string): value is BusinessDateKey => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00Z`)));
 
 export default async function DocumentsPage({ searchParams }: { searchParams: Promise<Query> }) {
@@ -45,7 +46,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
     ...(dateFrom || dateTo ? { documentDate: { ...(dateFrom ? { gte: dateFrom } : {}), ...(dateTo ? { lte: dateTo } : {}) } } : {}),
     ...(q.q ? { OR: [{ title: { contains: q.q, mode: "insensitive" } }, { description: { contains: q.q, mode: "insensitive" } }, { fileAsset: { originalName: { contains: q.q, mode: "insensitive" } } }] } : {}),
   };
-  const include = { fileAsset: true, property: { select: { name: true } }, unit: { select: { label: true } }, lease: { select: { contractNumber: true } }, task: { select: { title: true } }, complianceRecord: { select: { id: true, complianceItem: { select: { name: true } } } }, propertyCost: { select: { title: true } } } as const;
+  const include = { fileAsset: true, property: { select: { name: true } }, unit: { select: { label: true } }, lease: { select: { contractNumber: true, unitId: true, unit: {select: {propertyId: true}} } }, task: { select: { title: true } }, complianceRecord: { select: { id: true, complianceItem: { select: { name: true } } } }, propertyCost: { select: { title: true } } } as const;
   const [documents, total, properties] = await Promise.all([
     prisma.document.findMany({ where: filters, orderBy: { createdAt: "desc" }, skip: (page - 1) * 50, take: 50, include }),
     prisma.document.count({ where: filters }),
@@ -58,15 +59,15 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
 
   if(basic) return <Shell user={user} displayReturnTo={displayReturnTo}><div className="page basic-section-page"><BasicSectionHero eyebrow="Vaše soubory" title="Dokumenty" description="Smlouvy, protokoly a další dostupné soubory podle nemovitosti." berry="contracts" message={total?`${total} ${total===1?"dokument":"dokumentů"} odpovídá zvolenému výběru.`:"Zatím tu nejsou žádné dokumenty pro tento výběr."}/>
     <div className="basic-section-stats"><BasicSectionStat label="Nalezené dokumenty" value={String(total)} detail="v aktuálním výběru"/><BasicSectionStat label="Nemovitosti" value={String(properties.length)} detail="v aktuálním výběru" tone="green"/><BasicSectionStat label="Na této stránce" value={String(documents.length)} detail={`strana ${page} z ${pages}`} tone="amber"/></div>
-    {scopePicker}
+    <Flash ok={q.ok} error={q.error}/>{scopePicker}
     <details className="card basic-section-filter" open={filtered}><summary>Hledat a filtrovat</summary><form className="filter-row document-filter-row" method="get" aria-label="Filtry katalogu dokumentů">{scopeInput}<label className="field document-search-field"><span>Hledat</span><input name="q" defaultValue={q.q} placeholder="Název nebo soubor"/></label><label className="field"><span>Nemovitost</span><select name="property" defaultValue={q.property||""}><option value="">Všechny nemovitosti</option>{scopedProperties.map(property=><option key={property.id} value={property.id}>{property.name}</option>)}</select></label><label className="field"><span>Kategorie</span><select name="category" defaultValue={q.category||""}><option value="">Všechny kategorie</option>{Object.values(DocumentCategory).map(category=><option key={category} value={category}>{documentCategories[category]||category}</option>)}</select></label><label className="field"><span>Typ souboru</span><select name="type" defaultValue={q.type||""}><option value="">Všechny typy</option><option value="image">Fotografie</option><option value="application/pdf">PDF</option></select></label><label className="field"><span>Datum od</span><input type="date" name="dateFrom" defaultValue={q.dateFrom}/></label><label className="field"><span>Datum do</span><input type="date" name="dateTo" defaultValue={q.dateTo}/></label><div className="document-filter-actions"><button className="secondary">Filtrovat</button>{filtered&&<Link className="text-button" href={resetHref}>Zrušit filtry</Link>}</div></form></details>
     {!filtered&&properties.length>0&&<><div className="basic-section-heading"><h2>Podle nemovitosti</h2></div><div className="basic-section-property-grid">{properties.map(property=><Link className="basic-section-property" key={property.id} href={`/dokumenty?${cleanDocumentCatalogParams({ ...catalogQuery, property: property.id }, 1)}`}><EntityAvatar photoId={photos?.properties[property.id]} identity={property.id} size="lg"/><div><strong>{property.name}</strong><small>Otevřít dokumenty →</small></div></Link>)}</div></>}
-    <div className="basic-section-heading"><h2>{filtered?"Výsledky hledání":"Nedávné dokumenty"}</h2></div><div className="card"><DocumentAttachments documents={documents} showContext/>{total>50&&<div className="pagination"><Link href={`?${cleanDocumentCatalogParams(catalogQuery,Math.max(1,page-1))}`}>Předchozí</Link><span>{page} / {pages}</span><Link href={`?${cleanDocumentCatalogParams(catalogQuery,Math.min(pages,page+1))}`}>Další</Link></div>}</div>
+    <div className="basic-section-heading"><h2>{filtered?"Výsledky hledání":"Nedávné dokumenty"}</h2></div><div className="card"><DocumentAttachments documents={documents} viewer={user} returnTo={displayReturnTo} showContext/>{total>50&&<div className="pagination"><Link href={`?${cleanDocumentCatalogParams(catalogQuery,Math.max(1,page-1))}`}>Předchozí</Link><span>{page} / {pages}</span><Link href={`?${cleanDocumentCatalogParams(catalogQuery,Math.min(pages,page+1))}`}>Další</Link></div>}</div>
   </div></Shell>;
 
   return <Shell user={user} displayReturnTo={displayReturnTo}><div className="page">
     <div className="page-title"><div><PageHeading>Dokumenty</PageHeading><p>Soukromý katalog smluv, protokolů, fotografií a příloh, ke kterým máte přístup.</p></div></div>
-    {scopePicker}
+    <Flash ok={q.ok} error={q.error}/>{scopePicker}
     <form className="card filter-row document-filter-row" method="get" aria-label="Filtry katalogu dokumentů">{scopeInput}
       <label className="field document-search-field"><span>Hledat</span><input name="q" defaultValue={q.q} placeholder="Název nebo soubor"/></label>
       <label className="field"><span>Nemovitost</span><select name="property" defaultValue={q.property || ""}><option value="">Všechny nemovitosti</option>{scopedProperties.map((property) => <option key={property.id} value={property.id}>{property.name}</option>)}</select></label>
@@ -76,6 +77,6 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
       <label className="field"><span>Datum dokumentu do</span><input type="date" name="dateTo" defaultValue={q.dateTo}/></label>
       <div className="document-filter-actions"><button className="secondary">Filtrovat</button>{filtered && <Link className="text-button" href={resetHref}>Zrušit filtry</Link>}</div>
     </form>
-    <div className="card"><div className="card-head"><h2>Nalezené dokumenty</h2><span>{total}</span></div><DocumentAttachments documents={documents} showContext/>{total > 50 && <div className="pagination"><Link href={`?${cleanDocumentCatalogParams(catalogQuery, Math.max(1, page - 1))}`}>Předchozí</Link><span>{page} / {pages}</span><Link href={`?${cleanDocumentCatalogParams(catalogQuery, Math.min(pages, page + 1))}`}>Další</Link></div>}</div>
+    <div className="card"><div className="card-head"><h2>Nalezené dokumenty</h2><span>{total}</span></div><DocumentAttachments documents={documents} viewer={user} returnTo={displayReturnTo} showContext/>{total > 50 && <div className="pagination"><Link href={`?${cleanDocumentCatalogParams(catalogQuery, Math.max(1, page - 1))}`}>Předchozí</Link><span>{page} / {pages}</span><Link href={`?${cleanDocumentCatalogParams(catalogQuery, Math.min(pages, page + 1))}`}>Další</Link></div>}</div>
   </div></Shell>;
 }

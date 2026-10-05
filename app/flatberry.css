@@ -89,6 +89,7 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 /* Generic artwork occupies about 57% of the tile; photos retain the full tile. */
 .flatberry-shell .entity-avatar>.entity-avatar-glyph{width:68%;height:68%;flex:none;stroke-width:1.5}
 .entity-avatar>img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.entity-avatar>.entity-avatar-photo-glyph{display:none}
 .flatberry-shell .property-cell{display:flex;align-items:center;gap:13px;min-width:250px}
 .flatberry-shell .property-cell>div{min-width:0}
 .flatberry-shell .property-cell strong{font-size:14px;font-weight:500;color:#294769;white-space:normal;overflow-wrap:anywhere}
