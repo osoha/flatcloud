@@ -21,7 +21,7 @@ export async function LeaseReceiptDocuments({ user, leaseId, returnTo }: { user:
 
     <details className="create-panel" open={needsSetup}>
       <summary>Kdo vystavuje doklady</summary>
-      <p className={styles.note}>Smluvního pronajímatele potvrďte jednou od počátku nájmu. Platí bez koncového měsíce; další období založte pouze při prodeji nebo změně pronajímatele. Již vystavené doklady se nepřepisují.</p>
+      <p className={styles.note}>U nových smluv se pronajímatel a jeho účet přebírají při založení z vybraného vlastníka jednotky. Platí bez koncového měsíce. U starší smlouvy bez této vazby jej potvrďte jednou; další období založte jen při změně pronajímatele.</p>
       <div className={styles.periods}>
         {periodStatuses.map(({ period, status }) => <div className={styles.period} key={period.id}>
           <div className={styles.header}><div><strong>{period.owner.name}</strong><span className={styles.meta}>{periodLabel(period.fromPeriod)} – {period.toPeriod ? periodLabel(period.toPeriod) : "bez konce"}</span>{period.active && <span className={styles.meta}>Podepisuje: {status.signerName || "zatím neurčeno"}</span>}</div><span className={`status ${!period.active ? "neutral" : status.ready ? "ok" : "warn"}`}>{!period.active ? "Neaktivní období" : status.ready ? "Připraveno" : "Vyžaduje doplnění"}</span></div>

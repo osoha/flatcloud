@@ -23,10 +23,16 @@ function percentToBps(value: string | null) {
 
 export async function createLeaseFromForm(tx: Tx, propertyId: string, form: FormData, tenantId?: string, createdById?: string, partySelections: LeasePartySelections = {}) {
   const unitId = text(form, "unitId", true)!;
-  const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { property: {select:{tenantPortalInvitationMode:true}}, ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
+  const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { property: {select:{tenantPortalInvitationMode:true}}, ownerships: { include: { owner: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
   if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
-  const ownerBankAccountId = unit.ownerships[0]?.ownerBankAccountId;
-  if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
+  const selectedOwnerId = text(form, "landlordOwnerId");
+  const eligibleOwnerships = unit.ownerships.filter(row => row.owner.active);
+  const ownership = eligibleOwnerships.length === 1 ? eligibleOwnerships[0] : eligibleOwnerships.find(row => row.ownerId === selectedOwnerId);
+  if (!ownership || eligibleOwnerships.length > 1 && !selectedOwnerId) throw new Error("Vyberte smluvního pronajímatele z vlastníků jednotky.");
+  if (selectedOwnerId && ownership.ownerId !== selectedOwnerId || !ownership.owner.active) throw new Error("Smluvní pronajímatel neodpovídá aktivnímu vlastníkovi jednotky.");
+  const ownerBankAccountId = ownership.ownerBankAccountId;
+  if (!ownerBankAccountId || !ownership.ownerBankAccount?.active || ownership.ownerBankAccount.ownerId !== ownership.ownerId) throw new Error("U vybraného pronajímatele nejprve nastavte jeho aktivní účet pro úhrady jednotky.");
+  if (!createdById) throw new Error("Vystavitele nové smlouvy musí potvrdit přihlášený uživatel.");
 
   const startDate = dateValue(form, "startDate", true)!;
   const termType = text(form, "termType") || "INDEFINITE";
@@ -68,6 +74,8 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
 
   const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
   const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, autoPortalInvitationPending:unit.property.tenantPortalInvitationMode==="AUTOMATIC", ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...serviceItems.map((item, index) => ({ ...item, validFrom: startDate, sortOrder: 20 + index }))] } } });
+  const landlordPeriod = await tx.leaseLandlordPeriod.create({ data: { leaseId: lease.id, ownerId: ownership.ownerId, fromPeriod: text(form, "startDate", true)!.slice(0, 7), confirmedById: createdById } });
+  await tx.auditLog.create({ data: { userId: createdById, propertyId, action: "LEASE_LANDLORD_AUTO_ASSIGNED", entityType: "LeaseLandlordPeriod", entityId: landlordPeriod.id, details: { leaseId: lease.id, ownerId: ownership.ownerId, unitOwnershipId: ownership.id, ownerBankAccountId, fromPeriod: landlordPeriod.fromPeriod, source: "NEW_LEASE_UNIT_OWNER" } } });
   await createLeaseOccupants(tx, lease.id, tenant.id, form, createdById);
   const parties = await syncLeaseParties(tx, lease.id, tenant.id, partySelections);
   for (const linkedTenantId of Array.from(new Set(Object.values(parties).flat()))) {
@@ -79,5 +87,5 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   const openingDeposit = await createOpeningDepositBalance(tx, { leaseId: lease.id, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, heldCents: onboarding.openingDepositHeldCents, createdById });
   await syncUnitOccupancyCache(tx, unitId);
   if (autoChargesEnabled) await syncLeaseCharges(tx, lease.id, { force: true, fromPeriod: onboarding.financialTrackingFromPeriod });
-  return { tenant, lease, contractingPartyIds, parties, unitId, ownerBankAccountId, derivedStatus, autoChargesEnabled, indexationEnabled, termType, tenantBankAccount, ...onboarding, ...opening, ...openingDeposit };
+  return { tenant, lease, contractingPartyIds, parties, unitId, ownerId: ownership.ownerId, ownerBankAccountId, derivedStatus, autoChargesEnabled, indexationEnabled, termType, tenantBankAccount, ...onboarding, ...opening, ...openingDeposit };
 }
