@@ -22,6 +22,7 @@ import { currentPeriod, periodLabel } from "@/lib/period";
 import { MethodologyCallout } from "@/components/MethodologyCallout";
 import { contractingPartyNames } from "@/lib/lease-parties";
 import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
+import {isLeaseContractTestRecord, leaseContractPilotEnabled} from "@/lib/lease-contract/pilot";
 
 export const dynamic = "force-dynamic";
 const depositStatuses = { NOT_CONFIGURED: "Neevidováno", UNPAID: "Nesloženo", PARTIAL: "Částečně složeno", FUNDED: "Složeno", TO_SETTLE: "K vypořádání", SETTLED: "Vypořádáno" };
@@ -71,6 +72,7 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/nemovitosti/${lease.unit.propertyId}/prehled`}>{lease.unit.property.name}</Link><span>›</span><Link href={`/nemovitosti/${lease.unit.propertyId}/jednotky/${lease.unitId}`}>{lease.unit.label}</Link><span>›</span><span>{lease.contractNumber || "Smlouva"}</span></div>
     <div className="page-title lease-title"><div><PageHeading>{lease.contractNumber || "Smlouva"}</PageHeading><p>{partyNames.join(" + ")} · {lease.unit.property.name} · {lease.unit.label}</p></div><div className="lease-action-bar"><Link className="secondary" href={`/nemovitosti/${lease.unit.propertyId}/predpisy/${lease.id}`}>Předpisy</Link><Link className="secondary" href={`/ukoly/novy?propertyId=${lease.unit.propertyId}&leaseId=${lease.id}`}>Nový úkol</Link>{canEdit&&<Link className="primary" href={`/nemovitosti/${lease.unit.propertyId}/smlouvy/${lease.id}/upravit`}>Upravit smlouvu</Link>}{canEdit&&lifecycleState!=="ENDED"&&!lease.terminatedOn&&!lease.cancelledAt&&<Link className="secondary lifecycle-link" href={`/smlouvy/${lease.id}/ukoncit`}>Ukončit vztah</Link>}</div></div>
     <Flash ok={query.ok} error={query.error}/>
+    {canEdit&&leaseContractPilotEnabled()&&isLeaseContractTestRecord(lease)&&<div className="card"><h2>Náhled nájemní smlouvy</h2><Link className="secondary" href={`/smlouvy/${lease.id}/nahled-smlouvy`}>Připravit náhled nájemní smlouvy</Link></div>}
     <section className="card contract-cockpit" aria-labelledby="contract-finance-title">
       <div className="card-head"><div><span className="eyebrow">Rychlý přehled smlouvy</span><h2 id="contract-finance-title">Finance · {periodLabel(activePeriod)}</h2><p className="muted-copy">Smluvní nastavení a stav aktuálního předpisu bez otevření editace.</p></div><div className="contract-finance-actions">{currentCharge&&<Link className="secondary" href={`/nemovitosti/${lease.unit.propertyId}/predpisy/mesicni/${currentCharge.id}`}>Otevřít aktuální předpis</Link>}{canEdit&&!lease.terminatedOn&&!lease.cancelledAt&&<Link className="primary" href={`/smlouvy/${lease.id}/finance/upravit`}>Změnit nájem / služby</Link>}</div></div>
       <div className="contract-kpi-grid">
