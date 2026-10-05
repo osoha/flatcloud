@@ -154,8 +154,10 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
       </nav>
       <div className="sidebar-footer">
         {mode === "basic" && !preview && <Link className="basic-sidebar-berry" href="/metodika?view=guides"><img src="/guide/welcome.webp" alt=""/><span>Poradím vám <span aria-hidden="true">→</span></span></Link>}
-        {!preview && <DisplayModeSwitch mode={mode} returnTo={scopedDisplayReturnTo}/>}
-        <DisplayPreferences userId={user.id}/>
+        {user.role !== "TENANT" && <div className="display-controls-row">
+          {!preview && <DisplayModeSwitch mode={mode} returnTo={scopedDisplayReturnTo}/>}
+          <DisplayPreferences userId={user.id}/>
+        </div>}
         <div className="user-card">
           <Link className="user-card-profile" href="/ucet" title="Můj účet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small className="user-card-meta">{userRoles[user.role]||user.role}</small></div></Link>
           <form className="logout-form" action="/api/auth/logout" method="post"><button aria-label="Odhlásit" title="Odhlásit"><LogOut size={16}/></button></form>
@@ -169,8 +171,8 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
-          {!preview && <DisplayModeSwitch mode={mode} mobile returnTo={scopedDisplayReturnTo}/>}
-          <DisplayPreferences userId={user.id} mobile/>
+          {user.role !== "TENANT" && !preview && <DisplayModeSwitch mode={mode} mobile returnTo={scopedDisplayReturnTo}/>}
+          {user.role !== "TENANT" && <DisplayPreferences userId={user.id} mobile/>}
           {mode === "pro" && !preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {mode === "pro" && !preview && canAddTask && <Link data-guide="add-task" className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
           {mode === "pro" && !preview && canAddProperty && <Link data-guide="add-property" className="primary top-action" href="/nemovitosti/nova"><Plus size={15}/><span>Přidat nemovitost</span></Link>}
