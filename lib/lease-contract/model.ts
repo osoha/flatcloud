@@ -36,6 +36,9 @@ export type ContractFacts = {
 };
 export function contractFactErrors(f: ContractFacts): string[] {
   const errors: string[] = [];
+  for(const [label,value] of [["Jméno nájemce",f.tenantName],["Označení bytu",f.unitLabel],["Adresa bytu",f.unitAddress],["Variabilní symbol",f.variableSymbol]] as const) {
+    if(!value.trim() || /[\[\]\u0000-\u001f]/.test(value)) errors.push(`${label} v evidenci chybí nebo obsahuje nevyplněné pole.`);
+  }
   if(f.tenantType !== "PERSON" || f.unitType !== "APARTMENT" || f.contractingParties !== 1) errors.push("Pilot vyžaduje jednoho nájemce fyzickou osobu a byt.");
   if(!f.endDate || f.endDate <= f.startDate) errors.push("Pilot vyžaduje dobu určitou se začátkem před koncem.");
   if(f.endDate) {

@@ -45,3 +45,11 @@ Oba dokumenty byly načteny a materializovány v aktuální verzi **2**. Vzor m�
 Po zeleném CI a schváleném sandboxovém release: přihlášený oprávněný správce → označená testovací smlouva → **Připravit náhled nájemní smlouvy** → doplnit doložené údaje → **Vytvořit náhled kompletní smlouvy PDF**. Při chybějícím údaji či nepodporované variantě formulář popíše překážku. Skutečné záznamy a produkční služba zůstávají mimo pilot.
 
 K označení celého pilotu za dokončený stále chybí přihlášená živá kontrola této cesty a výsledného sandboxového dokumentu na existujícím TEST záznamu. Přístup se nesmí nahrazovat novou autentizační zkratkou ani čtením secrets.
+
+## Navazující kontrola nevyplněných evidovaných polí
+
+PR #255 implementuje přesně tento úzký preview pilot a je sloučen jako `fb213b2b2c39f6ba7d2f3c2b713c38877cb6c1a5`. Finální head `4715e5672d47dcacc78cfdd399e5b05c7fe5fed1` má všechny tři CI workflow SUCCESS. Render sandbox deploy `dep-db1p005g1s2s739td4k0` je LIVE od 5. 10. 2026 11:58:33 UTC (13:58 Praha) a odpovídá přesně merge SHA.
+
+PR #254 byl po porovnání se skutečně sloučeným #255 zúžen na validační doplnění: prázdné jméno nájemce, označení/adresa bytu nebo variabilní symbol a evidované placeholdery nyní blokují náhled. Nezavádí druhý generátor ani jiný font; zachovává celý #255 včetně vloženého Geist TTF. Tři nové negativní kontroly ověřují prázdný VS, placeholder jména a prázdnou adresu. Žádný zápis do evidence ani schema/migrace.
+
+Finální CI a sandboxový release tohoto doplnění se dokládají v popisu PR. Přihlášený živý průchod stále není doložen a celý uživatelský pilot zůstává BLOCKED. Dostupná browser relace při obnovené kontrole zobrazovala `/login`.
