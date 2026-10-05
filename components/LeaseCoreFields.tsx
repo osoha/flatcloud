@@ -54,7 +54,7 @@ export function LeaseCoreFields({ tenantCreators = {}, currentUserId, unitOption
   const initialUnit = defaultUnitId || unitOptions[0]?.[0] || "";
   const initialTenant = defaultTenantId || "";
   const [unitId, setUnitId] = useState(initialUnit);
-  const [landlordOwnerId, setLandlordOwnerId] = useState(landlordChoicesByUnit?.[initialUnit]?.length === 1 ? landlordChoicesByUnit[initialUnit][0].id : "");
+  const [landlordOwnerId, setLandlordOwnerId] = useState(landlordChoicesByUnit?.[initialUnit]?.length === 1 ? landlordChoicesByUnit?.[initialUnit]?.[0]?.id || "" : "");
   const [tenantId, setTenantId] = useState(initialTenant);
   const [additionalPartyIds, setAdditionalPartyIds] = useState(() => new Set(defaultContractingPartyIds.filter((id) => id !== initialTenant)));
   const [termType, setTermType] = useState(defaultEndDate ? "FIXED" : "INDEFINITE");
@@ -118,7 +118,7 @@ export function LeaseCoreFields({ tenantCreators = {}, currentUserId, unitOption
     const priorProposal = proposals[unitId] || "";
     const priorContractProposal = contractNumberProposals[unitId] || "";
     setUnitId(next);
-    setLandlordOwnerId(landlordChoicesByUnit?.[next]?.length === 1 ? landlordChoicesByUnit[next][0].id : "");
+    setLandlordOwnerId(landlordChoicesByUnit?.[next]?.length === 1 ? landlordChoicesByUnit?.[next]?.[0]?.id || "" : "");
     if (!variableSymbol || variableSymbol === priorProposal) setVariableSymbol(proposals[next] || "");
     if (!contractNumber || contractNumber === priorContractProposal) setContractNumber(contractNumberProposals[next] || "");
   }
