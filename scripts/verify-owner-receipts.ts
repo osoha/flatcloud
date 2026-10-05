@@ -78,7 +78,9 @@ async function main() {
     await check("individual owner uses own account signature without representative selection", async () => {
       const individual = await prisma.owner.create({ data: { name: `${tag}_PERSON`, type: "PERSON", userId: signer.id, address: "Testovací 12, Praha" } });
       owners.push(individual);
-      const personalLease = await prisma.lease.create({ data: { unitId: units[0].id, tenantId: tenant.id, startDate: new Date("2025-01-01T12:00:00Z"), endDate: new Date("2025-02-01T12:00:00Z"), financialTrackingFromPeriod: "2025-01", variableSymbol: `${tag}_personal`, rentCents: 100000, servicesCents: 0 } });
+      const personalUnit = await prisma.unit.create({ data: { propertyId: properties[0].id, label: "PERSON", ownerships: { create: { ownerId: individual.id, shareBasisPoints: 10000 } } } });
+      units.push(personalUnit);
+      const personalLease = await prisma.lease.create({ data: { unitId: personalUnit.id, tenantId: tenant.id, startDate: new Date("2025-01-01T12:00:00Z"), endDate: new Date("2025-02-01T12:00:00Z"), financialTrackingFromPeriod: "2025-01", variableSymbol: `${tag}_personal`, rentCents: 100000, servicesCents: 0 } });
       leases.push(personalLease);
       await saveOwnerReceiptProfile(admin, individual.id, { revision: "new", issuerName: individual.name, issuerAddress: individual.address!, enabled: true });
       await saveLeaseLandlordPeriod(admin, personalLease.id, { action: "add", ownerId: individual.id, fromPeriod: "2025-01", active: true });
