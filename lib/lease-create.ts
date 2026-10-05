@@ -67,7 +67,23 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: tenant.id, propertyId } }, update: {}, create: { tenantId: tenant.id, propertyId } });
 
   const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
-  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, autoPortalInvitationPending:unit.property.tenantPortalInvitationMode==="AUTOMATIC", ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...serviceItems.map((item, index) => ({ ...item, validFrom: startDate, sortOrder: 20 + index }))] } } });
+  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, autoPortalInvitationPending:unit.property.tenantPortalInvitationMode==="AUTOMATIC", ownerBankAccountId, tenantBankAccount, documentOrigin:
+        text(form, "documentOrigin") === "NEW" ? "NEW" : "EXISTING",
+      contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...serviceItems.map((item, index) => ({ ...item, validFrom: startDate, sortOrder: 20 + index }))] } }  });
+  // The owner was explicitly selected through the unit ownership. Confirm it once at creation.
+  if (
+    createdById &&
+    lease.documentOrigin === "NEW" &&
+    unit.ownerships.length === 1
+  )
+    await tx.leaseLandlordPeriod.create({
+      data: {
+        leaseId: lease.id,
+        ownerId: unit.ownerships[0].ownerId,
+        fromPeriod: startDate.toISOString().slice(0, 7),
+        confirmedById: createdById,
+      },
+   });
   await createLeaseOccupants(tx, lease.id, tenant.id, form, createdById);
   const parties = await syncLeaseParties(tx, lease.id, tenant.id, partySelections);
   for (const linkedTenantId of Array.from(new Set(Object.values(parties).flat()))) {

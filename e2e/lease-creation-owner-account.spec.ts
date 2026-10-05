@@ -117,7 +117,8 @@ test("itemized services and residents create one correct recurring charge and pr
   await page.getByRole("button", { name: "Přidat obyvatele", exact: true }).click();
   await page.locator('input[name="occupantName:1"]').fill("Nový obyvatel QA");
   await page.getByRole("button", { name: "Vytvořit smlouvu", exact: true }).click();
-  await expect(page).toHaveURL(/\/predpisy\/.+\?ok=/);
+  await expect(page).toHaveURL(/\/smlouvy\/.+\/pripravit\?ok=/);
+  await expect(page.getByLabel("Jméno / název", {exact:true})).toHaveValue(f.owner.name);
   const lease = await db.lease.findFirstOrThrow({ where: { unitId: f.unit.id }, include: { paymentItems: true, charges: { include: { items: true } }, occupants: true } });
   expect(lease.servicesCents).toBe(250050);
   expect(lease.paymentItems.filter(item => item.category === "SERVICES")).toHaveLength(0);

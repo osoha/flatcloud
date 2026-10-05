@@ -31,7 +31,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     let invitations:Awaited<ReturnType<typeof runAutoTenantPortalInvitations>>|null=null;
     if(result.lease.autoPortalInvitationPending)try{invitations=await runAutoTenantPortalInvitations(result.lease.id);}catch(error){console.error("Tenant portal invitation failed after lease creation",{leaseId:result.lease.id,error});invitations={invited:0,waiting:0,skipped:0,failed:1,summary:"Pozvánku se nepodařilo připravit."};}
     const invitationNote=invitations?.failed?" Pozvánku se nepodařilo odeslat; zkontrolujte kartu nájemníka.":invitations?.invited?" Pozvánka do portálu byla připravena.":invitations?.waiting?" Pozvánka do portálu čeká na začátek smlouvy.":"";
-    return goWithMessage(request, `/nemovitosti/${id}/predpisy/${result.lease.id}`, "ok", (result.autoChargesEnabled ? "Smlouva i automatické předpisy byly vytvořeny." : "Smlouva byla vytvořena bez automatických předpisů.")+invitationNote);
+    return goWithMessage(request, result.lease.documentOrigin === "NEW"
+        ? `/smlouvy/${result.lease.id}/pripravit`
+        : `/smlouvy/${result.lease.id}#dokumenty`, "ok", (result.autoChargesEnabled ? "Smlouva i automatické předpisy byly vytvořeny." : "Smlouva byla vytvořena bez automatických předpisů.")+invitationNote);
   } catch (error) {
     return goWithMessage(request, `/nemovitosti/${id}/smlouvy/nova`, "error", error instanceof Error ? error.message : "Smlouvu se nepodařilo vytvořit.");
   }

@@ -8,6 +8,7 @@ import { Field, Flash, FormPage, Textarea } from "@/components/FormUi";
 import { RecoverableMutationForm } from "@/components/RecoverableMutationForm";
 import { LeaseOccupantFields } from "@/components/LeaseOccupantFields";
 import { LeaseServiceFields } from "@/components/LeaseServiceFields";
+import {LeaseDocumentChoice} from "@/components/LeaseDocumentChoice";
 import { LeaseCoreFields } from "@/components/LeaseCoreFields";
 import { dateInput } from "@/lib/forms";
 import { proposedLeaseIdentity } from "@/lib/variable-symbol";
@@ -40,6 +41,7 @@ export default async function NewLease({ params, searchParams }: { params: Promi
     <Flash ok={query.ok} error={query.error}/>
     <MethodologyCallout slug="najemni-smlouva"/>
     {availableUnits.length && tenants.length ? <RecoverableMutationForm action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu" draftKey={`new-lease:${id}`}>
+      <LeaseDocumentChoice/>
       <LeaseCoreFields tenantCreators={Object.fromEntries(tenants.map(tenant => [tenant.id, tenant.createdById]))} currentUserId={user.id} propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, `${tenant.name} · ${tenant.communicationEmail || tenant.email || tenant.phone || (tenant.type === "COMPANY" ? "firma" : "osoba")}`])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownersByUnit={ownersByUnit} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
       <LeaseServiceFields/>

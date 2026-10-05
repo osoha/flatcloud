@@ -509,6 +509,7 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  contractSignature ContractSignatureProfile?
   receiptSignatureData Bytes?
   receiptIssuerName String?
   receiptIssuerAddress String?
@@ -632,6 +633,8 @@ model PasswordResetToken {
 }
 
 model Owner {
+  dateOfBirth DateTime? @db.Date
+  legalRegistry String?
   id                                 String                      @id @default(cuid())
   userId                             String?                     @unique
   user                               User?                       @relation("SelfRegisteredOwner", fields: [userId], references: [id], onDelete: SetNull)
@@ -1633,6 +1636,8 @@ model TenantProperty {
 }
 
 model Lease {
+  documentOrigin String?
+  actionPackets LeaseActionPacket[]
   accountBankRules AccountBankRule[]
   id                          String                      @id @default(cuid())
   unitId                      String
@@ -2761,6 +2766,7 @@ model FileAsset {
 }
 
 model Document {
+  actionPackets LeaseActionPacket[]
   meterReadingEvidence MeterReading[]     @relation("ReadingEvidence")
   settlementSources    SettlementSource[]
 
@@ -3239,4 +3245,60 @@ model LeaseLandlordPeriod {
   updatedAt DateTime @updatedAt
   @@index([leaseId, active, fromPeriod])
   @@index([ownerId])
+}
+
+
+/// Personal image only. Each use requires a separate explicit action.
+model ContractSignatureProfile {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  encryptedImage String
+  imageHash String
+  revision Int @default(1)
+  updatedAt DateTime @updatedAt
+}
+
+/// Frozen document/message version, separate from delivery and legal consent.
+model LeaseActionPacket {
+  id String @id @default(cuid())
+  leaseId String
+  lease Lease @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  documentId String?
+  document Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  kind String
+  title String
+  body String
+  contentHash String
+  sourceFileHash String?
+  createdById String
+  createdByName String
+  dueAt DateTime?
+  createdAt DateTime @default(now())
+  cancelledAt DateTime?
+  recipients LeaseActionRecipient[]
+  @@index([leaseId, createdAt])
+  @@index([dueAt, cancelledAt])
+}
+
+/// Tenant ID determines the invited portal identity; user ID determines a named staff signer.
+model LeaseActionRecipient {
+  id String @id @default(cuid())
+  packetId String
+  packet LeaseActionPacket @relation(fields: [packetId], references: [id], onDelete: Restrict)
+  participantKey String
+  tenantId String?
+  staffUserId String?
+  expectedName String
+  signerAuthority String?
+  openedAt DateTime?
+  completedAt DateTime?
+  completedById String?
+  completedByName String?
+  completedByEmail String?
+  signatureEncrypted String?
+  signatureHash String?
+  evidenceHash String?
+  @@unique([packetId, participantKey])
+  @@index([tenantId, completedAt])
+  @@index([staffUserId, completedAt])
 }

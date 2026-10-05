@@ -401,3 +401,77 @@
 @media(max-width:480px){
 .tenant-portal-v2 .tp-dialog[id^="kontaktni-udaje-"] .tp-form-row{grid-template-columns:1fr}
 }
+
+/* Same account-card pattern as the staff app, scoped to the tenant portal. */
+.tenant-portal-v2 .tp-user-panel {
+  margin-top: auto;
+  border-top: 1px solid var(--tp-line);
+  padding-top: 14px;
+}
+.tenant-portal-v2 .tp-nav .tp-user-profile {
+  white-space: normal;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  min-width: 0;
+}
+.tenant-portal-v2 .tp-user-profile span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tenant-portal-v2 .tp-user-profile strong {
+  display: block;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.tenant-portal-v2 .tp-user-profile small {
+  display: block;
+  font-size: 11px;
+  color: var(--tp-muted);
+}
+.tenant-portal-v2 .tp-account-main .page {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+}
+.tenant-portal-v2 .tp-account-main h1 {
+  margin: 8px 0;
+  font-size: 28px;
+}
+.tenant-portal-v2 .tp-account-main .card {
+  margin: 18px 0;
+  padding: 24px;
+  border: 1px solid var(--tp-line);
+  background: white;
+  border-radius: var(--tp-radius);
+}
+.tenant-portal-v2 .tp-account-main :is(h2, h3, p) {
+  margin-bottom: 12px;
+}
+.tenant-portal-v2 .tp-account-main :is(.edit-form, .account-form) {
+  gap: 16px;
+}
+.tenant-portal-v2 .tp-account-main .checkbox-field {
+  align-items: start;
+  white-space: normal;
+}
+@media (max-width: 800px) {
+  .tenant-portal-v2 .tp-user-panel {
+    margin-top: 0;
+    padding: 0;
+    border: 0;
+    display: flex;
+  }
+  .tenant-portal-v2 .tp-user-profile {
+    display: none !important;
+  }
+  .tenant-portal-v2 .tp-account-main .card {
+    padding: 18px;
+  }
+  .tenant-portal-v2 .tp-nav a:has(svg) {
+    font-size: 12px;
+  }
+  .tenant-portal-v2 .tp-account-main .account-form {
+    grid-template-columns: 1fr;
+  }
+}

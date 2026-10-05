@@ -1,6 +1,6 @@
 import { OwnerType } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { boolValue, text } from "@/lib/forms";
+import { boolValue, dateValue, text } from "@/lib/forms";
 import { requirePortfolioManager, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { safeOwnerAffiliation } from "@/lib/ownership-scope";
@@ -18,6 +18,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         type: (text(form, "type") || "COMPANY") as OwnerType,
         affiliation: safeOwnerAffiliation(text(form, "affiliation")),
         ico: text(form, "ico"),
+        dateOfBirth: dateValue(form, "dateOfBirth"),
+        legalRegistry: text(form, "legalRegistry"),
         email: text(form, "email"),
         phone: text(form, "phone"),
         address: text(form, "address"),

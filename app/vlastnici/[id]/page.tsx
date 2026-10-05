@@ -1,3 +1,4 @@
+import {dateInput} from "@/lib/forms";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser, canSeeAll } from "@/lib/auth";
@@ -30,6 +31,8 @@ export default async function OwnerEdit({ params, searchParams }: { params: Prom
           <Select label="Vztah ke skupině FlatCloud" name="affiliation" defaultValue={owner.affiliation} options={Object.entries(ownerAffiliationLabels)}/>
           <p className="field-full classification-help">Zařazení vlastníka popisuje právní vztah ke skupině. Samo o sobě nemění přístupy uživatelů ani konsolidaci konkrétní nemovitosti.</p>
           <Field label="IČO" name="ico" defaultValue={owner.ico}/>
+          <Field label="Datum narození (fyzická osoba)" name="dateOfBirth" type="date" defaultValue={dateInput(owner.dateOfBirth)}/>
+          <Field label="Zápis v rejstříku a způsob jednání" name="legalRegistry" defaultValue={owner.legalRegistry} full/>
           <Field label="E-mail" name="email" type="email" defaultValue={owner.email}/>
           <Field label="Telefon" name="phone" defaultValue={owner.phone}/>
           <Field label="Adresa" name="address" defaultValue={owner.address} full/>

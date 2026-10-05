@@ -22,7 +22,7 @@ async function cleanup(f:Fixture){const docs=await db.document.findMany({where:{
 const payload=(mode:string,input:unknown=leaseContractFixture)=>({mode,input,version:CONTRACT_TEMPLATE_VERSION});
 test("preview validates mutations without changing a lease and rejects read-only or anonymous generation",async({page,browser},info)=>{test.setTimeout(90000);const f=await fixture();try{
   const anonymous=await browser.newContext();expect((await anonymous.request.post(f.api,{data:payload("preview")})).status()).toBe(403);await anonymous.close();
-  await login(page,f.admin.email);await page.goto(f.url);await expect(page.getByRole("heading",{name:"Připravit nájemní smlouvu",exact:true})).toBeVisible();await expect(page.getByLabel("Jméno / název",{exact:true})).toHaveValue("");
+  await login(page,f.admin.email);await page.goto(f.url);await expect(page.getByRole("heading",{name:"Připravit nájemní smlouvu",exact:true})).toBeVisible();await expect(page.getByLabel("Jméno / název",{exact:true})).toHaveValue(f.owner.name);
   const valid=await page.request.post(f.api,{headers:await sessionHeaders(page),data:payload("preview")});expect(valid.status()).toBe(200);const c=(await valid.json()).contract;expect(c.sections).toHaveLength(10);expect(c.signatures).toHaveLength(2);
   expect(await db.document.count({where:{leaseId:f.lease.id}})).toBe(0);expect((await db.lease.findUniqueOrThrow({where:{id:f.lease.id}})).rentCents).toBe(f.lease.rentCents);
   expect((await page.request.post(f.api,{headers:await sessionHeaders(page),data:payload("save",{...leaseContractFixture,depositCents:4500001})})).status()).toBe(422);

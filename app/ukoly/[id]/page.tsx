@@ -83,7 +83,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
       <div className="basic-case-summary-heading"><h2>Stav případu</h2><span>Podrobnosti a zadání</span>{task.status==="DONE"&&<CheckCircle2 size={17} className="positive"/>}</div>
       <div className="basic-case-summary-grid">
         {task.category==="COLLECTION"&&<div><span>Nájemník / jednotka</span><strong>{task.tenant?.name||"Bez vazby"}{task.unit?` · ${task.unit.label}`:""}</strong></div>}
-        {task.lease&&<div><span>Smlouva / VS</span><strong>{task.lease.contractNumber||"Bez čísla"} · VS {task.lease.variableSymbol}</strong></div>}
+        {task.lease&&<div><span>Smlouva / VS</span><strong>{task.lease.contractNumber||"Bez čísla"} · VS {task.lease.variableSymbol}</strong><Link href={`/smlouvy/${task.leaseId}/potvrzeni`}>Podpisy, potvrzení a předání bytu</Link></div>}
         <div><span>Kategorie / priorita</span><strong>{taskCategories[task.category]} · {taskPriorities[task.priority]}</strong></div>
         <div><span>Poslední aktivita</span><strong>{lastActivity.toLocaleString("cs-CZ",{dateStyle:"short",timeStyle:"short",timeZone:"Europe/Prague"})}</strong></div>
         {composerMode.showKinds&&task.category==="COLLECTION"&&promiseDate&&<div><span>Příslib úhrady</span><strong>{date(promiseDate)}{promiseAmount?` · ${money(promiseAmount)}`:""}</strong></div>}
@@ -113,7 +113,7 @@ export default async function TaskDetail({params,searchParams}:{params:Promise<{
           <div><span>Stav</span><strong>{statusLabel}</strong></div>
           {task.category==="COLLECTION"&&<div><span>Aktuální dluh po splatnosti</span><strong className={debt?"negative":"positive"}>{money(debt)}</strong></div>}
           {task.category==="COLLECTION"&&<div><span>Nájemník / jednotka</span><strong>{task.tenant?.name||"Bez vazby"}{task.unit?` · ${task.unit.label}`:""}</strong></div>}
-          {task.lease&&<div><span>Smlouva / VS</span><strong>{task.lease.contractNumber||"Bez čísla"} · VS {task.lease.variableSymbol}</strong></div>}
+          {task.lease&&<div><span>Smlouva / VS</span><strong>{task.lease.contractNumber||"Bez čísla"} · VS {task.lease.variableSymbol}</strong><Link href={`/smlouvy/${task.leaseId}/potvrzeni`}>Podpisy, potvrzení a předání bytu</Link></div>}
           {composerMode.showKinds&&task.category==="COLLECTION"&&promiseDate&&<div><span>Příslib úhrady</span><strong>{date(promiseDate)}{promiseAmount?` · ${money(promiseAmount)}`:""}</strong></div>}
           <div><span>Odpovědný</span><strong>{task.assignee?.name||"Nepřiřazen"}</strong></div>
           <div><span>Termín</span><strong>{task.dueAt?date(task.dueAt):"Bez termínu"}</strong></div>
