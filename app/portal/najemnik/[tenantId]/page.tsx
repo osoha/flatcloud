@@ -14,11 +14,13 @@ import {PortalConversations} from "@/components/tenant-portal/PortalConversation
 import {PortalContactChange} from "@/components/tenant-portal/PortalContactChange";
 import {PortalPanel} from "@/components/tenant-portal/PortalPanel";
 import {PortalCopy} from "@/components/tenant-portal/PortalCopy";
+import {PortalReceiptPicker} from "@/components/tenant-portal/PortalReceiptPicker";
 import {PortalPaymentHistory, type PortalPaymentRow} from "@/components/tenant-portal/PortalPaymentHistory";
 import {greeting} from "@/lib/greeting";
 import {periodLabel, currentPeriod} from "@/lib/period";
 import {isPastDue, outstandingCents} from "@/lib/charges";
-import {receiptEligible, receiptIssuerForLease} from "@/lib/tenant-payment-receipts";
+import {tenantPortalPaymentState} from "@/lib/tenant-portal-payment-state";
+import {receiptEligible, receiptIssuerStatusForLease} from "@/lib/tenant-payment-receipts";
 import {actualUser} from "@/lib/auth";
 import {prisma} from "@/lib/db";
 import {leaseStatusAt} from "@/lib/lease-lifecycle-core";
@@ -27,6 +29,7 @@ import {defaultPropertyIllustration} from "@/lib/illustration-library";
 import {domesticAccountLabel, formatIban} from "@/lib/owner-bank-account";
 import {businessTodayKey, businessDateKey} from "@/lib/calendar";
 import {hasTenantPortalAccess, manageableTenantLeaseIds} from "@/lib/tenant-portal-access";
+import {tenantSharedDocumentWhere} from "@/lib/documents/tenant-visibility";
 import {documentCategories, meterTypes, taskStatuses, unitDispositions, unitTypes} from "@/lib/labels";
 import {currentReadings} from "@/lib/meter-reading-rules";
 import {portalContactUserSelect, portalContactOwnerSelect, tenantPortalContact} from "@/lib/tenant-portal-contact";
@@ -59,9 +62,7 @@ export default async function TenantPortal({params, searchParams}: {
       charges: {where: {active: true}, include: {
         allocations: {include: {transaction: {select: {bookedAt: true, amountCents: true, currency: true, status: true}}}},
         securityDepositOffsets: true, creditApplications: true,
-        paymentReceipts: {select: {id: true, issuedAt: true}, orderBy: {issuedAt: "desc"}},
       }, orderBy: {dueDate: "asc"}},
-      documents: {where: {tenantVisible: true, deletedAt: null, meterReadingEvidence: {none: {}}}, orderBy: {createdAt: "desc"}},
       parties: {where: {tenantId}, select: {role: true}},
       tasks: {where: {tenantId, tenantPortalRequest: true, OR: [{tenantPortalRequestKind: null}, {tenantPortalRequestKind: "DEFECT"}]}, orderBy: {createdAt: "desc"}, select: {id: true, tenantPortalTitle: true, tenantPortalBody: true, status: true, createdAt: true, tenantEntryConsentAt: true, tenantVisitNote: true}},
     },
@@ -69,7 +70,7 @@ export default async function TenantPortal({params, searchParams}: {
   });
   const today = businessTodayKey();
   const period = currentPeriod();
-  const leases = leaseRows.filter(lease => leaseStatusAt(lease) === "ACTIVE").map(lease => ({
+  const activeLeases = leaseRows.filter(lease => leaseStatusAt(lease) === "ACTIVE").map(lease => ({
     ...lease,
     charges: lease.charges.map(charge => ({
       ...charge,
@@ -79,14 +80,28 @@ export default async function TenantPortal({params, searchParams}: {
     })),
     unit: {...lease.unit, meters: lease.unit.meters.map(meter => ({...meter, readings: currentReadings(meter.readings).sort((a, b) => b.readAt.getTime() - a.readAt.getTime())}))},
   }));
-  const issuers = new Map(await Promise.all(leases.map(async lease => [lease.id, Boolean(await receiptIssuerForLease(lease.id))] as const)));
+  const sharedDocuments = activeLeases.length ? await prisma.document.findMany({
+    where: {AND: [{OR: activeLeases.map(lease => tenantSharedDocumentWhere({id: lease.id, unitId: lease.unitId, propertyId: lease.unit.propertyId}))}, {meterReadingEvidence: {none: {}}}]},
+    orderBy: {createdAt: "desc"},
+  }) : [];
+  const leases = activeLeases.map(lease => ({...lease, documents: sharedDocuments.filter(document => document.leaseId === lease.id)}));
+  // Issued PDFs are immutable history, even if their original charge is later disabled.
+  const archivedReceipts = activeLeases.length ? await prisma.tenantPaymentReceipt.findMany({
+    where: {charge: {leaseId: {in: activeLeases.map(lease => lease.id)}}},
+    select: {id: true, issuedAt: true, snapshot: true, charge: {select: {leaseId: true, period: true, active: true}}},
+    orderBy: {issuedAt: "desc"},
+  }) : [];
+  const receiptStatuses = new Map(await Promise.all(leaseRows
+    .filter(lease => leases.some(activeLease => activeLease.id === lease.id))
+    .flatMap(lease => lease.charges.filter(charge => receiptEligible(charge, lease.currency))
+      .map(async charge => [charge.id, await receiptIssuerStatusForLease(lease.id, charge.period)] as const))));
   const first = leases[0];
   const firstCanAct = Boolean(first && (first.tenantId === tenantId || first.parties.some(party => party.role === "CONTRACTING_PARTY")));
 
   return <div className="tenant-portal-v2">
     <a className="tp-skip" href="#prehled">Přejít na obsah</a>
     <header className="tp-topbar">
-      <Link href={preview ? "/portfolio" : "/portal/najemnik"} className="tp-brand" aria-label="FlatBerry"><span className="tp-brand-mark" aria-hidden="true"><i/><i/></span>Flat<span>Berry</span></Link>
+      <Link href={preview ? "/portfolio" : "/portal/najemnik"} className="tp-brand" aria-label="FlatBerry"><span className="flatberry-brand-bitmap" aria-hidden="true"/></Link>
       <span className="tp-topbar-context">{preview ? <><Info size={15}/> Náhled portálu · pouze pro čtení</> : <><LockKeyhole size={14}/> Váš nájemnický portál</>}</span>
       {preview ? <Link className="tp-back" href={`/najemnici/${tenant.id}`}><ArrowLeft size={16}/> Zpět na nájemníka</Link> : <form action="/api/auth/logout" method="post"><button type="submit" className="tp-text-button">Odhlásit se</button></form>}
     </header>
@@ -108,17 +123,17 @@ export default async function TenantPortal({params, searchParams}: {
           const unpaid = lease.charges.filter(charge => outstandingCents(charge) > 0 && charge.debtTreatment === "CURRENT");
           const charge = unpaid.find(charge => isPastDue(charge.dueDate)) || unpaid.find(charge => charge.period === period) || unpaid[0];
           const futureOnly = Boolean(charge && charge.period > period && businessDateKey(charge.dueDate) > today);
-          const paidRents = leaseRows.find(row => row.id === lease.id)!.charges.filter(charge => receiptEligible(charge, lease.currency));
+          const paidRents = leaseRows.find(row => row.id === lease.id)!.charges.filter(charge => receiptEligible(charge, lease.currency)).sort((a, b) => a.period.localeCompare(b.period));
           const otherReceivables = lease.charges.some(charge => charge.debtTreatment !== "CURRENT" && outstandingCents(charge) > 0);
           const overdueCount = unpaid.filter(charge => isPastDue(charge.dueDate)).length;
           const lastMeter = lease.unit.meters.flatMap(meter => meter.readings[0] ? [meter.readings[0]] : []).sort((a, b) => b.readAt.getTime() - a.readAt.getTime())[0];
           const openRequests = lease.tasks.filter(task => !["DONE", "CANCELLED"].includes(task.status));
           const accountLabel = lease.ownerBankAccount && (domesticAccountLabel(lease.ownerBankAccount.accountNumber, lease.ownerBankAccount.bankCode) || formatIban(lease.ownerBankAccount.iban));
           const recipient = lease.ownerBankAccount?.owner.name;
-          const receipts = lease.charges.flatMap(charge => charge.paymentReceipts.map(receipt => ({...receipt, period: charge.period}))).sort((a, b) => b.issuedAt.getTime() - a.issuedAt.getTime());
-          const contactLabel = contact?.kind === "owner" ? "vlastníkovi" : "správci";
+          const receipts = archivedReceipts.filter(receipt => receipt.charge.leaseId === lease.id).map(receipt => ({...receipt, period: receiptArchivePeriod(receipt.snapshot, receipt.charge.period)}));
+          const contactLabel = contact?.kind === "owner" ? "pronajímateli" : "správci";
           const paymentDetails = charge && <div className="tp-rent-layout">
-            <div className="tp-rent-info"><div className="tp-rent-period"><strong>{rentPeriod(charge.period)}</strong><span className={`tp-status tp-status-${isPastDue(charge.dueDate) ? "overdue" : "scheduled"}`}>{isPastDue(charge.dueDate) ? "Po splatnosti" : futureOnly ? "Příští nájem" : businessDateKey(charge.dueDate) === today ? "Splatnost dnes" : "Před splatností"}</span></div><strong className="tp-rent-amount">{portalMoney(outstandingCents(charge), lease.currency)}</strong><p className="tp-rent-due">K úhradě · splatnost {date(charge.dueDate)}</p>
+            <div className="tp-rent-info"><div className="tp-rent-period"><strong>{rentPeriod(charge.period)}</strong><span className={`tp-status tp-status-${isPastDue(charge.dueDate) ? "overdue" : futureOnly ? "scheduled" : "current"}`}>{isPastDue(charge.dueDate) ? "Po splatnosti" : futureOnly ? "Příští nájem" : businessDateKey(charge.dueDate) === today ? "Splatnost dnes" : "Před splatností"}</span></div><strong className="tp-rent-amount">{portalMoney(outstandingCents(charge), lease.currency)}</strong><p className="tp-rent-due">K úhradě · splatnost {date(charge.dueDate)}</p>
               <dl className="tp-payment-details"><div><dt>Příjemce</dt><dd>{recipient || "Zatím nepotvrzen"}</dd></div><div><dt>Účet</dt><dd>{accountLabel || "Zatím nepotvrzen"}</dd></div><div><dt>Variabilní symbol</dt><dd>{lease.variableSymbol || "Není uveden"}</dd></div></dl>
               {overdueCount > 1 && <a className="tp-text-link" href={`#historie-${lease.id}`}>Další nájmy po splatnosti ({overdueCount - 1}) <ArrowRight size={15}/></a>}
             </div>
@@ -128,14 +143,12 @@ export default async function TenantPortal({params, searchParams}: {
             const bank = charge.allocations.reduce((sum, allocation) => sum + allocation.amountCents, 0);
             const offset = charge.securityDepositOffsets.reduce((sum, entry) => sum + entry.amountCents, 0) + charge.creditApplications.reduce((sum, entry) => sum + entry.amountCents, 0);
             const remaining = outstandingCents(charge);
-            const tone = remaining === 0 ? "paid" as const : isPastDue(charge.dueDate) && charge.debtTreatment === "CURRENT" ? "overdue" as const : "scheduled" as const;
-            const future = charge.period > period && businessDateKey(charge.dueDate) > today;
-            return {id: charge.id, period: rentPeriod(charge.period), amount: portalMoney(charge.amountCents, lease.currency), received: portalMoney(bank, lease.currency), remaining: portalMoney(remaining, lease.currency), tone, future,
-              state: remaining === 0 ? offset > 0 ? "Vypořádáno se zápočtem" : "Uhrazeno" : charge.debtTreatment === "HISTORICAL" ? "Historická pohledávka" : charge.debtTreatment === "EXCLUDED" ? "Mimo aktuální dluh" : tone === "overdue" ? bank > 0 ? "Částečně · po splatnosti" : "Po splatnosti" : bank > 0 ? "Částečně uhrazeno" : future ? "Budoucí nájem" : businessDateKey(charge.dueDate) === today ? "Splatnost dnes" : "Před splatností",
+            const paymentState = tenantPortalPaymentState({...charge, remainingCents: remaining, receivedCents: bank, offsetCents: offset}, today);
+            return {id: charge.id, period: rentPeriod(charge.period), periodKey: charge.period, amount: portalMoney(charge.amountCents, lease.currency), received: portalMoney(bank, lease.currency), remaining: portalMoney(remaining, lease.currency), ...paymentState,
               due: date(charge.dueDate), allocations: charge.allocations.map(allocation => ({id: allocation.id, date: date(allocation.transaction.bookedAt), amount: portalMoney(allocation.amountCents, lease.currency)})), offset: offset > 0 ? portalMoney(offset, lease.currency) : undefined};
           });
           // Current obligations first; older paid periods remain available through expansion.
-          const rows = [...paymentRows.filter(row => row.tone === "overdue"), ...paymentRows.filter(row => row.tone === "scheduled" && !row.future), ...paymentRows.filter(row => row.tone === "paid").reverse(), ...paymentRows.filter(row => row.tone === "scheduled" && row.future)];
+          const rows = [...paymentRows.filter(row => row.tone === "overdue"), ...paymentRows.filter(row => row.tone === "current"), ...paymentRows.filter(row => row.tone === "scheduled").sort((a, b) => a.periodKey.localeCompare(b.periodKey)), ...paymentRows.filter(row => row.tone === "paid").sort((a, b) => b.periodKey.localeCompare(a.periodKey)), ...paymentRows.filter(row => row.tone === "neutral")];
           return <section className="tp-lease" key={lease.id} aria-label={`${lease.unit.property.name} · ${lease.unit.label}`}>
             {leaseIndex > 0 && <h2 className="tp-additional-home"><House size={23}/>{lease.unit.property.name} · {lease.unit.label}<a className="tp-text-link" href={`#domov-${lease.id}`}>Podrobnosti <ArrowRight size={16}/></a></h2>}
             <div className="tp-priority">
@@ -144,11 +157,11 @@ export default async function TenantPortal({params, searchParams}: {
                 {charge && !futureOnly ? paymentDetails : lease.charges.length ? <><div className="tp-paid-message"><CheckCircle2 size={39}/><div><strong>{otherReceivables ? "Aktuální nájem je v pořádku." : "Vše máte uhrazeno."}</strong><p>{otherReceivables ? "Aktuální splatné předpisy jsou vypořádané." : "Splatné nájmy jsou v pořádku."}</p></div></div>{charge ? <details className="tp-next-rent"><summary><CalendarDays size={21}/><span><strong>Další nájem · {rentPeriod(charge.period)}</strong><small>{portalMoney(outstandingCents(charge), lease.currency)} · do {date(charge.dueDate)}</small></span><span className="tp-summary-action">Zobrazit údaje <ChevronRight size={17}/></span></summary>{paymentDetails}</details> : <p className="tp-subtle">Až bude připraven další předpis, najdete platební údaje tady.</p>}</> : <div className="tp-rent-empty"><CalendarDays size={38}/><h3>Váš nájem se připravuje</h3><p>Správce zatím nevystavil první předpis. Platební údaje se zobrazí po jeho doplnění.</p></div>}
               </section>
               <section id={`kontakt-${lease.id}`} className="tp-card tp-contact" aria-labelledby={`kontakt-title-${lease.id}`}>
-                <div className="tp-heading"><span className="tp-icon tp-icon-blue"><Phone size={25}/></span><h2 id={`kontakt-title-${lease.id}`}>{contact?.kind === "owner" ? "Kontakt na vlastníka" : "Váš správce"}</h2></div>
-                {contact ? <><div className="tp-contact-person"><UserAvatar user={contact.user || {name: contact.name}} size="lg" className="tp-contact-avatar" imageUrl={contact.user ? `/api/portal/tenants/${tenantId}/manager-avatar/${contact.user.id}` : undefined}/><div><span className="tp-contact-role">{contact.kind === "owner" ? "Vlastník vašeho bydlení" : "Správa vašeho bydlení"}</span><h3>{contact.name}</h3><p>S čímkoli kolem bydlení se můžete obrátit na mě.</p></div></div>
+                <div className="tp-heading"><span className="tp-icon tp-icon-blue"><Phone size={25}/></span><h2 id={`kontakt-title-${lease.id}`}>{contact?.kind === "owner" ? "Kontakt na pronajímatele" : "Váš správce"}</h2></div>
+                {contact ? <><div className="tp-contact-person"><UserAvatar user={contact.user || {name: contact.name}} size="lg" className="tp-contact-avatar" imageUrl={contact.user ? `/api/portal/tenants/${tenantId}/manager-avatar/${contact.user.id}` : undefined}/><div><span className="tp-contact-role">{contact.kind === "owner" ? "Pronajímatel vašeho bydlení" : "Správa vašeho bydlení"}</span><h3>{contact.name}</h3><p>S čímkoli kolem bydlení se můžete obrátit na mě.</p></div></div>
                   <div className="tp-contact-channels">{contact.phone && <a className="tenant-portal-call" href={`tel:${contact.phone}`}><Phone size={21}/>{phone(contact.phone)}</a>}{contact.email && <a className="tp-contact-email" href={`mailto:${contact.email}`}><Mail size={20}/><span>{contact.email}</span></a>}{!contact.phone && !contact.email && <p className="tp-subtle">Přímé kontaktní údaje zatím nejsou doplněné.</p>}</div>
                   <div className="tp-contact-actions">{contact.phone && <a className={`tp-button ${canAct ? "tp-button-soft" : "tp-button-primary"}`} href={`tel:${contact.phone}`}><Phone size={18}/> Zavolat</a>}{canAct && <a className="tp-button tp-button-primary" href={`#zpravy-spravci-${lease.id}-nove`}><MessageCircle size={19}/> Napsat {contactLabel}<ArrowRight size={17}/></a>}</div>
-                </> : <div className="tp-contact-empty"><UserAvatar user={{name: "Správa domu"}} size="lg" className="tp-contact-avatar"/><h3>Kontakt se připravuje</h3><p>Správce ani vlastník zatím nemá v portálu přiřazený kontakt. Kontaktní údaje najdete také ve své smlouvě.</p>{canAct && <a className="tp-button tp-button-primary" href={`#zpravy-spravci-${lease.id}-nove`}><MessageCircle size={18}/> Napsat správě bydlení</a>}</div>}
+                </> : <div className="tp-contact-empty"><UserAvatar user={{name: "Správa domu"}} size="lg" className="tp-contact-avatar"/><h3>Kontakt se připravuje</h3><p>Správce ani pronajímatel zatím nemá v portálu přiřazený kontakt. Kontaktní údaje najdete také ve své smlouvě.</p>{canAct && <a className="tp-button tp-button-primary" href={`#zpravy-spravci-${lease.id}-nove`}><MessageCircle size={18}/> Napsat správě bydlení</a>}</div>}
                 {canAct && <div className="tp-contact-shortcuts"><a href={`#zpravy-spravci-${lease.id}-historie`}>Moje konverzace <ArrowRight size={14}/></a><a href={`#kontaktni-udaje-${lease.id}`}>Nahlásit změnu kontaktu</a></div>}
               </section>
             </div>
@@ -180,8 +193,8 @@ export default async function TenantPortal({params, searchParams}: {
                 {!lease.unit.meters.length && <div className="tp-empty"><Droplets size={36}/><h3>Měřidla zatím nejsou připojena</h3><p>Po doplnění správcem zde uvidíte poslední stavy a můžete zadat nový odečet.</p></div>}
               </PortalPanel>
               <PortalPanel id={`dokumenty-${lease.id}`} title="Dokumenty" subtitle={`${lease.unit.property.name} · ${lease.unit.label}`} feedback={<Flash {...flash}/>} tabs={[
-                {id: "smlouvy", label: "Smlouvy a předání", content: <><p className="tp-panel-intro">Dokumenty k vašemu bydlení, které vám správce zpřístupnil.</p><div className="portal-document-list tp-documents">{lease.documents.map(document => <article key={document.id}><span className="tp-icon tp-icon-violet"><FileText size={23}/></span><div><strong>{document.title}</strong><small>{documentCategories[document.category]}{document.documentDate ? ` · ${date(document.documentDate)}` : ""}</small></div>{preview ? <span className="tp-subtle">Pouze náhled</span> : <a className="tp-button tp-button-soft" href={`/api/portal/tenants/${tenantId}/documents/${document.id}`}><Download size={17}/><span>Stáhnout</span></a>}</article>)}</div>{!lease.documents.length && <div className="tp-empty"><FileText size={38}/><h3>Zatím žádné sdílené dokumenty</h3><p>Až správce přidá smlouvu nebo předávací protokol, najdete je tady.</p></div>}</>},
-                {id: "doklady", label: "Doklady o zaplacení", content: <><section className="tp-receipt-picker"><h3>Potvrzení o uhrazeném nájmu</h3><p>Vyberte nájem plně uhrazený připsanými platbami. Doklad s podpisem se uloží do archivu a stáhne jako PDF.</p>{paidRents.length ? <form action={`/api/portal/tenants/${tenantId}/receipts`} method="post" className="tp-receipt-form"><label className="tp-field"><span>Zaplacený nájem</span><select name="chargeId" required defaultValue={paidRents.at(-1)?.id}>{[...paidRents].reverse().map(charge => <option key={charge.id} value={charge.id}>{rentPeriod(charge.period)} · {portalMoney(charge.amountCents, lease.currency)}</option>)}</select></label><button className="tp-button tp-button-primary" type="submit" disabled={preview || !issuers.get(lease.id)}><Download size={18}/> Vygenerovat a stáhnout PDF</button></form> : <div className="tp-info"><Info size={20}/><p>Zatím není evidovaný nájem plně uhrazený připsanou platbou. Doklad bude dostupný po přijetí a přiřazení platby.</p></div>}{!issuers.get(lease.id) && <p className="tp-subtle">Vystavitel zatím nepovolil vystavování dokladů nebo nemá uložený podpis. Již vystavené doklady zůstávají v archivu.</p>}{preview && <p className="tp-subtle">Náhled je pouze pro čtení. Podpis a vystavování nastavíte v <Link href="/ucet#podpis">Můj účet → Podpis a doklady</Link>.</p>}</section><h3 className="tp-archive-title">Vystavené doklady</h3><div className="portal-document-list tp-documents">{receipts.map(receipt => <article key={receipt.id}><span className="tp-icon tp-icon-green"><FileCheck2 size={23}/></span><div><strong>{rentPeriod(receipt.period)}</strong><small>Vystaveno {date(receipt.issuedAt)}</small></div>{preview ? <span className="tp-subtle">PDF v archivu</span> : <a className="tp-button tp-button-soft" href={`/api/portal/tenants/${tenantId}/receipts/${receipt.id}`}><Download size={17}/><span>stáhnout PDF</span></a>}</article>)}</div>{!receipts.length && <p className="tp-empty-copy">Zatím jste žádný doklad nevystavili.</p>}</>},
+                {id: "smlouvy", label: "Smlouvy a předání", content: <><p className="tp-panel-intro">Dokumenty k vašemu bydlení, které vám správce zpřístupnil.</p><div className="portal-document-list tp-documents">{lease.documents.map(document => <article key={document.id}><span className="tp-icon tp-icon-violet"><FileText size={23}/></span><div><strong>{document.title}</strong><small>{documentCategories[document.category]}{document.documentDate ? ` · ${date(document.documentDate)}` : ""}</small></div><a className="tp-button tp-button-soft" href={preview ? `/api/documents/${document.id}/download` : `/api/portal/tenants/${tenantId}/documents/${document.id}`}><Download size={17}/><span>Stáhnout</span></a></article>)}</div>{!lease.documents.length && <div className="tp-empty"><FileText size={38}/><h3>Zatím žádné sdílené dokumenty</h3><p>Až správce přidá smlouvu nebo předávací protokol, najdete je tady.</p></div>}</>},
+                {id: "doklady", label: "Doklady o zaplacení", content: <><PortalReceiptPicker tenantId={tenantId} preview={preview} staffHref={`/nemovitosti/${lease.unit.propertyId}/jednotky/${lease.unitId}#doklady`} choices={[...paidRents].reverse().map(charge => {const status = receiptStatuses.get(charge.id); return {id: charge.id, label: `${rentPeriod(charge.period)} · ${portalMoney(charge.amountCents, lease.currency)}`, ready: status?.ready ?? false, reason: status?.reason || "Vystavování dokladu pro toto období se připravuje.", issuerName: status?.issuerName};})}/><h3 className="tp-archive-title">Vystavené doklady</h3><div className="portal-document-list tp-documents">{receipts.map(receipt => <article key={receipt.id}><span className="tp-icon tp-icon-green"><FileCheck2 size={23}/></span><div><strong>{rentPeriod(receipt.period)}</strong><small>Vystaveno {date(receipt.issuedAt)}</small>{!receipt.charge.active && <small>Původní předpis již není aktivní. Doklad zůstává v archivu.</small>}</div><a className="tp-button tp-button-soft" href={preview ? `/api/leases/${lease.id}/receipts/${receipt.id}` : `/api/portal/tenants/${tenantId}/receipts/${receipt.id}`}><Download size={17}/><span>stáhnout PDF</span></a></article>)}</div>{!receipts.length && <p className="tp-empty-copy">Zatím jste žádný doklad nevystavili.</p>}</>},
               ]}/>
             </>}
           </section>;
@@ -203,3 +216,8 @@ function portalMoney(cents: number, currency = "CZK") {
   catch {return moneyExact(cents).replace("Kč", currency);}
 }
 function meterNumber(value: number) {return new Intl.NumberFormat("cs-CZ", {maximumFractionDigits: 4}).format(value);}
+
+function receiptArchivePeriod(snapshot: unknown, fallback: string) {
+  if (snapshot && typeof snapshot === "object" && "period" in snapshot && typeof snapshot.period === "string") return snapshot.period;
+  return fallback;
+}

@@ -1,25 +1,28 @@
 import Link from "next/link";
 import { FileText } from "lucide-react";
 import { documentCategories, documentPhotoStages } from "@/lib/labels";
+import {DocumentTenantVisibility} from "./DocumentTenantVisibility";
+import {editableTenantDocumentIds, type DocumentSharingActor} from "@/lib/documents/tenant-visibility";
 import { DocumentImagePreview } from "./DocumentImagePreview";
 
 export type DocumentListItem = {
   id: string; propertyId: string; unitId?: string | null; leaseId?: string | null; taskId?: string | null;
   complianceRecordId?: string | null; propertyCostId?: string | null; title: string; category: string;
-  photoStage: string | null; taskEntryId?: string | null; documentDate: Date | null; createdAt: Date;
+  tenantVisible?: boolean; photoStage: string | null; taskEntryId?: string | null; documentDate: Date | null; createdAt: Date;
   fileAsset: { originalName: string; mimeType: string; sizeBytes: number }; property?: { name: string };
-  unit?: { label: string } | null; lease?: { contractNumber: string | null } | null; task?: { title: string } | null;
+  unit?: { label: string } | null; lease?: { contractNumber: string | null; unitId?: string; unit?: {propertyId: string} } | null; task?: { title: string } | null;
   complianceRecord?: { id: string; complianceItem?: { name: string } } | null; propertyCost?: { title: string } | null;
 };
 
-export function DocumentAttachments({ documents, empty = "Zatím nejsou přiloženy žádné dokumenty.", canDelete = false, returnTo = "/dokumenty", showContext = false }: { documents: DocumentListItem[]; empty?: string; canDelete?: boolean; returnTo?: string; showContext?: boolean }) {
+export async function DocumentAttachments({ documents, empty = "Zatím nejsou přiloženy žádné dokumenty.", canDelete = false, returnTo = "/dokumenty", showContext = false, viewer }: { documents: DocumentListItem[]; empty?: string; canDelete?: boolean; returnTo?: string; showContext?: boolean; viewer?: DocumentSharingActor }) {
   if (!documents.length) return <div className="table-empty">{empty}</div>;
+  const editableSharing = viewer ? await editableTenantDocumentIds(viewer, documents.map(document => document.id)) : new Set<string>();
   return <div className="document-grid">{documents.map((document) => {
     const category = documentCategories[document.category] || document.category;
     const stage = document.photoStage ? documentPhotoStages[document.photoStage] || document.photoStage : null;
-    return <article className="document-card" key={document.id}>
+    return <article className="document-card" key={document.id} data-document-id={document.id}>
       {document.fileAsset.mimeType.startsWith("image/") ? <DocumentImagePreview documentId={document.id} title={document.title}/> : <FileText size={32} aria-hidden="true"/>}
-      <div><strong>{document.title}</strong><span>{document.fileAsset.originalName} · {(document.fileAsset.sizeBytes / 1024).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} kB</span><span>{stage ? `${stage} · ` : ""}{category}</span>{showContext && <DocumentContext document={document}/>}<div className="document-actions"><a href={`/api/documents/${document.id}/download`}>Stáhnout</a>{canDelete && <form action={`/api/documents/${document.id}`} method="post"><input type="hidden" name="returnTo" value={returnTo}/><button className="link-button" type="submit">Odstranit</button></form>}</div></div>
+      <div><strong>{document.title}</strong><span>{document.fileAsset.originalName} · {(document.fileAsset.sizeBytes / 1024).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} kB</span><span>{stage ? `${stage} · ` : ""}{category}</span>{showContext && <DocumentContext document={document}/>}<DocumentTenantVisibility document={document} canEdit={editableSharing.has(document.id)} returnTo={returnTo}/><div className="document-actions"><a href={`/api/documents/${document.id}/download`}>Stáhnout</a>{canDelete && <form action={`/api/documents/${document.id}`} method="post"><input type="hidden" name="returnTo" value={returnTo}/><button className="link-button" type="submit">Odstranit</button></form>}</div></div>
     </article>;
   })}</div>;
 }

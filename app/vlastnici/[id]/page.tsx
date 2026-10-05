@@ -6,6 +6,8 @@ import { Checkbox, Field, Flash, FormCard, FormPage, Select, Textarea } from "@/
 import { ownerTypes } from "@/lib/labels";
 import { formatIban, ownerBankAccountLabel } from "@/lib/owner-bank-account";
 import { ownerAffiliationLabels } from "@/lib/ownership-scope";
+import { getOwnerReceiptSettings } from "@/lib/owner-receipt-settings";
+import { OwnerReceiptSummary } from "@/components/OwnerReceiptSettings";
 
 export const dynamic = "force-dynamic";
 export default async function OwnerEdit({ params, searchParams }: { params: Promise<{id:string}>; searchParams: Promise<{ok?:string;error?:string}> }) {
@@ -17,6 +19,7 @@ export default async function OwnerEdit({ params, searchParams }: { params: Prom
     searchParams,
   ]);
   if (!owner) notFound();
+  const receiptSettings = await getOwnerReceiptSettings(user, id);
   return <Shell user={user}><FormPage title={owner.name} description={`${owner.properties.length} spravovaných nemovitostí · ${owner.paymentAccounts.length} bankovních účtů`} backHref="/vlastnici">
     <Flash ok={query.ok} error={query.error}/>
     <div className="detail-grid">
@@ -65,5 +68,6 @@ export default async function OwnerEdit({ params, searchParams }: { params: Prom
         </form>
       </div>
     </div>
+    {receiptSettings && <OwnerReceiptSummary settings={receiptSettings}/>}
   </FormPage></Shell>;
 }

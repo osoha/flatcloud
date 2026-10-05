@@ -43,7 +43,7 @@ export async function TenantPortalMessages({ tenantId, leaseId, user, preview }:
     ...activeNotices.filter(item => item.severity === "INFO").map(item => notice(item)),
   ];
   return <section className="tp-messages" id={`zpravy-${leaseId}`} aria-labelledby={`zpravy-title-${leaseId}`}>
-    <div className="tp-section-heading"><div><span className="tp-eyebrow">Od správce a vlastníka</span><h2 id={`zpravy-title-${leaseId}`}>Oznámení a úkoly</h2></div>{pendingCount > 0 && <span className="tp-message-count">{pendingCount} k přečtení</span>}</div>
+    <div className="tp-section-heading"><div><span className="tp-eyebrow">Od správce a pronajímatele</span><h2 id={`zpravy-title-${leaseId}`}>Oznámení a úkoly</h2></div>{pendingCount > 0 && <span className="tp-message-count">{pendingCount} k přečtení</span>}</div>
     {activeItems.length ? <><div className="tp-message-list">{activeItems.slice(0, 3)}</div>{activeItems.length > 3 && <details className="tp-message-archive"><summary>Zobrazit další oznámení a úkoly <span>{activeItems.length - 3}</span></summary><div className="tp-message-list">{activeItems.slice(3)}</div></details>}</> : <div className="tp-message-empty"><CheckCheck size={24} aria-hidden="true"/><p>Teď pro vás nemáme žádné nové zprávy ani úkoly.</p></div>}
     {preview && (activeTasks.length > 0 || activeNotices.length > 0) && <p className="tp-message-preview">Náhled správce · potvrzení a archivace jsou dostupné nájemníkovi.</p>}
     {archivedCount > 0 && <details className="tp-message-archive"><summary>Archiv zpráv a vyřízené úkoly <span>{archivedCount}</span></summary><div className="tp-message-list">{archivedNotices.map(item => notice(item, true))}{archivedTasks.map(item => task(item, true))}</div></details>}
