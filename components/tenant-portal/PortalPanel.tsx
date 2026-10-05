@@ -6,9 +6,9 @@ import {X} from "lucide-react";
 type PanelTab = {id: string; label: string; content: ReactNode};
 
 /** Hash-addressable, focus-trapped native dialog. Forms return to the same panel after POST. */
-export function PortalPanel({id, title, subtitle, aliases = [], tabs, children, feedback}: {
+export function PortalPanel({id, title, subtitle, aliases = [], tabs, children, feedback, hashChildren = false}: {
   id: string; title: string; subtitle?: string; aliases?: string[];
-  tabs?: PanelTab[]; children?: ReactNode; feedback?: ReactNode;
+  tabs?: PanelTab[]; children?: ReactNode; feedback?: ReactNode; hashChildren?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -23,7 +23,7 @@ export function PortalPanel({id, title, subtitle, aliases = [], tabs, children, 
     if (!node) return;
     const targets = targetKeys.split("|");
     const tabIds = tabKeys ? tabKeys.split("|") : [];
-    const matchesTarget = (hash: string) => targets.includes(hash) || tabIds.some(key => targets.some(target => hash === `${target}-${key}`));
+    const matchesTarget = (hash: string) => (targets.includes(hash) || (hashChildren && hash.startsWith(`${id}--`))) || tabIds.some(key => targets.some(target => hash === `${target}-${key}`));
     const captureOpener = (event: MouseEvent) => {
       const anchor = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>("a[href]") : null;
       if (anchor && matchesTarget(anchor.hash.slice(1))) opener.current = anchor;
@@ -31,7 +31,7 @@ export function PortalPanel({id, title, subtitle, aliases = [], tabs, children, 
     const sync = () => {
       const hash = window.location.hash.slice(1);
       const suffix = tabIds.find(key => targets.some(target => hash === `${target}-${key}`));
-      const matches = targets.includes(hash) || Boolean(suffix);
+      const matches = matchesTarget(hash) || Boolean(suffix);
       if (matches) {
         setSelected(suffix || tabIds[0] || "");
         if (!node.open) {
@@ -46,7 +46,7 @@ export function PortalPanel({id, title, subtitle, aliases = [], tabs, children, 
     window.addEventListener("hashchange", sync);
     document.addEventListener("click", captureOpener, true);
     return () => {window.removeEventListener("hashchange", sync); document.removeEventListener("click", captureOpener, true);};
-  }, [targetKeys, tabKeys]);
+  }, [targetKeys, tabKeys, hashChildren, id]);
 
   function close() {
     dialog.current?.close();

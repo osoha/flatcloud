@@ -1,3 +1,4 @@
+import { collectTenantPortalNotifications, processTenantPortalNotifications } from "../lib/tenant-portal-notifications";
 import { collectTaskNotifications, processTaskNotifications } from "../lib/task-notifications";
 import { prisma } from "../lib/db";
 import { syncInboundMailbox } from "../lib/inbound-bank/sync";
@@ -98,6 +99,14 @@ async function main() {
     steps.push({ name: "task-notifications", status: result.failed ? "failed" : "ok", summary: `Odesláno ${result.sent}, přeskočeno ${result.skipped}, nepotvrzeno ${result.failed}.` });
   } catch (error) {
     steps.push({ name: "task-notifications", status: "failed", summary: messageOf(error) });
+  }
+
+  try {
+    await collectTenantPortalNotifications();
+    const result = await processTenantPortalNotifications();
+    steps.push({ name: "tenant-portal-notifications", status: result.failed ? "failed" : "ok", summary: `Odesláno ${result.sent}, přeskočeno ${result.skipped}, nepotvrzeno ${result.failed}.` });
+  } catch (error) {
+    steps.push({ name: "tenant-portal-notifications", status: "failed", summary: messageOf(error) });
   }
 
   try {

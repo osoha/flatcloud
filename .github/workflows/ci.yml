@@ -61,6 +61,7 @@ jobs:
       - run: npx prisma validate
       - run: npx prisma migrate deploy
       - run: node --import tsx scripts/verify-tenant-meter-photos.ts
+      - run: node --import tsx scripts/verify-tenant-portal-notifications.ts
       - run: npm run verify:v20
       - run: node --import tsx scripts/verify-csob-parser.ts
       - run: node --import tsx scripts/verify-bank-balance-redaction.ts
@@ -268,7 +269,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Portal receipts and navigation regression
-        run: npx playwright test e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/tenant-portal-meter-photo.spec.ts e2e/task-archive-admin-avatar.spec.ts --reporter=line --output=portal-smoke-results
+        run: npx playwright test e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/tenant-portal-meter-photo.spec.ts e2e/tenant-portal-conversations.spec.ts e2e/task-archive-admin-avatar.spec.ts --reporter=line --output=portal-smoke-results
         env:
           FILE_STORAGE_DRIVER: s3
           S3_ENDPOINT: http://127.0.0.1:3201

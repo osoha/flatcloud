@@ -1,3 +1,4 @@
+import { publishTenantAnnouncementNotification } from "@/lib/tenant-portal-notifications";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { serializableTransaction } from "@/lib/serializable";
@@ -21,6 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const changed = await tx.announcement.updateMany({ where: { id, updatedAt: before.updatedAt }, data: action === "edit" ? { title, body } : { active: action === "activate" } });
       if (changed.count !== 1) throw new Error("Oznámení se mezitím změnilo.");
       if (action === "edit") await tx.announcementUserState.updateMany({ where: { announcementId: id }, data: { readAt: null, dismissedAt: null } });
+      if (action !== "deactivate") await publishTenantAnnouncementNotification(tx, id);
       await tx.auditLog.create({ data: { userId: user.id, action: `TENANT_ANNOUNCEMENT_${action.toUpperCase()}`, entityType: "Announcement", entityId: id, details: { before: { title: before.title, body: before.body, active: before.active }, ...(action === "edit" ? { title, body } : {}) } } });
     });
     return goWithMessage(request, `${target}#${id}`, "ok", action === "deactivate" ? "Oznámení bylo staženo z portálů nájemníků." : "Oznámení bylo upraveno.");

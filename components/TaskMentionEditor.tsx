@@ -4,7 +4,7 @@ import { AtSign, Smile } from "lucide-react";
 import type { DiscussionPerson, Mention } from "@/lib/task-discussion-shared";
 import { updateMentionRanges, withGroupMentions, mentionRecipientIds, taskReactions } from "@/lib/task-discussion-shared";
 
-export function TaskMentionEditor({ people, placeholder, currentUserId, taskId, onRecipientsChange, tools }: { people: DiscussionPerson[]; placeholder: string; currentUserId?: string; taskId: string; onRecipientsChange: (ids: string[]) => void; tools?: ReactNode }) {
+export function TaskMentionEditor({ people, placeholder, currentUserId, taskId, onRecipientsChange, tools, disabled = false }: { people: DiscussionPerson[]; placeholder: string; currentUserId?: string; taskId: string; onRecipientsChange: (ids: string[]) => void; tools?: ReactNode; disabled?: boolean }) {
   const inputId = useId(), listId = `${inputId}-options`;
   const [body, setBody] = useState("");
   const [mentions, setMentions] = useState<Mention[]>([]);
@@ -52,8 +52,8 @@ export function TaskMentionEditor({ people, placeholder, currentUserId, taskId, 
     setBody(next); setOpen(false); focusAt(start + token.length + 1);
   }
   return <div className="mention-editor">
-    <input type="hidden" name="mentions" value={JSON.stringify(mentions)}/>
-    <div className="field composer-body"><label className="sr-only" htmlFor={inputId}>Nový komentář</label><textarea id={inputId} ref={input} name="body" rows={3} maxLength={50000} required value={body} placeholder={placeholder} aria-autocomplete="list" aria-controls={visible ? listId : undefined} aria-expanded={visible} aria-activedescendant={visible ? `${listId}-${Math.min(selected, suggestions.length - 1)}` : undefined}
+    <input type="hidden" name="mentions" disabled={disabled} value={JSON.stringify(mentions)}/>
+    <div className="field composer-body"><label className="sr-only" htmlFor={inputId}>Nový komentář</label><textarea id={inputId} ref={input} name="body" disabled={disabled} rows={3} maxLength={50000} required value={body} placeholder={placeholder} aria-autocomplete="list" aria-controls={visible ? listId : undefined} aria-expanded={visible} aria-activedescendant={visible ? `${listId}-${Math.min(selected, suggestions.length - 1)}` : undefined}
       onChange={event => { const next = event.target.value; setMentions(updateMentionRanges(body, next, mentions)); setBody(next); setCursor(event.target.selectionStart); setOpen(true); setSelected(0); }}
       onClick={event => { setCursor(event.currentTarget.selectionStart); setOpen(true); setSelected(0); }}
       onKeyUp={event => { if (["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) setCursor(event.currentTarget.selectionStart); }}

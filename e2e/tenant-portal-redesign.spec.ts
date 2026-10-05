@@ -132,7 +132,7 @@ test("portal gives rent and human contact priority, keeps actions in dialogs and
     await expect(priority.getByRole("heading", {name: "Váš správce", exact: true})).toBeVisible();
     await expect(priority.getByText(f.manager.name, {exact: true})).toBeVisible();
     await expect(priority.locator(`.tenant-portal-call[href="tel:${f.manager.phone}"]`)).toBeVisible();
-    await expect(priority.getByRole("link", {name: /Napsat správci/})).toHaveAttribute("href", `mailto:${f.manager.email}`);
+    await expect(priority.getByRole("link", {name: /Napsat správci/})).toHaveAttribute("href", `#zpravy-spravci-${f.lease.id}-nove`);
     const messages = page.locator(`#zpravy-${f.lease.id}`);
     await expect(messages).toBeVisible();
     const before = await priority.evaluate((element, id) => Boolean(element.compareDocumentPosition(document.getElementById(id)!) & Node.DOCUMENT_POSITION_FOLLOWING), `zpravy-${f.lease.id}`);

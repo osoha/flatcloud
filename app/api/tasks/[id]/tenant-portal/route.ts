@@ -1,3 +1,4 @@
+import { enqueueTenantTaskNotification } from "@/lib/tenant-portal-notifications";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { serializableTransaction } from "@/lib/serializable";
@@ -20,6 +21,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const changed = await tx.task.updateMany({ where: { id, updatedAt: task.updatedAt }, data });
       if (changed.count !== 1) throw new Error("Úkol se mezitím změnil. Obnovte stránku.");
       if (action === "publish") await tx.taskUserState.updateMany({ where: { taskId: id }, data: { tenantConfirmedAt: null } });
+      if (action === "publish" && data.tenantPortalPublishedAt) await enqueueTenantTaskNotification(tx, { taskId: id, kind: "TASK_PUBLISHED", eventKey: `task-published:${id}:${data.tenantPortalPublishedAt.toISOString()}`, sourceRevision: data.tenantPortalPublishedAt });
       await tx.auditLog.create({ data: { userId: user.id, propertyId: task.propertyId, action: action === "publish" ? "TASK_PORTAL_PUBLISHED" : "TASK_PORTAL_UNPUBLISHED", entityType: "Task", entityId: id, details: { tenantId: task.tenantId, leaseId: task.leaseId } } });
     });
     return goWithMessage(request, target, "ok", action === "publish" ? "Zadání bylo zveřejněno v portálu nájemníka." : "Zadání bylo staženo z portálu nájemníka.");

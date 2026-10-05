@@ -2099,6 +2099,12 @@ model RentNotification {
   @@index([chargeId])
 }
 
+enum TenantPortalRequestKind {
+  DEFECT
+  MESSAGE
+  CONTACT_CHANGE
+}
+
 model Task {
   notificationSnapshot TaskNotificationSnapshot?
   notifications TaskNotification[]
@@ -2116,6 +2122,8 @@ model Task {
   lease                  Lease?                      @relation(fields: [leaseId], references: [id], onDelete: SetNull)
   tenantId               String?
   tenantPortalRequest     Boolean                     @default(false)
+  tenantPortalRequestKind TenantPortalRequestKind?
+  contactChangeRequest    TenantContactChangeRequest?
   tenantPortalPublishedAt DateTime?
   tenantPortalPublishedById String?
   tenantPortalPublishedBy User? @relation("TenantPortalTaskPublisher", fields: [tenantPortalPublishedById], references: [id], onDelete: SetNull)
@@ -2151,6 +2159,57 @@ model Task {
   @@index([tenantId, tenantPortalRequest, createdAt])
   @@index([leaseId, tenantId, tenantPortalPublishedAt])
   @@index([automationRuleId, automationEventKey])
+}
+
+model TenantContactChangeRequest {
+  id            String   @id @default(cuid())
+  taskId        String   @unique
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  requestedById String
+  before        Json
+  requested     Json
+  reason        String?
+  status        String   @default("PENDING")
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNote    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model TenantPortalNotification {
+  id               String   @id @default(cuid())
+  dedupeKey        String   @unique
+  userId           String
+  tenantId         String
+  leaseId          String
+  propertyId       String
+  kind             String
+  taskId           String?
+  entryId          String?
+  announcementId   String?
+  contactRequestId String?
+  sourceRevision   DateTime?
+  status           String   @default("PENDING")
+  attempts         Int      @default(0)
+  nextAttemptAt    DateTime @default(now())
+  claimedAt        DateTime?
+  sentAt           DateTime?
+  detail           String?
+  createdAt        DateTime @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([userId, createdAt])
+  @@index([taskId])
+}
+
+model TenantPortalNotificationSnapshot {
+  taskId        String   @id
+  status        String
+  dueAt         DateTime?
+  publishedAt   DateTime?
+  observedAt    DateTime
+  trackingSince DateTime @default(now())
 }
 
 model TaskChecklistItem {
@@ -2281,6 +2340,8 @@ model Announcement {
   startsAt    DateTime                @default(now())
   expiresAt   DateTime?
   active      Boolean                 @default(true)
+  tenantPortalNotificationRevision DateTime?
+  tenantPortalNotificationQueuedAt DateTime?
   createdById String
   createdBy   User                    @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Restrict)
   audiences   AnnouncementAudience[]
@@ -2328,6 +2389,7 @@ model AnnouncementUserState {
 enum TaskEntryVisibility {
   INTERNAL
   OWNER_VISIBLE
+  TENANT_VISIBLE
 }
 
 model TaskEntry {
@@ -2342,6 +2404,7 @@ model TaskEntry {
   author              User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
   kind                TaskEntryKind       @default(COMMENT)
   body                String
+  tenantSubmissionKey String? @unique
   promisedPaymentDate DateTime?
   promisedAmountCents Int?
   createdAt           DateTime            @default(now())

@@ -22,7 +22,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   const receiptSettings=await prisma.user.findUniqueOrThrow({where:{id:user.id},select:{receiptIssuerName:true,receiptIssuerAddress:true,receiptIssuanceEnabled:true,receiptSignatureData:true}});
   const canIssueReceipts=user.role!=="TENANT"&&await prisma.unit.count({where:portalEditableUnitWhere(user)})>0;
   const preference = await prisma.taskNotificationPreference.findUnique({ where: { userId: user.id } }) || notificationDefaults;
-  const deliveries = await prisma.taskNotification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, status: true } });
+  const deliveries = user.role === "TENANT" ? await prisma.tenantPortalNotification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, status: true } }) : await prisma.taskNotification.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10, select: { id: true, createdAt: true, status: true } });
   const deliveryLabels: Record<string, string> = { PENDING: "Ve frontě", SENDING: "Odesílání", SENT: "Odesláno", RETRY: "Čeká na opakování", SKIPPED: "Neodesláno dle nastavení nebo přístupu", FAILED: "Odeslání selhalo", UNKNOWN: "Odeslání nepotvrzeno" };
   const messages: Record<string, string> = {
     current: "Současné heslo není správné.",
@@ -47,12 +47,14 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
         <section id="upozorneni" data-guide="notifications" className="card account-card notification-settings">
           <h2>Upozornění</h2>
+          {user.role === "TENANT" ? <p>Provozní upozornění k vašemu nájmu jsou vždy zapnutá. Na e-mail dostanete oznámení, nové zprávy, změny stavu a připomenutí termínů. Odpovídat můžete přímo v portálu. Změnu kontaktních údajů nahlaste správci v portálu nájemníka.</p> : <>
           <p>E-maily z úkolů a diskusí můžete kdykoli vypnout. Upozornění uvnitř aplikace zůstanou zachována. Reakce e-maily neposílají.</p>
           <form action="/api/account/notifications" method="post">
             {notificationFields.map(([key,label]) => <label className="checkbox-field" key={key}><input type="checkbox" name={key} defaultChecked={preference[key]}/><span>{label}</span></label>)}
             <small>Přímé zmínky a komentáře zpracováváme po uložení. Přiřazení, změny stavu a termíny kontroluje hodinový plánovač. U termínu posíláme nejvýše jedno upozornění předem a jedno po termínu.</small>
             <button className="primary" type="submit">Uložit upozornění</button>
           </form>
+          </>}
           {deliveries.length > 0 && <details><summary>Poslední e-mailová upozornění</summary><ul>{deliveries.map(row => <li key={row.id}>{row.createdAt.toLocaleString("cs-CZ")} · {deliveryLabels[row.status] || row.status}</li>)}</ul></details>}
         </section>
 

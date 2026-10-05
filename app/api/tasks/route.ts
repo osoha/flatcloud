@@ -1,3 +1,4 @@
+import { enqueueTenantTaskNotification } from "@/lib/tenant-portal-notifications";
 import { currentUser } from "@/lib/auth";
 import { tenantPublicationText, validateTaskPublication } from "@/lib/tenant-portal-messages";
 import { prisma } from "@/lib/db";
@@ -132,6 +133,7 @@ export async function POST(request: Request) {
         entries: { create: { authorId: user.id, kind: "SYSTEM", body: "Úkol byl založen." } },
       },
     });
+    if (task.tenantPortalPublishedAt) await enqueueTenantTaskNotification(tx, { taskId: task.id, kind: "TASK_PUBLISHED", eventKey: `task-published:${task.id}:${task.tenantPortalPublishedAt.toISOString()}`, sourceRevision: task.tenantPortalPublishedAt });
     await createStoredDocumentsInTransaction(tx,storedBatch);
     if(taskAttachmentBatch)await createTaskAttachmentsInTransaction(tx,taskAttachmentBatch,task.id);
     await tx.auditLog.create({data:{userId:user.id,propertyId:propertyId||null,action:"TASK_CREATED",entityType:"Task",entityId:task.id,details:{title,category:categoryRaw,priority:priorityRaw,memberIds,audienceKinds,checklistCode:checklistCode||null,attachmentCount:preparedFiles.length,tenantPortalPublished:form.get("tenantPortalPublish")==="on",portalRecipientTenantId:form.get("tenantPortalPublish")==="on"?resolvedTenantId:null}}});
