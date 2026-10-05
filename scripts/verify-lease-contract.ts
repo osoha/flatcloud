@@ -31,6 +31,9 @@ async function main(){
   assert.throws(()=>buildContract({...facts,indexationEnabled:true},input),/indexace/);
   assert.throws(()=>buildContract({...facts,depositCents:4500001},input),/limit/);
   assert.throws(()=>buildContract({...facts,contractingParties:2},input),/jednoho/);
+  assert.throws(()=>buildContract({...facts,variableSymbol:""},input),/Variabilní symbol/);
+  assert.throws(()=>buildContract({...facts,tenantName:"[jméno nájemce]"},input),/Jméno nájemce/);
+  assert.throws(()=>buildContract({...facts,unitAddress:" "},input),/Adresa bytu/);
   assert.ok(contractFactErrors({...facts,dueDay:4}).length);
   const zero=buildContract({...facts,depositCents:0,servicesCents:0,depositRateBps:null},{...input,depositDueDate:null,services:[],managerName:"",managerEmail:"",managerPhone:""});
   assert.ok(zero.sections[4].paragraphs[0].includes("nevzniká povinnost"));
