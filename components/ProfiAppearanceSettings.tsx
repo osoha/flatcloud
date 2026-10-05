@@ -1,0 +1,3 @@
+export function ProfiAppearanceSettings({graphics}:{graphics:boolean}) {
+  return <section className="card account-card" id="vzhled"><h2>Vzhled prostředí</h2><p>Jak zobrazovat osoby, nemovitosti a jednotky v režimu Profi. Basic si ponechá ilustrace.</p><form action="/api/account/appearance" method="post" className="appearance-options"><button type="submit" name="graphics" value="true" className={graphics?"secondary selected":"secondary"} aria-pressed={graphics}>Avatary a fotografie</button><button type="submit" name="graphics" value="false" className={!graphics?"secondary selected":"secondary"} aria-pressed={!graphics}>Jednoduché ikony</button></form><p className="muted-copy">Volba je uložena u vašeho účtu a platí i na dalších zařízeních.</p></section>;
+}

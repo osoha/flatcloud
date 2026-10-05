@@ -42,7 +42,12 @@ jobs:
       - run: node --import tsx scripts/verify-illustration-library.ts
       - run: node --import tsx scripts/verify-account-bank-rules.ts
       - run: node --import tsx scripts/verify-bank-guide.tsx
+      - run: node --import tsx scripts/verify-rent-payment-qr.ts
+      - run: node --import tsx scripts/verify-lease-feedback.ts
+      - run: node --import tsx scripts/verify-portal-receipts.ts
+      - run: node --import tsx scripts/verify-tenant-portal-contact.ts
       - run: node --import tsx scripts/verify-task-thread-polish.ts
+      - run: node --import tsx scripts/verify-task-assignee-and-attention.ts
       - run: npm run verify:tab-navigation-v2
       - run: node --import tsx scripts/verify-flatberry-comparison.ts
       - run: npm run verify:valorizace-v3
@@ -55,8 +60,11 @@ jobs:
       - run: npm run verify:csu-personal-value
       - run: npx prisma validate
       - run: npx prisma migrate deploy
+      - run: node --import tsx scripts/verify-tenant-meter-photos.ts
+      - run: node --import tsx scripts/verify-tenant-portal-notifications.ts
       - run: npm run verify:v20
       - run: node --import tsx scripts/verify-csob-parser.ts
+      - run: node --import tsx scripts/verify-bank-balance-redaction.ts
       - run: npm run verify:v21
       - run: npm run verify:v21.1
       - run: npm run verify:v21.2
@@ -239,7 +247,47 @@ jobs:
       - run: npm run e2e:seed:r24-roles
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      - name: Contract upload with isolated storage
+        run: npx playwright test e2e/lease-document-upload.spec.ts --output=contract-upload-results
+        env:
+          PLAYWRIGHT_HTML_OUTPUT_DIR: contract-upload-report
+          FILE_STORAGE_DRIVER: s3
+          S3_ENDPOINT: http://127.0.0.1:3201
+          S3_REGION: eu-central-1
+          S3_BUCKET: qa-documents
+          S3_FORCE_PATH_STYLE: "true"
+          S3_ACCESS_KEY_ID: qa-only
+          S3_SECRET_ACCESS_KEY: qa-only
+      - name: Upload contract upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: contract-upload-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            contract-upload-report/
+            contract-upload-results/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Portal receipts and navigation regression
+        run: npx playwright test e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/tenant-portal-meter-photo.spec.ts e2e/tenant-portal-conversations.spec.ts e2e/task-archive-admin-avatar.spec.ts --reporter=line --output=portal-smoke-results
+        env:
+          FILE_STORAGE_DRIVER: s3
+          S3_ENDPOINT: http://127.0.0.1:3201
+          S3_REGION: eu-central-1
+          S3_BUCKET: qa-documents
+          S3_FORCE_PATH_STYLE: "true"
+          S3_ACCESS_KEY_ID: qa-only
+          S3_SECRET_ACCESS_KEY: qa-only
+      - name: Upload portal regression evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: portal-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: portal-smoke-results/
+          if-no-files-found: ignore
+          retention-days: 7
       - run: npm run test:e2e
+        if: ${{ !cancelled() }}
       - name: Upload browser evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -248,5 +296,7 @@ jobs:
           path: |
             playwright-report/
             test-results/
+            contract-upload-report/
+            contract-upload-results/
           if-no-files-found: ignore
           retention-days: 7

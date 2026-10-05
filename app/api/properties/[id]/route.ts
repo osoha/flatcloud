@@ -1,5 +1,5 @@
 import { isFlatcloudMember } from "@/lib/user-context-policy";
-import { PropertyOwnershipMode } from "@prisma/client";
+import { PropertyOwnershipMode, TenantPortalInvitationMode } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
@@ -25,6 +25,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const flatcloudConsolidationBasisPoints = consolidationBasisPoints(text(form, "flatcloudConsolidationPercent"));
     if (managerId && !await prisma.user.findFirst({ where: { id: managerId, active: true }, select: { id: true } })) throw new Error("Vybraný správce neexistuje.");
     const technicalData = technicalDataJson(parsePropertyTechnicalForm(form));
+    const invitationMode=text(form,"tenantPortalInvitationMode")||"MANUAL";
+    if(!Object.values(TenantPortalInvitationMode).includes(invitationMode as TenantPortalInvitationMode))throw new Error("Neplatné nastavení pozvánek nájemníka.");
     const previous = await prisma.property.findUnique({ where: { id }, select: { managerId: true, name: true, active: true, ownerId: true } });
     const property = await prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT id FROM "Property" WHERE id = ${id} FOR UPDATE`;
@@ -36,6 +38,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         city: text(form, "city", true)!,
         postalCode: text(form, "postalCode"),
         note: text(form, "note"),
+        tenantPortalInvitationMode:invitationMode as TenantPortalInvitationMode,
         technicalData,
         active: boolValue(form, "active"),
         ...(ownerId ? { ownerId, ownershipMode, communicationOwnerId: communicationOwnerId || ownerId, managerId: managerId || null, ...(isFlatcloudMember(access.user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}) } : {}),
@@ -45,7 +48,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       if (ownerId && managerId) await tx.userProperty.upsert({ where: { userId_propertyId: { userId: managerId, propertyId: id } }, update: { permission: "ADMIN" }, create: { userId: managerId, propertyId: id, permission: "ADMIN" } });
       return updated;
     });
-    await audit(access.user.id, "PROPERTY_UPDATED", "Property", property.id, { name: property.name, active: property.active, ownerId, ownershipMode, communicationOwnerId, managerId, ...(ownerId ? { ...(isFlatcloudMember(access.user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}) } : {}), technicalDataUpdated: true }, id);
+    await audit(access.user.id, "PROPERTY_UPDATED", "Property", property.id, { name: property.name, active: property.active, ownerId, ownershipMode, communicationOwnerId, managerId, tenantPortalInvitationMode:invitationMode, ...(ownerId ? { ...(isFlatcloudMember(access.user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}) } : {}), technicalDataUpdated: true }, id);
     let driveWarning = "";
     if (process.env.FILE_STORAGE_DRIVER === "gdrive") {
       try {

@@ -9,6 +9,6 @@ export function TaskDiscussion({ composer, children }: { composer: ReactNode; ch
     {composer}{children}
   </div>;
 }
-export function TaskReplyButton({ taskId, userId }: { taskId: string; userId: string }) {
-  return <button type="button" className="task-reply" onClick={() => window.dispatchEvent(new CustomEvent("flatberry:task-reply", { detail: { taskId, userId } }))}><CornerUpLeft size={19} aria-hidden="true"/>Odpovědět</button>;
+export function TaskReplyButton({ taskId, userId, tenantReply = false }: { taskId: string; userId: string; tenantReply?: boolean }) {
+  return <button type="button" className="task-reply" onClick={() => window.dispatchEvent(new CustomEvent(tenantReply ? "flatberry:tenant-reply" : "flatberry:task-reply", { detail: { taskId, userId } }))}><CornerUpLeft size={19} aria-hidden="true"/>{tenantReply ? "Odpovědět nájemníkovi" : "Odpovědět"}</button>;
 }

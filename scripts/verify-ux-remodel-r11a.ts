@@ -24,7 +24,9 @@ check("filter actions retain a stable visual hierarchy", () => {
   assert.match(css, /\.document-filter-actions[\s\S]*min-height: 44px/);
   assert.match(css, /\.document-filter-actions \.text-button/);
   assert.match(page, /className="document-filter-actions"/);
-  assert.match(page, /className="text-button" href="\/dokumenty">Zrušit filtry/);
+  assert.match(page, /className="text-button" href=\{resetHref\}>Zrušit filtry/);
+  assert.match(page, /const resetHref = selectionValue === null \? "\/dokumenty" : `\/dokumenty\?properties=\$\{encodeURIComponent\(selectionValue\)\}`/);
+  assert.match(page, /type="hidden" name="properties" value=\{selectionValue\}/);
 });
 
 check("every unit sub-navigation anchor clears sticky chrome", () => {

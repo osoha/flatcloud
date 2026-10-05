@@ -2,7 +2,7 @@ import { businessDateKey, businessMonthKey } from "../calendar";
 
 type AmountSource = "CHARGE_ITEM" | "PAYMENT_ITEM" | "CONTRACT_OVERRIDE" | "LEGACY";
 type RentRollLease = { financialTrackingFromPeriod?: string; forceContractAmountsForLiveReporting?: boolean; rentCents: number; servicesCents: number; charges?: Array<{ active: boolean; period: string; items?: Array<{ category: string; amountCents: number }> }>; paymentItems?: Array<{ active: boolean; validFrom: Date; validTo?: Date | null; category: string; amountCents: number }> };
-function componentAmount(items: Array<{ category: string; amountCents: number }> | undefined, category: string) { const matching = (items || []).filter((item) => item.category === category); return matching.length ? matching.reduce((sum, item) => sum + item.amountCents, 0) : null; }
+function componentAmount(items: Array<{ category: string; amountCents: number }> | undefined, category: string) { const matching = (items || []).filter((item) => category === "SERVICES" ? ["SERVICES", "WATER", "HEATING", "ELECTRICITY"].includes(item.category) : item.category === category); return matching.length ? matching.reduce((sum, item) => sum + item.amountCents, 0) : null; }
 
 /** Resolves RENT and SERVICES independently so one component never suppresses another component's fallback. */
 export function rentRollAmountsAt(lease: RentRollLease, asOf: Date) {

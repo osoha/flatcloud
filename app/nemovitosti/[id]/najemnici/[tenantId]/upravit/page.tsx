@@ -1,3 +1,4 @@
+import { dateInput } from "@/lib/forms";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -26,7 +27,7 @@ export default async function EditTenant({ params, searchParams }: { params: Pro
     <Flash ok={query.ok} error={query.error}/>
     <FormCard action={`/api/properties/${id}/tenants/${tenant.id}`} cancelHref={`/nemovitosti/${id}/najemnici`} encType="multipart/form-data">
       <div className="field-full tenant-avatar-current"><TenantAvatar tenant={tenant}/><span>Současný avatar · změnit výběrem níže</span></div>
-      <TenantFields typeName="type" noteName="note" avatarChoice={tenant.avatarMimeType ? "upload" : tenant.avatarChoice} avatarSeed={tenant.id} defaults={{ type: tenant.type, name: tenant.name, email: tenant.email, phone: tenant.phone, ico: tenant.ico, permanentAddress: tenant.permanentAddress || (tenant.type === "PERSON" ? tenant.address : null), correspondenceAddress: tenant.correspondenceAddress, billingAddress: tenant.billingAddress || (tenant.type === "COMPANY" ? tenant.address : null), billingEmail: tenant.billingEmail, communicationEmail: tenant.communicationEmail, note: tenant.note }}/>
+      <TenantFields typeName="type" noteName="note" avatarChoice={tenant.avatarMimeType ? "upload" : tenant.avatarChoice} avatarSeed={tenant.id} defaults={{ dateOfBirth: dateInput(tenant.dateOfBirth), identityDocumentNumber: tenant.identityDocumentNumber, passportNumber: tenant.passportNumber, type: tenant.type, name: tenant.name, email: tenant.email, phone: tenant.phone, ico: tenant.ico, permanentAddress: tenant.permanentAddress || (tenant.type === "PERSON" ? tenant.address : null), correspondenceAddress: tenant.correspondenceAddress, billingAddress: tenant.billingAddress || (tenant.type === "COMPANY" ? tenant.address : null), billingEmail: tenant.billingEmail, communicationEmail: tenant.communicationEmail, note: tenant.note }}/>
       <Textarea label="Známé účty plátce" name="payerAccounts" defaultValue={tenant.payerAccounts.join("\n")} placeholder="Jeden účet na řádek"/>
       <div className="field field-full notice"><strong>Nájemník se neukončuje ani nemaže</strong><span>Historie nájemních vztahů zůstává zachována. Ukončení se provádí vždy na konkrétní smlouvě.</span></div>
     </FormCard>

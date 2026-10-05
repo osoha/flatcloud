@@ -7,18 +7,20 @@ import { useEffect, useMemo, useState } from "react";
 const STORAGE_KEY = "flatcloud:property-scope";
 const scopedRoots = [
   "/portfolio",
+  "/dokumenty",
   "/reporty",
   "/ukoly",
   "/revize",
   "/smlouvy",
+  "/platby/banka",
   "/platby/nesparovane",
   "/platby/nova",
   "/distribuce",
 ];
 
-function withPropertyScope(href: string, propertyScope: string) {
+function withPropertyScope(href: string, propertyScope: string | null) {
   if (
-    !propertyScope ||
+    propertyScope === null ||
     !scopedRoots.some(
       (root) =>
         href === root ||
@@ -46,23 +48,23 @@ export function ScopeAwareLink({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentScope = searchParams.get("properties") || "";
+  const currentScope = searchParams.get("properties");
   const [rememberedScope, setRememberedScope] = useState(currentScope);
 
   useEffect(() => {
-    if (currentScope) {
+    if (currentScope !== null) {
       window.sessionStorage.setItem(STORAGE_KEY, currentScope);
       setRememberedScope(currentScope);
-    } else if (pathname === "/portfolio" || pathname === "/reporty") {
+    } else if (scopedRoots.includes(pathname)) {
       window.sessionStorage.removeItem(STORAGE_KEY);
-      setRememberedScope("");
+      setRememberedScope(null);
     } else {
-      setRememberedScope(window.sessionStorage.getItem(STORAGE_KEY) || "");
+      setRememberedScope(window.sessionStorage.getItem(STORAGE_KEY));
     }
   }, [currentScope, pathname]);
 
   const scopedHref = useMemo(
-    () => withPropertyScope(href, currentScope || rememberedScope),
+    () => withPropertyScope(href, currentScope ?? rememberedScope),
     [href, currentScope, rememberedScope],
   );
   const targetPath = href.split(/[?#]/, 1)[0];

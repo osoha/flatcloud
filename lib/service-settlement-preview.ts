@@ -71,7 +71,7 @@ async function loadServiceSettlementPreviewFrom(db: Prisma.TransactionClient | t
     allocations: allocationRows.map(r=>({sourceId:r.batch.sourceId,lineKey:r.batch.lineKey,unitId:r.unitId,leaseId:r.leaseId,amountCents:r.amountCents,label:`Potvrzené rozdělení · ${r.batch.method}`})),
   });
   const monthlyCharges = lease.charges.filter((charge) => /^\d{4}-\d{2}$/.test(charge.period) && charge.period >= period.from.slice(0, 7) && charge.period <= period.to.slice(0, 7));
-  const advanceRows = monthlyCharges.map((charge) => ({ id: charge.id, period: charge.period, amountCents: charge.items.filter((item) => serviceCategories.has(item.category)).reduce((sum, item) => sum + item.amountCents, 0) })).filter((row) => row.amountCents > 0);
+  const advanceRows = monthlyCharges.map((charge) => ({ id: charge.id, period: charge.period, items: charge.items.filter(item => serviceCategories.has(item.category)).map(item => ({ name: item.name, category: item.category, amountCents: item.amountCents })), amountCents: charge.items.filter((item) => serviceCategories.has(item.category)).reduce((sum, item) => sum + item.amountCents, 0) })).filter((row) => row.amountCents > 0);
   const legacyCostRows = costs.flatMap((cost) => {
     const allocation = serviceCostAllocationForUnit(cost, lease.unitId);
     return allocation ? [{ id: cost.id, title: cost.title, effectiveAt: cost.effectiveAt, sourceAmountCents: cost.amountCents, allocatedAmountCents: allocation.amountCents, allocationLabel: allocation.label, documentCount: cost.documents.length }] : [];

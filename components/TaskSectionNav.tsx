@@ -1,4 +1,4 @@
-import Link from "next/link";
+import {ScopeAwareLink as Link} from "@/components/ScopeAwareLink";
 import { prisma } from "@/lib/db";
 import { unreadAnnouncementWhere } from "@/lib/announcements";
 

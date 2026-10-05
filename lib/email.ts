@@ -64,5 +64,11 @@ export async function sendInvitationEmail(input: { to: string; inviterName: stri
   });
 }
 
+export async function sendTenantPortalInvitationEmail(input:{to:string;inviterName:string;inviteUrl:string}) {
+  return sendMail({to:input.to,subject:"Pozvánka do Portálu nájemníka FlatBerry",
+    html:`<h2>Pozvánka do Portálu nájemníka</h2><p>${escapeHtml(input.inviterName)} vás pozval do portálu FlatBerry pro váš nájem.</p><p><a href="${escapeHtml(input.inviteUrl)}">Přijmout pozvánku</a></p><p>Odkaz platí 7 dní. Pokud jste pozvánku neočekávali, ignorujte ji.</p>`,
+    text:`${input.inviterName} vás pozval do Portálu nájemníka FlatBerry. Přijmout pozvánku: ${input.inviteUrl}`});
+}
+
 export function escapeHtml(value: string) { return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] || character); }
 function escapeHeader(value: string) { return value.replace(/[\r\n"]/g, ""); }

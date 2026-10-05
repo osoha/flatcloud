@@ -10,6 +10,8 @@ import { linkIsUsedByUnit } from "@/lib/bank-verification-scope";
 import { Shell } from "@/components/Shell";
 import { Flash, FormPage } from "@/components/FormUi";
 import { payerDisplayName } from "@/lib/bank-payer-display";
+import {normalizeExpenseAccount} from "@/lib/bank-expense-rule-policy";
+import {leaseStatusAt} from "@/lib/lease-lifecycle-core";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +28,13 @@ export default async function InboxPaymentDetail({ params, searchParams }: { par
   const user = await requireUser();
   const { id } = await params;
   const { row, accounts } = await requireInboxBankAccess(user,id).catch(()=>notFound());
-  const [leases, paymentLinks, query] = await Promise.all([
-    prisma.lease.findMany({ where: hasAllPropertyAccess(user) ? {} : {ownerBankAccountId:{in:accounts.map(a=>a.id)},unit:{OR:[{property:{memberships:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}}},{userAccesses:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}}]}}, include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
+  const [candidateLeases, paymentLinks, query] = await Promise.all([
+    prisma.lease.findMany({ where: hasAllPropertyAccess(user) ? {} : {OR:[{ownerBankAccountId:{in:accounts.map(a=>a.id)}},{ownerBankAccount:{owner:{userId:user.id}}},{unit:{property:{managerId:user.id}}}]}, include: { unit: { include: { property: true } }, tenant: true, ownerBankAccount: true }, orderBy: [{ unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }] }),
     prisma.propertyPaymentAccount.findMany({ where: { active: true, ...(user.role === "SUPER_ADMIN" ? {} : { ownerBankAccountId: { in: accounts.map(a=>a.id) } }) }, include: { property: { include: { units: { select: { label: true, ownerships: { select: { ownerBankAccountId: true } } } } } }, ownerBankAccount: true }, orderBy: { createdAt: "asc" } }),
     searchParams,
   ]);
+  const payerAccount=row.counterpartyAccount;
+  const leases=candidateLeases.filter(lease=>row.recipientAccount?bankAccountMatches(lease.ownerBankAccount||{},row.recipientAccount):payerAccount&&leaseStatusAt(lease)==="ACTIVE"&&[lease.tenantBankAccount,...lease.tenant.payerAccounts].filter((value):value is string=>Boolean(value)).some(value=>normalizeExpenseAccount(value)===normalizeExpenseAccount(payerAccount)));
   if (!row) notFound();
   const payerPropertyIds = [...new Set(paymentLinks.filter(l => bankAccountMatches(l.ownerBankAccount, row.recipientAccount)).map(l => l.propertyId))];
   const payerPropertyId = row.propertyId || (payerPropertyIds.length === 1 ? payerPropertyIds[0] : null);

@@ -1,3 +1,4 @@
+import { collectTenantPortalNotifications, processTenantPortalNotifications } from "../lib/tenant-portal-notifications";
 import { collectTaskNotifications, processTaskNotifications } from "../lib/task-notifications";
 import { prisma } from "../lib/db";
 import { syncInboundMailbox } from "../lib/inbound-bank/sync";
@@ -6,6 +7,8 @@ import { runRentNotifications } from "../lib/rent-notifications";
 import { runChargeAutomation } from "../lib/charge-automation";
 import { syncLifecycleCaches } from "../lib/lease-lifecycle";
 import { syncMfRentDatasets } from "../lib/reporting/mf-rent/service";
+import { runMeterTaskAutomation } from "../lib/meter-task-automation";
+import {runAutoTenantPortalInvitations} from "../lib/tenant-portal-auto-invite";
 import { runTaskAutomation } from "../lib/task-automation";
 import { syncCsuApartmentAverage, syncCsuApartmentIndex } from "../lib/reporting/csu-apartment-index";
 
@@ -66,6 +69,12 @@ async function main() {
   }
 
   try {
+    const invitations=await runAutoTenantPortalInvitations();
+    steps.push({name:"tenant-portal-invitations",status:invitations.failed?"failed":"ok",summary:invitations.summary});
+    if(invitations.failed)hardFailure=true;
+  }catch(error){steps.push({name:"tenant-portal-invitations",status:"failed",summary:messageOf(error)});hardFailure=true;}
+
+  try {
     const notifications = await runRentNotifications();
     steps.push({ name: "notifications", status: "ok", summary: notifications.summary });
   } catch (error) {
@@ -75,6 +84,9 @@ async function main() {
 
   try {
     const tasks = await runTaskAutomation();
+    const sandbox=process.env.RENDER_GIT_BRANCH?.startsWith("sandbox/")||process.env.RENDER_EXTERNAL_URL?.includes("sandbox");
+    const meterTasks = (sandbox||process.env.METER_TASK_AUTOMATION_ENABLED === "true") ? await runMeterTaskAutomation() : {summary:"Automatika odečtů čeká na aktivaci v produkci."};
+    steps.push({name:"meter-tasks",status:"ok",summary:meterTasks.summary});
     steps.push({ name: "task-automation", status: "ok", summary: tasks.summary });
   } catch (error) {
     steps.push({ name: "task-automation", status: "failed", summary: messageOf(error) });
@@ -87,6 +99,14 @@ async function main() {
     steps.push({ name: "task-notifications", status: result.failed ? "failed" : "ok", summary: `Odesláno ${result.sent}, přeskočeno ${result.skipped}, nepotvrzeno ${result.failed}.` });
   } catch (error) {
     steps.push({ name: "task-notifications", status: "failed", summary: messageOf(error) });
+  }
+
+  try {
+    await collectTenantPortalNotifications();
+    const result = await processTenantPortalNotifications();
+    steps.push({ name: "tenant-portal-notifications", status: result.failed ? "failed" : "ok", summary: `Odesláno ${result.sent}, přeskočeno ${result.skipped}, nepotvrzeno ${result.failed}.` });
+  } catch (error) {
+    steps.push({ name: "tenant-portal-notifications", status: "failed", summary: messageOf(error) });
   }
 
   try {

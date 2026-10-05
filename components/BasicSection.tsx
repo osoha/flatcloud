@@ -1,4 +1,4 @@
-import Link from "next/link";
+import {ScopeAwareLink as Link} from "@/components/ScopeAwareLink";
 import type { ReactNode } from "react";
 
 export function BasicSectionHero({ eyebrow, title, description, berry, message }: { eyebrow: string; title: string; description: string; berry: "finance" | "notifications" | "tasks" | "contracts"; message: string }) {

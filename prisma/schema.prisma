@@ -12,6 +12,7 @@ enum UserRole {
   MANAGER
   OWNER_VIEWER
   PROPERTY_MANAGER
+  TENANT
 }
 
 enum PropertyPermission {
@@ -25,6 +26,11 @@ enum InvitationStatus {
   ACCEPTED
   REVOKED
   EXPIRED
+}
+
+enum TenantPortalInvitationMode {
+  MANUAL
+  AUTOMATIC
 }
 
 enum PaymentStatus {
@@ -503,7 +509,14 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  receiptSignatureData Bytes?
+  receiptIssuerName String?
+  receiptIssuerAddress String?
+  receiptIssuanceEnabled Boolean @default(false)
+  paymentReceipts TenantPaymentReceipt[] @relation("PaymentReceiptIssuer")
+  createdTenants Tenant[] @relation("TenantCreator")
   defaultDisplayMode String @default("basic")
+  profiGraphics Boolean @default(false)
   onboardingStatus String @default("available")
   onboardingStep String @default("welcome")
   onboardingVersion Int @default(1)
@@ -542,6 +555,7 @@ model User {
   memberships                          UserProperty[]
   unitMemberships                      UserUnit[]
   invitationsSent                      UserInvitation[]               @relation("InvitationSender")
+  tenantPortalAccesses                 TenantPortalAccess[]
   managedProperties                    Property[]                     @relation("PropertyManager")
   auditLogs                            AuditLog[]
   tasksCreated                         Task[]                         @relation("TaskCreator")
@@ -549,6 +563,7 @@ model User {
   taskEntries                          TaskEntry[]
   taskMemberships                      TaskMember[]
   taskStates                           TaskUserState[]
+  portalPublishedTasks                 Task[] @relation("TenantPortalTaskPublisher")
   passwordResetTokens                  PasswordResetToken[]
   checklistItemsCompleted              TaskChecklistItem[]            @relation("ChecklistCompleter")
   taskAttachmentsUploaded              TaskAttachment[]               @relation("TaskAttachmentUploader")
@@ -704,6 +719,7 @@ model Property {
   communicationOwnerId              String?
   communicationOwner                Owner?                          @relation("PropertyCommunicationOwner", fields: [communicationOwnerId], references: [id], onDelete: SetNull)
   selfManaged                       Boolean                         @default(false)
+  tenantPortalInvitationMode        TenantPortalInvitationMode      @default(MANUAL)
   managerId                         String?
   manager                           User?                           @relation("PropertyManager", fields: [managerId], references: [id], onDelete: SetNull)
   managementScope                   PropertyManagementScope         @default(FULL_MANAGEMENT)
@@ -1044,6 +1060,9 @@ model UserInvitation {
   email         String
   name          String?
   tokenHash     String             @unique
+  tokenEncrypted String?
+  deliveryError String?
+  sentAt        DateTime?
   propertyId    String
   propertyIds   String[]           @default([])
   unitIds       String[]           @default([])
@@ -1051,6 +1070,8 @@ model UserInvitation {
   property      Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   permission    PropertyPermission @default(VIEW)
   role          UserRole           @default(OWNER_VIEWER)
+  tenantId      String?
+  tenant        Tenant?            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   invitedById   String
   invitedBy     User               @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
   status        InvitationStatus   @default(PENDING)
@@ -1550,6 +1571,12 @@ model UnitOwnership {
 }
 
 model Tenant {
+  dateOfBirth           DateTime?        @db.Date
+  identityDocumentNumber String?
+  passportNumber        String?
+  createdById           String?
+  createdBy             User?            @relation("TenantCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  @@index([createdById, name])
   id                    String           @id @default(cuid())
   avatarChoice          String?
   avatarData            Bytes?
@@ -1570,10 +1597,23 @@ model Tenant {
   payerAccounts         String[]
   leases                Lease[]
   leaseParties          LeaseParty[]
+  portalAccesses        TenantPortalAccess[]
+  portalInvitations     UserInvitation[]
   propertyLinks         TenantProperty[]
   tasks                 Task[]
   createdAt             DateTime         @default(now())
   updatedAt             DateTime         @updatedAt
+}
+
+model TenantPortalAccess {
+  userId    String
+  tenantId  String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, tenantId])
+  @@index([tenantId])
 }
 
 model TenantProperty {
@@ -1592,6 +1632,7 @@ model Lease {
   id                          String                      @id @default(cuid())
   unitId                      String
   tenantId                    String
+  autoPortalInvitationPending Boolean @default(false)
   unit                        Unit                        @relation(fields: [unitId], references: [id], onDelete: Cascade)
   tenant                      Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   contractNumber              String?
@@ -1620,6 +1661,7 @@ model Lease {
   meterReadings               MeterReading[]
   notifications               RentNotification[]
   tasks                       Task[]
+  portalAnnouncementAudiences AnnouncementAudience[]
   remindersPausedUntil        DateTime?
   reminderPauseReason         String?
   promisedPaymentDate         DateTime?
@@ -1647,6 +1689,7 @@ model Lease {
   @@unique([ownerBankAccountId, variableSymbol])
   @@index([unitId, startDate])
   @@index([tenantId, startDate])
+  @@index([autoPortalInvitationPending, startDate])
   @@index([variableSymbol])
   @@index([ownerBankAccountId])
 }
@@ -1761,6 +1804,7 @@ model LeasePaymentItem {
 }
 
 model Charge {
+  paymentReceipts TenantPaymentReceipt[]
   id                        String                     @id @default(cuid())
   leaseId                   String
   lease                     Lease                      @relation(fields: [leaseId], references: [id], onDelete: Cascade)
@@ -2055,6 +2099,12 @@ model RentNotification {
   @@index([chargeId])
 }
 
+enum TenantPortalRequestKind {
+  DEFECT
+  MESSAGE
+  CONTACT_CHANGE
+}
+
 model Task {
   notificationSnapshot TaskNotificationSnapshot?
   notifications TaskNotification[]
@@ -2071,6 +2121,16 @@ model Task {
   leaseId                String?
   lease                  Lease?                      @relation(fields: [leaseId], references: [id], onDelete: SetNull)
   tenantId               String?
+  tenantPortalRequest     Boolean                     @default(false)
+  tenantPortalRequestKind TenantPortalRequestKind?
+  contactChangeRequest    TenantContactChangeRequest?
+  tenantPortalPublishedAt DateTime?
+  tenantPortalPublishedById String?
+  tenantPortalPublishedBy User? @relation("TenantPortalTaskPublisher", fields: [tenantPortalPublishedById], references: [id], onDelete: SetNull)
+  tenantPortalTitle       String?
+  tenantPortalBody        String?
+  tenantEntryConsentAt    DateTime?
+  tenantVisitNote         String?
   tenant                 Tenant?                     @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   createdById            String?
   createdBy              User?                       @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -2096,7 +2156,60 @@ model Task {
   @@index([propertyId, status, dueAt])
   @@index([assigneeId, status, dueAt])
   @@index([leaseId, category, status])
+  @@index([tenantId, tenantPortalRequest, createdAt])
+  @@index([leaseId, tenantId, tenantPortalPublishedAt])
   @@index([automationRuleId, automationEventKey])
+}
+
+model TenantContactChangeRequest {
+  id            String   @id @default(cuid())
+  taskId        String   @unique
+  task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  requestedById String
+  before        Json
+  requested     Json
+  reason        String?
+  status        String   @default("PENDING")
+  reviewedById  String?
+  reviewedAt    DateTime?
+  reviewNote    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model TenantPortalNotification {
+  id               String   @id @default(cuid())
+  dedupeKey        String   @unique
+  userId           String
+  tenantId         String
+  leaseId          String
+  propertyId       String
+  kind             String
+  taskId           String?
+  entryId          String?
+  announcementId   String?
+  contactRequestId String?
+  sourceRevision   DateTime?
+  status           String   @default("PENDING")
+  attempts         Int      @default(0)
+  nextAttemptAt    DateTime @default(now())
+  claimedAt        DateTime?
+  sentAt           DateTime?
+  detail           String?
+  createdAt        DateTime @default(now())
+
+  @@index([status, nextAttemptAt])
+  @@index([userId, createdAt])
+  @@index([taskId])
+}
+
+model TenantPortalNotificationSnapshot {
+  taskId        String   @id
+  status        String
+  dueAt         DateTime?
+  publishedAt   DateTime?
+  observedAt    DateTime
+  trackingSince DateTime @default(now())
 }
 
 model TaskChecklistItem {
@@ -2105,11 +2218,16 @@ model TaskChecklistItem {
   task          Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   position      Int
   title         String
+  meterId       String?
+  meterPeriodKey String?
+  baselineReadingId String?
+  requiredFrom  DateTime?
   completedAt   DateTime?
   completedById String?
   completedBy   User?    @relation("ChecklistCompleter", fields: [completedById], references: [id], onDelete: SetNull)
 
   @@unique([taskId, position])
+  @@unique([taskId, meterId, meterPeriodKey])
   @@index([taskId, completedAt])
 }
 
@@ -2190,6 +2308,7 @@ model TaskUserState {
   favorite    Boolean   @default(false)
   dismissedAt DateTime?
   lastReadAt  DateTime?
+  tenantConfirmedAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -2204,6 +2323,8 @@ enum AnnouncementSeverity {
 }
 
 enum AnnouncementAudienceKind {
+  TENANT_PROPERTY
+  TENANT_LEASE
   ALL_USERS
   FLATCLOUD_MEMBERS
   ROLE
@@ -2219,6 +2340,8 @@ model Announcement {
   startsAt    DateTime                @default(now())
   expiresAt   DateTime?
   active      Boolean                 @default(true)
+  tenantPortalNotificationRevision DateTime?
+  tenantPortalNotificationQueuedAt DateTime?
   createdById String
   createdBy   User                    @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: Restrict)
   audiences   AnnouncementAudience[]
@@ -2234,6 +2357,8 @@ model AnnouncementAudience {
   announcementId String
   announcement   Announcement             @relation(fields: [announcementId], references: [id], onDelete: Cascade)
   kind           AnnouncementAudienceKind
+  leaseId        String?
+  lease          Lease?                   @relation(fields: [leaseId], references: [id], onDelete: Cascade)
   role           UserRole?
   propertyId     String?
   property       Property?                @relation(fields: [propertyId], references: [id], onDelete: Cascade)
@@ -2242,6 +2367,7 @@ model AnnouncementAudience {
   createdAt      DateTime                 @default(now())
 
   @@index([announcementId, kind])
+  @@index([leaseId])
   @@index([propertyId])
   @@index([userId])
 }
@@ -2263,6 +2389,7 @@ model AnnouncementUserState {
 enum TaskEntryVisibility {
   INTERNAL
   OWNER_VISIBLE
+  TENANT_VISIBLE
 }
 
 model TaskEntry {
@@ -2277,6 +2404,7 @@ model TaskEntry {
   author              User?               @relation(fields: [authorId], references: [id], onDelete: SetNull)
   kind                TaskEntryKind       @default(COMMENT)
   body                String
+  tenantSubmissionKey String? @unique
   promisedPaymentDate DateTime?
   promisedAmountCents Int?
   createdAt           DateTime            @default(now())
@@ -2639,6 +2767,7 @@ model Document {
   photoStage                           DocumentPhotoStage?
   title                                String
   description                          String?
+  tenantVisible                        Boolean                               @default(false)
   documentDate                         DateTime?
   unitId                               String?
   unit                                 Unit?                                 @relation(fields: [unitId], references: [id], onDelete: SetNull)
@@ -3028,4 +3157,19 @@ model AccountBankRule {
   updatedAt                DateTime         @updatedAt
 
   @@index([ownerBankAccountId, active, priority])
+}
+
+/// Immutable issued PDF: repeated requests return the same financial snapshot.
+model TenantPaymentReceipt {
+  id String @id @default(cuid())
+  chargeId String
+  charge Charge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+  issuerId String
+  issuer User @relation("PaymentReceiptIssuer", fields: [issuerId], references: [id], onDelete: Restrict)
+  snapshotHash String
+  snapshot Json
+  pdfData Bytes
+  issuedAt DateTime @default(now())
+  @@unique([chargeId, snapshotHash])
+  @@index([issuerId])
 }
