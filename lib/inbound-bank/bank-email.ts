@@ -259,10 +259,12 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   ]);
   // ČSOB Moje info uses a bare "Účet" row for the receiving account.
   // Keep this fallback bank-specific and exclude the separate counterparty row.
-  const csobRecipientAccount = csobNotification && !outgoing
+  // In ČSOB Moje info the bare "Účet" row names the customer's account
+  // in both directions. A separate "Účet protistrany" row is never our account.
+  const csobOwnAccount = csobNotification
     ? accountFromValue(lineValue(combined, ["Účet(?!\\s+protistrany)", "Ucet(?!\\s+protistrany)"]))
     : undefined;
-  const recipientAccount = outgoing ? ownAccount : accountFromValue(recipientValue) || csobRecipientAccount || fallbackAccountSearch(combined, "recipient");
+  const recipientAccount = outgoing ? ownAccount || csobOwnAccount : accountFromValue(recipientValue) || csobOwnAccount || fallbackAccountSearch(combined, "recipient");
   const counterpartyAccount = outgoing ? accountFromValue(lineValue(combined, ["Účet příjemce", "Ucet prijemce", "Na účet", "Na ucet", "Recipient account", "Beneficiary account", "Číslo účtu protistrany", "Cislo uctu protistrany", "Účet protistrany", "Ucet protistrany", "Protiúčet", "Protiucet"])) : accountFromValue(counterpartyValue) || fallbackAccountSearch(combined, "counterparty");
   const counterpartyName = lineValue(combined, [
     "Jméno plátce", "Jmeno platce", "Název protiúčtu", "Nazev protiuctu", "Plátce", "Platce",
