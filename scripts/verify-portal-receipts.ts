@@ -27,5 +27,5 @@ assert.equal(tenantPortalStatus({...tenant,communicationEmail:"changed@test.cz",
 assert.ok("OR" in portalEditableUnitWhere({id:"viewer",role:"OWNER_VIEWER",allProperties:true}));
 assert.equal(portfolioSelectionLabel({mode:"ALL"},6,6,5),"Zobrazeno všech 6 dostupných objektů");
 const portal=readFileSync("app/portal/najemnik/[tenantId]/page.tsx","utf8");
-assert.doesNotMatch(portal,/charges\.slice\(-6\)/);assert.match(portal,/name="chargeId"/);assert.match(portal,/a\.transaction\.bookedAt/);
+assert.doesNotMatch(portal,/charges\.slice\(-6\)/);assert.match(portal,/name="chargeId"/);assert.match(portal,/\.transaction\.bookedAt/);
 console.log("Portal receipts: financial eligibility, permission boundary, access statuses and Czech labels passed.");

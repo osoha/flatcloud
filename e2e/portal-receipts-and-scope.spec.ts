@@ -61,7 +61,10 @@ test("signed receipts use received payments, stay archived, and scoped previews 
 
   await login(tenantPage,account.email);await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
   await expect(tenantPage.getByRole("heading",{level:1})).toHaveText("Dobrý den, Jano!");
-  const choices=tenantPage.locator(`select[name=chargeId] option`);await expect(choices).toHaveCount(1);await expect(choices).toContainText(periodLabel(paid.period));
+  await tenantPage.locator(`a[href="#dokumenty-${lease.id}-doklady"]`).last().click();
+  await expect(tenantPage.getByRole("dialog",{name:"Dokumenty",exact:true})).toBeVisible();
+  const choices=tenantPage.locator(`select[name=chargeId] option`);await expect(choices).toHaveCount(1);await expect(choices).toContainText(new RegExp(periodLabel(paid.period),"i"));
+  await tenantPage.getByRole("dialog").getByRole("button",{name:"Zavřít",exact:true}).click();
   await expect(tenantPage.locator(".portal-payment-history tr.portal-paid")).toContainText("Připsáno");await expect(tenantPage.locator(".portal-payment-history tr.portal-overdue")).toContainText("Částečně");
   await expect(tenantPage.locator(".portal-payment-history tr.portal-scheduled")).toContainText("2099");
   await expect(tenantPage.locator(".tenant-portal-call").first()).toHaveAttribute("href",`tel:${manager.phone}`);
@@ -74,7 +77,8 @@ test("signed receipts use received payments, stay archived, and scoped previews 
   const repeated=await tenantPage.request.post(`/api/portal/tenants/${tenant.id}/receipts`,{headers:await sessionHeaders(tenantPage),form:{chargeId:paid.id},maxRedirects:0});expect(repeated.headers().location).toBe(location);expect(await db.tenantPaymentReceipt.count({where:{chargeId:paid.id}})).toBe(1);
   await db.user.update({where:{id:manager.id},data:{receiptSignatureData:null,receiptIssuanceEnabled:false}});expect(await (await tenantPage.request.get(location,{headers:await sessionHeaders(tenantPage)})).body()).toEqual(await pdf.body());
   expect((await viewerPage.request.get(location,{headers:await sessionHeaders(viewerPage)})).status()).toBe(404);
-  await tenantPage.reload();await expect(tenantPage.locator(`#dokumenty-${lease.id} .portal-document-list`)).toContainText("stáhnout PDF");
+  await tenantPage.reload();await tenantPage.locator(`a[href="#dokumenty-${lease.id}-doklady"]`).last().click();await expect(tenantPage.getByRole("dialog",{name:"Dokumenty",exact:true}).getByRole("link",{name:/stáhnout PDF/i})).toBeVisible();
+  await tenantPage.getByRole("dialog").getByRole("button",{name:"Zavřít",exact:true}).click();
   await tenantPage.screenshot({path:info.outputPath("tenant-portal-desktop.png"),fullPage:true});
   await info.attach("receipt.pdf",{body:await pdf.body(),contentType:"application/pdf"});
   await tenantPage.setViewportSize({width:390,height:844});expect(await tenantPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);await tenantPage.screenshot({path:info.outputPath("tenant-portal-mobile.png"),fullPage:true});
