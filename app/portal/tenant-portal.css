@@ -398,3 +398,6 @@
 .tenant-portal-v2 .tp-chat-meta{display:block}.tenant-portal-v2 .tp-chat-meta time{display:block;margin-top:3px}
 .tenant-portal-v2 .tp-contact-request-history .tp-request-top{flex-wrap:wrap}
 }
+@media(max-width:480px){
+.tenant-portal-v2 .tp-dialog[id^="kontaktni-udaje-"] .tp-form-row{grid-template-columns:1fr}
+}

@@ -26,6 +26,10 @@ E-mail před odesláním znovu ověřuje aktuální přístup, kontaktní e-mail
 
 Izolovaná databáze přijala všech 106 migrací; Prisma validate a bootstrap prošly. Verifikátor upozornění ověřuje povinné doručení nezávislé na tenantově nastavení, paralelní převzetí, odvolaný přístup, změněný kontakt, neaktivní nemovitost, skrytou zprávu, plánované oznámení, starší oznámení, SMTP a české kalendářní termíny.
 
+První produkční build a všech 11 cílových prohlížečových scénářů prošly; plný verifikátor upozornění prošel 13 kontrolami. Vizuálně byly zkontrolované skutečné desktopové a mobilní snímky nové zprávy, konverzace, kontaktů a výsledku vyřízení. Na mobilu byly kontaktní údaje upravené do jednoho sloupce kvůli čitelnosti e-mailu. Nezávislá kontrola přístupů a veřejného obsahu nemá zbývající blokující nález.
+
 Nová prohlížečová sada `e2e/tenant-portal-conversations.spec.ts` ověřuje celý průchod nájemník–správce, soukromé poznámky, oddělené rozepsané texty, opakované požadavky, cizího nájemníka, plátce, náhled, uzavřenou konverzaci a kontaktní žádost včetně auditní historie. Je součástí cíleného portálového kroku i úplné sady CI. Stávající kontroly plateb, dokladů, fotografií, rozsahu oprávnění, smluv a vyúčtování se zachovávají.
 
 READY a merge jsou podmíněné úspěšným produkčním sestavením, prohlížečovými testy, vizuální kontrolou a zelenými kontrolami konečného SHA na nativním PostgreSQL v CI. Konkrétní výsledky a nasazené SHA jsou zaznamenané v navazujících pull requestech. Produkce a aktivní scheduler musí po vydání běžet z očekávaného commitu; sandbox musí obsahovat stejný ověřený obsah.
+
+Vydání sledují [sandbox PR #249](https://github.com/osoha/flatcloud/pull/249) a [produkční PR #250](https://github.com/osoha/flatcloud/pull/250).

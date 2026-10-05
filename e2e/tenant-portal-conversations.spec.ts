@@ -186,6 +186,10 @@ test("contact changes preserve an audited request and staff outcome without sile
     const key = task.dedupeKey!.split(":").at(-1)!;
     const replay = await page.request.post(endpoint, {headers: await headers(page), data: {leaseId: f.lease.id, submissionKey: key, email: "jana.novy-kontakt@flatcloud.test", phone: "+420777999888", reason: request.reason}});
     expect(replay.status()).toBe(201); expect((await replay.json()).request.id).toBe(request.id);
+    const changedReplay = await page.request.post(endpoint, {headers: await headers(page), data: {leaseId: f.lease.id, submissionKey: key, email: "different@flatcloud.test", phone: "+420777999888", reason: request.reason}});
+    expect(changedReplay.ok()).toBe(false);
+    const previewWrite = await page.request.post(`${endpoint}?preview=1`, {headers: await headers(page), data: {leaseId: f.lease.id, submissionKey: randomUUID(), phone: "+420777000111"}});
+    expect(previewWrite.status()).toBe(403);
     expect(await db.tenantContactChangeRequest.count({where: {task: {tenantId: f.tenant.id}}})).toBe(1);
     await login(other, f.outsider.email);
     expect((await other.request.get(`${endpoint}?leaseId=${f.lease.id}`, {headers: await headers(other)})).status()).toBe(403);
@@ -212,5 +216,17 @@ test("contact changes preserve an audited request and staff outcome without sile
     await page.goto(`/portal/najemnik/${f.tenant.id}#zpravy-spravci-${f.lease.id}--${request.taskId}`);
     await expect(page.getByRole("dialog", {name: "Zprávy se správou bydlení"})).toContainText("Děkuji, změnu ověříme osobně");
     await shot(page, info, "portal-contact-outcome-mobile");
+    const next = await page.request.post(endpoint, {headers: await headers(page), data: {leaseId: f.lease.id, submissionKey: randomUUID(), phone: "+420777000111", reason: "Další nahlášení k ověření."}});
+    expect(next.status()).toBe(201);
+    const nextRequest = (await next.json()).request;
+    await staff.goto(`/ukoly/${nextRequest.taskId}`);
+    await staff.locator("#zmena-kontaktu").getByLabel("Zpráva nájemníkovi a další postup").fill("Tento kontakt jsme s vámi neověřili. Prosím potvrďte telefon v naší konverzaci.");
+    await staff.getByRole("button", {name: "Zamítnout s vysvětlením", exact: true}).click();
+    await expect(staff).toHaveURL(/\?ok=/);
+    expect((await db.tenantContactChangeRequest.findUniqueOrThrow({where: {id: nextRequest.id}})).status).toBe("REJECTED");
+    expect((await db.task.findUniqueOrThrow({where: {id: nextRequest.taskId}})).status).toBe("CANCELLED");
+    await page.goto(`/portal/najemnik/${f.tenant.id}#zpravy-spravci-${f.lease.id}--${nextRequest.taskId}`);
+    await expect(page.getByRole("dialog", {name: "Zprávy se správou bydlení"})).toContainText("Tento kontakt jsme s vámi neověřili.");
+    await expect(page.getByLabel("Vaše odpověď")).toHaveCount(0);
   } finally {await staffContext.close(); await otherContext.close(); await cleanup(f);}
 });
