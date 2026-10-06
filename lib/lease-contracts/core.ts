@@ -16,7 +16,9 @@ export const contractInputSchema = z.object({
   startDate:date,endDate:z.union([date,z.literal("")]),handoverDate:date,signingDate:date,signingPlace:text,
   rentCents:cents.refine(v=>v>0),services:z.array(z.object({name:text,amountCents:cents}).strict()).max(30),dueDay:z.number().int().min(5).max(28),account:text,variableSymbol:z.string().regex(/^\d{1,10}$/),firstPaymentDate:date,
   depositCents:cents,depositDueDate:z.union([date,z.literal("")]),depositAnnualRateBps:z.number().int().min(0).max(10000),
-  directEnergy:text,occupantCount:z.number().int().min(1).max(50),attachments:text,confirmed:z.literal(true),
+  directEnergy:text,occupantCount:z.number().int().min(1).max(50),
+  occupants:z.array(z.object({name,birthDate:z.union([date,z.literal("")]).optional(),role:optionalText.optional()}).strict()).max(50).optional(),
+  attachments:text,confirmed:z.literal(true),
 }).strict().superRefine((d,ctx)=>{
   const issue=(path:string,message:string)=>ctx.addIssue({code:"custom",path:[path],message});
   if(d.term==="INDEFINITE"&&d.endDate)issue("endDate","U doby neurčité odstraňte konec nájmu.");
@@ -31,6 +33,10 @@ export const contractInputSchema = z.object({
   if(d.tenancy==="JOINT"&&d.tenants.length<2)issue("tenancy","Společný nájem vyžaduje alespoň dvě osoby.");
   if(d.tenancy==="SPOUSES"&&d.tenants.length!==2)issue("tenancy","Doplňte oba manžele.");
   if(d.occupantCount<d.tenants.length)issue("occupantCount","Počet osob nesmí být menší než počet nájemců.");
+  if((d.occupants?.length??0)>d.occupantCount)issue("occupantCount","Počet osob nesmí být menší než uvedený jmenný seznam.");
+  for(const [index,occupant] of (d.occupants??[]).entries()) if(occupant.birthDate&&occupant.birthDate>d.startDate)ctx.addIssue({code:"custom",path:["occupants",index,"birthDate"],message:"Datum narození nesmí následovat po začátku nájmu."});
+  const identifiedOccupants=(d.occupants??[]).filter(person=>person.birthDate);
+  if(new Set(identifiedOccupants.map(person=>person.name.normalize("NFC").trim().replace(/\s+/g," ").toLocaleLowerCase("cs")+person.birthDate)).size!==identifiedOccupants.length)issue("occupants","V seznamu se opakuje osoba se stejným jménem a datem narození.");
   if(new Set(d.tenants.map(t=>t.name.toLocaleLowerCase("cs")+t.birthDate)).size!==d.tenants.length)issue("tenants","Smluvní osoby se nesmějí opakovat.");
   for(const t of d.tenants) if(t.birthDate>=d.signingDate)issue("tenants","Datum narození musí předcházet podpisu.");
   if(d.landlord.type==="COMPANY"&&(!/^\d{8}$/.test(d.landlord.identifier)||!d.landlord.registry))issue("landlord","U firmy doplňte osmimístné IČO, rejstřík a způsob jednání.");
@@ -86,6 +92,7 @@ export function buildContract(raw:unknown) {
     ["Změna nájemného",indexed?`ČSÚ: kladná průměrná roční míra inflace za předchozí kalendářní rok, domácnosti celkem v ČR. K 1. dubnu, poprvé nejdříve ${formatDate(firstIndexationDate(d.startDate))}; oznámení 30 dnů předem, celé koruny. Podrobnosti v článku 3.2.`:"Pouze podepsaným dodatkem; bez indexace."],
     ...d.services.map(s=>[s.name,`${money(s.amountCents)} Kč měsíčně`] as [string,string]),
     ["Energie a osoby",`Energie přímo na nájemce: ${d.directEnergy}. Počet osob při zahájení: ${d.occupantCount}.`],
+    ["Osoby v bytě",d.occupants?.length?`${d.occupants.map(o=>[o.name,o.birthDate?`narozen/a ${formatDate(o.birthDate)}`:"",o.role||""].filter(Boolean).join(" · ")).join("\n")}${d.occupants.length<d.occupantCount?`\nSeznam obsahuje ${d.occupants.length} z ${d.occupantCount} osob.`:""}`:"Jmenný seznam osob není uveden."],
     ["Pojištění","Pojištění odpovědnosti včetně škod na pronajatém bytě a třetím osobám je povinné."],
   ];
   return {version:CONTRACT_TEMPLATE_VERSION,input:d,cover,sections,signing:`V ${d.signingPlace} dne ${formatDate(d.signingDate)}`,signatures:[{role:"Pronajímatel",name:d.landlord.name,detail:signer},...d.tenants.map(t=>({role:"Nájemce",name:t.name,detail:`narozen/a ${formatDate(t.birthDate)}`}))]};

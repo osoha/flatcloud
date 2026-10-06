@@ -91,6 +91,14 @@ async function noPageOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 }
 
+async function alignedContact(page: Page) {
+  const name = await page.locator(".tp-contact-bio h3").boundingBox();
+  const telephone = await page.locator(".tp-contact-channels .tenant-portal-call").boundingBox();
+  const email = await page.locator(".tp-contact-email span").boundingBox();
+  expect(Math.abs(name!.x - telephone!.x)).toBeLessThanOrEqual(1);
+  expect(Math.abs(name!.x - email!.x)).toBeLessThanOrEqual(1);
+}
+
 async function readableMobileRent(page: Page) {
   const amount = await page.locator(".tp-rent-amount").evaluate(element => {
     const range = document.createRange(); range.selectNodeContents(element);
@@ -146,6 +154,7 @@ test("portal gives rent and human contact priority, keeps actions in dialogs and
     await expect(page.locator("main")).toContainText(f.unit.label);
     await expect(page.locator("main")).toContainText(f.property.address!);
     await noPageOverflow(page);
+    await alignedContact(page);
     await screenshot(page, info, "portal-overview-desktop");
     await page.locator(`main a[href="#domov-${f.lease.id}"]`).first().click();
     const homeDialog = page.getByRole("dialog", {name: "Můj domov", exact: true});
@@ -175,6 +184,7 @@ test("portal gives rent and human contact priority, keeps actions in dialogs and
     await noPageOverflow(page);
     const mobilePriority = await priority.boundingBox(), mobileMessages = await messages.boundingBox();
     expect(mobilePriority!.y + mobilePriority!.height).toBeLessThanOrEqual(mobileMessages!.y + 1);
+    await alignedContact(page);
     await screenshot(page, info, "portal-overview-mobile");
     await page.locator(`main a[href="#zavady-${f.lease.id}"]`).click();
     await expect(defectDialog.getByLabel("Co se stalo?")).toBeVisible();
@@ -254,6 +264,7 @@ test("rent wording and totals distinguish paid, future, overdue and partial paym
     await db.charge.update({where: {id: overdue.id}, data: {debtTreatment: "EXCLUDED"}});
     await page.reload();
     await expect(priority).not.toContainText("Po splatnosti");
+    await page.getByRole("button", {name: /Zobrazit další období/}).click();
     await expect(page.locator(".portal-payment-history")).toContainText("Mimo aktuální dluh");
   } finally {
     await cleanup(f);
@@ -311,6 +322,7 @@ test("only explicitly published tenant notices and tasks are visible, with read-
 
     await managerPage.goto(`/portal/najemnik/${f.tenant.id}`);
     await expect(managerPage.locator("main")).toContainText(posted.tenantPortalTitle!);
+    await managerPage.locator("details.tp-message-task > summary").click();
     await expect(managerPage.getByRole("button", {name: "Potvrdit přijetí", exact: true})).toBeDisabled();
     await managerPage.request.post(`/api/portal/tenants/${f.tenant.id}/messages`, {headers: await headers(managerPage), form: {leaseId: f.lease.id, kind: "task", itemId: posted.id, action: "confirm", revision: posted.tenantPortalPublishedAt!.toISOString()}, maxRedirects: 0});
     expect(await db.taskUserState.count({where: {taskId: posted.id, tenantConfirmedAt: {not: null}}})).toBe(0);
@@ -339,19 +351,31 @@ test("only explicitly published tenant notices and tasks are visible, with read-
     await payerPage.request.post(`/api/portal/tenants/${f.payer.id}/messages`, {headers: await headers(payerPage), form: {leaseId: f.lease.id, kind: "announcement", itemId: propertyNotice.id, action: "read", revision: propertyNotice.updatedAt.toISOString()}, maxRedirects: 0});
     expect(await db.announcementUserState.count({where: {announcementId: propertyNotice.id, userId: f.payerActor.id}})).toBe(0);
 
-    const ownTask = messages.locator("article").filter({has: page.getByRole("heading", {name: posted.tenantPortalTitle!, exact: true})});
+    const ownTask = messages.locator("details.tp-message").filter({has: page.getByRole("heading", {name: posted.tenantPortalTitle!, exact: true})});
+    await expect(ownTask).not.toHaveAttribute("open");
+    await ownTask.locator(":scope > summary").focus();
+    await page.keyboard.press("Enter");
+    await expect(ownTask).toHaveAttribute("open", "");
+    expect((await db.taskUserState.findUnique({where: {taskId_userId: {taskId: posted.id, userId: f.actor.id}}}))?.tenantConfirmedAt ?? null).toBeNull();
     await ownTask.getByRole("button", {name: "Potvrdit přijetí", exact: true}).click();
     await expect(messages).toContainText("Přijetí potvrzeno");
     expect((await db.taskUserState.findUniqueOrThrow({where: {taskId_userId: {taskId: posted.id, userId: f.actor.id}}})).tenantConfirmedAt).not.toBeNull();
     // Acknowledgement is not completion of the manager's task.
     expect((await db.task.findUniqueOrThrow({where: {id: posted.id}})).status).toBe("OPEN");
-    const ownAnnouncement = messages.locator("article").filter({has: page.getByRole("heading", {name: ownNotice.title, exact: true})});
+    const ownAnnouncement = messages.locator("details.tp-message").filter({has: page.getByRole("heading", {name: ownNotice.title, exact: true})});
+    await expect(ownAnnouncement).not.toHaveAttribute("open");
+    await ownAnnouncement.locator(":scope > summary").focus();
+    await page.keyboard.press("Space");
+    await expect(ownAnnouncement).toHaveAttribute("open", "");
+    expect((await db.announcementUserState.findUnique({where: {announcementId_userId: {announcementId: ownNotice.id, userId: f.actor.id}}}))?.readAt ?? null).toBeNull();
     await ownAnnouncement.getByRole("button", {name: "Přečetl/a jsem", exact: true}).click();
     expect((await db.announcementUserState.findUniqueOrThrow({where: {announcementId_userId: {announcementId: ownNotice.id, userId: f.actor.id}}})).readAt).not.toBeNull();
+    await ownAnnouncement.locator(":scope > summary").click();
     await ownAnnouncement.getByRole("button", {name: "Přesunout do archivu", exact: true}).click();
     await expect(messages.getByRole("heading", {name: ownNotice.title, exact: true})).not.toBeVisible();
-    await messages.locator("details summary").click();
+    await messages.locator(".tp-message-archive > summary").filter({hasText: "Archiv zpráv"}).click();
     await expect(messages.getByRole("heading", {name: ownNotice.title, exact: true})).toBeVisible();
+    await ownAnnouncement.locator(":scope > summary").click();
     await ownAnnouncement.getByRole("button", {name: "Vrátit mezi oznámení", exact: true}).click();
     expect((await db.announcementUserState.findUniqueOrThrow({where: {announcementId_userId: {announcementId: ownNotice.id, userId: f.actor.id}}})).dismissedAt).toBeNull();
     await page.setViewportSize({width: 390, height: 844});
@@ -365,6 +389,7 @@ test("only explicitly published tenant notices and tasks are visible, with read-
     await page.request.post(`/api/portal/tenants/${f.tenant.id}/messages`, {headers: await headers(page), form: {leaseId: f.lease.id, kind: "task", itemId: posted.id, action: "confirm", revision: posted.tenantPortalPublishedAt!.toISOString()}, maxRedirects: 0});
     expect((await db.taskUserState.findUnique({where: {taskId_userId: {taskId: posted.id, userId: f.actor.id}}}))?.tenantConfirmedAt ?? null).toBeNull();
     await page.reload();
+    await ownTask.locator(":scope > summary").click();
     await expect(messages.getByRole("button", {name: "Potvrdit přijetí", exact: true})).toBeVisible();
 
     await managerPage.goto("/ukoly/oznameni/najemnici");
@@ -377,6 +402,7 @@ test("only explicitly published tenant notices and tasks are visible, with read-
     await page.request.post(`/api/portal/tenants/${f.tenant.id}/messages`, {headers: await headers(page), form: {leaseId: f.lease.id, kind: "announcement", itemId: ownNotice.id, action: "read", revision: ownNotice.updatedAt.toISOString()}, maxRedirects: 0});
     expect((await db.announcementUserState.findUnique({where: {announcementId_userId: {announcementId: ownNotice.id, userId: f.actor.id}}}))?.readAt ?? null).toBeNull();
     await page.reload();
+    await ownAnnouncement.locator(":scope > summary").click();
     await expect(ownAnnouncement.getByRole("button", {name: "Přečetl/a jsem", exact: true})).toBeVisible();
   } finally {
     await managerPage.close();

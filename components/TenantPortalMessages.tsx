@@ -1,4 +1,4 @@
-import { ArrowRight, Bell, CheckCheck, ClipboardCheck } from "lucide-react";
+import { ArrowRight, Bell, CheckCheck, ChevronDown, ClipboardCheck } from "lucide-react";
 import { tenantPortalMessages, type PortalMessageUser } from "@/lib/tenant-portal-messages";
 import { date } from "@/lib/format";
 import { taskStatuses } from "@/lib/labels";
@@ -20,22 +20,29 @@ export async function TenantPortalMessages({ tenantId, leaseId, user, preview }:
   function action(kind: "task" | "announcement", itemId: string, verb: string, label: string, revision?: string) {
     return <form action={`/api/portal/tenants/${tenantId}/messages`} method="post"><input type="hidden" name="leaseId" value={leaseId}/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="itemId" value={itemId}/><input type="hidden" name="action" value={verb}/>{revision && <input type="hidden" name="revision" value={revision}/>}<button className="secondary tp-message-action" type="submit" disabled={preview}>{label}</button></form>;
   }
-  function body(text: string) {
-    if (text.length <= 280) return <p>{text}</p>;
-    const excerpt = text.slice(0, 260).replace(/\s+\S*$/, "");
-    return <><p>{excerpt}…</p><details className="tp-message-full"><summary>Přečíst celé sdělení</summary><p>{text}</p></details></>;
-  }
   function notice(item: MessageContent["announcements"][number], archived = false) {
-    return <article className={`tp-message tp-message-notice severity-${item.severity.toLowerCase()}`} key={item.id}>
-      <span className="tp-message-icon"><Bell size={20} aria-hidden="true"/></span>
-      <div className="tp-message-content"><div className="tp-message-meta"><span>{item.createdBy.name}</span><span>{date(item.startsAt)}</span>{item.severity !== "INFO" && <span className="tp-message-important">Důležité</span>}{!isActive(item) && <span>Ukončeno</span>}{item.userStates[0]?.readAt && <span>Přečteno</span>}</div><h3>{item.title}</h3>{body(item.body)}{item.expiresAt && <small>Platí do {date(item.expiresAt)}</small>}
-        {isActive(item) && <div className="tp-message-actions">{archived ? action("announcement", item.id, "restore", "Vrátit mezi oznámení", item.updatedAt.toISOString()) : <>{!item.userStates[0]?.readAt && action("announcement", item.id, "read", "Přečetl/a jsem", item.updatedAt.toISOString())}{action("announcement", item.id, "dismiss", "Přesunout do archivu", item.updatedAt.toISOString())}</>}</div>}
+    const unread = !item.userStates[0]?.readAt;
+    return <details className={`tp-message tp-message-notice severity-${item.severity.toLowerCase()}${unread && !archived ? " tp-message-unread" : ""}`} key={item.id}>
+      <summary className="tp-message-summary">
+        <span className="tp-message-icon"><Bell size={20} aria-hidden="true"/></span>
+        <span className="tp-message-summary-copy"><strong role="heading" aria-level={3}>{item.title}</strong><span className="tp-message-meta"><span>{item.createdBy.name}</span><span>{date(item.startsAt)}</span>{item.expiresAt && <span>Platí do {date(item.expiresAt)}</span>}{item.severity !== "INFO" && <span className="tp-message-important">Důležité</span>}</span></span>
+        <span className={`tp-message-state${unread && !archived ? " tp-message-state-pending" : ""}`}>{!isActive(item) ? "Ukončeno" : unread ? "Nepřečteno" : "Přečteno"}</span><ChevronDown className="tp-message-chevron" size={18} aria-hidden="true"/>
+      </summary>
+      <div className="tp-message-content"><p>{item.body}</p>
+        {isActive(item) && <div className="tp-message-actions">{archived ? action("announcement", item.id, "restore", "Vrátit mezi oznámení", item.updatedAt.toISOString()) : <>{unread && action("announcement", item.id, "read", "Přečetl/a jsem", item.updatedAt.toISOString())}{action("announcement", item.id, "dismiss", "Přesunout do archivu", item.updatedAt.toISOString())}</>}</div>}
       </div>
-    </article>;
+    </details>;
   }
   function task(item: MessageContent["tasks"][number], archived = false) {
     const confirmed = item.userStates[0]?.tenantConfirmedAt;
-    return <article className="tp-message tp-message-task" key={item.id}><span className="tp-message-icon"><ClipboardCheck size={20} aria-hidden="true"/></span><div className="tp-message-content"><div className="tp-message-meta"><span>{item.tenantPortalPublishedBy?.name || "Správa domu"}</span><span>Úkol pro vás</span><span>{taskStatuses[item.status]}</span></div><h3>{item.tenantPortalTitle}</h3>{body(item.tenantPortalBody || "")}{item.dueAt && <strong className="tp-message-due">Prosíme vyřídit do {date(item.dueAt)}</strong>}<div className="tp-message-actions">{confirmed ? <span className="tp-message-confirmed"><CheckCheck size={16} aria-hidden="true"/> Přijetí potvrzeno {date(confirmed)}</span> : !archived && action("task", item.id, "confirm", "Potvrdit přijetí", item.tenantPortalPublishedAt!.toISOString())}<a className="tp-text-link" href={`#zpravy-spravci-${leaseId}--${item.id}`}>Otevřít konverzaci <ArrowRight size={15}/></a></div></div></article>;
+    return <details className={`tp-message tp-message-task${!confirmed && !archived ? " tp-message-unread" : ""}`} key={item.id}>
+      <summary className="tp-message-summary">
+        <span className="tp-message-icon"><ClipboardCheck size={20} aria-hidden="true"/></span>
+        <span className="tp-message-summary-copy"><strong role="heading" aria-level={3}>{item.tenantPortalTitle}</strong><span className="tp-message-meta"><span>{item.tenantPortalPublishedBy?.name || "Správa domu"}</span><span>Úkol pro vás</span>{item.dueAt && <span className="tp-message-deadline">Vyřídit do {date(item.dueAt)}</span>}{!confirmed && !archived && <span>Čeká na potvrzení přijetí</span>}</span></span>
+        <span className="tp-message-state">{taskStatuses[item.status]}</span><ChevronDown className="tp-message-chevron" size={18} aria-hidden="true"/>
+      </summary>
+      <div className="tp-message-content"><p>{item.tenantPortalBody || ""}</p><div className="tp-message-actions">{confirmed ? <span className="tp-message-confirmed"><CheckCheck size={16} aria-hidden="true"/> Přijetí potvrzeno {date(confirmed)}</span> : !archived && action("task", item.id, "confirm", "Potvrdit přijetí", item.tenantPortalPublishedAt!.toISOString())}<a className="tp-text-link" href={`#zpravy-spravci-${leaseId}--${item.id}`}>Otevřít konverzaci <ArrowRight size={15}/></a></div></div>
+    </details>;
   }
   const activeItems = [
     ...activeNotices.filter(item => item.severity !== "INFO").map(item => notice(item)),
