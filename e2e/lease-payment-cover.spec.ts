@@ -7,6 +7,9 @@ const db = new PrismaClient(), password = "Payment-Cover-QA-Only-2026";
 test.beforeAll(() => { if (!process.env.DATABASE_URL || !["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error("Isolated test database required"); });
 test.afterAll(() => db.$disconnect());
 async function login(page: Page, email: string) { await page.goto("/login"); await page.getByLabel("E-mail", { exact: true }).fill(email); await page.getByLabel("Heslo", { exact: true }).fill(password); await page.getByRole("button", { name: "Přihlásit se", exact: true }).click(); await expect(page).not.toHaveURL(/\/login/); }
+// Production cookies are Secure. Chromium accepts them on loopback HTTP, while
+// APIRequestContext does not send them automatically; reuse the signed-in session.
+async function sessionHeaders(page: Page) { return { Cookie: (await page.context().cookies()).map(cookie => `${cookie.name}=${cookie.value}`).join("; ") }; }
 
 test("saved future payment cover exports only authorized server data and never changes payments", async ({ page, browser }, info) => {
   test.setTimeout(90000);
@@ -30,13 +33,15 @@ test("saved future payment cover exports only authorized server data and never c
     await expect(page.getByLabel("Uložená platební verze")).toHaveValue(version);
     await expect(page.getByRole("heading", { name: /22\s*400,01/ })).toBeVisible();
     const before = await db.lease.findUniqueOrThrow({ where: { id: lease.id }, include: { paymentItems: true, charges: true, documents: true } });
-    const response = await page.request.get(api + "&rentCents=1&servicesCents=0&account=99999999");
-    expect(response.status()).toBe(200); expect(response.headers()["content-type"]).toBe("application/pdf"); expect(response.headers()["cache-control"]).toContain("no-store"); expect(response.headers()["content-disposition"]).toContain(`Platebni-list-${version}-NS-QA-024.pdf`);
+    const [download] = await Promise.all([page.waitForEvent("download"), page.getByRole("link", { name: "Stáhnout platební list PDF", exact: true }).click()]);
+    expect(download.suggestedFilename()).toBe(`Platebni-list-${version}-NS-QA-024.pdf`); expect(await download.failure()).toBeNull();
+    const response = await page.request.get(api + "&rentCents=1&servicesCents=0&account=99999999", { headers: await sessionHeaders(page) });
+    expect(response.status(), response.ok() ? "PDF export succeeded" : await response.text()).toBe(200); expect(response.headers()["content-type"]).toBe("application/pdf"); expect(response.headers()["cache-control"]).toContain("no-store"); expect(response.headers()["content-disposition"]).toContain(`Platebni-list-${version}-NS-QA-024.pdf`);
     expect((await response.body()).subarray(0, 5).toString()).toBe("%PDF-"); await info.attach("payment-cover", { body: await response.body(), contentType: "application/pdf" });
-    expect((await page.request.get(api.replace(version, "1990-01-01"))).status()).toBe(404);
+    expect((await page.request.get(api.replace(version, "1990-01-01"), { headers: await sessionHeaders(page) })).status()).toBe(404);
     const after = await db.lease.findUniqueOrThrow({ where: { id: lease.id }, include: { paymentItems: true, charges: true, documents: true } }); expect(after).toEqual(before);
     await page.setViewportSize({ width: 390, height: 844 }); await page.screenshot({ path: info.outputPath("payment-cover-mobile.png"), fullPage: true }); expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
-    const otherContext = await browser.newContext(), other = await otherContext.newPage(); await login(other, outsider.email); expect((await other.request.get(api)).status()).toBe(404); await other.goto(url); await expect(other.getByRole("heading", { name: "Platební list k dodatku", exact: true })).toHaveCount(0); await otherContext.close();
+    const otherContext = await browser.newContext(), other = await otherContext.newPage(); await login(other, outsider.email); expect((await other.request.get(api, { headers: await sessionHeaders(other) })).status()).toBe(404); await other.goto(url); await expect(other.getByRole("heading", { name: "Platební list k dodatku", exact: true })).toHaveCount(0); await otherContext.close();
   } finally {
     await db.lease.delete({ where: { id: lease.id } }); await db.tenant.delete({ where: { id: tenant.id } }); await db.unit.delete({ where: { id: unit.id } }); await db.property.delete({ where: { id: property.id } }); await db.ownerBankAccount.delete({ where: { id: account.id } }); await db.owner.delete({ where: { id: owner.id } }); await db.auditLog.deleteMany({ where: { userId: { in: [viewer.id, outsider.id] } } }); await db.user.deleteMany({ where: { id: { in: [viewer.id, outsider.id] } } });
   }

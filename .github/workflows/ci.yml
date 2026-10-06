@@ -257,7 +257,7 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - name: Contract upload with isolated storage
-        run: npx playwright test e2e/lease-document-upload.spec.ts e2e/lease-contract-generator.spec.ts e2e/lease-document-actions.spec.ts --output=contract-upload-results
+        run: npx playwright test e2e/lease-document-upload.spec.ts e2e/lease-contract-generator.spec.ts e2e/lease-document-actions.spec.ts e2e/lease-payment-cover.spec.ts --output=contract-upload-results
         env:
           PLAYWRIGHT_HTML_OUTPUT_DIR: contract-upload-report
           FILE_STORAGE_DRIVER: s3
