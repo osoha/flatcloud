@@ -258,7 +258,7 @@ test("tenant account uses portal navigation, changes only own password and disab
     await expect(
       page
         .getByRole("navigation", { name: "Portál nájemníka" })
-        .getByRole("link", { name: "Můj účet", exact: true }),
+        .getByRole("link", { name: "Můj účet", exact: true }).last(),
     ).toBeVisible();
     await page
       .getByRole("link", { name: "Můj účet", exact: true })
@@ -401,6 +401,7 @@ test("new/existing document choice redirects after one form and prefills known u
       await page
         .getByRole("button", { name: "Vytvořit smlouvu", exact: true })
         .click();
+      await expect(page).toHaveURL(origin === "NEW" ? /\/smlouvy\/[^/]+\/pripravit/ : /\/smlouvy\/[^/]+\?ok=.*#dokumenty/);
       const lease = await db.lease.findFirstOrThrow({
         where: { unitId: unit.id },
       });
@@ -682,7 +683,7 @@ test("explicit tenant and landlord signatures freeze the exact PDF and personal 
       expect(signed.completedAt).not.toBeNull();
       const png = await sharp(
         Buffer.from(
-          '<svg width="500" height="100"><path d="M20 40 L450 80" stroke="black" stroke-width="5"/></svg>',
+          '<svg width="500" height="100"><rect width="500" height="100" fill="white"/><path d="M20 40 L450 80" stroke="black" stroke-width="5"/></svg>',
         ),
       )
         .png()
