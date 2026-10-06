@@ -4,15 +4,11 @@ import {prisma} from "./db";
 import {portalEditableUnitWhere} from "./tenant-portal-access";
 import {leaseStatusAt} from "./lease-lifecycle-core";
 import {businessDateKey,businessTodayKey} from "./calendar";
-import {periodLabel} from "./period";
-import {moneyExact,date} from "./format";
-import {PDFDocument,rgb} from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit";
-import {readFile} from "node:fs/promises";
-import path from "node:path";
 import { currentReceiptActor, receiptLandlordChoices, type ReceiptActor } from "./owner-receipt-settings";
 import { leaseAccessWhere } from "./access";
 import { currentPeriod } from "./period";
+import { receiptPdf, type ReceiptSnapshot } from "./receipt-pdf";
+export { receiptPdf } from "./receipt-pdf";
 
 type ReceivedCharge={active:boolean;period:string;amountCents:number;debtTreatment:string;allocations:Array<{amountCents:number;transaction:{amountCents:number;currency:string;bookedAt:Date;status:string}}> ;securityDepositOffsets:Array<{amountCents:number}>;creditApplications:Array<{amountCents:number}>};
 /** Only a monthly rent charge fully paid by actual received transactions is issuable. */
@@ -54,107 +50,6 @@ export async function receiptIssuerForLease(leaseId: string, db: Prisma.Transact
 export async function receiptIssuerStatusForLease(leaseId: string, period: string, db: Prisma.TransactionClient = prisma) { return (await resolveLeaseReceiptIssuer(leaseId, period, db)).status; }
 export const resolveReceiptStatus = receiptIssuerStatusForLease;
 
-type ReceiptSnapshot={issuerName:string;issuerAddress:string;tenantName:string;tenantAddress:string;location:string;period:string;currency:string;amountCents:number;items:Array<{name:string;amountCents:number}>;payments:Array<{id:string;amountCents:number;bookedAt:string}>;signatureHash:string;stampHash?:string|null;issuerOwnerId?:string;representativeId?:string|null;signerName?:string;signerRole?:string|null;profileRevision?:number;requestedById?:string;issuanceMode?:string};
-export async function receiptPdf(snapshot:ReceiptSnapshot,signature:Uint8Array,id:string,issuedAt:Date,stamp?:Uint8Array|null) {
-  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
-  const regular=await pdf.embedFont(await readFile(path.join(process.cwd(),"public/fonts/Raleway-Regular.ttf")));
-  const bold=await pdf.embedFont(await readFile(path.join(process.cwd(),"public/fonts/Raleway-Bold.ttf")));
-  const navy=rgb(.08,.18,.31),blue=rgb(.16,.33,.51),pale=rgb(.94,.97,.99),line=rgb(.78,.84,.89),muted=rgb(.36,.43,.5);
-  const width=595.28,left=43,right=552,content=right-left;
-  let page=pdf.addPage([width,841.89]),y=787,pageNumber=1;
-  const ink=(value:string,x:number,at:number,size=10,strong=false,color=navy)=>page.drawText(value,{x,y:at,size,font:strong?bold:regular,color});
-  const rule=(at:number)=>page.drawLine({start:{x:left,y:at},end:{x:right,y:at},thickness:.8,color:line});
-  const wrap=(value:string,max:number,size=10,strong=false)=>{
-    const font=strong?bold:regular, lines:string[]=[];
-    for(const paragraph of value.replace(/\r/g,"").split(/\n/)){
-      let current="";
-      for(const word of paragraph.split(/\s+/).filter(Boolean)){
-        if(font.widthOfTextAtSize(word,size)>max){
-          if(current){lines.push(current);current="";}
-          let part="";for(const letter of word){if(font.widthOfTextAtSize(part+letter,size)>max&&part){lines.push(part);part="";}part+=letter;}current=part;
-        }else if(font.widthOfTextAtSize(current?`${current} ${word}`:word,size)>max&&current){lines.push(current);current=word;}else current=current?`${current} ${word}`:word;
-      }
-      lines.push(current);
-    }
-    return lines;
-  };
-  const header=()=>{
-    page.drawRectangle({x:left,y:754,width:content,height:56,color:navy});
-    ink("DOKLAD O ZAPLACENÍ NÁJMU",left+17,780,17,true,rgb(1,1,1));
-    ink("POTVRZENÍ PŘIJATÉ BEZHOTOVOSTNÍ ÚHRADY",left+18,764,7.5,false,rgb(.79,.88,.95));
-    y=735;
-  };
-  const footer=()=>{
-    rule(46);ink("Doklad potvrzuje skutečně přijaté úhrady přiřazené k nájmu.",left,33,8,false,muted);
-    ink(`${pageNumber}`,right-10,33,8,false,muted);
-  };
-  const next=()=>{footer();page=pdf.addPage([width,841.89]);pageNumber++;header();};
-  const ensure=(height:number)=>{if(y-height<72)next();};
-  const label=(text:string,x:number,at:number)=>ink(text.toLocaleUpperCase("cs-CZ"),x,at,7.5,true,muted);
-  header();
-  label("Číslo dokladu",left,y);ink(id,left,y-18,9,true);
-  label("Datum vystavení",left+310,y);ink(date(issuedAt),left+310,y-18,10,true);y-=47;
-  const party=(heading:string,name:string,address:string,x:number,at:number,boxWidth:number,boxHeight:number)=>{
-    page.drawRectangle({x,y:at-boxHeight,width:boxWidth,height:boxHeight,borderColor:line,borderWidth:.8,color:rgb(1,1,1)});
-    label(heading,x+13,at-17);
-    let cursor=at-37;
-    for(const row of wrap(name,boxWidth-26,11,true)){ink(row,x+13,cursor,11,true);cursor-=14;}
-    for(const row of wrap(address||"—",boxWidth-26,9)){ink(row,x+13,cursor,9,false,muted);cursor-=12;}
-  };
-  const half=(content-10)/2;
-  const issuerHeight=wrap(snapshot.issuerName,half-26,11,true).length*14+wrap(snapshot.issuerAddress,half-26,9).length*12+46;
-  const tenantHeight=wrap(snapshot.tenantName,half-26,11,true).length*14+wrap(snapshot.tenantAddress||"—",half-26,9).length*12+46;
-  const boxHeight=Math.max(90,issuerHeight,tenantHeight);
-  ensure(boxHeight+30);
-  party("Pronajímatel / vystavitel",snapshot.issuerName,snapshot.issuerAddress,left,y,half,boxHeight);
-  party("Nájemník",snapshot.tenantName,snapshot.tenantAddress,left+half+10,y,half,boxHeight);
-  y-=boxHeight+15;
-  const locationLines=wrap(snapshot.location,content-28,10);
-  const locationHeight=Math.max(68,locationLines.length*13+48);
-  ensure(locationHeight+20);
-  page.drawRectangle({x:left,y:y-locationHeight,width:content,height:locationHeight,borderColor:line,borderWidth:.8});
-  label("Nájem za období",left+14,y-17);ink(periodLabel(snapshot.period),left+14,y-34,12,true);
-  label("Nemovitost / jednotka",left+170,y-17);
-  locationLines.forEach((row,index)=>ink(row,left+170,y-34-index*13,10,index===0));
-  y-=locationHeight+15;
-  ensure(70);
-  page.drawRectangle({x:left,y:y-59,width:content,height:59,color:pale,borderColor:line,borderWidth:.8});
-  label("Celkem přijato",left+15,y-20);
-  ink(moneyExact(snapshot.amountCents).replace("Kč",snapshot.currency),left+15,y-46,20,true,blue);
-  ink("UHRAZENO",right-92,y-35,10,true,blue);
-  y-=78;
-  const table=(heading:string,rows:Array<{label:string;amount:number}>)=>{
-    ensure(51);ink(heading,left,y,11,true);y-=13;rule(y);y-=17;
-    for(const row of rows){
-      const lines=wrap(row.label,content-145,9);
-      const height=Math.max(29,lines.length*12+15);
-      ensure(height+17);
-      lines.forEach((value,index)=>ink(value,left+5,y-index*12,9));
-      const amount=moneyExact(row.amount).replace("Kč",snapshot.currency);
-      ink(amount,right-5-bold.widthOfTextAtSize(amount,9),y,9,true);
-      y-=height;rule(y+12);
-    }
-    y-=18;
-  };
-  table("Rozpis přijaté úhrady",snapshot.items.map(item=>({label:item.name,amount:item.amountCents})));
-  table("Připsané platby",snapshot.payments.map(payment=>({label:date(payment.bookedAt),amount:payment.amountCents})));
-  ensure(121);
-  const signTop=y+4,signHeight=106;
-  page.drawRectangle({x:left,y:signTop-signHeight,width:content,height:signHeight,borderColor:line,borderWidth:.8});
-  label("Za pronajímatele podepsal/a",left+13,signTop-17);
-  ink(snapshot.signerName||snapshot.issuerName,left+13,signTop-34,10,true);
-  if(snapshot.signerRole)ink(snapshot.signerRole,left+13,signTop-47,8,false,muted);
-  const signatureImage=await pdf.embedPng(signature),signatureScale=Math.min(185/signatureImage.width,46/signatureImage.height);
-  page.drawImage(signatureImage,{x:left+13,y:signTop-95,width:signatureImage.width*signatureScale,height:signatureImage.height*signatureScale});
-  if(stamp){
-    label("Razítko",left+300,signTop-17);
-    const stampImage=await pdf.embedPng(stamp),stampScale=Math.min(165/stampImage.width,67/stampImage.height);
-    page.drawImage(stampImage,{x:left+298,y:signTop-93,width:stampImage.width*stampScale,height:stampImage.height*stampScale});
-  }
-  footer();
-  pdf.setTitle(`Doklad o zaplacení nájmu · ${periodLabel(snapshot.period)}`);
-  return pdf.save();
-}
 
 export async function issueTenantReceipt(user:{id:string;email:string},tenantId:string,chargeId:string) {
   return issuePaymentReceipt(user.id, {mode:"tenant",tenantId,chargeId});
