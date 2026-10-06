@@ -118,9 +118,11 @@ function cleanText(value?: string | null) {
     .trim();
 }
 
-function lineValue(text: string, labels: string[]) {
+function lineValue(text: string, labels: string[], preserveSign = false) {
   for (const label of labels) {
-    const rx = new RegExp(`(?:^|\\n)\\s*${label}(?=\\s|[:\\-]|$)\\s*[:\\-]?\\s*([^\\n]+)`, "i");
+    // For amounts, a minus after the label belongs to the value, not punctuation.
+    const separator = preserveSign ? ":?" : "[:\\-]?";
+    const rx = new RegExp(`(?:^|\\n)\\s*${label}(?=\\s|[:\\-]|$)\\s*${separator}\\s*([^\\n]+)`, "i");
     const match = text.match(rx);
     if (match?.[1]?.trim()) return match[1].trim();
   }
@@ -164,12 +166,12 @@ function amountAndCurrency(text: string) {
     "Částka(?: platby)?", "Castka(?: platby)?", "Připsaná částka", "Pripsana castka",
     "Příchozí částka", "Prichozi castka", "Výše platby", "Vyse platby", "Payment amount",
     "Credited amount", "Realizováno", "Realizovano", "Amount",
-  ]);
-  const generic = labeled || text.match(/(?:\+\s*)?\d[\d\s\u00a0.]*[,.]\d{2}\s*(?:CZK|Kč|EUR|€)/i)?.[0];
+  ], true);
+  const generic = labeled || text.match(/[+-]?\s*\d[\d\s\u00a0.]*[,.]\d{2}\s*(?:CZK|Kč|EUR|€)/i)?.[0];
   const amountCents = parseMoneyToCents(generic);
   const currencyRaw = generic?.match(/CZK|Kč|EUR|€/i)?.[0]?.toUpperCase();
   const currency = currencyRaw === "EUR" || currencyRaw === "€" ? "EUR" : "CZK";
-  return { amountCents, currency };
+  return { amountCents, currency, labeled: Boolean(labeled) };
 }
 
 function parseDate(value?: string, fallback?: Date | null) {
@@ -237,12 +239,13 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   const hash = createHash("sha256").update(`${input.from || ""}|${cleanText(input.subject)}|${cleanText(input.text)}`).digest("hex");
   const messageId = input.messageId?.trim() || `bank-email-${hash}`;
   const parsedAmount = amountAndCurrency(combined);
-  const outgoing = /(?:odchoz[ií]\s+(?:platba|úhrada)|směr platby\s*:\s*odchozí|odeslan[aá]\s+(?:platba|úhrada)|(?:zůstatek|zustatek)[^\n]{0,100}(?:sn[ií]žil|sn[ií]žen)|outgoing payment|debited amount)/i.test(combined);
+  const outgoing = /(?:odchoz[ií]\s+(?:platba|úhrada)|směr platby\s*:\s*odchozí|odeslan[aá]\s+(?:platba|úhrada)|(?:zůstatek|zustatek)[^\n]{0,100}(?:sn[ií]žil|sn[ií]žen)|outgoing payment|debited amount)/i.test(combined)
+    || (csobNotification && parsedAmount.labeled && (parsedAmount.amountCents ?? 0) < 0);
   // Never infer an outgoing transfer from its positive amount or destination account.
   // Automatic expense import requires both an explicit debit and an explicit own account.
   const ownAccount = outgoing ? accountFromValue(lineValue(combined, ["Váš účet", "Vas ucet", "Z účtu", "Z uctu", "Číslo účtu(?!\\s+protistrany)", "Cislo uctu(?!\\s+protistrany)", "Účet odesílatele", "Ucet odesilatele", "Debited account", "Own account"]))
     || accountFromValue(combined.match(/(?:zůstatek|zustatek)\s+na\s+(?:účtu|uctu)[^\n]{0,100}/i)?.[0]) : undefined;
-  const debitAmount = outgoing ? lineValue(combined, ["Částka(?: platby)?", "Castka(?: platby)?", "Odepsaná částka", "Odepsana castka", "Payment amount", "Debited amount", "Amount"]) : undefined;
+  const debitAmount = outgoing ? lineValue(combined, ["Částka(?: platby)?", "Castka(?: platby)?", "Odepsaná částka", "Odepsana castka", "Payment amount", "Debited amount", "Amount"], true) : undefined;
   const amountCents = outgoing && debitAmount ? -Math.abs(parseMoneyToCents(debitAmount) || 0) : parsedAmount.amountCents;
   const currency = outgoing && debitAmount ? amountAndCurrency(`Částka: ${debitAmount}`).currency : parsedAmount.currency;
 
