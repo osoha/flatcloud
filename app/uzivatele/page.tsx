@@ -16,11 +16,11 @@ import { RefreshActivity } from "@/components/admin/RefreshActivity";
 
 export const dynamic = "force-dynamic";
 
-export default async function UsersPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; invite?: string; activity?: string; kind?: string; property?: string; sort?: string; q?: string }> }) {
+export default async function UsersPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; invite?: string; activity?: string; kind?: string; role?: string; property?: string; sort?: string; q?: string }> }) {
   const user = await requireUser();
   if (user.role !== "SUPER_ADMIN") redirect("/portfolio");
 
-  const [storedUsers, invitations, properties, query, logins] = await Promise.all([
+  const [storedUsers, invitations, properties, query, logins, linkedOwners] = await Promise.all([
     prisma.user.findMany({
       select: {
         id: true,
@@ -51,17 +51,22 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     prisma.property.findMany({ where: { active: true }, orderBy: { name: "asc" }, include: { units: { orderBy: { label: "asc" } } } }),
     searchParams,
     prisma.auditLog.groupBy({ by: ["userId"], where: { action: "LOGIN", entityType: "User" }, _max: { createdAt: true } }),
+    prisma.owner.findMany({ where: { userId: { not: null } }, select: { userId: true, name: true } }),
   ]);
   const propertyOverview=await userPropertyOverview();
+  const ownerNames=new Map<string,string[]>();
+  for (const owner of linkedOwners) if (owner.userId) ownerNames.set(owner.userId,[...(ownerNames.get(owner.userId)||[]),owner.name]);
   const now = new Date(), activityView = parseActivityView(query.activity);
   const loginDates = new Map(logins.map(row => [row.userId, row._max.createdAt]));
   const baseUsers = filterAndSortActivity(storedUsers.map(row => ({ ...row, lastActivityAt: latestActivityAt(row.activity?.lastSeenAt, loginDates.get(row.id)), online: isUserOnline(row.active, row.activity?.lastSeenAt, now) })), activityView, now);
   const portalPropertyIds=(row:typeof baseUsers[number])=>new Set(row.tenantPortalAccesses.flatMap(access=>[...access.tenant.leases.map(lease=>lease.unit.propertyId),...access.tenant.leaseParties.map(party=>party.lease.unit.propertyId)]));
   const users=baseUsers.filter(row=>{
     const kind=query.kind||"all", portal=row.tenantPortalAccesses.length>0;
-    const matchesKind=kind==="all"||kind==="tenant"&&portal||kind==="manager"&&["PROPERTY_MANAGER","MANAGER"].includes(row.role)||kind==="owner"&&row.role==="OWNER_VIEWER";
+    const linkedOwner=ownerNames.has(row.id);
+    const matchesKind=kind==="all"||kind==="tenant"&&portal||kind==="manager"&&["PROPERTY_MANAGER","MANAGER"].includes(row.role)||kind==="owner"&&linkedOwner||kind==="member"&&row.role==="OWNER_VIEWER"&&!linkedOwner;
+    const matchesRole=!query.role||query.role==="all"||row.role===query.role;
     const matchesProperty=!query.property||query.property==="all"||row.allProperties||row.memberships.some(m=>m.propertyId===query.property)||row.unitMemberships.some(m=>m.unit.propertyId===query.property)||portalPropertyIds(row).has(query.property);
-    return matchesKind&&matchesProperty&&(!query.q||`${row.name} ${row.email}`.toLocaleLowerCase("cs").includes(query.q.toLocaleLowerCase("cs")));
+    return matchesKind&&matchesRole&&matchesProperty&&(!query.q||`${row.name} ${row.email}`.toLocaleLowerCase("cs").includes(query.q.toLocaleLowerCase("cs")));
   }).sort((a,b)=>query.sort==="recent"?(b.lastActivityAt?.getTime()||0)-(a.lastActivityAt?.getTime()||0):query.sort==="property"?(a.memberships[0]?.property.name||a.tenantPortalAccesses[0]?.tenant.leases[0]?.unit.propertyId||"").localeCompare(b.memberships[0]?.property.name||b.tenantPortalAccesses[0]?.tenant.leases[0]?.unit.propertyId||"","cs"):a.name.localeCompare(b.name,"cs"));
 
   return <Shell user={user}><div className="page">
@@ -105,7 +110,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
 
     <div className="card portfolio-table-card" id="seznam-uzivatelu" style={{ marginTop: 16 }}>
       <div className="table-toolbar"><div><h2>Uživatelské účty</h2><p>Kliknutím na libovolné místo řádku otevřete profil a oprávnění uživatele.</p></div></div>
-      <div className="user-activity-controls"><form method="get" action="/uzivatele#seznam-uzivatelu" className="registry-filters"><label>Hledat<input name="q" defaultValue={query.q||""} placeholder="Jméno nebo e-mail"/></label><label>Typ osoby<select name="kind" defaultValue={query.kind||"all"}><option value="all">Všichni</option><option value="owner">Vlastníci a členové</option><option value="manager">Správci</option><option value="tenant">S přístupem nájemníka</option></select></label><label>Nemovitost<select name="property" defaultValue={query.property||"all"}><option value="all">Všechny</option>{properties.map(property=><option value={property.id} key={property.id}>{property.name}</option>)}</select></label><label>Řadit<select name="sort" defaultValue={query.sort||"name"}><option value="name">Jméno</option><option value="recent">Poslední aktivita</option><option value="property">Nemovitost</option></select></label><input type="hidden" name="activity" value={activityView}/><button className="secondary">Filtrovat</button></form>
+      <div className="user-activity-controls"><form method="get" action="/uzivatele#seznam-uzivatelu" className="registry-filters"><label>Hledat<input name="q" defaultValue={query.q||""} placeholder="Jméno nebo e-mail"/></label><label>Typ osoby<select name="kind" defaultValue={query.kind||"all"}><option value="all">Všichni</option><option value="owner">Propojení vlastníci</option><option value="member">Ostatní členové</option><option value="manager">Správci</option><option value="tenant">S přístupem nájemníka</option></select></label><label>Role účtu<select name="role" defaultValue={query.role||"all"}><option value="all">Všechny role</option>{Object.entries(userRoles).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><label>Nemovitost<select name="property" defaultValue={query.property||"all"}><option value="all">Všechny</option>{properties.map(property=><option value={property.id} key={property.id}>{property.name}</option>)}</select></label><label>Řadit<select name="sort" defaultValue={query.sort||"name"}><option value="name">Jméno</option><option value="recent">Poslední aktivita</option><option value="property">Nemovitost</option></select></label><input type="hidden" name="activity" value={activityView}/><button className="secondary">Filtrovat</button></form>
     <form action="/uzivatele#seznam-uzivatelu" method="get" className="user-activity-filters">
       <label className="field"><span>Aktivita uživatelů</span><select name="activity" defaultValue={activityView}><option value="name">Běžné řazení — podle jména</option><option value="online">Online přednostně</option><option value="inactive">Neaktivní déle než 30 dní</option><option value="unseen">Bez záznamu aktivity</option></select></label>
       <button type="submit" className="secondary">Zobrazit účty</button><RefreshActivity/>
@@ -126,7 +131,7 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
                 : "Bez přístupu";
           return <tr className="clickable-table-row" key={row.id}>
             <td><Link className="row-cell-link" href={href}><div className="user-table-cell"><UserAvatar user={row} className={row.online ? "user-online" : ""}/><div><strong>{row.name}</strong><span className="owner-sub">{row.email}</span>{row.online && <span className="user-activity-online">Online</span>}</div></div></Link></td>
-            <td><Link className="row-cell-link" href={href}>{userRoles[row.role]}<small className="owner-sub">{isFlatcloudMember(row)?"Skupina FlatCloud":"Externí prostředí"}</small></Link></td>
+            <td><Link className="row-cell-link" href={href}>{userRoles[row.role]}<small className="owner-sub">{isFlatcloudMember(row)?"Skupina FlatCloud":"Externí prostředí"} · {ownerNames.has(row.id)?`Propojený vlastník: ${ownerNames.get(row.id)!.join(", ")}`:"Bez vazby na vlastníka"}</small></Link></td>
             <td><Link className="row-cell-link" href={href}>{accessLabel}</Link></td><td><Link className="row-cell-link" href={`${href}#nemovitosti`}>{relations.length} domů / {relations.reduce((n,p)=>n+(p.roles.some(r=>["Založil","Spravuje","Vlastník"].includes(r))?p.units:p.accessibleUnits),0)} jednotek<small className="owner-sub">Založil {relations.filter(p=>p.roles.includes("Založil")).length} · spravuje {relations.filter(p=>p.roles.includes("Spravuje")).length} · vlastník {relations.filter(p=>p.roles.includes("Vlastník")).length}</small></Link></td>
             <td>{row.tenantPortalAccesses.length?row.tenantPortalAccesses.map(access=><Link className="entity-link" key={access.tenantId} href={`/najemnici/${access.tenantId}`}>{access.tenant.name}</Link>):"—"}</td><td><Link className="row-cell-link" href={href}><span className={`status ${row.active ? "ok" : "bad"}`}>{row.active ? "Aktivní" : "Deaktivovaný"}</span></Link></td>
             <td><Link className="row-cell-link" href={href}>{row.lastActivityAt ? <time dateTime={row.lastActivityAt.toISOString()}>{row.lastActivityAt.toLocaleString("cs-CZ", { timeZone: "Europe/Prague", dateStyle: "short", timeStyle: "short" })}</time> : "Dosud nezaznamenána"}</Link></td>
@@ -139,15 +144,16 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
     <div className="card portfolio-table-card" id="cekajici-pozvanky" style={{ marginTop: 16 }}>
       <div className="table-toolbar"><div><h2>Čekající pozvánky</h2><p>Nové odeslání nebo úprava vždy zneplatní předchozí odkaz.</p></div></div>
       <div className="table-wrap"><table>
-        <thead><tr><th>Jméno / e-mail</th><th>Rozsah</th><th>Oprávnění</th><th>Pozval</th><th>Platnost</th><th></th></tr></thead>
+        <thead><tr><th>Jméno / e-mail</th><th>Role účtu</th><th>Rozsah</th><th>Oprávnění</th><th>Pozval</th><th>Platnost</th><th></th></tr></thead>
         <tbody>{invitations.length ? invitations.map((invitation) => <tr key={invitation.id}>
           <td><strong>{invitation.name || "—"}</strong><span className="owner-sub">{invitation.email}</span></td>
+          <td>{userRoles[invitation.role]||invitation.role}</td>
           <td>{invitation.allProperties ? "Všechny nemovitosti" : invitation.propertyIds.length ? `${invitation.propertyIds.length} objektů` : invitation.property.name}</td>
           <td>{propertyPermissions[invitation.permission]}</td>
           <td>{invitation.invitedBy.name}</td>
           <td>{invitation.expiresAt.toLocaleDateString("cs-CZ")}</td>
           <td><div className="pending-invite-actions"><form action={`/api/invitations/${invitation.id}/rotate`} method="post"><input type="hidden" name="returnTo" value="/uzivatele"/><button className="secondary" name="mode" value="resend" type="submit">Odeslat znovu</button></form><DismissibleDetails viewportModal summary="Upravit oprávnění" dialogLabel={`Upravit oprávnění pozvánky ${invitation.email}`}><form className="compact-form" action={`/api/invitations/${invitation.id}/rotate`} method="post"><input type="hidden" name="returnTo" value="/uzivatele"/><input type="hidden" name="mode" value="edit"/><label className="checkbox-field"><input type="checkbox" name="allProperties" defaultChecked={invitation.allProperties}/><span>Všechny nemovitosti</span></label><label className="field"><span>Celé nemovitosti</span><select name="propertyIds" multiple defaultValue={invitation.propertyIds}>{properties.map((property)=><option value={property.id} key={property.id}>{property.name}</option>)}</select></label><div className="field unit-access-picker"><span>Jen vybrané jednotky</span>{properties.map((property)=><details key={property.id}><summary>{property.name}</summary>{property.units.map((unit)=><label className="checkbox-field" key={unit.id}><input type="checkbox" name="unitIds" value={unit.id} defaultChecked={invitation.unitIds.includes(unit.id)}/><span>{unit.label}</span></label>)}</details>)}</div><label className="field"><span>Role</span><select name="role" defaultValue={invitation.role}>{Object.entries(userRoles).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>Oprávnění</span><select name="permission" defaultValue={invitation.permission}>{Object.entries(propertyPermissions).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><button className="secondary">Uložit a odeslat novou</button></form></DismissibleDetails><form action={`/api/invitations/${invitation.id}/revoke`} method="post"><input type="hidden" name="returnTo" value="/uzivatele"/><button className="danger-button" type="submit">Zrušit</button></form></div></td>
-        </tr>) : <tr><td colSpan={6} className="table-empty">Bez čekajících pozvánek</td></tr>}</tbody>
+        </tr>) : <tr><td colSpan={7} className="table-empty">Bez čekajících pozvánek</td></tr>}</tbody>
       </table></div>
     </div>
   </div></Shell>;
