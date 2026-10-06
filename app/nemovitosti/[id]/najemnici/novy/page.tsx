@@ -32,6 +32,7 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
   const proposals = Object.fromEntries(availableUnits.map((unit) => [unit.id, identities[unit.id]?.variableSymbol ?? null]));
   const contractNumberProposals = Object.fromEntries(availableUnits.map((unit) => [unit.id, identities[unit.id]?.contractNumber ?? null]));
   const ownersByUnit = Object.fromEntries(availableUnits.map(unit => [unit.id, unit.ownerships[0]?.owner ? { id: unit.ownerships[0].owner.id, name: unit.ownerships[0].owner.name } : null]));
+  const landlordChoicesByUnit = Object.fromEntries(availableUnits.map(unit => [unit.id, unit.ownerships.filter(ownership => ownership.owner.active).map(ownership => ({ id: ownership.owner.id, name: ownership.owner.name, account: ownership.ownerBankAccount?.active && ownership.ownerBankAccount.ownerId === ownership.owner.id ? { id: ownership.ownerBankAccount.id, label: ownerBankAccountLabel(ownership.ownerBankAccount) } : null }))]));
   const ownerAccountsByUnit = Object.fromEntries(availableUnits.map((unit) => { const account = unit.ownerships[0]?.ownerBankAccount; return [unit.id, account?.active ? { id: account.id, label: ownerBankAccountLabel(account) } : null]; }));
   const withLease = query.mode === "lease";
   const avatarSeed = crypto.randomUUID();
@@ -50,7 +51,7 @@ export default async function NewTenant({ params, searchParams }: { params: Prom
       <TenantFields avatarSeed={avatarSeed}/>
       <Textarea label="Známé účty plátce" name="payerAccounts" placeholder="Jeden účet na řádek nebo oddělený čárkou"/>
       <h2 className="form-section-title field-full">Nájemní smlouva</h2>
-      <LeaseCoreFields propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, `${unit.label}${unit.floor ? ` · ${unit.floor}` : ""}`])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownersByUnit={ownersByUnit} ownerAccountsByUnit={ownerAccountsByUnit} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
+      <LeaseCoreFields propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, `${unit.label}${unit.floor ? ` · ${unit.floor}` : ""}`])} defaultUnitId={query.unitId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownersByUnit={ownersByUnit} ownerAccountsByUnit={ownerAccountsByUnit} landlordChoicesByUnit={landlordChoicesByUnit} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
       <LeaseServiceFields/>
       <LeaseOccupantFields/>
