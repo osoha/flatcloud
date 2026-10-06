@@ -1,3 +1,5 @@
+import { businessDateKey } from "../calendar";
+
 type Owner = {
   id: string;
   name: string;
@@ -23,7 +25,7 @@ export function contractLandlord(lease: {
     property: { owner: Owner; ownershipMode: string; ownerships: Ownership[] };
   };
 }) {
-  const period = lease.startDate.toISOString().slice(0, 7);
+  const period = businessDateKey(lease.startDate).slice(0, 7);
   const explicit = lease.landlordPeriods.filter(
     (p) => p.fromPeriod <= period && (!p.toPeriod || p.toPeriod >= period),
   );

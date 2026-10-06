@@ -43,7 +43,7 @@ test("portal shares canonical branding, landlord wording, four payment colors an
   const actor = await db.user.create({data: {email: `polish-tenant-${tag}@flatcloud.test`, name: "Jana Testovací", role: "TENANT", passwordHash, isTestIdentity: true}});
   const owner = await db.owner.create({data: {name: "Brickflow QA", email: `owner-${tag}@flatcloud.test`}});
   const photo = await sharp({create: {width: 80, height: 80, channels: 3, background: "#e6d9c5"}}).png().toBuffer();
-  const property = await db.property.create({data: {ownerId: owner.id, name: `Portál QA ${tag}`, address: "Testovací 1", city: "Praha", avatarPhotoId: "upload", avatarMimeType: "image/png", avatarData: new Uint8Array(photo), memberships: {create: {userId: manager.id, permission: "EDIT"}}}});
+  const property = await db.property.create({data: {ownerId: owner.id, name: `Portál QA ${tag}`, address: "Testovací 1", postalCode: "110 00", city: "Praha", avatarPhotoId: "upload", avatarMimeType: "image/png", avatarData: new Uint8Array(photo), memberships: {create: {userId: manager.id, permission: "EDIT"}}}});
   const unit = await db.unit.create({data: {propertyId: property.id, label: "Byt 12"}});
   const tenant = await db.tenant.create({data: {name: actor.name, email: actor.email}});
   const lease = await db.lease.create({data: {unitId: unit.id, tenantId: tenant.id, startDate: new Date("2024-01-01T12:00:00Z"), financialTrackingFromPeriod: "2024-01", rentCents: 1250000, servicesCents: 0, variableSymbol: tag}});
@@ -74,8 +74,12 @@ test("portal shares canonical branding, landlord wording, four payment colors an
     await expect(page.locator(".tp-brand .flatberry-brand-bitmap")).toHaveCSS("background-image", /flatberry-logo\.png/);
     await expect(page.getByRole("heading", {name: "Kontakt na pronajímatele", exact: true})).toBeVisible();
     await expect(page.getByRole("link", {name: "Napsat pronajímateli", exact: true})).toBeVisible();
+    await expect(page.locator(".tp-home-strip")).toContainText("Testovací 1, 110 00 Praha");
     const history = page.locator(".portal-payment-history");
+    const mainHistory = page.locator(".tp-history-main .portal-payment-history");
     await expect(history.locator("tbody tr")).toHaveCount(4);
+    const monthLabel = (delta: number) => new Intl.DateTimeFormat("cs-CZ", {month: "long", year: "numeric"}).format(monthDate(delta)).replace(/^./, letter => letter.toUpperCase());
+    await expect(mainHistory.locator("tbody th")).toHaveText([monthLabel(1), monthLabel(0), monthLabel(-2)]);
     const expected = [
       ["overdue", "rgb(255, 241, 242)", "Částečně · po splatnosti"],
       ["current", "rgb(255, 246, 233)", ""],
@@ -92,7 +96,8 @@ test("portal shares canonical branding, landlord wording, four payment colors an
     await page.getByRole("button", {name: /Zobrazit další období/}).click();
     await expect(history.locator("tr.portal-neutral")).toContainText("Mimo aktuální dluh");
     await page.getByRole("button", {name: "Budoucí nájmy", exact: true}).click();
-    await expect(history.locator("tbody tr")).toHaveCount(2);
+    await expect(mainHistory.locator("tbody tr")).toHaveCount(2);
+    await expect(page.locator(".tp-history-overdue .portal-overdue")).toHaveCount(1);
     await expect(history.locator("tr.portal-paid")).toHaveCount(0);
     await page.getByRole("button", {name: "Přehled", exact: true}).click();
     await page.setViewportSize({width: 390, height: 844});
