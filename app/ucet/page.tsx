@@ -1,3 +1,4 @@
+import {leaseContractPilotEnabled} from "@/lib/lease-contract/pilot";
 import {ReceiptSignatureSettings} from "@/components/ReceiptSignatureSettings";
 import {portalEditableUnitWhere} from "@/lib/tenant-portal-access";
 import { ProfiAppearanceSettings } from "@/components/ProfiAppearanceSettings";
@@ -80,6 +81,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
         {ownerReceiptSettings.length > 0 && <section className="card account-card" id="zastoupeni"><h2>Jednám za pronajímatele</h2><p className="muted-copy">Za každého pronajímatele potvrzujete vlastní oprávnění a podpis zvlášť. Souhlas za jinou osobu udělit nelze.</p><div className="stack-list">{ownerReceiptSettings.map(owner => <div className="inline-edit-card" key={owner.id}><div className="rule-summary"><div><strong>{owner.name}</strong><small>{owner.canManage ? "Údaje pronajímatele a jednající osoby" : "Můj podpis a osobní souhlas"}</small></div><Link className="secondary" href={`/vlastnici/${owner.id}/doklady`}>Otevřít nastavení</Link></div></div>)}</div></section>}
         {canIssueReceipts&&<ReceiptSignatureSettings name={receiptSettings.receiptIssuerName||user.name} address={receiptSettings.receiptIssuerAddress||""} enabled={receiptSettings.receiptIssuanceEnabled} hasSignature={Boolean(receiptSettings.receiptSignatureData)}/>}
+        {!preview.requested&&leaseContractPilotEnabled()&&<section className="card account-card" id="podpis-smlouvy"><h2>Můj podpis pro smlouvy</h2><p>Podpis uložíte jednou; jeho použití potvrdíte pro každý konkrétní dokument heslem.</p><Link className="secondary" href="/portal/najemnik/podpis">Nastavit můj podpis</Link></section>}
         <ProfiAppearanceSettings graphics={user.profiGraphics}/>
         <div className="card account-card">
           <div className="card-head"><h2>Změna hesla</h2></div>

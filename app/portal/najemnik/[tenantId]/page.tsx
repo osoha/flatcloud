@@ -4,6 +4,8 @@ import Link from "next/link";
 import Image from "next/image";
 import {notFound, redirect} from "next/navigation";
 import {ArrowLeft, ArrowRight, CalendarDays, Camera, Check, CheckCircle2, ChevronRight, CreditCard, Download, Droplets, FileCheck2, FileText, House, Info, LockKeyhole, Mail, MessageCircle, Phone, ShieldCheck, Wrench} from "lucide-react";
+import {leaseContractPilotEnabled} from "@/lib/lease-contract/pilot";
+import {myPackets} from "@/lib/lease-actions/service";
 import {TenantPortalNav} from "@/components/TenantPortalNav";
 import {TenantPortalMessages} from "@/components/TenantPortalMessages";
 import {UserAvatar} from "@/components/UserAvatar";
@@ -50,6 +52,7 @@ export default async function TenantPortal({params, searchParams}: {
   const tenant = await prisma.tenant.findUnique({where: {id: tenantId}});
   if (!tenant) notFound();
   const flash = await searchParams;
+  const actionPackets=!preview&&leaseContractPilotEnabled()?(await myPackets(actor)).filter(p=>p.mine.some(r=>r.tenantId===tenantId)):[];
   const leaseRows = await prisma.lease.findMany({
     where: {...(!tenantAccess ? {id: {in: manageableIds}} : {}), OR: [{tenantId}, {parties: {some: {tenantId, role: {in: ["CONTRACTING_PARTY", "PAYER"]}}}}]},
     include: {
@@ -106,7 +109,7 @@ export default async function TenantPortal({params, searchParams}: {
       {preview ? <Link className="tp-back" href={`/najemnici/${tenant.id}`}><ArrowLeft size={16}/> Zpět na nájemníka</Link> : <form action="/api/auth/logout" method="post"><button type="submit" className="tp-text-button">Odhlásit se</button></form>}
     </header>
     <div className="tp-shell">
-      <TenantPortalNav leaseId={first?.id} canAct={firstCanAct}/>
+      <TenantPortalNav leaseId={first?.id} canAct={firstCanAct} user={preview?{name:tenant.name}:{id:actor.id,name:actor.name,avatarChoice:actor.avatarChoice}} preview={preview} accountHref={preview?`/portal/najemnik/ucet?tenantId=${tenantId}`:"/portal/najemnik/ucet"} actions={leaseContractPilotEnabled()}/>
       <main className="tp-main" id="prehled">
         <Flash {...flash}/>
         <section className="tp-welcome">
@@ -116,6 +119,7 @@ export default async function TenantPortal({params, searchParams}: {
           <Image className="tp-berry" src="/guide/welcome.webp" width={178} height={178} alt="Berry, váš průvodce bydlením" priority/>
         </section>
         {!leases.length && <section className="tp-card tp-empty"><House size={32}/><h2>Vaše bydlení se připravuje</h2><p>K tomuto účtu zatím není připojena aktuální nájemní smlouva.</p></section>}
+        {!preview&&leaseContractPilotEnabled()&&<section className="tp-card"><h2>Podpisy a potvrzení</h2><p>{actionPackets.filter(p=>!p.cancelledAt&&p.mine.some(r=>!r.completedAt)).length?`Čeká na váš úkon: ${actionPackets.filter(p=>!p.cancelledAt&&p.mine.some(r=>!r.completedAt)).length}`:"Všechny předané úkony jsou potvrzené, nebo zatím žádné nečekají."}</p><Link className="tp-button tp-button-primary" href="/portal/najemnik/potvrzeni">Otevřít moje úkony</Link> <Link className="tp-text-link" href="/portal/najemnik/ucet#podpis">Můj podpis</Link></section>}
         {leases.length > 1 && <nav className="tp-lease-switch" aria-label="Vaše nájmy">{leases.map(lease => <a key={lease.id} href={`#najem-${lease.id}`}><House size={16}/>{lease.unit.property.name} · {lease.unit.label}</a>)}</nav>}
         {leases.map((lease, leaseIndex) => {
           const canAct = lease.tenantId === tenantId || lease.parties.some(party => party.role === "CONTRACTING_PARTY");
