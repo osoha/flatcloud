@@ -65,6 +65,10 @@ for (const text of texts) {
 const outgoingWithoutOwnAccount = parseBankNotification({ ...input, text: missingOwnAccount.replace("Příchozí úhrada", "Odchozí úhrada") });
 assert.equal(outgoingWithoutOwnAccount.recipientAccount, undefined);
 assert.equal(outgoingWithoutOwnAccount.autoProcessEligible, false);
+const beneficiaryOnly = missingOwnAccount.replace("Účet protistrany", "Účet příjemce");
+const outgoingBeneficiaryOnly = parseBankNotification({ ...input, text: beneficiaryOnly.replace("Příchozí úhrada", "Odchozí úhrada") });
+assert.equal(outgoingBeneficiaryOnly.recipientAccount, undefined, "The beneficiary account must never become the customer account");
+assert.equal(outgoingBeneficiaryOnly.autoProcessEligible, false);
 assert.equal(parseBankNotification({ ...input, from: "notice@example.invalid", text: texts[0].replace("Příchozí úhrada", "Odchozí úhrada") }).autoProcessEligible, false);
 assert.equal(parseBankNotification({ from: "info@fio.cz", text: "Účet: 123456789/2010\nČástka: 1,00 CZK" }).recipientAccount, undefined);
 console.log("ČSOB parser: observed labels, HTML/MIME, reprocessing, balance, direction and sender checks passed.");
