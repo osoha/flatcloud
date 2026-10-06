@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { prisma } from "../lib/db";
 import { consentOwnerReceiptSignature, getMyOwnerReceiptSettings, getOwnerReceiptSettings, receiptLandlordChoices, saveLeaseLandlordPeriod, saveOwnerReceiptProfile, saveOwnerRepresentative } from "../lib/owner-receipt-settings";
 import { getLeaseReceiptDocuments, issueStaffReceipt, issueTenantReceipt, receiptIssuerStatusForLease, staffReceiptArchive } from "../lib/tenant-payment-receipts";
+import { createLeaseFromForm } from "../lib/lease-create";
 
 let checks = 0;
 async function check(name: string, work: () => Promise<void>) { await work(); console.log(`✓ ${++checks}. ${name}`); }
@@ -40,6 +41,11 @@ async function main() {
       for (const owner of [ownerA, ownerB]) {
         await saveOwnerReceiptProfile(admin, owner.id, { revision: "new", issuerName: owner.name, issuerAddress: owner.address!, enabled: false });
         await saveOwnerRepresentative(admin, owner.id, { action: "add", userEmail: signer.email, roleLabel: "Jednatel", active: true });
+        const representative = await rep(owner.id);
+        assert.equal((await profile(owner.id)).designatedRepresentativeId, representative.id);
+        const task = await prisma.task.findUniqueOrThrow({ where: { dedupeKey: `owner-receipt-consent:${representative.id}` } });
+        assert.equal(task.assigneeId, signer.id);
+        assert.ok(task.description?.includes(`/vlastnici/${owner.id}/doklady#doklady-a-podpisy`));
       }
       assert.equal((await getMyOwnerReceiptSettings(signer)).length, 2);
       assert.equal((await getMyOwnerReceiptSettings(admin)).length, 0);
@@ -55,6 +61,7 @@ async function main() {
       await assert.rejects(consentOwnerReceiptSignature(admin, ownerA.id, r.id, { action: "consent", authorization: true, revision: r.updatedAt.toISOString(), profileRevision: p.revision, signature }), /pouze uvedená osoba/);
       await assert.rejects(consentOwnerReceiptSignature(signer, ownerA.id, r.id, { action: "consent", authorization: false, revision: r.updatedAt.toISOString(), profileRevision: p.revision, signature }), /Potvrďte/);
       await consent(ownerA.id); await consent(ownerB.id);
+      assert.equal((await prisma.task.findUniqueOrThrow({ where: { dedupeKey: `owner-receipt-consent:${r.id}` } })).status, "DONE");
       for (const owner of [ownerA, ownerB]) { const p = await profile(owner.id), r = await rep(owner.id); await saveOwnerReceiptProfile(admin, owner.id, { revision: p.updatedAt.toISOString(), issuerName: p.issuerName, issuerAddress: p.issuerAddress, enabled: true, designatedRepresentativeId: r.id }); }
       await assert.rejects(saveOwnerReceiptProfile(admin, ownerA.id, { revision: (await profile(ownerA.id)).updatedAt.toISOString(), issuerName: ownerA.name, issuerAddress: ownerA.address!, enabled: true, designatedRepresentativeId: (await rep(ownerB.id)).id }), /právě za tohoto vlastníka/);
     });
@@ -69,6 +76,38 @@ async function main() {
       assert.equal((await receiptIssuerStatusForLease(lease.id, "2025-07")).ownerId, ownerB.id);
       assert.equal((await prisma.lease.findUniqueOrThrow({ where: { id: lease.id } })).ownerBankAccountId, bankAccount.id);
     });
+    await check("individual owner uses own account signature without representative selection", async () => {
+      const individual = await prisma.owner.create({ data: { name: `${tag}_PERSON`, type: "PERSON", userId: signer.id, address: "Testovací 12, Praha" } });
+      owners.push(individual);
+      const personalUnit = await prisma.unit.create({ data: { propertyId: properties[0].id, label: "PERSON", ownerships: { create: { ownerId: individual.id, shareBasisPoints: 10000 } } } });
+      units.push(personalUnit);
+      const personalAccount = await prisma.ownerBankAccount.create({ data: { ownerId: individual.id, accountNumber: "123456789", bankCode: "0100" } });
+      await prisma.unitOwnership.update({ where: { unitId_ownerId: { unitId: personalUnit.id, ownerId: individual.id } }, data: { ownerBankAccountId: personalAccount.id } });
+      const form = new FormData();
+      for (const [key, value] of Object.entries({ unitId: personalUnit.id, landlordOwnerId: individual.id, startDate: "2027-01-01", variableSymbol: "99001122", rent: "1000", deposit: "0" })) form.set(key, value);
+      const { lease: personalLease } = await prisma.$transaction(tx => createLeaseFromForm(tx, properties[0].id, form, tenant.id, admin.id));
+      leases.push(personalLease);
+      const assigned = await prisma.leaseLandlordPeriod.findMany({ where: { leaseId: personalLease.id } });
+      assert.equal(assigned.length, 1); assert.equal(assigned[0].ownerId, individual.id); assert.equal(assigned[0].fromPeriod, "2027-01"); assert.equal(assigned[0].toPeriod, null);
+      assert.equal(personalLease.ownerBankAccountId, personalAccount.id);
+      await saveOwnerReceiptProfile(admin, individual.id, { revision: "new", issuerName: individual.name, issuerAddress: individual.address!, enabled: true });
+      assert.equal((await receiptIssuerStatusForLease(personalLease.id, "2027-01")).ready, false);
+      await prisma.user.update({ where: { id: signer.id }, data: { receiptSignatureData: signature, receiptIssuanceEnabled: true } });
+      assert.equal((await receiptIssuerStatusForLease(personalLease.id, "2027-01")).ready, true);
+      assert.equal((await profile(individual.id)).designatedRepresentativeId, null);
+    });
+    await check("multiple owners choose the contractual landlord inside lease creation", async () => {
+      const sharedUnit = await prisma.unit.create({ data: { propertyId: properties[0].id, label: "SHARED", ownerships: { create: [{ ownerId: ownerA.id, shareBasisPoints: 5000 }, { ownerId: ownerB.id, shareBasisPoints: 5000, ownerBankAccountId: secondAccount.id }] } } });
+      units.push(sharedUnit);
+      const form = new FormData();
+      for (const [key, value] of Object.entries({ unitId: sharedUnit.id, landlordOwnerId: bankOwner.id, startDate: "2027-02-01", variableSymbol: "99001123", rent: "1000", deposit: "0" })) form.set(key, value);
+      await assert.rejects(prisma.$transaction(tx => createLeaseFromForm(tx, properties[0].id, form, tenant.id, admin.id)), /Vyberte smluvního pronajímatele/);
+      form.set("landlordOwnerId", ownerB.id);
+      const { lease: sharedLease } = await prisma.$transaction(tx => createLeaseFromForm(tx, properties[0].id, form, tenant.id, admin.id));
+      leases.push(sharedLease);
+      assert.equal(sharedLease.ownerBankAccountId, secondAccount.id);
+      assert.equal((await prisma.leaseLandlordPeriod.findFirstOrThrow({ where: { leaseId: sharedLease.id } })).ownerId, ownerB.id);
+    });
     await check("overlapping landlord periods are rejected including concurrent writers", async () => {
       await assert.rejects(saveLeaseLandlordPeriod(admin, lease.id, { action: "add", ownerId: ownerA.id, fromPeriod: "2025-06", toPeriod: "2025-08", active: true }), /překrývat/);
       const concurrentLease = await prisma.lease.create({ data: { unitId: units[0].id, tenantId: tenant.id, startDate: new Date("2000-01-01T12:00:00Z"), endDate: new Date("2001-01-01T12:00:00Z"), financialTrackingFromPeriod: "2000-01", variableSymbol: `${tag}_concurrent`, rentCents: 10000, servicesCents: 0 } });
@@ -78,11 +117,14 @@ async function main() {
       assert.equal(await prisma.leaseLandlordPeriod.count({ where: { leaseId: concurrentLease.id, active: true } }), 1);
     });
     await check("staff and tenant share one immutable receipt while landlord differs from bank recipient", async () => {
+      const current = await profile(ownerA.id);
+      await saveOwnerReceiptProfile(admin, ownerA.id, { revision: current.updatedAt.toISOString(), issuerName: current.issuerName, issuerAddress: current.issuerAddress, enabled: true, stamp: signature });
       const issued = await issueStaffReceipt(editor, lease.id, charges[0].id), repeated = await issueTenantReceipt(tenantUser, tenant.id, charges[0].id);
       assert.equal(repeated.id, issued.id); assert.equal(issued.issuerId, signer.id); assert.equal(issued.issuerOwnerId, ownerA.id);
       assert.equal(Buffer.from(issued.pdfData).subarray(0, 4).toString(), "%PDF");
       assert.deepEqual(Buffer.from(repeated.pdfData), Buffer.from(issued.pdfData));
       assert.equal((issued.snapshot as Record<string, unknown>).signerName, signer.name);
+      assert.equal((issued.snapshot as Record<string, unknown>).stampHash, (await profile(ownerA.id)).stampHash);
       assert.equal((issued.snapshot as Record<string, unknown>).requestedById, editor.id);
       assert.notEqual(issued.issuerOwnerId, bankOwner.id);
       const july = await issueStaffReceipt(editor, lease.id, charges[1].id); assert.equal(july.issuerOwnerId, ownerB.id);
@@ -133,6 +175,7 @@ async function main() {
     await prisma.leaseLandlordPeriod.deleteMany({ where: { leaseId: { in: leaseIds } } });
     await prisma.ownerReceiptProfile.deleteMany({ where: { ownerId: { in: ownerIds } } });
     await prisma.ownerRepresentative.deleteMany({ where: { ownerId: { in: ownerIds } } });
+    await prisma.task.deleteMany({ where: { assigneeId: signer.id, dedupeKey: { startsWith: "owner-receipt-consent:" } } });
     await prisma.charge.deleteMany({ where: { leaseId: { in: leaseIds } } });
     await prisma.bankTransaction.deleteMany({ where: { bankAccountId: bank.id } });
     await prisma.bankAccount.delete({ where: { id: bank.id } });
