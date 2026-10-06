@@ -74,7 +74,7 @@ export async function saveOwnerReceiptProfile(actor: ReceiptActor, ownerId: stri
     const designatedRepresentativeId = owner.type === "PERSON" ? null : input.designatedRepresentativeId || previous?.designatedRepresentativeId || (available.length === 1 ? available[0].id : null);
     if (designatedRepresentativeId && !await tx.ownerRepresentative.count({ where: { id: designatedRepresentativeId, ownerId, active: true, user: { active: true, role: { not: "TENANT" } } } })) throw new Error("Vyberte aktivní osobu jednající právě za tohoto vlastníka.");
     const identityChanged = Boolean(previous && (previous.issuerName !== issuerName || previous.issuerAddress !== issuerAddress));
-    const stampData = input.removeStamp ? null : input.stamp || previous?.stampData || null;
+    const stampData = input.removeStamp ? null : input.stamp ? new Uint8Array(input.stamp) : previous?.stampData || null;
     const stampHash = stampData ? createHash("sha256").update(stampData).digest("hex") : null;
     const data = { issuerName, issuerAddress, enabled: input.enabled, designatedRepresentativeId, stampData, stampHash, updatedById: user.id, revision: (previous?.revision || 1) + (identityChanged ? 1 : 0) };
     const profile = await tx.ownerReceiptProfile.upsert({ where: { ownerId }, create: { ownerId, ...data }, update: data });
