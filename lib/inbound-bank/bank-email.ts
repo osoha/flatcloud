@@ -262,7 +262,7 @@ export function parseBankNotification(input: Input): ParsedBankPayment {
   // In ČSOB Moje info the bare "Účet" row names the customer's account
   // in both directions. A separate "Účet protistrany" row is never our account.
   const csobOwnAccount = csobNotification
-    ? accountFromValue(combined.match(/(?:^|\\n)[ \\t]*(?:Účet|Ucet)[ \\t]*(?:[:\\-][ \\t]*|\\n[ \\t]*)([^\\n]+)/i)?.[1])
+    ? accountFromValue(combined.match(/(?:^|\n)[ \t]*(?:Účet|Ucet)[ \t]*(?:[:\-][ \t]*|\n[ \t]*)([^\n]+)/i)?.[1])
     : undefined;
   const recipientAccount = outgoing ? ownAccount || csobOwnAccount : accountFromValue(recipientValue) || csobOwnAccount || fallbackAccountSearch(combined, "recipient");
   const counterpartyAccount = outgoing ? accountFromValue(lineValue(combined, ["Účet příjemce", "Ucet prijemce", "Na účet", "Na ucet", "Recipient account", "Beneficiary account", "Číslo účtu protistrany", "Cislo uctu protistrany", "Účet protistrany", "Ucet protistrany", "Protiúčet", "Protiucet"])) : accountFromValue(counterpartyValue) || fallbackAccountSearch(combined, "counterparty");
