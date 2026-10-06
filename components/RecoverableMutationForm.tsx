@@ -102,6 +102,7 @@ export function RecoverableMutationForm({
   submitLabel,
   draftKey,
   idempotencyFieldName,
+  successHashOn,
   children,
 }: {
   action: string;
@@ -109,6 +110,7 @@ export function RecoverableMutationForm({
   submitLabel: string;
   draftKey: string;
   idempotencyFieldName?: string;
+  successHashOn?: { field: string; value: string; hash: string };
   children: React.ReactNode;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -164,9 +166,10 @@ export function RecoverableMutationForm({
         setSubmitting(true);
         setError("");
         try {
+          const submitted = new FormData(event.currentTarget);
           const response = await fetch(action, {
             method: "POST",
-            body: new FormData(event.currentTarget),
+            body: submitted,
             credentials: "same-origin",
           });
           const target = new URL(response.url || action, window.location.href);
@@ -180,6 +183,7 @@ export function RecoverableMutationForm({
           }
           clearDraft(draftKey, true);
           setCompleted(true);
+          if (successHashOn && submitted.get(successHashOn.field) === successHashOn.value) target.hash = successHashOn.hash;
           window.location.assign(target.href);
         } catch {
           setError(
