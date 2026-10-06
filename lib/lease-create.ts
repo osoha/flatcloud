@@ -73,9 +73,12 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   await tx.tenantProperty.upsert({ where: { tenantId_propertyId: { tenantId: tenant.id, propertyId } }, update: {}, create: { tenantId: tenant.id, propertyId } });
 
   const dueDay = Math.min(Math.max(intValue(form, "dueDay", 5), 1), 31);
-  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, autoPortalInvitationPending:unit.property.tenantPortalInvitationMode==="AUTOMATIC", ownerBankAccountId, tenantBankAccount, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...serviceItems.map((item, index) => ({ ...item, validFrom: startDate, sortOrder: 20 + index }))] } } });
-  const landlordPeriod = await tx.leaseLandlordPeriod.create({ data: { leaseId: lease.id, ownerId: ownership.ownerId, fromPeriod: text(form, "startDate", true)!.slice(0, 7), confirmedById: createdById } });
-  await tx.auditLog.create({ data: { userId: createdById, propertyId, action: "LEASE_LANDLORD_AUTO_ASSIGNED", entityType: "LeaseLandlordPeriod", entityId: landlordPeriod.id, details: { leaseId: lease.id, ownerId: ownership.ownerId, unitOwnershipId: ownership.id, ownerBankAccountId, fromPeriod: landlordPeriod.fromPeriod, source: "NEW_LEASE_UNIT_OWNER" } } });
+  const documentOrigin = text(form, "documentOrigin") === "EXISTING" ? "EXISTING" : "NEW";
+  const lease = await tx.lease.create({ data: { unitId, tenantId: tenant.id, autoPortalInvitationPending:unit.property.tenantPortalInvitationMode==="AUTOMATIC", ownerBankAccountId, tenantBankAccount, documentOrigin, contractNumber: text(form, "contractNumber"), startDate, financialTrackingFromPeriod: onboarding.financialTrackingFromPeriod, endDate, dueDay, variableSymbol, rentTiming, rentCents, servicesCents, depositCents, note: text(form, "leaseNote") || text(form, "note"), status: derivedStatus, autoChargesEnabled, indexationEnabled, indexationPercentBps, nextIndexationAt: indexationEnabled ? firstFutureAnniversary(startDate) : null, paymentItems: { create: [...(rentCents ? [{ name: "Nájemné", category: "RENT" as const, amountCents: rentCents, validFrom: startDate, sortOrder: 10 }] : []), ...serviceItems.map((item, index) => ({ ...item, validFrom: startDate, sortOrder: 20 + index }))] } } });
+  if (documentOrigin === "NEW") {
+    const landlordPeriod = await tx.leaseLandlordPeriod.create({ data: { leaseId: lease.id, ownerId: ownership.ownerId, fromPeriod: text(form, "startDate", true)!.slice(0, 7), confirmedById: createdById } });
+    await tx.auditLog.create({ data: { userId: createdById, propertyId, action: "LEASE_LANDLORD_AUTO_ASSIGNED", entityType: "LeaseLandlordPeriod", entityId: landlordPeriod.id, details: { leaseId: lease.id, ownerId: ownership.ownerId, unitOwnershipId: ownership.id, ownerBankAccountId, fromPeriod: landlordPeriod.fromPeriod, source: "NEW_LEASE_UNIT_OWNER" } } });
+  }
   await createLeaseOccupants(tx, lease.id, tenant.id, form, createdById);
   const parties = await syncLeaseParties(tx, lease.id, tenant.id, partySelections);
   for (const linkedTenantId of Array.from(new Set(Object.values(parties).flat()))) {
@@ -89,3 +92,4 @@ export async function createLeaseFromForm(tx: Tx, propertyId: string, form: Form
   if (autoChargesEnabled) await syncLeaseCharges(tx, lease.id, { force: true, fromPeriod: onboarding.financialTrackingFromPeriod });
   return { tenant, lease, contractingPartyIds, parties, unitId, ownerId: ownership.ownerId, ownerBankAccountId, derivedStatus, autoChargesEnabled, indexationEnabled, termType, tenantBankAccount, ...onboarding, ...opening, ...openingDeposit };
 }
+
