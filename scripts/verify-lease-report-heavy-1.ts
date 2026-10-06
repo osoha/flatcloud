@@ -178,6 +178,7 @@ async function main() {
     });
     await check("report routes link tenancy rows back to tenant unit and contract cards", () => { const page = read("components/TenancyReport.tsx"); for (const token of ["/najemnici/${row.tenantId}", "/jednotky/${row.unitId}", "/smlouvy/${row.leaseId}"]) assert.ok(page.includes(token)); });
   } finally {
+    await prisma.leaseLandlordPeriod.deleteMany({ where: { leaseId: { in: leaseIds } } });
     await prisma.auditLog.deleteMany({ where: { OR: [{ propertyId: property.id }, { entityId: { in: leaseIds } }] } });
     await prisma.property.delete({ where: { id: property.id } });
     await prisma.tenant.delete({ where: { id: tenant.id } });

@@ -12,27 +12,29 @@ export function OwnerReceiptSettings({ settings, canAct, hasSavedSignature }: { 
   const ready = settings.status.ready;
 
   return <section className={`card ${styles.section}`} id="doklady-a-podpisy" aria-labelledby="owner-receipt-heading">
-    <div className={styles.header}><div><h2 id="owner-receipt-heading">Doklady a jednající osoby</h2><p className="muted-copy">Na dokladu je pronajímatel jako vystavitel a jméno s podpisem osoby, která za něj jedná.</p></div><span className={`status ${ready ? "ok" : "warn"}`}>{ready ? "Vystavování připraveno" : "Vyžaduje nastavení"}</span></div>
+    <div className={styles.header}><div><h2 id="owner-receipt-heading">Doklady a podpisy</h2><p className="muted-copy">Na dokladu je smluvní pronajímatel. Fyzická osoba používá vlastní podpis, firma podpis potvrzeného zástupce.</p></div><span className={`status ${ready ? "ok" : "warn"}`}>{ready ? "Vystavování připraveno" : "Vyžaduje nastavení"}</span></div>
     {!canAct && <p className="notice">Prohlížíte náhled účtu. Nastavení a osobní souhlas lze měnit až po návratu do vlastního účtu.</p>}
     <div className={styles.columns}>
       <div>
         <h3>1. Údaje pronajímatele</h3>
-        {canManage ? <form className={styles.form} action={`/api/owners/${owner.id}/receipt-profile`} method="post">
+        {canManage ? <form className={styles.form} action={`/api/owners/${owner.id}/receipt-profile`} method="post" encType="multipart/form-data">
           <input type="hidden" name="revision" value={profile?.updatedAt.toISOString() || "new"}/>
           <label className="field"><span>Název / jméno vystavitele</span><input name="issuerName" defaultValue={profile?.issuerName || owner.name} maxLength={160} required/></label>
           <label className="field"><span>Adresa vystavitele</span><input name="issuerAddress" defaultValue={profile?.issuerAddress || owner.address || ""} maxLength={240} required/></label>
-          <label className="field"><span>Osoba podepisující doklady</span><select name="designatedRepresentativeId" defaultValue={profile?.designatedRepresentativeId || ""}><option value="">Vyberte jednající osobu</option>{representatives.filter(person => person.active || person.id === profile?.designatedRepresentativeId).map(person => <option value={person.id} key={person.id}>{person.user.name}{person.roleLabel ? ` · ${person.roleLabel}` : ""}{!person.active ? " · neaktivní" : person.consentCurrent ? " · souhlas potvrzen" : " · čeká na souhlas"}</option>)}</select></label>
+          {owner.type !== "PERSON" && <label className="field"><span>Osoba podepisující doklady</span><select name="designatedRepresentativeId" defaultValue={profile?.designatedRepresentativeId || ""}><option value="">Vyberte jednající osobu</option>{representatives.filter(person => person.active || person.id === profile?.designatedRepresentativeId).map(person => <option value={person.id} key={person.id}>{person.user.name}{person.roleLabel ? ` · ${person.roleLabel}` : ""}{!person.active ? " · neaktivní" : person.consentCurrent ? " · souhlas potvrzen" : " · čeká na souhlas"}</option>)}</select></label>}
+          {owner.type !== "PERSON" && <><label className="field"><span>Razítko firmy (PNG, JPG nebo WebP, do 2 MB)</span><input type="file" name="stamp" accept="image/png,image/jpeg,image/webp"/></label>{profile?.hasStamp && <label className="checkbox-field"><input type="checkbox" name="removeStamp"/><span>Odstranit uložené razítko</span></label>}<small>{profile?.hasStamp ? "Razítko je uložené. Nový soubor jej nahradí; dříve vystavené doklady se nezmění." : "Razítko je volitelné. Na dokladu bude vedle podpisu zástupce."}</small></>}
           <label className="checkbox-field"><input type="checkbox" name="enabled" defaultChecked={profile?.enabled || false}/><span>Povolit vystavování dokladů za tohoto pronajímatele</span></label>
-          <small>Nejprve uložte údaje, přidejte jednající osobu a nechte ji potvrdit vlastní souhlas. Poté ji vyberte pro podpis a zapněte vystavování. Změna názvu nebo adresy vyžaduje nový souhlas.</small>
+          <small>{owner.type === "PERSON" ? "Vlastník si v Účtu uloží svůj osobní podpis a povolí vystavování. Není třeba vybírat další osobu." : "Po přidání první osoby ji systém vybere pro podpis a přiřadí jí úkol s odkazem na potvrzení. Změna názvu nebo adresy vyžaduje nový souhlas."}</small>
           <button className="primary" type="submit">Uložit údaje a vystavování</button>
         </form> : <>
           <div className={styles.identity}><strong>{profile?.issuerName || owner.name}</strong><span>{profile?.issuerAddress || "Adresa vystavitele zatím není nastavená."}</span><span>Podepisující osoba: {profile?.designatedRepresentativeName || "Zatím nevybraná"}</span></div>
-          <p className={styles.note}>{profile ? profile.enabled ? "Vystavování je povolené. Doklad vyžaduje platný souhlas vybrané jednající osoby." : "Vystavování zatím není zapnuté." : "Údaje pronajímatele zatím nejsou potvrzené pro vystavování dokladů."}</p>
+          <p className={styles.note}>{profile ? profile.enabled ? settings.status.reason : "Vystavování zatím není zapnuté." : "Údaje pronajímatele zatím nejsou potvrzené pro vystavování dokladů."}</p>
         </>}
         <p className={styles.note}>Pronajímatele přiřadíte ke konkrétnímu nájmu a období v jednotce, v části Dokumenty → Doklady o zaplacení. Již vystavené PDF se změnou nastavení nepřepisuje.</p>
       </div>
       <div>
-        <h3>2. Jednající osoby a jejich podpisy</h3>
+        <h3>2. {owner.type === "PERSON" ? "Vlastní podpis" : "Jednající osoby a jejich podpisy"}</h3>
+        {owner.type === "PERSON" ? <p className={styles.note}>Podpis patří přímo fyzické osobě. {settings.status.reason} <Link href="/ucet#podpis">Otevřít můj podpis v účtu</Link></p> : <>
         <p className={styles.note}>Stejná osoba může zastupovat více pronajímatelů. Každý souhlas a podpis patří ke konkrétnímu pronajímateli.</p>
         {representatives.map(person => <article key={person.id} className={styles.person}>
           <div className={styles.header}><div><h3>{person.user.name}</h3><span className={styles.meta}>{person.user.email}{person.roleLabel ? ` · ${person.roleLabel}` : ""}</span></div><span className={`status ${!person.active ? "neutral" : person.consentCurrent && person.hasSignature ? "ok" : "warn"}`}>{!person.active ? "Neaktivní" : person.consentCurrent && person.hasSignature ? "Souhlas a podpis platný" : person.revokedAt ? "Souhlas odvolán" : person.consentedAt ? "Potvrdit nový souhlas" : "Čeká na osobní souhlas"}</span></div>
@@ -55,9 +57,10 @@ export function OwnerReceiptSettings({ settings, canAct, hasSavedSignature }: { 
           <input type="hidden" name="action" value="add"/><input type="hidden" name="active" value="on"/>
           <label className="field"><span>E-mail uživatele aplikace</span><input name="userEmail" type="email" required autoComplete="off"/></label>
           <label className="field"><span>Funkce / oprávnění</span><input name="roleLabel" maxLength={120} placeholder="např. jednatel nebo pověřený správce"/></label>
-          <small>Přidáním osoby se vystavování nezapne. Osoba se musí přihlásit a sama potvrdit své oprávnění a podpis.</small>
+          <small>Osoba se automaticky určí k podpisu, dostane úkol s přímým odkazem a sama potvrdí oprávnění i podpis.</small>
           <button className="secondary" type="submit">Přidat jednající osobu</button>
         </form></details>}
+        </>}
       </div>
     </div>
   </section>;
