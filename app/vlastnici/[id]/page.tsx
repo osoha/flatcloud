@@ -15,7 +15,7 @@ export default async function OwnerEdit({ params, searchParams }: { params: Prom
   if (!canSeeAll(user.role)) redirect("/portfolio");
   const { id } = await params;
   const [owner, query] = await Promise.all([
-    prisma.owner.findUnique({ where: { id }, include: { properties: { orderBy: { name: "asc" } }, paymentAccounts: { orderBy: [{ active: "desc" }, { createdAt: "asc" }] } } }),
+    prisma.owner.findUnique({ where: { id }, include: { user: { select: { name: true, email: true } }, properties: { orderBy: { name: "asc" } }, paymentAccounts: { orderBy: [{ active: "desc" }, { createdAt: "asc" }] } } }),
     searchParams,
   ]);
   if (!owner) notFound();
@@ -67,6 +67,14 @@ export default async function OwnerEdit({ params, searchParams }: { params: Prom
           <button className="primary" type="submit">Přidat bankovní účet</button>
         </form>
       </div>
+      {user.role === "SUPER_ADMIN" && <div className="card col-5">
+        <div className="card-head"><div><h2>Uživatelský účet vlastníka</h2><p className="muted-copy">Propojení přiřadí bankovní oznámení tomuto uživateli a zpřístupní mu údaje vlastníka.</p></div></div>
+        {owner.user ? <p>{owner.user.name} · {owner.user.email}</p> : <form className="compact-form" action={`/api/owners/${owner.id}/user-link`} method="post">
+          <label className="field"><span>E-mail existujícího uživatele</span><input name="userEmail" type="email" required/></label>
+          <label className="checkbox-field"><input type="checkbox" name="confirmOwnerLink" required/><span>Potvrzuji propojení a přístup k údajům tohoto vlastníka.</span></label>
+          <button className="primary" type="submit">Propojit uživatele</button>
+        </form>}
+      </div>}
     </div>
     {receiptSettings && <OwnerReceiptSummary settings={receiptSettings}/>}
   </FormPage></Shell>;
