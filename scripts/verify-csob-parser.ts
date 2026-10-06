@@ -54,6 +54,21 @@ for (const authenticationResults of ["dmarc=fail", "spf=fail; dkim=fail"]) {
 const missingOwnAccount = lines.filter((_, i) => i !== 2 && i !== 3).join("\n");
 assert.equal(parseBankNotification({ ...input, text: missingOwnAccount }).recipientAccount, undefined);
 assert.equal(parseBankNotification({ ...input, text: missingOwnAccount }).autoProcessEligible, false);
-assert.equal(parseBankNotification({ ...input, text: texts[0].replace("Příchozí úhrada", "Odchozí úhrada") }).autoProcessEligible, false);
+// The same bare account field is the customer's debited account on an outgoing aviso.
+for (const text of texts) {
+  const outgoing = parseBankNotification({ ...input, text: text.replace("Příchozí úhrada", "Odchozí úhrada") });
+  assert.equal(outgoing.recipientAccount, "123456789/0300");
+  assert.equal(outgoing.counterpartyAccount, "987654321/0800");
+  assert.equal(outgoing.amountCents, -100);
+  assert.equal(outgoing.autoProcessEligible, true);
+}
+const outgoingWithoutOwnAccount = parseBankNotification({ ...input, text: missingOwnAccount.replace("Příchozí úhrada", "Odchozí úhrada") });
+assert.equal(outgoingWithoutOwnAccount.recipientAccount, undefined);
+assert.equal(outgoingWithoutOwnAccount.autoProcessEligible, false);
+const beneficiaryOnly = missingOwnAccount.replace("Účet protistrany", "Účet příjemce");
+const outgoingBeneficiaryOnly = parseBankNotification({ ...input, text: beneficiaryOnly.replace("Příchozí úhrada", "Odchozí úhrada") });
+assert.equal(outgoingBeneficiaryOnly.recipientAccount, undefined, "The beneficiary account must never become the customer account");
+assert.equal(outgoingBeneficiaryOnly.autoProcessEligible, false);
+assert.equal(parseBankNotification({ ...input, from: "notice@example.invalid", text: texts[0].replace("Příchozí úhrada", "Odchozí úhrada") }).autoProcessEligible, false);
 assert.equal(parseBankNotification({ from: "info@fio.cz", text: "Účet: 123456789/2010\nČástka: 1,00 CZK" }).recipientAccount, undefined);
 console.log("ČSOB parser: observed labels, HTML/MIME, reprocessing, balance, direction and sender checks passed.");
