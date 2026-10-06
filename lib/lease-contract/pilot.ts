@@ -1,4 +1,4 @@
-/** A preview-only pilot. No issuance, storage, signatures or delivery. */
+/** Restrict contract pilots and document actions to the named sandbox or an isolated local database. */
 export function leaseContractPilotEnabled() {
   return process.env.RENDER_SERVICE_ID === "srv-dacselkmqu1s73bmjoq0" ||
     (process.env.LEASE_CONTRACT_LOCAL_PILOT === "1" && !process.env.RENDER_SERVICE_ID &&
