@@ -84,13 +84,13 @@ test("tenant account supports own avatar and password, revokes old sessions, and
     await page.getByLabel("Nové heslo", {exact: true}).fill("New-Tenant-Account-Password-2026");
     await page.getByLabel("Nové heslo znovu", {exact: true}).fill("New-Tenant-Account-Password-2026");
     await page.getByRole("button", {name: "Změnit heslo", exact: true}).click();
-    await expect(page.locator(".error")).toContainText("Současné heslo není správné");
+    await expect(page.getByRole("alert").filter({hasText: "Současné heslo není správné"})).toContainText("Současné heslo není správné");
     await page.getByLabel("Současné heslo", {exact: true}).fill(password);
     await page.getByLabel("Nové heslo", {exact: true}).fill("New-Tenant-Account-Password-2026");
     await page.getByLabel("Nové heslo znovu", {exact: true}).fill("New-Tenant-Account-Password-2026");
     await page.getByRole("button", {name: "Změnit heslo", exact: true}).click();
     await expect(page).toHaveURL(/\/ucet\?changed=1/);
-    await expect(page.locator(".success-notice")).toContainText("úspěšně změněno");
+    await expect(page.getByRole("status").filter({hasText: "úspěšně změněno"})).toContainText("úspěšně změněno");
     expect((await db.user.findUniqueOrThrow({where: {id: tenantUser.id}})).sessionVersion).toBe(before.sessionVersion + 1);
     expect((await db.user.findUniqueOrThrow({where: {id: admin.id}})).passwordHash).toBe(hash);
     await oldSession.goto("/ucet"); await expect(oldSession).toHaveURL(/\/login/);
