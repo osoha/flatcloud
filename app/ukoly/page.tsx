@@ -2,7 +2,7 @@ import { TaskSectionNav } from "@/components/TaskSectionNav";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import { taskEntryVisibilityWhere } from "@/lib/task-access";
-import Link from "next/link";
+import {ScopeAwareLink as Link} from "@/components/ScopeAwareLink";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { accessibleProperties, taskAccessWhere } from "@/lib/access";
 import { prisma } from "@/lib/db";

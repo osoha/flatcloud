@@ -271,7 +271,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Portal receipts and navigation regression
-        run: npx playwright test e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/tenant-portal-meter-photo.spec.ts e2e/tenant-portal-conversations.spec.ts e2e/task-archive-admin-avatar.spec.ts e2e/tenant-document-sharing.spec.ts e2e/tenant-portal-polish.spec.ts e2e/owner-receipt-representation.spec.ts --reporter=line --output=portal-smoke-results
+        run: npx playwright test e2e/tenant-account-basic.spec.ts e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/tenant-portal-meter-photo.spec.ts e2e/tenant-portal-conversations.spec.ts e2e/task-archive-admin-avatar.spec.ts e2e/tenant-document-sharing.spec.ts e2e/tenant-portal-polish.spec.ts e2e/owner-receipt-representation.spec.ts --reporter=line --output=portal-smoke-results
         env:
           FILE_STORAGE_DRIVER: s3
           S3_ENDPOINT: http://127.0.0.1:3201

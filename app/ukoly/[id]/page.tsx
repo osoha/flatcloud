@@ -7,7 +7,7 @@ import { discussionParticipants } from "@/lib/task-discussion";
 import { TaskEntryReactions } from "@/components/TaskEntryReactions";
 import { TaskMentionBody } from "@/components/TaskMentionBody";
 import { PageHeading } from "@/components/PageHeading";
-import Link from "next/link";
+import {ScopeAwareLink as Link} from "@/components/ScopeAwareLink";
 import { notFound } from "next/navigation";
 import { CheckCircle2, Clock3, FileText, Home, Pencil, Plus, UserRound } from "lucide-react";
 import { displayMode } from "@/lib/display-mode";

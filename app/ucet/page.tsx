@@ -1,3 +1,4 @@
+import {TenantAccountShell} from "@/components/TenantAccountShell";
 import {ReceiptSignatureSettings} from "@/components/ReceiptSignatureSettings";
 import {portalEditableUnitWhere} from "@/lib/tenant-portal-access";
 import { ProfiAppearanceSettings } from "@/components/ProfiAppearanceSettings";
@@ -38,22 +39,23 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
   };
   const passwordError = query.error ? messages[query.error] : undefined;
 
+  const AccountShell = user.role === "TENANT" && !preview.requested ? TenantAccountShell : Shell;
   return (
-    <Shell user={user}>
+    <AccountShell user={user}>
       <div className="page account-full-width">
         <div className="page-title">
           <div>
             <PageHeading>Můj účet</PageHeading>
             <p>{user.name} · {user.email}</p>
           </div>
-          <GuideLauncher/>
+          {user.role !== "TENANT" && <GuideLauncher/>}
         </div>
 
         <Flash ok={query.ok} error={query.error && !passwordError ? query.error : undefined}/>
 
         <section id="upozorneni" data-guide="notifications" className="card account-card notification-settings">
           <h2>Upozornění</h2>
-          {user.role === "TENANT" ? <p>Provozní upozornění k vašemu nájmu jsou vždy zapnutá. Na e-mail dostanete oznámení, nové zprávy, změny stavu a připomenutí termínů. Odpovídat můžete přímo v portálu. Změnu kontaktních údajů nahlaste správci v portálu nájemníka.</p> : <>
+          {user.role === "TENANT" ? <p>Provozní upozornění k vašemu nájmu jsou vždy zapnutá. Na e-mail dostanete oznámení, nové zprávy, změny stavu a připomenutí termínů. Odpovídat můžete přímo v portálu. Změnu kontaktních údajů nahlaste správci v portálu nájemníka. <Link href="/portal/najemnik">Otevřít můj nájem →</Link></p> : <>
           <p>E-maily z úkolů a diskusí můžete kdykoli vypnout. Upozornění uvnitř aplikace zůstanou zachována. Reakce e-maily neposílají.</p>
           <form action="/api/account/notifications" method="post">
             {notificationFields.map(([key,label]) => <label className="checkbox-field" key={key}><input type="checkbox" name={key} defaultChecked={preference[key]}/><span>{label}</span></label>)}
@@ -70,7 +72,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
             <UserAvatar user={user} size="lg"/>
             <div className="account-avatar-fields">
               <IllustrationPicker kind="person" selected={user.avatarMimeType ? "upload" : user.avatarChoice || suggestedIllustration("person", user.id)}/>
-              <input type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/>
+              <input aria-label="Nahrát profilovou fotografii" type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/>
               <small>PNG, JPG nebo WebP, maximálně 2 MB.</small>
               {user.avatarMimeType && <label className="checkbox-field"><input type="checkbox" name="removeAvatar"/><span>Odstranit současný avatar</span></label>}
               <button className="primary" type="submit">Uložit avatar</button>
@@ -80,19 +82,20 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
 
         {ownerReceiptSettings.length > 0 && <section className="card account-card" id="zastoupeni"><h2>Jednám za pronajímatele</h2><p className="muted-copy">Za každého pronajímatele potvrzujete vlastní oprávnění a podpis zvlášť. Souhlas za jinou osobu udělit nelze.</p><div className="stack-list">{ownerReceiptSettings.map(owner => <div className="inline-edit-card" key={owner.id}><div className="rule-summary"><div><strong>{owner.name}</strong><small>{owner.canManage ? "Údaje pronajímatele a jednající osoby" : "Můj podpis a osobní souhlas"}</small></div><Link className="secondary" href={`/vlastnici/${owner.id}/doklady`}>Otevřít nastavení</Link></div></div>)}</div></section>}
         {canIssueReceipts&&<ReceiptSignatureSettings name={receiptSettings.receiptIssuerName||user.name} address={receiptSettings.receiptIssuerAddress||""} enabled={receiptSettings.receiptIssuanceEnabled} hasSignature={Boolean(receiptSettings.receiptSignatureData)}/>}
-        <ProfiAppearanceSettings graphics={user.profiGraphics}/>
+        {user.role !== "TENANT" && <ProfiAppearanceSettings graphics={user.profiGraphics}/>}
         <div className="card account-card">
           <div className="card-head"><h2>Změna hesla</h2></div>
+          <p className="muted-copy">Zvolte alespoň 12 znaků. Po změně hesla se ostatní přihlášení k vašemu účtu ukončí.</p>
           {query.changed && <div className="notice success-notice">Heslo bylo úspěšně změněno.</div>}
           {passwordError && <div className="error">{passwordError}</div>}
           <form action="/api/account/password" method="post" className="account-form">
-            <div className="field"><label>Současné heslo</label><input type="password" name="currentPassword" autoComplete="current-password" required /></div>
-            <div className="field"><label>Nové heslo</label><input type="password" name="newPassword" autoComplete="new-password" minLength={12} required /></div>
-            <div className="field"><label>Nové heslo znovu</label><input type="password" name="confirmPassword" autoComplete="new-password" minLength={12} required /></div>
+            <div className="field"><label htmlFor="currentPassword">Současné heslo</label><input id="currentPassword" type="password" name="currentPassword" autoComplete="current-password" required /></div>
+            <div className="field"><label htmlFor="newPassword">Nové heslo</label><input id="newPassword" type="password" name="newPassword" autoComplete="new-password" minLength={12} required /></div>
+            <div className="field"><label htmlFor="confirmPassword">Nové heslo znovu</label><input id="confirmPassword" type="password" name="confirmPassword" autoComplete="new-password" minLength={12} required /></div>
             <button className="primary" type="submit">Změnit heslo</button>
           </form>
         </div>
       </div>
-    </Shell>
+    </AccountShell>
   );
 }
