@@ -8,7 +8,7 @@ test.beforeAll(() => {
 });
 test.afterAll(() => prisma.$disconnect());
 
-test("Berry separates payment scope from delivery, preserves progress and does not claim verification", async ({ page }) => {
+test("Berry separates payment scope from delivery, preserves progress and does not claim verification", async ({ page }, testInfo) => {
   const password = "Berry-Guide-QA-2026";
   const user = await prisma.user.create({ data: { email: `berry-${randomUUID()}@example.invalid`, name: "Berry QA", passwordHash: await bcrypt.hash(password, 4), role: "OWNER_VIEWER", onboardingStatus: "completed", isTestIdentity: true } });
   try {
@@ -23,6 +23,7 @@ test("Berry separates payment scope from delivery, preserves progress and does n
     const dialog = page.getByRole("dialog", { name: "Berryho průvodce propojením banky" });
     await expect(dialog.getByLabel("Které platby chcete sdílet?")).toHaveValue("selected");
     await expect(dialog).toContainText("chybným nebo chybějícím VS");
+    await testInfo.attach("berry-desktop", { body: await page.screenshot(), contentType: "image/png" });
     await dialog.getByLabel("Jak budou oznámení doručována?").selectOption("direct");
     await dialog.getByRole("button", { name: "Pokračovat", exact: true }).click();
     await expect(dialog).toContainText("konkrétním variabilním symbolem");
@@ -65,6 +66,8 @@ test("Berry separates payment scope from delivery, preserves progress and does n
     await expect(dialog).toContainText("včetně případných soukromých příjmů");
     const bounds = await dialog.boundingBox();
     expect(bounds!.width).toBeLessThanOrEqual(390);
+    expect(await dialog.evaluate(element => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(1);
+    await testInfo.attach("berry-mobile", { body: await page.screenshot(), contentType: "image/png" });
   } finally {
     await prisma.user.update({ where: { id: user.id }, data: { active: false } });
   }

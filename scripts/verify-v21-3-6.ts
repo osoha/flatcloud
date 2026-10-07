@@ -4,7 +4,8 @@ import { parseBankNotification } from "../lib/inbound-bank/bank-email";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const property = read("app/nemovitosti/[id]/[section]/page.tsx");
-const bankGuide = read("components/BankNotificationGuide.tsx");
+// Bank instructions now live in a shared catalogue used by both guide surfaces.
+const bankGuide = read("components/BankNotificationGuide.tsx") + read("lib/bank-notification-guides.ts");
 const unit = read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx");
 const ownerAccess = read("lib/owner-self-service.ts");
 const ownerRoute = read("app/api/properties/[id]/owner-bank-account/route.ts");
