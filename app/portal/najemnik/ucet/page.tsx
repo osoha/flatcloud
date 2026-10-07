@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { IllustrationPicker } from "@/components/IllustrationPicker";
+import { suggestedIllustration } from "@/lib/illustration-library";
 import { notFound, redirect } from "next/navigation";
 import { actualUser, previewContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
@@ -109,6 +111,16 @@ export default async function TenantAccount({
           </div>
           <p>Změnu kontaktních údajů nahlaste správci v portálu.</p>
         </section>
+        {!preview && <section className="card account-card account-avatar-card">
+          <h2>Profilová fotografie</h2>
+          <form action="/api/account/avatar" method="post" encType="multipart/form-data" className="account-avatar-form">
+            <div className="account-avatar-fields">
+              <IllustrationPicker kind="person" selected={user.avatarMimeType ? "upload" : user.avatarChoice || suggestedIllustration("person", user.id)}/>
+              <input aria-label="Nahrát profilovou fotografii" type="file" name="avatar" accept="image/png,image/jpeg,image/webp"/>
+              <button className="primary" type="submit">Uložit avatar</button>
+            </div>
+          </form>
+        </section>}
         <section className="card account-card" id="heslo">
           <h2>Změna hesla</h2>
           {preview ? (

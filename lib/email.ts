@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { communicationDesign, renderCommunicationFrame } from "./communication-design";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { appSettings } from "./settings";
@@ -6,18 +7,16 @@ import { openSecret } from "./secret";
 
 export type MailInput = { to: string; subject: string; html: string; text: string; attachments?: Array<{ filename: string; content: Buffer; cid?: string; contentType?: string }> };
 const logoCid = "flatberry-brand-logo@flatberry";
-const logoPath = "/flatberry-logo.png";
+const logoPath = communicationDesign.logo;
 
 /** The same frame is used in live messages and in the welcome-letter preview. */
-export function renderFlatBerryEmail(content: string) {
-  return `<div data-flatberry-email="1" style="margin:0;padding:24px 10px;background:#f3f6fb;font-family:Arial,sans-serif;color:#17233a;line-height:1.55"><table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;margin:auto;background:#fff;border:1px solid #dbe4f0;border-radius:12px"><tr><td style="padding:22px 28px;border-bottom:1px solid #e2e8f0"><img src="${logoPath}" width="204" height="68" alt="FlatBerry" style="display:block;width:204px;height:auto;max-width:100%;border:0"></td></tr><tr><td style="padding:26px 28px">${content}</td></tr><tr><td style="padding:16px 28px;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px">Zpráva byla vytvořena v aplikaci FlatBerry.</td></tr></table></div>`;
-}
+export const renderFlatBerryEmail = renderCommunicationFrame;
 
 export async function prepareFlatBerryMail(input: MailInput): Promise<MailInput> {
   const html = (input.html.includes('data-flatberry-email="1"') ? input.html : renderFlatBerryEmail(input.html))
     .replaceAll(`src="${logoPath}"`, `src="cid:${logoCid}"`);
-  // Inline CID works even when external images are disabled in the recipient's mail client.
-  const logo = await readFile(join(process.cwd(), "public", "flatberry-logo.png"));
+  // Embed the brand asset; rendering still depends on the recipient's mail client.
+  const logo = await readFile(join(process.cwd(), "public", "flatberry-document-logo.png"));
   return { ...input, html, attachments: [...(input.attachments || []), { filename: "flatberry-logo.png", content: logo, cid: logoCid, contentType: "image/png" }] };
 }
 

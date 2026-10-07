@@ -19,18 +19,8 @@ function authorizedOwnershipWhere(userId: string, propertyId: string) {
 }
 
 export async function ownerSelfServiceScope(user: OwnerViewer, propertyId: string) {
-  if (user.role !== "OWNER_VIEWER") return null;
-  const email = normalizedOwnerEmail(user.email);
-  if (!email) return null;
-
-  const candidates = await prisma.owner.findMany({
-    where: { active: true, email: { not: null } },
-    select: { id: true, email: true },
-  });
-  const exact = candidates.filter((owner) => owner.email && normalizedOwnerEmail(owner.email) === email);
-  if (exact.length !== 1) return null;
-
-  const owner = exact[0];
+  const owner = await prisma.owner.findFirst({ where: { active: true, userId: user.id }, select: { id: true, email: true } });
+  if (!owner) return null;
   const unitOwnerships = await prisma.unitOwnership.findMany({
     where: { ownerId: owner.id, ...authorizedOwnershipWhere(user.id, propertyId) },
     include: { unit: { include: { property: { select: { id: true, name: true } } } } },

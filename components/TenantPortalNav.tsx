@@ -24,6 +24,7 @@ export function TenantPortalNav({
   user,
   preview = false,
   actions = false,
+  accountPage = false,
 }: {
   leaseId?: string;
   canAct: boolean;
@@ -32,6 +33,7 @@ export function TenantPortalNav({
   user?: { id?: string; name: string; avatarChoice?: string | null };
   preview?: boolean;
   actions?: boolean;
+  accountPage?: boolean;
 }) {
   const pathname=usePathname();
   const [active, setActive] = useState("prehled");
@@ -77,9 +79,9 @@ export function TenantPortalNav({
       {entries.map(({ id, label, Icon }) => (
         <a
           key={id}
-          href={`${portalHref}#${id}`}
+          href={`${portalHref || (accountPage ? "/portal/najemnik" : "")}#${id}`}
           aria-current={
-            !portalHref && (active === id || active.startsWith(`${id}-`))
+            !portalHref && !accountPage && (active === id || active.startsWith(`${id}-`))
               ? "location"
               : undefined
           }
@@ -95,12 +97,13 @@ export function TenantPortalNav({
           <span>Podpisy a potvrzení</span>
         </Link>
       )}
+      {!user && <Link href="/ucet" aria-current={accountPage ? "page" : undefined}><UserRound size={21}/><span>Můj účet</span></Link>}
       {user && (
         <div className="tp-user-panel">
           <Link
             className="tp-user-profile"
             href={accountHref}
-            aria-label={preview ? "Můj účet nájemníka – náhled" : "Můj účet"}
+            aria-label={preview ? "Můj účet nájemníka – náhled" : "Profil nájemníka"}
           >
             <UserAvatar user={user} />
             <span>

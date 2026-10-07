@@ -40,7 +40,7 @@ export async function tenantPortalMessages(user: PortalMessageUser, tenantId: st
       orderBy: [{ dueAt: "asc" }, { tenantPortalPublishedAt: "desc" }],
     }),
     prisma.announcement.findMany({
-      where: { ...portalAnnouncementAudience(leaseId, lease.unit.propertyId), active: true, startsAt: { lte: new Date() } },
+      where: { ...portalAnnouncementAudience(leaseId, lease.unit.propertyId), NOT:{id:{startsWith:"bank-change:"}}, active: true, startsAt: { lte: new Date() } },
       select: { id: true, title: true, body: true, severity: true, startsAt: true, expiresAt: true, active: true, updatedAt: true, createdBy: { select: { name: true } }, userStates: { where: { userId: preview ? "" : user.id }, select: { readAt: true, dismissedAt: true } } },
       orderBy: [{ severity: "desc" }, { startsAt: "desc" }],
     }),

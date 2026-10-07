@@ -53,7 +53,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
     if (!tenant) throw new Error("Vybraný nájemník není v rozsahu vašich oprávnění.");
     if (allowedTenants.length !== requestedTenantIds.length) throw new Error("Některá další smluvní strana není v rozsahu vašich oprávnění.");
-    const ownerBankAccountId = unit.ownerships[0]?.ownerBankAccountId;
+    const ownerBankAccountId = existing.ownerBankAccountId || unit.ownerships[0]?.ownerBankAccountId;
     if (!ownerBankAccountId || !unit.ownerships[0]?.ownerBankAccount?.active) throw new Error("U vlastnictví jednotky nejprve vyberte aktivní bankovní účet vlastníka.");
 
     const startDate = dateValue(form, "startDate", true)!;
@@ -80,6 +80,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const lease = await prisma.$transaction(async (tx) => {
       await assertNoLeaseOverlap(tx, { unitId, startDate, endDate, terminatedOn: existing.terminatedOn, cancelledAt: existing.cancelledAt, excludeLeaseId: leaseId });
+      await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended('flatberry:bank-account-changes',0))`;
+      const currentAccount=await tx.lease.findUniqueOrThrow({where:{id:leaseId},select:{ownerBankAccountId:true}});
+      if(currentAccount.ownerBankAccountId!==existing.ownerBankAccountId)throw new Error("Platební účet smlouvy se mezitím změnil. Obnovte formulář.");
       await assertUniqueVariableSymbol(tx, ownerBankAccountId, variableSymbol, leaseId);
       await tx.propertyPaymentAccount.upsert({
         where: { propertyId_ownerBankAccountId: { propertyId: id, ownerBankAccountId } },

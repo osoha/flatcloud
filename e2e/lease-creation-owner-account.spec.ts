@@ -31,7 +31,7 @@ test("lease creation: owner account refresh retains entered values and current o
   await login(page);
   await page.goto(`/nemovitosti/${f.property.id}/smlouvy/nova?unitId=${f.unit.id}`);
   await expect(page.locator(".missing-owner-account[role=alert]")).toContainText(f.owner.name);
-  await expect(page.getByRole("link", { name: "Nastavit příjemce plateb jednotky v nové kartě →" })).toHaveAttribute("href", `/nemovitosti/${f.property.id}/jednotky/${f.unit.id}/upravit#prijemce-plateb`);
+  await expect(page.getByRole("link", { name: "Nastavit příjemce plateb jednotky v nové kartě →" })).toHaveAttribute("href", `/bankovni-ucty?unitId=${f.unit.id}`);
   await page.locator('input[name="rent"]').fill("12345");
   await page.locator('input[name="note"], textarea[name="note"]').fill("Rozpracovaná smlouva");
   const accountPage = await page.context().newPage();
@@ -46,24 +46,28 @@ test("lease creation: owner account refresh retains entered values and current o
   // Creating an account alone must not silently change the unit's payment recipient.
   await page.getByRole("button", { name: "Znovu načíst účet vlastníka" }).click();
   await expect(page.locator(".missing-owner-account[role=alert]")).toBeVisible();
-  await accountPage.goto(`/nemovitosti/${f.property.id}/jednotky/${f.unit.id}/upravit#prijemce-plateb`);
-  await accountPage.locator('#prijemce-plateb textarea[name="reason"]').fill("Doplnění příjemce QA");
-  await accountPage.locator('#prijemce-plateb input[name="confirm"]').check();
-  await accountPage.getByRole("button", { name: "Potvrdit příjemce plateb", exact: true }).click();
-  await expect(accountPage).toHaveURL(/\?ok=/);
+  await db.ownerBankAccount.update({where:{id:account.id},data:{notificationVerifiedAt:new Date()}});
+  await accountPage.goto(`/bankovni-ucty?unitId=${f.unit.id}`);
+  const bankForm=accountPage.locator("#zmena-uctu form");
+  await bankForm.getByLabel("Nový účet pro nájemné").selectOption(account.id);
+  await bankForm.getByRole("button",{name:"Pokračovat",exact:true}).click();
+  await bankForm.getByLabel("Důvod a smluvní podklad oznámení").fill("Doplnění příjemce QA");
+  await bankForm.getByRole("button",{name:"Zobrazit dopad změny"}).click();
+  await bankForm.getByRole("checkbox").nth(0).check();await bankForm.getByRole("checkbox").nth(1).check();
+  await bankForm.getByRole("button",{name:"Potvrdit změnu a oznámení"}).click();
+  await expect(accountPage).toHaveURL(/bankovni-ucty\/zmeny/);
   await accountPage.close();
   await page.getByRole("button", { name: "Znovu načíst účet vlastníka" }).click();
   await expect(page.locator('input[name="ownerBankAccountId"]')).toHaveValue(account.id);
   await expect(page.locator('input[name="rent"]')).toHaveValue("12345");
   await expect(page.locator('textarea[name="note"]')).toHaveValue("Rozpracovaná smlouva");
-  await page.goto(`/nemovitosti/${f.property.id}/jednotky/${f.unit.id}/upravit#prijemce-plateb`);
-  const recipient = page.locator("#prijemce-plateb");
-  await expect(recipient.locator('select[name="ownerId"]')).toHaveValue(f.owner.id);
-  await expect(recipient.getByRole("link", { name: "Doplnit bankovní účet vlastníka →" })).toHaveAttribute("href", `/vlastnici/${f.owner.id}#bankovni-ucty`);
   const newAccount = await db.ownerBankAccount.create({ data: { ownerId: f.owner.id, label: "Synthetic second owner account", accountNumber: "123", bankCode: "0100" } });
-  await recipient.getByRole("button", { name: "Načíst účty vlastníka" }).click();
-  await expect(recipient.locator(`select[name="ownerBankAccountId"] option[value="${newAccount.id}"]`)).toHaveCount(1);
-  await expect(recipient.locator('select[name="ownerBankAccountId"]')).toHaveValue(account.id);
+  await page.goto(`/bankovni-ucty?unitId=${f.unit.id}`);
+  const recipient = page.locator("#zmena-uctu");
+  await expect(recipient.locator(`select option[value="${account.id}"]`)).toHaveCount(1);
+  await expect(recipient.locator(`select option[value="${newAccount.id}"]`)).toHaveCount(1);
+  await expect(recipient.getByLabel("Nový účet pro nájemné")).toHaveValue("");
+
 });
 
 test("tenant identity and author survive creation and editing; shared profiles require explicit selection", async ({ page }) => {

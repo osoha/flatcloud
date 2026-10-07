@@ -49,6 +49,7 @@ jobs:
       - run: node --import tsx scripts/verify-contract-cover.ts
       - run: node --import tsx scripts/verify-contract-occupancy.ts
       - run: node --import tsx scripts/verify-receipt-design.ts
+      - run: node --import tsx scripts/verify-communication-design.ts
       - run: node --import tsx scripts/verify-lease-payment-cover.ts
       - run: node --import tsx scripts/verify-lease-actions.ts
       - run: node --import tsx scripts/verify-tenant-portal-contact.ts
@@ -256,6 +257,19 @@ jobs:
       - run: npm run e2e:seed:r24-roles
       - run: npm run build
       - run: npx playwright install --with-deps chromium
+      - name: Communication and Berry preview regression
+        run: npx playwright test e2e/communication-design.spec.ts e2e/berry-bank-guide.spec.ts e2e/bank-account-lifecycle.spec.ts --reporter=line --output=communication-smoke-results
+      - name: Upload communication preview evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: communication-preview-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            communication-smoke-results/**/*.png
+            communication-smoke-results/**/*.pdf
+            communication-smoke-results/**/error-context.md
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Contract upload with isolated storage
         run: npx playwright test e2e/lease-document-upload.spec.ts e2e/lease-contract-generator.spec.ts e2e/lease-document-actions.spec.ts e2e/lease-payment-cover.spec.ts --output=contract-upload-results
         env:
@@ -278,7 +292,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Portal receipts and navigation regression
-        run: npx playwright test e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/tenant-portal-meter-photo.spec.ts e2e/tenant-portal-conversations.spec.ts e2e/task-archive-admin-avatar.spec.ts e2e/tenant-document-sharing.spec.ts e2e/tenant-portal-polish.spec.ts e2e/owner-receipt-representation.spec.ts --reporter=line --output=portal-smoke-results
+        run: npx playwright test e2e/tenant-account-basic.spec.ts e2e/portal-receipts-and-scope.spec.ts e2e/tenant-portal-access.spec.ts e2e/tenant-portal-redesign.spec.ts e2e/tenant-portal-meter-photo.spec.ts e2e/tenant-portal-conversations.spec.ts e2e/task-archive-admin-avatar.spec.ts e2e/tenant-document-sharing.spec.ts e2e/tenant-portal-polish.spec.ts e2e/owner-receipt-representation.spec.ts --reporter=line --output=portal-smoke-results
         env:
           FILE_STORAGE_DRIVER: s3
           S3_ENDPOINT: http://127.0.0.1:3201

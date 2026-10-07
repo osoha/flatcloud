@@ -1,3 +1,5 @@
+import { BankAccountLeaseHistory } from "@/components/BankAccountLeaseHistory";
+import { bankEditableUnitScope } from "@/lib/bank-account-permissions";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -46,6 +48,7 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
   const depositBalanceValue = snapshot.excessDepositCents > 0 ? `+ ${money(snapshot.excessDepositCents)}` : money(snapshot.missingDepositCents);
   const effectiveEnd = effectiveLeaseEnd(lease);
   const lifecycleState = leaseStatusAt(lease);
+  const canChangeBank = Boolean(await prisma.unit.findFirst({where:{id:lease.unitId,...bankEditableUnitScope(user)},select:{id:true}}));
   const canEdit = Boolean(await prisma.unit.findFirst({ where: { id: lease.unitId, ...editableUnitWhere(user, lease.unit.propertyId) }, select: { id: true } }));
   const canPrepareContract = Boolean(await prisma.unit.findFirst({ where: { id: lease.unitId, ...editableUnitWhere({...user,allProperties:false}, lease.unit.propertyId) }, select: { id: true } }));
   const today = dateInput(new Date());
@@ -73,6 +76,8 @@ export default async function LeaseDetail({ params, searchParams }: { params: Pr
     <div className="page-title lease-title"><div><PageHeading>{lease.contractNumber || "Smlouva"}</PageHeading><p>{partyNames.join(" + ")} · {lease.unit.property.name} · {lease.unit.label}</p></div><div className="lease-action-bar"><Link className="secondary" href={`/nemovitosti/${lease.unit.propertyId}/predpisy/${lease.id}`}>Předpisy</Link><Link className="secondary" href={`/ukoly/novy?propertyId=${lease.unit.propertyId}&leaseId=${lease.id}`}>Nový úkol</Link>{canEdit&&<Link className="primary" href={`/nemovitosti/${lease.unit.propertyId}/smlouvy/${lease.id}/upravit`}>Upravit smlouvu</Link>}{canEdit&&lifecycleState!=="ENDED"&&!lease.terminatedOn&&!lease.cancelledAt&&<Link className="secondary lifecycle-link" href={`/smlouvy/${lease.id}/ukoncit`}>Ukončit vztah</Link>}</div></div>
     <Flash ok={query.ok} error={query.error}/>
     {canEdit&&leaseContractPilotEnabled()&&isLeaseContractTestRecord(lease)&&<div className="card"><h2>Náhled nájemní smlouvy</h2><Link className="secondary" href={`/smlouvy/${lease.id}/nahled-smlouvy`}>Připravit náhled nájemní smlouvy</Link></div>}
+    {canChangeBank&&<p><Link className="secondary" href={`/bankovni-ucty?unitId=${lease.unitId}`}>Změnit účet pro nájemné</Link></p>}
+    <BankAccountLeaseHistory leaseIds={[lease.id]}/>
     <section className="card contract-cockpit" aria-labelledby="contract-finance-title">
       <div className="card-head"><div><span className="eyebrow">Rychlý přehled smlouvy</span><h2 id="contract-finance-title">Finance · {periodLabel(activePeriod)}</h2><p className="muted-copy">Smluvní nastavení a stav aktuálního předpisu bez otevření editace.</p></div><div className="contract-finance-actions"><Link className="secondary" href={`/smlouvy/${lease.id}/finance/platebni-list`}>Platební list k dodatku</Link>{currentCharge&&<Link className="secondary" href={`/nemovitosti/${lease.unit.propertyId}/predpisy/mesicni/${currentCharge.id}`}>Otevřít aktuální předpis</Link>}{canEdit&&!lease.terminatedOn&&!lease.cancelledAt&&<Link className="primary" href={`/smlouvy/${lease.id}/finance/upravit`}>Změnit nájem / služby</Link>}</div></div>
       <div className="contract-kpi-grid">

@@ -24,6 +24,7 @@ export async function transferOwnership(input: { propertyId: string; unitId?: st
   if (effectiveAt.toISOString().slice(0, 10) > today) throw new Error("Budoucí převod potvrďte nejdříve v den jeho účinnosti.");
   const ownerId = text(form, "ownerId", true)!;
   const accountId = payment ? text(form, "ownerBankAccountId", true)! : null;
+  if (payment) throw new Error("Změnu účtu proveďte přes Bankovní účty → Změnit účet pro nájemné, včetně oznámení nájemníkům.");
   if (payment && !unitId) throw new Error("Příjemce plateb se potvrzuje u jednotky.");
   const expected = text(form, "expectedOwnerId", true)!;
   const expectedAccount = text(form,"expectedAccountId");

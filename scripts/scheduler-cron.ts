@@ -1,3 +1,4 @@
+import { applyDueBankAccountChanges } from "../lib/bank-account-changes";
 import { collectTenantPortalNotifications, processTenantPortalNotifications } from "../lib/tenant-portal-notifications";
 import { collectTaskNotifications, processTaskNotifications } from "../lib/task-notifications";
 import { prisma } from "../lib/db";
@@ -26,6 +27,7 @@ function isMailboxSetupSkip(message: string) {
 }
 
 async function main() {
+  await applyDueBankAccountChanges();
   const startedAt = new Date();
   const steps: StepResult[] = [];
   let hardFailure = false;

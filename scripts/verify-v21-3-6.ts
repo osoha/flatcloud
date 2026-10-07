@@ -4,7 +4,8 @@ import { parseBankNotification } from "../lib/inbound-bank/bank-email";
 
 const read = (path: string) => readFileSync(path, "utf8");
 const property = read("app/nemovitosti/[id]/[section]/page.tsx");
-const bankGuide = read("components/BankNotificationGuide.tsx");
+// Bank instructions now live in a shared catalogue used by both guide surfaces.
+const bankGuide = read("components/BankNotificationGuide.tsx") + read("lib/bank-notification-guides.ts");
 const unit = read("app/nemovitosti/[id]/jednotky/[unitId]/page.tsx");
 const ownerAccess = read("lib/owner-self-service.ts");
 const ownerRoute = read("app/api/properties/[id]/owner-bank-account/route.ts");
@@ -20,37 +21,21 @@ const css = read("app/globals.css");
 assert.match(property, /unit\.property\.name} – \{use\.unit\.label/);
 assert.match(property, /orderBy: \[\{ unit: \{ property: \{ name: "asc"/);
 assert.match(unit, /const paymentAccount = activeLease\?\.ownerBankAccount \|\| ownershipPaymentAccount/);
-assert.match(unit, /\/banka\$\{paymentAccount\?`#ucet-/);
-assert.match(ownerAccess, /user\.role !== "OWNER_VIEWER"/);
-assert.match(ownerAccess, /email: \{ not: null \}/);
-assert.match(ownerAccess, /userAccesses: \{ some: \{ userId \} \}/);
-assert.match(ownerAccess, /memberships: \{ some: \{ userId \} \}/);
-assert.match(ownerAccess, /exact\.length !== 1/);
-assert.match(ownerAccess, /assignedAccountIds/);
-assert.match(ownerAccess, /id: \{ in: assignedAccountIds \}, ownerId: owner\.id/);
-assert.match(ownerRoute, /requireOwnedAccount\(user, propertyId, accountId\)/);
-assert.match(ownerRoute, /form\.getAll\("unitIds"\)/);
-assert.match(ownerRoute, /!accountId && !selectedUnitIds\.length/);
-assert.match(ownerRoute, /selectedUnitIds\.some\(\(unitId\) => !authorizedByUnitId\.has\(unitId\)\)/);
-assert.doesNotMatch(ownerRoute, /unitOwnership\.updateMany/);
-assert.match(ownerRoute, /for \(const unitId of selectedUnitIds\)/);
-assert.match(ownerRoute, /ownership\.ownerId !== scope\.id/);
-assert.match(ownerRoute, /leaseStatusAt\(lease\) !== "ENDED"/);
-assert.match(ownerRoute, /assertUniqueVariableSymbol\(tx, savedAccount\.id, lease\.variableSymbol, lease\.id\)/);
-assert.ok(ownerRoute.indexOf("assertUniqueVariableSymbol") < ownerRoute.indexOf("tx.unitOwnership.update"));
-assert.match(ownerRoute, /ownerBankAccountId: savedAccount\.id/);
-assert.match(ownerRoute, /notificationVerifiedAt: null/);
-assert.match(ownerRoute, /normalizeAccountNumber\(previous\.accountNumber\)/);
-assert.match(ownerRoute, /normalizeBankCode\(previous\.bankCode\)/);
-assert.match(ownerRoute, /normalizeIban\(previous\.iban\)/);
-assert.doesNotMatch(ownerRoute, /previous\.label !== account\.label/);
-assert.match(property, /name="unitIds"/);
-assert.match(property, /defaultChecked=\{ownerScope\.unitOwnerships\.length===1\}/);
+// The account workflow moved to a shared workspace; HTTP/DB behavior is covered
+// by bank-account-lifecycle.spec.ts (cross-owner denial, registration, notices, replay).
+assert.match(unit, /bankovni-ucty\?unitId/);
+assert.match(ownerAccess, /userId: user.id/);
+assert.doesNotMatch(ownerAccess, /email: \{ not: null \}/);
+assert.doesNotMatch(ownerRoute, /unitOwnership\.update|lease\.update/);
+assert.match(read("app/bankovni-ucty/page.tsx"), /BankAccountChangeForm/);
+assert.match(read("components/BankAccountChangeForm.tsx"), /name="unitIds"/);
+assert.match(read("lib/bank-account-changes.ts"), /assertUniqueVariableSymbol/);
+assert.match(read("lib/bank-account-changes.ts"), /bankEditableUnitScope/);
 assert.match(property, /section === "banka" && !ownerBankView/);
 assert.match(property, /Pokročilá pravidla/);
 assert.match(bankGuide, /Česká spořitelna/);
 assert.match(bankGuide, /několik minut/);
-assert.match(property, /platby@flatcloud\.cz/);
+assert.match(read("app/bankovni-ucty/page.tsx"), /platby@flatcloud\.cz/);
 
 const irrelevant = parseBankNotification({ subject: "Pozvánka", from: "office@example.com", text: "Dobrý den, posíláme zápis ze schůzky." });
 assert.equal(irrelevant.bankLike, false);
@@ -86,7 +71,8 @@ assert.equal(packageJson.scripts["verify:v21.3.6"], "tsx scripts/verify-v21-3-6.
 assert.match(css, /\.contact-preview-card strong\{font-size:13px\}/);
 assert.match(css, /\.contact-preview-card small,\.contact-preview-card span\{font-size:11px/);
 assert.match(css, /\.contact-preview-card a\{[^}]*font-size:11px/);
-assert.equal((property.match(/<BankNotificationGuide mailbox=\{bankSettings/g) || []).length, 2);
+assert.equal((property.match(/<BankNotificationGuide mailbox=\{bankSettings/g) || []).length, 1);
+assert.match(read("app/bankovni-ucty/page.tsx"), /<BankNotificationGuide/);
 assert.doesNotMatch(property, /bank-guide-update/);
 
 console.log("V21.3.6 verification passed.");

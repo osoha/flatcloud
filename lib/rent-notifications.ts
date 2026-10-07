@@ -1,8 +1,9 @@
+import { rentEmailContent } from "./communication-design";
 import qrcode from "qrcode-generator";
 import { NotificationStatus, NotificationType, type Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { appSettings } from "./settings";
-import { escapeHtml, sendMail } from "./email";
+import { sendMail } from "./email";
 import { money, date } from "./format";
 import { outstandingCents } from "./charges";
 import { paymentIban } from "./owner-bank-account";
@@ -27,13 +28,9 @@ function dateKey(d: Date) { return d.toISOString().slice(0, 10); }
 function compareKeys(a: string, b: string) { return a.localeCompare(b); }
 function daysBetween(fromKey: string, toKey: string) { return Math.max(0, Math.floor((utcDateFromKey(toKey).getTime() - utcDateFromKey(fromKey).getTime()) / 86_400_000)); }
 function fill(template: string, values: Record<string, string>) { return template.replace(/{{\s*([A-Za-z]+)\s*}}/g, (_, key) => values[key] ?? `{{${key}}}`); }
-function textToHtml(text: string) { return escapeHtml(text).replace(/\n/g, "<br>"); }
 function recipientFor(tenant: { type: string; email: string | null; communicationEmail: string | null; billingEmail: string | null }) { return tenant.type === "COMPANY" ? tenant.communicationEmail || tenant.billingEmail || tenant.email : tenant.email; }
-function ownerHeader(owner: { name: string; ico: string | null; address: string | null; email: string | null; phone: string | null }) {
-  return `<div style="margin:0 0 20px;padding:16px 18px;background:#f4f7fb;border:1px solid #dbe4f0;border-radius:8px"><span style="display:block;font-size:12px;color:#64748b">Vlastník / příjemce platby</span><strong style="font-size:17px;color:#102348">${escapeHtml(owner.name)}</strong>${owner.ico ? `<div>IČO: ${escapeHtml(owner.ico)}</div>` : ""}${owner.address ? `<div>${escapeHtml(owner.address)}</div>` : ""}<div>${[owner.email, owner.phone].filter(Boolean).map((v) => escapeHtml(v!)).join(" · ")}</div></div>`;
-}
-function mailLayout(owner: Parameters<typeof ownerHeader>[0], title: string, body: string, qrSource?: string) {
-  return `${ownerHeader(owner)}<h2 style="margin:0 0 18px;color:#102348">${escapeHtml(title)}</h2><div>${textToHtml(body)}</div>${qrSource ? `<div style="margin-top:22px"><p><strong>QR platba</strong></p><img src="${qrSource}" width="220" height="220" alt="QR kód pro platbu" style="display:block;border:1px solid #e2e8f0;border-radius:8px"></div>` : ""}`;
+function mailLayout(owner: Parameters<typeof rentEmailContent>[0]["owner"], title: string, body: string, qrSource?: string, payment?: Parameters<typeof rentEmailContent>[0]["payment"]) {
+  return rentEmailContent({owner,title,body,qrSource,payment});
 }
 function spd(iban: string, amountCents: number, variableSymbol: string, message: string) {
   const cleanIban = iban.replace(/\s/g, "").toUpperCase();
@@ -150,7 +147,7 @@ async function tenantMessage(lease: LeaseRow, input: { type: NotificationType; r
       to: recipient,
       subject,
       text: `${owner.name}\n${[owner.ico ? `IČO ${owner.ico}` : "", owner.address || ""].filter(Boolean).join("\n")}\n\n${body}`,
-      html: mailLayout(owner, subject, body, `cid:${qrCid}`),
+      html: mailLayout(owner, subject, body, `cid:${qrCid}`, {amount: values.amount, iban, variableSymbol: lease.variableSymbol, dueDate: input.type === "PAYMENT_NOTICE" ? values.dueDate : values.oldestDueDate, overdue: input.type !== "PAYMENT_NOTICE"}),
       attachments: [{ filename: "qr-platba.gif", content: Buffer.from(qrPayload, "base64"), cid: qrCid, contentType: "image/gif" }],
     });
     if (!result.sent) throw new Error(result.reason);

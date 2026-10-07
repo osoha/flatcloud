@@ -68,7 +68,7 @@ check("unit editor can atomic reassign own to own",()=>assert.equal(canCorrectTr
 
 const specs:Array<[string,string,string[]]>=[
   ["picker","components/PortfolioScopePicker.tsx",["router.push","Hledat nemovitost","type=\"checkbox\"","Vybrat vše","Použít výběr","Zrušit změny","Archivováno","aria-haspopup","useEffect","setDraft(initial)"]],
-  ["portfolio","app/portfolio/page.tsx",["parsePortfolioSelection","selectedSet","selectedPropertyIds","taskScope","selection.mode===\"ALL\"","view=collections","PortfolioScopePicker","unmatchedCount","prisma.task.count","prisma.complianceItem.count","taskCount","revisionCount","overdueRevisionCount","liveSelectedPropertyIds"]],
+  ["portfolio","app/portfolio/page.tsx",["parsePortfolioSelection","selectedSet","selectedPropertyIds","taskVisibilityScope","selection.mode===\"ALL\"","view=collections","PortfolioScopePicker","unmatchedCount","prisma.task.count","prisma.complianceItem.count","taskCount","revisionCount","overdueRevisionCount","liveSelectedPropertyIds"]],
   ["report","app/reporty/page.tsx",["Reporty","overview","occupancy","collections","tenancy","deposits","contracts","Datová konzistence","LIVE","properties","PortfolioScopePicker"]],
   ["live reporting","lib/reporting/live-service.ts",["businessDate","reportingPropertyAccessWhere","prisma.property.findMany","occupancyBps","weightedRentPerM2Cents","securityDepositSnapshot","leaseStatusAt","effectiveLeaseEnd","paidCentsAsOf","overdueDebtCentsAsOf","qualityIssues"]],
   ["legacy reports","app/reporty/[report]/page.tsx",["redirect","propertyId","predpisy","saldo","collections"]],

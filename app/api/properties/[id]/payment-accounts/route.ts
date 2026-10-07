@@ -1,3 +1,4 @@
+import { bankAccountReadScope } from "@/lib/bank-account-permissions";
 import { currentUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { boolValue, text } from "@/lib/forms";
@@ -14,7 +15,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const mode = text(form, "mode") || "add";
     const property = await prisma.property.findUnique({ where: { id }, include: { ownerships: true, units: { include: { ownerships: true } } } });
     if (!property) throw new Error("Nemovitost nebyla nalezena.");
-    const account = await prisma.ownerBankAccount.findUnique({ where: { id: accountId } });
+    const account = await prisma.ownerBankAccount.findFirst({ where: { id: accountId,...bankAccountReadScope(user) } });
     if (!account || !account.active) throw new Error("Vybraný účet nebyl nalezen nebo není aktivní.");
     const allowedOwnerIds = new Set([property.ownerId, ...property.ownerships.map((row)=>row.ownerId), ...property.units.flatMap((unit)=>unit.ownerships.map((row)=>row.ownerId))]);
     if (!allowedOwnerIds.has(account.ownerId)) throw new Error("Účet nepatří vlastníkovi ani spoluvlastníkovi této nemovitosti.");
@@ -23,11 +24,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         prisma.lease.count({ where: { ownerBankAccountId: accountId, unit: { propertyId: id } } }),
         prisma.unitOwnership.count({ where: { ownerBankAccountId: accountId, unit: { propertyId: id } } }),
       ]);
-      if (leaseUse || ownershipUse) throw new Error("Účet nelze z objektu odebrat, protože jej používá jednotka nebo aktuální nebo historická smlouva. Nejprve změňte účet u těchto záznamů.");
+      if (leaseUse || ownershipUse) throw new Error("Účet nelze z objektu odebrat, protože jej používá jednotka nebo aktuální nebo historická smlouva. Pro nové platby změňte účet tlačítkem u jednotky nebo smlouvy. Historické vazby ponechte zachované.");
       await prisma.propertyPaymentAccount.deleteMany({ where: { propertyId: id, ownerBankAccountId: accountId } });
       await audit(user.id, "PROPERTY_PAYMENT_ACCOUNT_REMOVED", "OwnerBankAccount", accountId, {}, id);
       return goWithMessage(request, `/nemovitosti/${id}/banka`, "ok", "Účet byl z nemovitosti odebrán.");
     }
+    if(account.usageState!=="AVAILABLE")throw new Error("Účet je určen pouze pro dobíhající platby nebo je archivován.");
     const primary = boolValue(form, "primary");
     await prisma.$transaction(async (tx) => {
       if (primary) await tx.propertyPaymentAccount.updateMany({ where: { propertyId: id }, data: { primary: false } });

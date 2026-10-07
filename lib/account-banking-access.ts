@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { hasAllPropertyAccess } from "./auth";
+import { hasAllPropertyAccess, canSeeAll } from "./auth";
 import { bankAccountMatches } from "./inbound-bank/bank-email";
 import { samePhysicalBankAccount } from "./owner-bank-account";
 import {normalizeExpenseAccount} from "./bank-expense-rule-policy";
@@ -23,7 +23,7 @@ export function bankScopePropertyIds(account: ScopedBankAccount) {
 // A grant for one house must not expose the rest of a shared bank account.
 export function managesBankScope(actor: BankActor, accounts: ScopedBankAccount[], editableIds: string[]) {
   if (!accounts.length) return false;
-  if (hasAllPropertyAccess(actor)) return true;
+  if (canSeeAll(actor.role)) return true;
   return accounts.every(account => account.owner.userId === actor.id ||
     (bankScopePropertyIds(account).length > 0 && bankScopePropertyIds(account).every(id=>editableIds.includes(id))));
 }
@@ -61,8 +61,8 @@ export async function requireInboxLeaseTarget(actor: BankActor, row: { recipient
     {ownerBankAccount:{owner:{userId:actor.id}}},
     {unit:{property:{memberships:{some:{userId:actor.id,permission:{in:["EDIT","ADMIN"]}}}}}},
     {unit:{userAccesses:{some:{userId:actor.id,permission:{in:["EDIT","ADMIN"]}}}}},
-  ]})},include:{ownerBankAccount:true,unit:true,tenant:true}});
-  const knownRecipient=lease&&bankAccountMatches(lease.ownerBankAccount||{},row.recipientAccount);
+  ]})},include:{ownerBankAccount:true,unit:true,tenant:true,receiptAccounts:{include:{account:true}}}});
+  const knownRecipient=lease&&(bankAccountMatches(lease.ownerBankAccount||{},row.recipientAccount)||lease.receiptAccounts.some(a=>bankAccountMatches(a.account,row.recipientAccount)));
   const knownPayer=lease&&row.recipientAccount==null&&leaseStatusAt(lease)==="ACTIVE"&&Boolean(row.counterpartyAccount)&&[lease.tenantBankAccount,...lease.tenant.payerAccounts].filter((a):a is string=>Boolean(a)).some(a=>normalizeExpenseAccount(a)===normalizeExpenseAccount(row.counterpartyAccount||""));
   if (!lease || (actor.role!=="SUPER_ADMIN" && !knownRecipient&&!knownPayer)) throw new Error("Vybraná smlouva není dostupná pro tento účet.");
   return lease;
