@@ -42,20 +42,21 @@ test("owner registration, isolated visibility, independent verification, notices
   await expect(page.locator("main")).not.toContainText(foreign.accountNumber!);
   await page.goto(`/bankovni-ucty?unitId=${unit.id}`);
   await expect(page.locator("main")).not.toContainText(foreign.accountNumber!);
-  const create=page.locator("#pridat-ucet form");await create.getByLabel("Vlastník účtu").selectOption(owner.id);await create.getByLabel("Název účtu").fill("Nový účet ČSOB");await create.getByLabel("Číslo účtu").fill(`7${suffix}`);await create.getByLabel("Kód banky").fill("0300");await create.getByRole("button",{name:"Přidat a ověřit účet"}).click();
+  const create=page.locator("#pridat-ucet form");await create.getByLabel("Vlastník účtu").selectOption(owner.id);await create.getByLabel("Název účtu").fill("Nový účet ČSOB");await create.getByLabel("Číslo účtu").fill(`7${suffix}`);await create.getByLabel("Kód banky").fill("0300");await create.getByRole("button",{name:"Přidat účet",exact:true}).click();
   const account=await db.ownerBankAccount.findFirstOrThrow({where:{ownerId:owner.id,label:"Nový účet ČSOB"}});
   expect(await db.unitOwnership.count({where:{ownerBankAccountId:account.id}})).toBe(0);
+  await page.goto(`/bankovni-ucty?unitId=${unit.id}`);
+  const form=page.locator("#zmena-uctu form");await form.getByLabel("Nový účet pro nájemné").selectOption(account.id);await expect(form).toContainText("Bankovní notifikace zatím nejsou ověřené");await form.getByRole("button",{name:"Pokračovat",exact:true}).click();await form.getByLabel("Důvod a smluvní podklad oznámení").fill("Test oznámení podle doložené smlouvy.");await form.getByRole("button",{name:"Zobrazit dopad změny"}).click();
+  await expect(form).toContainText(tenant.name);await form.getByRole("checkbox").nth(0).check();await form.getByRole("checkbox").nth(1).check();await form.getByRole("button",{name:"Potvrdit změnu a oznámení"}).click();await expect(page).toHaveURL(/bankovni-ucty\/zmeny/);
+  expect((await db.lease.findUniqueOrThrow({where:{id:lease.id}})).ownerBankAccountId).toBe(account.id);
+  expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
+  expect((await db.ownerBankAccount.findUniqueOrThrow({where:{id:account.id}})).notificationVerifiedAt).toBeNull();
   const samePhysical=await db.ownerBankAccount.create({data:{ownerId:otherOwner.id,accountNumber:account.accountNumber,bankCode:account.bankCode}});
   const verify=await db.inboxPayment.create({data:{amountCents:100,recipientAccount:`${account.accountNumber}/0300`,variableSymbol:verificationCodeForAccount(account.id),sourceTrusted:true}});inboxIds.push(verify.id);
   expect((await materializeInboxPayment(verify.id)).imported).toBe(true);
   expect((await db.ownerBankAccount.findUniqueOrThrow({where:{id:account.id}})).notificationVerifiedAt).not.toBeNull();
   expect((await db.ownerBankAccount.findUniqueOrThrow({where:{id:samePhysical.id}})).notificationVerifiedAt).toBeNull();
-  expect((await db.inboxPayment.findUniqueOrThrow({where:{id:verify.id}})).propertyId).toBeNull();
-  await page.goto(`/bankovni-ucty?unitId=${unit.id}`);
-  const form=page.locator("#zmena-uctu form");await form.getByLabel("Nový účet pro nájemné").selectOption(account.id);await form.getByRole("button",{name:"Pokračovat",exact:true}).click();await form.getByLabel("Důvod a smluvní podklad oznámení").fill("Test oznámení podle doložené smlouvy.");await form.getByRole("button",{name:"Zobrazit dopad změny"}).click();
-  await expect(form).toContainText(tenant.name);await form.getByRole("checkbox").nth(0).check();await form.getByRole("checkbox").nth(1).check();await form.getByRole("button",{name:"Potvrdit změnu a oznámení"}).click();await expect(page).toHaveURL(/bankovni-ucty\/zmeny/);
-  expect((await db.lease.findUniqueOrThrow({where:{id:lease.id}})).ownerBankAccountId).toBe(account.id);
-  expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
+  expect((await db.inboxPayment.findUniqueOrThrow({where:{id:verify.id}})).propertyId).toBe(property.id);
   const notice=await db.bankAccountNotice.findFirstOrThrow({where:{leaseId:lease.id}});
   expect(Buffer.from(notice.pdfData).subarray(0,4).toString()).toBe("%PDF");
   expect(await db.auditLog.count({where:{entityId:lease.id,action:"LEASE_BANK_CHANGE_EFFECTIVE"}})).toBe(1);
@@ -80,6 +81,7 @@ test("owner registration, isolated visibility, independent verification, notices
   expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
   await cancelBankAccountChange(user,input.requestId);await applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey));
   expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
+  await db.ownerBankAccount.update({where:{id:account.id},data:{notificationVerifiedAt:null}});
   const replay={...input,requestId:randomUUID()};await scheduleBankAccountChange(user,replay);await Promise.all([applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey)),applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey))]);
   expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBe(account.id);
   // Revocation between announcement and effectiveness blocks activation.

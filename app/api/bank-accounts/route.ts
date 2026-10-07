@@ -19,6 +19,6 @@ export async function POST(request:Request){
       const result=await tx.ownerBankAccount.create({data:{ownerId,...account,createdById:user.id}});
       await tx.auditLog.create({data:{userId:user.id,action:"OWNER_BANK_ACCOUNT_REGISTERED",entityType:"OwnerBankAccount",entityId:result.id,details:{ownerId}}});return result;
     });
-    return goWithMessage(request,`${back}${unitId?"&":"?"}accountId=${saved.id}#ucet-${saved.id}`,"ok","Účet je připravený k ověření. Platební pokyny jednotek se nezměnily.");
+    return goWithMessage(request,`${back}${unitId?"&":"?"}accountId=${saved.id}#ucet-${saved.id}`,"ok","Účet je uložený. Nyní jej můžete vybrat pro nájemné; bankovní notifikace lze ověřit později. Platební pokyny jednotek se zatím nezměnily.");
   }catch(error){return goWithMessage(request,back,"error",error instanceof Error?error.message:"Účet se nepodařilo přidat.");}
 }
