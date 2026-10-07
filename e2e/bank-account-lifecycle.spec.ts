@@ -1,0 +1,148 @@
+import {processTenantPortalNotifications} from "../lib/tenant-portal-notifications";
+import type {MailInput} from "../lib/email";
+import { test, expect, type Page } from "@playwright/test";
+import bcrypt from "bcryptjs";
+import { randomUUID } from "node:crypto";
+import { prisma as db } from "../lib/db";
+import { verificationCodeForAccount } from "../lib/bank-email-verification";
+import { materializeInboxPayment } from "../lib/inbound-bank/process";
+import { changeableBankUnits, bankUnitRevision, scheduleBankAccountChange, applyDueBankAccountChanges, cancelBankAccountChange } from "../lib/bank-account-changes";
+import { assertUniqueVariableSymbol } from "../lib/variable-symbol";
+import { businessDateKey, businessDateKeyToInstant, type BusinessDateKey } from "../lib/calendar";
+
+test.beforeAll(()=>{if(!process.env.DATABASE_URL||!["localhost","127.0.0.1","postgres"].includes(new URL(process.env.DATABASE_URL).hostname))throw new Error("Isolated database required");});
+test.afterAll(()=>db.$disconnect());
+async function login(page:Page,email:string,password:string){await page.goto("/login");await page.getByLabel("E-mail").fill(email);await page.getByLabel("Heslo").fill(password);await page.getByRole("button",{name:"Přihlásit se",exact:true}).click();await expect(page).not.toHaveURL(/\/login/);}
+
+test("owner registration, isolated visibility, independent verification, notices and late receipts",async({page,browser})=>{
+ test.setTimeout(120000);
+ const tag=randomUUID(),password="Bank-QA-Only-2026",suffix=String(Date.now()).slice(-9);
+ const user=await db.user.create({data:{email:`bank-owner-${tag}@flatcloud.test`,name:"Vlastník bank QA",passwordHash:await bcrypt.hash(password,10),role:"OWNER_VIEWER",isTestIdentity:true}});
+ const tenantUser=await db.user.create({data:{email:`bank-tenant-${tag}@flatcloud.test`,name:"Nájemník bank QA",passwordHash:await bcrypt.hash(password,10),role:"TENANT",isTestIdentity:true}});
+ const owner=await db.owner.create({data:{name:`Bank QA ${tag}`,userId:user.id}}),otherOwner=await db.owner.create({data:{name:`Cizí vlastník ${tag}`}});
+ const old=await db.ownerBankAccount.create({data:{ownerId:owner.id,accountNumber:suffix,bankCode:"0800",notificationVerifiedAt:new Date()}});
+ const foreign=await db.ownerBankAccount.create({data:{ownerId:otherOwner.id,accountNumber:`8${suffix}`,bankCode:"0300"}});
+ const property=await db.property.create({data:{ownerId:owner.id,name:`Bank QA ${tag}`,address:"Testovací 1",city:"Praha",memberships:{create:{userId:user.id,permission:"VIEW"}}}});
+ const unit=await db.unit.create({data:{propertyId:property.id,label:"Vlastní byt",ownerships:{create:{ownerId:owner.id,ownerBankAccountId:old.id}}}});
+ const vacant=await db.unit.create({data:{propertyId:property.id,label:"Volný byt",ownerships:{create:{ownerId:owner.id}}}});
+ const foreignUnit=await db.unit.create({data:{propertyId:property.id,label:"Cizí byt",ownerships:{create:{ownerId:otherOwner.id,ownerBankAccountId:foreign.id}}}});
+ const tenant=await db.tenant.create({data:{name:`Bankovní nájemník ${tag}`,email:tenantUser.email}});
+ const replacementTenant=await db.tenant.create({data:{name:`Následující nájemník ${tag}`}});
+ const lease=await db.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date("2025-01-01"),financialTrackingFromPeriod:"2025-01",variableSymbol:suffix,rentCents:100000,servicesCents:0,ownerBankAccountId:old.id}});
+ const charge=await db.charge.create({data:{leaseId:lease.id,period:"2026-10",dueDate:new Date(),amountCents:100000}});
+ await db.tenantPortalAccess.create({data:{userId:tenantUser.id,tenantId:tenant.id}});
+ const tenantPage=await browser.newPage();
+ const inboxIds:string[]=[];
+ try{
+  await login(page,user.email,password);
+  expect((await page.goto(`/nemovitosti/${property.id}/jednotky/${foreignUnit.id}`))?.status()).toBe(404);
+  expect((await page.goto(`/nemovitosti/${property.id}/jednotky/nova`))?.status()).toBe(404);
+  expect((await page.goto(`/nemovitosti/${property.id}/jednotky/hromadne`))?.status()).toBe(404);
+  await page.goto(`/nemovitosti/${property.id}/jednotky`);
+  await expect(page.locator("main")).toContainText(unit.label);
+  await expect(page.locator("main")).not.toContainText(foreignUnit.label);
+  await expect(page.locator("main")).not.toContainText(foreign.accountNumber!);
+  await page.goto(`/bankovni-ucty?unitId=${unit.id}`);
+  await expect(page.locator("main")).not.toContainText(foreign.accountNumber!);
+  const create=page.locator("#pridat-ucet form");await create.getByLabel("Vlastník účtu").selectOption(owner.id);await create.getByLabel("Název účtu").fill("Nový účet ČSOB");await create.getByLabel("Číslo účtu").fill(`7${suffix}`);await create.getByLabel("Kód banky").fill("0300");await create.getByRole("button",{name:"Přidat a ověřit účet"}).click();
+  const account=await db.ownerBankAccount.findFirstOrThrow({where:{ownerId:owner.id,label:"Nový účet ČSOB"}});
+  expect(await db.unitOwnership.count({where:{ownerBankAccountId:account.id}})).toBe(0);
+  const samePhysical=await db.ownerBankAccount.create({data:{ownerId:otherOwner.id,accountNumber:account.accountNumber,bankCode:account.bankCode}});
+  const verify=await db.inboxPayment.create({data:{amountCents:100,recipientAccount:`${account.accountNumber}/0300`,variableSymbol:verificationCodeForAccount(account.id),sourceTrusted:true}});inboxIds.push(verify.id);
+  expect((await materializeInboxPayment(verify.id)).imported).toBe(true);
+  expect((await db.ownerBankAccount.findUniqueOrThrow({where:{id:account.id}})).notificationVerifiedAt).not.toBeNull();
+  expect((await db.ownerBankAccount.findUniqueOrThrow({where:{id:samePhysical.id}})).notificationVerifiedAt).toBeNull();
+  expect((await db.inboxPayment.findUniqueOrThrow({where:{id:verify.id}})).propertyId).toBeNull();
+  await page.goto(`/bankovni-ucty?unitId=${unit.id}`);
+  const form=page.locator("#zmena-uctu form");await form.getByLabel("Nový účet pro nájemné").selectOption(account.id);await form.getByRole("button",{name:"Pokračovat",exact:true}).click();await form.getByLabel("Důvod a smluvní podklad oznámení").fill("Test oznámení podle doložené smlouvy.");await form.getByRole("button",{name:"Zobrazit dopad změny"}).click();
+  await expect(form).toContainText(tenant.name);await form.getByRole("checkbox").nth(0).check();await form.getByRole("checkbox").nth(1).check();await form.getByRole("button",{name:"Potvrdit změnu a oznámení"}).click();await expect(page).toHaveURL(/bankovni-ucty\/zmeny/);
+  expect((await db.lease.findUniqueOrThrow({where:{id:lease.id}})).ownerBankAccountId).toBe(account.id);
+  expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
+  const notice=await db.bankAccountNotice.findFirstOrThrow({where:{leaseId:lease.id}});
+  expect(Buffer.from(notice.pdfData).subarray(0,4).toString()).toBe("%PDF");
+  expect(await db.auditLog.count({where:{entityId:lease.id,action:"LEASE_BANK_CHANGE_EFFECTIVE"}})).toBe(1);
+  const savedPdf=Buffer.from(notice.pdfData);
+  const mails:MailInput[]=[], oldOrigin=process.env.APP_URL;
+  try {
+    process.env.APP_URL="https://flatberry.test";
+    const result=await processTenantPortalNotifications({tenantId:tenant.id,transport:async mail=>{mails.push(mail);return {sent:true};}});
+    expect(result.sent).toBe(1);
+    expect(mails[0].to).toBe(tenantUser.email);
+    expect(mails[0].attachments).toHaveLength(1);
+    expect(mails[0].attachments![0].contentType).toBe("application/pdf");
+    expect(Buffer.compare(mails[0].attachments![0].content,savedPdf)).toBe(0);
+    expect(mails[0].html).toContain("Dokument v příloze");
+    expect(await db.bankAccountNoticeRead.count({where:{noticeId:notice.id}})).toBe(0);
+    const queued=await db.tenantPortalNotification.findFirstOrThrow({where:{announcementId:notice.announcementId}});
+    const {id:queueId,createdAt:queuedAt,...source}=queued;
+    const retryFixture=()=>db.tenantPortalNotification.create({data:{...source,dedupeKey:randomUUID(),status:"PENDING",attempts:0,sentAt:null,claimedAt:null,nextAttemptAt:new Date()}});
+    await retryFixture();
+    await db.tenantPortalAccess.delete({where:{userId_tenantId:{userId:tenantUser.id,tenantId:tenant.id}}});
+    expect((await processTenantPortalNotifications({tenantId:tenant.id,transport:async mail=>{mails.push(mail);return {sent:true};}})).skipped).toBe(1);
+    expect(mails).toHaveLength(1);
+    await db.tenantPortalAccess.create({data:{userId:tenantUser.id,tenantId:tenant.id}});
+    await retryFixture();
+    await db.bankAccountNotice.update({where:{id:notice.id},data:{pdfHash:"damaged-test-snapshot"}});
+    expect((await processTenantPortalNotifications({tenantId:tenant.id,transport:async mail=>{mails.push(mail);return {sent:true};}})).failed).toBe(1);
+    expect(mails).toHaveLength(1);
+    await db.bankAccountNotice.update({where:{id:notice.id},data:{pdfHash:notice.pdfHash}});
+
+  } finally {if(oldOrigin===undefined)delete process.env.APP_URL;else process.env.APP_URL=oldOrigin;}
+
+  await login(tenantPage,tenantUser.email,password);await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
+  await expect(tenantPage.locator("#bankovni-oznameni")).toContainText("Oznámení o změně platebních údajů");
+  await tenantPage.getByRole("button",{name:"Potvrzuji, že jsem oznámení přečetl/a"}).click();
+  expect(await db.bankAccountNoticeRead.count({where:{noticeId:notice.id,userId:tenantUser.id,confirmedAt:{not:null}}})).toBe(1);
+  const headers={Cookie:(await tenantPage.context().cookies()).map(c=>`${c.name}=${c.value}`).join("; ")};
+  const pdf=await tenantPage.request.get(`/api/portal/tenants/${tenant.id}/bank-notices/${notice.id}`,{headers});expect(pdf.status()).toBe(200);expect(Buffer.compare(savedPdf,await pdf.body())).toBe(0);
+  expect((await tenantPage.request.get(`/api/portal/tenants/foreign/bank-notices/${notice.id}`,{headers})).status()).toBe(404);
+  const late=await db.inboxPayment.create({data:{amountCents:100000,recipientAccount:`${old.accountNumber}/0800`,variableSymbol:lease.variableSymbol,sourceTrusted:true,bookedAt:new Date()}});inboxIds.push(late.id);expect((await materializeInboxPayment(late.id)).imported).toBe(true);
+  expect(await db.paymentAllocation.count({where:{chargeId:charge.id}})).toBe(1);
+  // A prepared vacant unit can be scheduled, cancelled and replayed without duplicating changes.
+  const date=new Date();date.setDate(date.getDate()+5);const effectiveDate=businessDateKey(date);
+  const available=await changeableBankUnits(user),revision=bankUnitRevision(available.find(u=>u.id===vacant.id)!);
+  const input={requestId:randomUUID(),accountId:account.id,unitIds:[vacant.id],effectiveDate,reason:"Příprava prázdné jednotky",revisions:{[vacant.id]:revision},confirmed:true,noticeAllowed:true};
+  await scheduleBankAccountChange(user,input);await scheduleBankAccountChange(user,input);
+  expect(await db.bankAccountChange.count({where:{id:input.requestId}})).toBe(1);
+  await expect(scheduleBankAccountChange(user,{...input,reason:"Jiný požadavek"})).rejects.toThrow("jinou změnu");
+  await expect(db.$transaction(tx=>assertUniqueVariableSymbol(tx,account.id,"0"+lease.variableSymbol))).rejects.toThrow("rezervován");
+  expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
+  await cancelBankAccountChange(user,input.requestId);await applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey));
+  expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
+  const replay={...input,requestId:randomUUID()};await scheduleBankAccountChange(user,replay);await Promise.all([applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey)),applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey))]);
+  expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBe(account.id);
+  // Revocation between announcement and effectiveness blocks activation.
+  const oldRevision=bankUnitRevision((await changeableBankUnits(user)).find(u=>u.id===unit.id)!);
+  const blocked={...input,requestId:randomUUID(),accountId:old.id,unitIds:[unit.id],revisions:{[unit.id]:oldRevision}};
+  await scheduleBankAccountChange(user,blocked);
+  await db.owner.update({where:{id:owner.id},data:{userId:null}});
+  await applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey));
+  expect((await db.bankAccountChange.findUniqueOrThrow({where:{id:blocked.requestId}})).status).toBe("BLOCKED");
+  expect((await db.lease.findUniqueOrThrow({where:{id:lease.id}})).ownerBankAccountId).toBe(account.id);
+  await db.owner.update({where:{id:owner.id},data:{userId:user.id}});
+  await db.lease.update({where:{id:lease.id},data:{tenantId:replacementTenant.id}});
+  await cancelBankAccountChange(user,blocked.requestId);
+  const cancellation=await db.bankAccountNotice.findFirstOrThrow({where:{changeId:blocked.requestId,kind:"CANCEL"}});
+  expect(cancellation.tenantIds).toEqual([tenant.id]);
+  expect(await db.tenantPortalNotification.count({where:{announcementId:cancellation.announcementId,tenantId:replacementTenant.id}})).toBe(0);
+  expect(await db.tenantPortalNotification.count({where:{announcementId:cancellation.announcementId,userId:tenantUser.id}})).toBe(1);
+  await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
+  await expect(tenantPage.getByRole("heading",{name:"Zrušení oznámené změny platebních údajů",exact:true})).toHaveCount(1);
+  const unauthorized={...input,requestId:randomUUID(),unitIds:[foreignUnit.id],revisions:{}};
+  await expect(scheduleBankAccountChange(user,unauthorized)).rejects.toThrow();
+ }finally{
+  await tenantPage.close();
+  const changes=await db.bankAccountChange.findMany({where:{actorId:user.id},select:{id:true}}),changeIds=changes.map(c=>c.id);
+  const notices=await db.bankAccountNotice.findMany({where:{changeId:{in:changeIds}},select:{id:true,announcementId:true}});
+  await db.bankAccountNoticeRead.deleteMany({where:{noticeId:{in:notices.map(n=>n.id)}}});
+  await db.bankAccountNotice.deleteMany({where:{changeId:{in:changeIds}}});
+  await db.bankAccountChangeUnit.deleteMany({where:{changeId:{in:changeIds}}});await db.bankAccountChange.deleteMany({where:{id:{in:changeIds}}});
+  await db.tenantPortalNotification.deleteMany({where:{propertyId:property.id}});await db.announcement.deleteMany({where:{createdById:user.id}});
+  await db.leaseReceiptAccount.deleteMany({where:{leaseId:lease.id}});
+  await db.inboxPayment.deleteMany({where:{id:{in:inboxIds}}});
+  await db.task.deleteMany({where:{propertyId:property.id}});
+  await db.auditLog.deleteMany({where:{OR:[{userId:{in:[user.id,tenantUser.id]}},{propertyId:property.id},{entityId:{in:(await db.ownerBankAccount.findMany({where:{ownerId:{in:[owner.id,otherOwner.id]}},select:{id:true}})).map(a=>a.id)}}]}});
+  await db.property.delete({where:{id:property.id}});await db.tenant.deleteMany({where:{id:{in:[tenant.id,replacementTenant.id]}}});
+  await db.owner.deleteMany({where:{id:{in:[owner.id,otherOwner.id]}}});await db.user.deleteMany({where:{id:{in:[user.id,tenantUser.id]}}});
+ }
+});

@@ -1,7 +1,5 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { PDFDocument, rgb } from "pdf-lib";
-import fontkit from "@pdf-lib/fontkit";
+import { PDFDocument } from "pdf-lib";
+import { officialDocument } from "../official-document-pdf";
 import { actionKind, actionMeanings, packetStatus } from "./core";
 import { packetFile, signatureImage, type accessiblePacket } from "./service";
 export async function actionEvidencePdf(
@@ -10,49 +8,8 @@ export async function actionEvidencePdf(
   const pdf = packet.document
     ? await PDFDocument.load(await packetFile(packet))
     : await PDFDocument.create();
-  pdf.registerFontkit(fontkit);
-  const font = await pdf.embedFont(
-      await readFile(
-        path.join(process.cwd(), "public/fonts/Raleway-Regular.ttf"),
-      ),
-    ),
-    bold = await pdf.embedFont(
-      await readFile(path.join(process.cwd(), "public/fonts/Raleway-Bold.ttf")),
-    );
-  let page = pdf.addPage([595.28, 841.89]),
-    y = 786;
-  const newPage = () => {
-    page = pdf.addPage([595.28, 841.89]);
-    y = 786;
-  };
-  function text(value: string, size = 10, strong = false) {
-    const f = strong ? bold : font;
-    const drawLine = (line: string) => {
-      if (y < 58) newPage();
-      page.drawText(line, {x:48,y,size,font:f,color:rgb(0.12,0.19,0.24)});
-      y -= size + 5;
-    };
-    for (const paragraph of value.split("\n")) {
-      let line = "";
-      for (const word of paragraph.split(/\s+/)) {
-        const candidate = line ? line + " " + word : word;
-        if (line && f.widthOfTextAtSize(candidate,size) > 499) {
-          drawLine(line);line = "";
-        }
-        // Keep normal words together; split only a token wider than the page.
-        if (f.widthOfTextAtSize(word,size) > 499) {
-          for (const ch of word) {
-            if (f.widthOfTextAtSize(line+ch,size) > 499) {drawLine(line);line="";}
-            line += ch;
-          }
-        } else line = line ? line + " " + word : word;
-      }
-      drawLine(line);
-    }
-    y -= 6;
-  }
-  text(packet.title, 18, true);
-  text("Záznam podpisů a potvrzení · FlatBerry", 11, true);
+  const document = await officialDocument(pdf, {title: packet.title, reference: packet.id, category: "Záznam podpisů a potvrzení"});
+  const {text} = document;
   text(packetStatus(packet));
   text(
     `ID: ${packet.id}\nSHA-256 obsahu: ${packet.contentHash}\nPůvodní PDF: ${packet.sourceFileHash || "sdělení bez přílohy"}`,
@@ -73,20 +30,18 @@ export async function actionEvidencePdf(
         }).format(d)
       : "dosud neprovedeno";
   for (const r of packet.recipients) {
-    if (y < 230) newPage();
+    document.ensure(180);
     text(r.expectedName, 12, true);
     text(
       `Otevřeno: ${time(r.openedAt)}\n${packet.kind === "SIGN" ? "Podepsáno" : "Potvrzeno"}: ${time(r.completedAt)}${r.completedByName ? `\nÚčet: ${r.completedByName} · ${r.completedByEmail}` : ""}${r.signerAuthority ? `\nOprávnění: ${r.signerAuthority}` : ""}`,
       9,
     );
     if (r.signatureEncrypted) {
-      if(y<125)newPage();
-      const image = await pdf.embedPng(signatureImage(r.signatureEncrypted));
-      page.drawImage(image, { x: 48, y: y - 55, width: 180, height: 55 });
-      y -= 65;
+      await document.signature(signatureImage(r.signatureEncrypted));
     }
     if (r.evidenceHash) text(`SHA-256 záznamu: ${r.evidenceHash}`, 7);
   }
+  document.finish();
   pdf.setTitle(packet.title);
   pdf.setAuthor("FlatBerry");
   return pdf.save();

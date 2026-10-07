@@ -1,9 +1,10 @@
+import { notificationEmailContent } from "./communication-design";
 import { randomUUID } from "node:crypto";
 import { prisma } from "./db";
 import { discussionParticipants, visibleTaskEntry, type DiscussionClient } from "./task-discussion";
 import { notificationDefaults, parseMentions } from "./task-discussion-shared";
 import { taskViewWhere } from "./task-access";
-import { sendMail, escapeHtml, type MailInput } from "./email";
+import { sendMail, type MailInput } from "./email";
 import { taskStatuses } from "./labels";
 import { businessDateKey } from "./calendar";
 
@@ -86,7 +87,7 @@ export async function processTaskNotifications(options: { taskId?: string; now?:
       const context = entry ? entry.body.replace(/\s+/g, " ").slice(0, 240) : `Stav: ${taskStatuses[task.status]}${task.dueAt ? ` · Termín: ${task.dueAt.toLocaleDateString("cs-CZ")}` : ""}`;
       const title = task.title.replace(/[\r\n]/g, " ");
       const message = `${author?.name ? `${author.name}: ` : ""}${context}`;
-      const result = await transport({ to: user.email, subject: `FlatBerry · ${subjects[row.kind]} · ${title}`, text: `${subjects[row.kind]}\n${title}\n${message}\n${link}\nPřihlášení: ${url.origin}/login\nVeřejný web: ${url.origin}/\nNastavení upozornění: ${url.origin}/ucet#upozorneni`, html: `<div style="font-family:Arial,sans-serif;line-height:1.6"><h2>${escapeHtml(subjects[row.kind])}</h2><strong>${escapeHtml(title)}</strong><p>${escapeHtml(message)}</p><p><a href="${escapeHtml(link)}">Otevřít ve FlatBerry</a></p><small><a href="${url.origin}/login">Přihlášení</a> · <a href="${url.origin}/">Veřejný web</a> · <a href="${url.origin}/ucet#upozorneni">Nastavit upozornění</a></small></div>` });
+      const result = await transport({ to: user.email, subject: `FlatBerry · ${subjects[row.kind]} · ${title}`, text: `${subjects[row.kind]}\n${title}\n${message}\n${link}\nPřihlášení: ${url.origin}/login\nVeřejný web: ${url.origin}/\nNastavení upozornění: ${url.origin}/ucet#upozorneni`, html: notificationEmailContent({category: subjects[row.kind], title, message, action: {label: "Otevřít ve FlatBerry", url: link}, footer: "Odpovězte přímo v aplikaci. Nastavení upozornění najdete ve svém účtu."}) + `<p style="font-size:12px"><a href="${url.origin}/ucet#upozorneni">Nastavit upozornění</a></p>` });
       if (result.sent) { await finish("SENT", "Odesláno."); sent++; }
       else { await prisma.taskNotification.update({ where: { id: row.id }, data: { status: row.attempts >= 2 ? "FAILED" : "RETRY", detail: result.reason || "Odeslání se nezdařilo.", nextAttemptAt: new Date(now.getTime() + 3600000) } }); failed++; }
     } catch (error) {

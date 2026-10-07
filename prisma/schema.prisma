@@ -679,6 +679,10 @@ model RegistrationRequest {
 }
 
 model OwnerBankAccount {
+  changes BankAccountChange[]
+  receiptLeases LeaseReceiptAccount[]
+  usageState String @default("AVAILABLE")
+  createdById String?
   accountRules AccountBankRule[]
   id                     String                   @id @default(cuid())
   ownerId                String
@@ -1233,6 +1237,7 @@ model SaleBenchmarkSnapshot {
 }
 
 model Unit {
+  bankAccountChanges BankAccountChangeUnit[]
   expenseRules BankExpenseRule[]
   id                        String                       @id @default(cuid())
   unitCode                  String                       @default(dbgenerated())
@@ -1638,6 +1643,8 @@ model TenantProperty {
 model Lease {
   documentOrigin String?
   actionPackets LeaseActionPacket[]
+  bankAccountNotices BankAccountNotice[]
+  receiptAccounts LeaseReceiptAccount[]
   accountBankRules AccountBankRule[]
   id                          String                      @id @default(cuid())
   unitId                      String
@@ -3305,3 +3312,80 @@ model LeaseActionRecipient {
   @@index([staffUserId, completedAt])
 }
 
+/// An explicit instruction to change selected units. No account data is rewritten.
+model BankAccountChange {
+  id          String                  @id
+  fingerprint String
+  ownerId     String
+  accountId   String
+  account     OwnerBankAccount        @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  actorId     String
+  effectiveAt DateTime
+  reason      String
+  status      String                  @default("SCHEDULED")
+  failure     String?
+  createdAt   DateTime                @default(now())
+  appliedAt   DateTime?
+  cancelledAt DateTime?
+  units       BankAccountChangeUnit[]
+  notices     BankAccountNotice[]
+
+  @@index([status, effectiveAt])
+}
+
+model BankAccountChangeUnit {
+  changeId          String
+  change            BankAccountChange @relation(fields: [changeId], references: [id], onDelete: Restrict)
+  unitId            String
+  unit              Unit              @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  expectedAccountId String?
+  expectedLeases    Json
+
+  @@id([changeId, unitId])
+  @@index([unitId])
+}
+
+/// Former receiving accounts remain usable for late receipts; they are never used for new QR codes.
+model LeaseReceiptAccount {
+  leaseId        String
+  lease          Lease            @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  accountId      String
+  account        OwnerBankAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  variableSymbol String
+  recordedAt     DateTime         @default(now())
+
+  @@id([leaseId, accountId])
+  @@index([accountId, variableSymbol])
+}
+
+model BankAccountNotice {
+  id             String                  @id @default(cuid())
+  changeId       String
+  change         BankAccountChange       @relation(fields: [changeId], references: [id], onDelete: Restrict)
+  leaseId        String
+  lease          Lease                   @relation(fields: [leaseId], references: [id], onDelete: Restrict)
+  kind           String                  @default("CHANGE")
+  snapshot       Json
+  title          String
+  body           String
+  pdfData        Bytes
+  pdfHash        String
+  tenantIds      String[]
+  announcementId String                  @unique
+  createdAt      DateTime                @default(now())
+  reads          BankAccountNoticeRead[]
+
+  @@unique([changeId, leaseId, kind])
+  @@index([leaseId, createdAt])
+}
+
+model BankAccountNoticeRead {
+  noticeId    String
+  notice      BankAccountNotice @relation(fields: [noticeId], references: [id], onDelete: Restrict)
+  userId      String
+  tenantId    String
+  openedAt    DateTime?
+  confirmedAt DateTime?
+
+  @@id([noticeId, userId])
+}

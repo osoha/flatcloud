@@ -16,7 +16,7 @@ export function BankVerificationPayment({ account, variableSymbol, units, verifi
 
   const payment = <div className={`verification-payment ${verified ? "verification-retest" : "verification-box"}`}>
     <div className="verification-payment-details">
-      <small>Jednotky: {units.join(" · ")}</small>
+      <small>{units.length?`Jednotky: ${units.join(" · ")}`:"Připravený účet · ověření bez smlouvy"}</small>
       <strong>Testovací platba: 1,00 Kč</strong>
       <span>Účet: {accountLabel || "není vyplněn"}</span>
       <span>Variabilní symbol: <b>{variableSymbol}</b></span>
@@ -25,7 +25,7 @@ export function BankVerificationPayment({ account, variableSymbol, units, verifi
     {qrSrc ? <div className="verification-payment-qr"><img src={qrSrc} width={164} height={164} alt={`QR platba 1 Kč na účet ${accountLabel}, variabilní symbol ${variableSymbol}`}/><a href={qrSrc} download="flatberry-overeni-platby.gif">Stáhnout QR</a></div> : <small className="verification-payment-help">QR platba vyžaduje platný účet v Kč a shodu domácího čísla s IBANem.</small>}
   </div>;
   return verified ? <details className="verification-verified">
-    <summary><span className="status ok">Účet ověřen</span><span>{accountLabel}</span><small>Jednotky: {units.join(" · ")}</small></summary>
+    <summary><span className="status ok">Bankovní notifikace ověřeny</span><span>{accountLabel}</span><small>{units.length?`Jednotky: ${units.join(" · ")}`:"Připravený účet · ověření bez smlouvy"}</small></summary>
     {payment}
   </details> : payment;
 }

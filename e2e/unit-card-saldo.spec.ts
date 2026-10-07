@@ -100,7 +100,8 @@ test("unit overview shows tenant, real overpayment and ordered modules on deskto
     await page.setViewportSize({width:1440,height:1000});
     const berry = page.locator(".basic-sidebar-berry");
     await expect(berry).toBeVisible();
-    expect(await berry.evaluate(el=>el.nextElementSibling?.classList.contains("display-mode-switch"))).toBeTruthy();
+    expect(await berry.evaluate(el=>el.nextElementSibling?.classList.contains("display-controls-row"))).toBeTruthy();
+    await expect(page.locator(".sidebar-footer .display-controls-row .display-mode-switch")).toBeVisible();
     const desktopLayout = () => page.evaluate(() => {
       const selectors = [".sidebar", ".main", ".page", ".basic-unit-hero", ".basic-unit-summary", ".basic-unit-details"];
       return {width:innerWidth, scrollX, boxes:Object.fromEntries(selectors.map(selector => {

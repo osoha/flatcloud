@@ -1,3 +1,4 @@
+import {leaseContractPilotEnabled} from "@/lib/lease-contract/pilot";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -36,6 +37,7 @@ export default async function AdminOverviewPage() {
       <div className="card admin-health-card"><span>Nespárované položky</span><strong>{unmatched}</strong><Link href="/platby/nesparovane">Otevřít frontu</Link></div>
     </div>
     <div className="admin-module-grid">
+      {leaseContractPilotEnabled() && <Module icon={<Mail/>} title="Náhled komunikace" text="Platební údaje, upomínky, zprávy a oficiální PDF v jednotném vzhledu." href="/nastaveni/nahled-komunikace" cta="Otevřít modelové náhledy"/>}
       <Module icon={<Settings2/>} title="Integrace a automatizace" text="Bankovní schránka, Drive, SMTP, upomínky a zdroje dat." href="/nastaveni/system" cta="Spravovat nastavení"/>
       <Module icon={<BarChart3/>} title="Reporting" text={`${templates} šablon · skupiny, verzované šablony a publikované výstupy.`} href="/reporty/sablony" cta="Otevřít reporting"/>
       <Module icon={<Users/>} title="Uživatelé a přístupy" text={`${activeUsers} aktivních uživatelů · role, pozvánky a oprávnění.`} href="/uzivatele" cta="Spravovat uživatele"/>

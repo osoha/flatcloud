@@ -48,6 +48,7 @@ async function main() {
       assert.equal(mails.length, 1); assert.equal(mails[0].to, actor.email); assert.ok(!mails[0].text.includes("INTERNAL SECRET"));
       assert.ok(mails[0].html.includes("&lt;test&gt;")); assert.ok(mails[0].text.includes(`#zpravy-spravci-${lease.id}--${row.id}`));
       assert.ok(!mails[0].text.includes("Nastavit upozornění"));
+      assert.equal(mails[0].attachments, undefined, "Routine task notification must not create a PDF");
     });
     await check("public replies deliver while internal entries cannot enqueue or escape a forged queue row", async () => {
       const row = await task();

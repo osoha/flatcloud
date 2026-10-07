@@ -31,6 +31,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       currency: text(form, "currency") || "CZK",
     });
     const identityChanged = existing.accountNumber !== account.accountNumber || existing.bankCode !== account.bankCode || existing.iban !== account.iban;
+    if(identityChanged) throw new Error("Nové číslo účtu přidejte jako nový účet. Použití u jednotek změňte přes Bankovní účty.");
+    if(!boolValue(form,"active")) throw new Error("Archivaci proveďte přes Bankovní účty, kde se ověří aktuální použití i dobíhající platby.");
     const duplicate = (await prisma.ownerBankAccount.findMany({ where: { ownerId: id, id: { not: accountId } } })).find((candidate) => samePhysicalBankAccount(candidate, account));
     if (duplicate) throw new Error("Tento bankovní účet již existuje. Aktivujte / použijte existující účet.");
     const updated = await prisma.ownerBankAccount.update({ where: { id: accountId }, data: { ...account, active: boolValue(form, "active"), ...(identityChanged ? { notificationVerifiedAt: null } : {}) } });

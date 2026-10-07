@@ -15,11 +15,11 @@ async function verify() {
   assert.ok((payment.attachments?.[1].content.length || 0) > 1000);
 
   const letter = renderWelcomeLetter({ subject: "Vítejte", introduction: "Vážení vlastníci", handoverText: "", leaseText: "", insuranceText: "", managementText: "", platformText: "FlatBerry", taxText: "", associationText: "", closingText: "S pozdravem", contactText: "Flat Cloud a.s." });
-  assert.match(letter.html, /src="\/flatberry-logo.png"/); // Browser preview uses the local image.
+  assert.match(letter.html, /src="\/flatberry-document-logo.png"/); // Browser preview uses the local image.
   const sentLetter = await prepareFlatBerryMail({ to: "owner@example.test", subject: "Vítejte", ...letter });
   assert.equal(sentLetter.html.match(/data-flatberry-email="1"/g)?.length, 1);
   assert.match(sentLetter.html, /cid:flatberry-brand-logo@flatberry/);
-  assert.doesNotMatch(sentLetter.html, /src="\/flatberry-logo.png"/);
+  assert.doesNotMatch(sentLetter.html, /src="\/flatberry-document-logo.png"/);
 
   const root = renderFlatBerryEmail("<p>Zpráva</p>");
   assert.match(root, /Zpráva byla vytvořena v aplikaci FlatBerry/);

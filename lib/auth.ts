@@ -48,7 +48,7 @@ export async function currentUser() {
   const requestHeaders = await headers();
   const path = requestHeaders.get("x-flatberry-path") || "";
   if (context.requested && !previewRequestAllowed(requestHeaders.get("x-flatberry-method") || "POST", path)) return null;
-  if (user?.role === "TENANT" && !path.startsWith("/portal/najemnik") && !path.startsWith("/api/portal/") && path !== "/api/account/password") {
+  if (user?.role === "TENANT" && !path.startsWith("/portal/najemnik") && !path.startsWith("/api/portal/") && !["/ucet", "/api/account/password", "/api/account/avatar", `/api/users/${user.id}/avatar`].includes(path)) {
     if (path.startsWith("/api/")) return null;
     redirect("/portal/najemnik");
   }
@@ -56,5 +56,6 @@ export async function currentUser() {
     if (path.startsWith("/api/")) return null;
     redirect("/portfolio");
   }
+  if(user && !context.requested) { const {applyDueBankAccountChanges}=await import("./bank-account-changes"); await applyDueBankAccountChanges(); }
   return user;
 }
