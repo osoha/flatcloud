@@ -25,6 +25,7 @@ test("owner registration, isolated visibility, independent verification, notices
  const vacant=await db.unit.create({data:{propertyId:property.id,label:"Volný byt",ownerships:{create:{ownerId:owner.id}}}});
  const foreignUnit=await db.unit.create({data:{propertyId:property.id,label:"Cizí byt",ownerships:{create:{ownerId:otherOwner.id,ownerBankAccountId:foreign.id}}}});
  const tenant=await db.tenant.create({data:{name:`Bankovní nájemník ${tag}`,email:tenantUser.email}});
+ const replacementTenant=await db.tenant.create({data:{name:`Následující nájemník ${tag}`}});
  const lease=await db.lease.create({data:{unitId:unit.id,tenantId:tenant.id,startDate:new Date("2025-01-01"),financialTrackingFromPeriod:"2025-01",variableSymbol:suffix,rentCents:100000,servicesCents:0,ownerBankAccountId:old.id}});
  const charge=await db.charge.create({data:{leaseId:lease.id,period:"2026-10",dueDate:new Date(),amountCents:100000}});
  await db.tenantPortalAccess.create({data:{userId:tenantUser.id,tenantId:tenant.id}});
@@ -86,9 +87,11 @@ test("owner registration, isolated visibility, independent verification, notices
   expect((await db.bankAccountChange.findUniqueOrThrow({where:{id:blocked.requestId}})).status).toBe("BLOCKED");
   expect((await db.lease.findUniqueOrThrow({where:{id:lease.id}})).ownerBankAccountId).toBe(account.id);
   await db.owner.update({where:{id:owner.id},data:{userId:user.id}});
+  await db.lease.update({where:{id:lease.id},data:{tenantId:replacementTenant.id}});
   await cancelBankAccountChange(user,blocked.requestId);
   const cancellation=await db.bankAccountNotice.findFirstOrThrow({where:{changeId:blocked.requestId,kind:"CANCEL"}});
   expect(cancellation.tenantIds).toEqual([tenant.id]);
+  expect(await db.tenantPortalNotification.count({where:{announcementId:cancellation.announcementId,tenantId:replacementTenant.id}})).toBe(0);
   expect(await db.tenantPortalNotification.count({where:{announcementId:cancellation.announcementId,userId:tenantUser.id}})).toBe(1);
   await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
   await expect(tenantPage.getByRole("heading",{name:"Zrušení oznámené změny platebních údajů",exact:true})).toHaveCount(1);
@@ -106,7 +109,7 @@ test("owner registration, isolated visibility, independent verification, notices
   await db.inboxPayment.deleteMany({where:{id:{in:inboxIds}}});
   await db.task.deleteMany({where:{propertyId:property.id}});
   await db.auditLog.deleteMany({where:{OR:[{userId:{in:[user.id,tenantUser.id]}},{propertyId:property.id},{entityId:{in:(await db.ownerBankAccount.findMany({where:{ownerId:{in:[owner.id,otherOwner.id]}},select:{id:true}})).map(a=>a.id)}}]}});
-  await db.property.delete({where:{id:property.id}});await db.tenant.delete({where:{id:tenant.id}});
+  await db.property.delete({where:{id:property.id}});await db.tenant.deleteMany({where:{id:{in:[tenant.id,replacementTenant.id]}}});
   await db.owner.deleteMany({where:{id:{in:[owner.id,otherOwner.id]}}});await db.user.deleteMany({where:{id:{in:[user.id,tenantUser.id]}}});
  }
 });

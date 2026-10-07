@@ -43,5 +43,5 @@ export function bankOwnerScope(user: BankActor): Prisma.OwnerWhereInput {
   ] : [])] };
 }
 export async function availableOwners(user: BankActor) {
-  return prisma.owner.findMany({ where: { active: true, ...bankOwnerScope(user) }, include: { paymentAccounts: { where: { active: true, ...bankAccountReadScope(user) }, orderBy: { createdAt: "asc" } } }, orderBy: { name: "asc" } });
+  return prisma.owner.findMany({ where: { active: true, ...bankOwnerScope(user) }, include: { paymentAccounts: { where: { active: true, usageState:"AVAILABLE", ...bankAccountReadScope(user) }, orderBy: { createdAt: "asc" } } }, orderBy: { name: "asc" } });
 }

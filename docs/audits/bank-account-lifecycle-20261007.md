@@ -41,3 +41,5 @@ Průvodce vyžaduje potvrzení smluvního podkladu pro oznámení. Nepředstír�
 - Nový účet drží kontext jednotky po registraci i kontrole ověření; domácí číslo účtu a vyplněný IBAN musí souhlasit.
 
 - Souběžné aktivace při načtení stránek opakují celou serializovatelnou transakci při konfliktu P2034; nový E2E spouští dva aktivátory současně. Kolize VS při aktivaci blokuje konkrétní změnu místo opakovaných chyb všech přihlášených stránek.
+
+- Portál původního ověřeného adresáta uchová bankovní oznámení i po změně smluvních osob; manažerský náhled zůstává omezen na své smlouvy. E2E ověřuje původního adresáta a nepřítomnost oznámení pro nového nájemníka. Výběr při zakládání jednotky skrývá archivované účty.
