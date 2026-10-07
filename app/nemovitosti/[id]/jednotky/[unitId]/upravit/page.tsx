@@ -1,3 +1,5 @@
+import { availableOwners, unitReadScope } from "@/lib/bank-account-permissions";
+import { hasPropertyPermission } from "@/lib/management";
 import { OwnershipTransferFields } from "@/components/OwnershipTransferFields";
 import { OwnershipHistory } from "@/components/OwnershipHistory";
 import Link from "next/link";
@@ -17,8 +19,8 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
   const { id, unitId } = await params;
   const [property, unit, owners, query] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, include: { ownerships: { include: { owner: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } }),
-    prisma.owner.findMany({ where: { active: true }, include: { paymentAccounts: { where: { active: true }, orderBy: { createdAt: "asc" } } }, orderBy: { name: "asc" } }),
+    prisma.unit.findFirst({ where: { id: unitId, propertyId: id, ...unitReadScope(user) }, include: { ownerships: { include: { owner: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } }),
+    availableOwners(user),
     searchParams,
   ]);
   if (!property || !unit) notFound();
@@ -48,7 +50,7 @@ export default async function EditUnit({ params, searchParams }: { params: Promi
       </form>
       <Link className="table-link inline-profile-link" href={`/vlastnici/${currentOwner}`}>Otevřít profil vlastníka →</Link>
     </div>
-    <div className="card" id="prijemce-plateb"><h2>Příjemce plateb</h2><p>Samostatné potvrzení mění účet pro nové smlouvy a dosud neskončené smlouvy jednotky. Již uložené doklady ani platební záznamy se nepřepisují.</p><form className="compact-form" action={`/api/properties/${id}/units/${unit.id}/ownerships`} method="post"><UnitOwnerFields owners={ownerOptions.filter(o=>o.id===currentOwner)} defaultOwnerId={currentOwner} defaultAccountId={currentAccount} showSubmit={false}/><OwnershipTransferFields currentOwnerId={currentOwner} currentAccountId={currentAccount} payment/></form></div>
+    <div className="card" id="prijemce-plateb"><h2>Příjemce plateb</h2><p>Samostatné potvrzení mění účet pro nové smlouvy a dosud neskončené smlouvy jednotky. Již uložené doklady ani platební záznamy se nepřepisují.</p><Link className="primary" href={`/bankovni-ucty?unitId=${unitId}`}>Změnit účet pro nájemné a oznámit nájemníkům</Link></div>
     <OwnershipHistory propertyId={id} unitId={unitId}/>
   </FormPage></Shell>;
 }

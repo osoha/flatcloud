@@ -1,3 +1,5 @@
+import { availableOwners } from "@/lib/bank-account-permissions";
+import { hasPropertyPermission } from "@/lib/management";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
@@ -12,9 +14,10 @@ export const dynamic = "force-dynamic";
 export default async function NewUnit({ params, searchParams }: { params: Promise<{id:string}>; searchParams: Promise<{ok?:string;error?:string}> }) {
   const user = await requireUser();
   const { id } = await params;
+  if (!await hasPropertyPermission(user,id,"EDIT")) notFound();
   const [property, owners, query] = await Promise.all([
     requirePropertyAccess(user, id),
-    prisma.owner.findMany({ where: { active: true }, include: { paymentAccounts: { where: { active: true }, orderBy: { createdAt: "asc" } } }, orderBy: { name: "asc" } }),
+    availableOwners(user),
     searchParams,
   ]);
   if (!property) notFound();

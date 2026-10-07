@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { hasAllPropertyAccess } from "./auth";
+import { canSeeAll } from "./auth";
+import { unitReadScope } from "./bank-account-permissions";
 import { compareUnitLabels } from "./unit-label-sort";
 
 
@@ -41,51 +42,45 @@ const propertyInclude = {
 export async function accessibleProperties(user:{id:string;role:string;allProperties?:boolean}, options: { includeInactive?: boolean } = {}){
   const includeInactive = Boolean(options.includeInactive && ["SUPER_ADMIN", "MANAGER", "PROPERTY_MANAGER"].includes(user.role));
   const properties = await prisma.property.findMany({
-    where: { ...(hasAllPropertyAccess(user) ? {} : { OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}}] }), ...(includeInactive ? {} : { active: true }) },
+    where: { ...(canSeeAll(user.role) ? {} : { OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}},{units:{some:{ownerships:{some:{owner:{userId:user.id}}}}}}] }), ...(includeInactive ? {} : { active: true }) },
     include: propertyInclude,
     orderBy:{name:"asc"}
   });
-  if(hasAllPropertyAccess(user)) return properties.map(property=>({...property,units:property.units.sort(compareUnitLabels)}));
+  if(canSeeAll(user.role)) return properties.map(property=>({...property,units:property.units.sort(compareUnitLabels)}));
   return properties.map(property=>{
-    const propertyWide=property.memberships.some(m=>m.userId===user.id);
-    return {...property,units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id))).sort(compareUnitLabels)};
+    const propertyWide=user.role==="PROPERTY_MANAGER" && property.memberships.some(m=>m.userId===user.id);
+    return {...property,bankAccounts:propertyWide?property.bankAccounts:[],matchingRules:propertyWide?property.matchingRules:[],paymentAccounts:propertyWide?property.paymentAccounts:property.paymentAccounts.filter(link=>link.ownerBankAccount.owner.userId===user.id),units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id)||unit.ownerships.some(row=>row.owner.userId===user.id))).sort(compareUnitLabels)};
   });
 }
 
 export async function requirePropertyAccess(user:{id:string;role:string;allProperties?:boolean},propertyId:string){
   const property=await prisma.property.findFirst({
-    where:{id:propertyId,...(hasAllPropertyAccess(user)?{}:{OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}}]})},
+    where:{id:propertyId,...(canSeeAll(user.role)?{}:{OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}},{units:{some:{ownerships:{some:{owner:{userId:user.id}}}}}}]})},
     include: propertyInclude,
   });
   if(!property) return property;
-  if(hasAllPropertyAccess(user)) return {...property,units:property.units.sort(compareUnitLabels)};
-  const propertyWide=property.memberships.some(m=>m.userId===user.id);
-  return {...property,units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id))).sort(compareUnitLabels)};
+  if(canSeeAll(user.role)) return {...property,units:property.units.sort(compareUnitLabels)};
+  const propertyWide=user.role==="PROPERTY_MANAGER" && property.memberships.some(m=>m.userId===user.id);
+  return {...property,bankAccounts:propertyWide?property.bankAccounts:[],matchingRules:propertyWide?property.matchingRules:[],paymentAccounts:propertyWide?property.paymentAccounts:property.paymentAccounts.filter(link=>link.ownerBankAccount.owner.userId===user.id),units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id)||unit.ownerships.some(row=>row.owner.userId===user.id))).sort(compareUnitLabels)};
 }
 
 export async function requireUnitAccess(user:{id:string;role:string;allProperties?:boolean},propertyId:string,unitId:string){
   return prisma.unit.findFirst({
-    where:{id:unitId,propertyId,...(hasAllPropertyAccess(user)?{}:{OR:[{property:{memberships:{some:{userId:user.id}}}},{userAccesses:{some:{userId:user.id}}}]})},
+    where:{id:unitId,propertyId,...unitReadScope(user)},
     include:{ownerships:{include:{owner:true,ownerBankAccount:true}},userAccesses:true,meters:{orderBy:[{active:"desc"},{type:"asc"},{createdAt:"asc"}],include:{tariffs:{orderBy:{validFrom:"asc"}},readings:{orderBy:{readAt:"desc"},include:{lease:{include:{tenant:true}},createdBy:{select:{name:true}}}}}},leases:{orderBy:{startDate:"desc"},include:{tenant:true,parties:{include:{tenant:{select:{id:true,name:true}}}},ownerBankAccount:true,securityDepositTerms:{orderBy:[{effectiveFrom:"asc"},{createdAt:"asc"}]},securityDepositMovements:{orderBy:[{effectiveAt:"asc"},{createdAt:"asc"}]},occupants:{orderBy:[{active:"desc"},{name:"asc"}]},paymentItems:true,charges:{include:{allocations:{include:{transaction:true}},securityDepositOffsets:true,creditApplications:true,items:true},orderBy:{period:"desc"}},notifications:{orderBy:{createdAt:"desc"},take:50}}}}
   });
 }
 
 export function unitAccessWhere(user:{id:string;role:string;allProperties?:boolean},propertyId:string){
-  return {propertyId,...(hasAllPropertyAccess(user)?{}:{OR:[{property:{memberships:{some:{userId:user.id}}}},{userAccesses:{some:{userId:user.id}}}]})};
+  return {propertyId,...unitReadScope(user)};
 }
 
 export function leaseAccessWhere(user:{id:string;role:string;allProperties?:boolean}, propertyId?: string): Prisma.LeaseWhereInput {
-  return {
-    ...(hasAllPropertyAccess(user) ? {} : { unit: { ...(propertyId ? { propertyId } : {}), OR: [
-      { property: { memberships: { some: { userId: user.id } } } },
-      { userAccesses: { some: { userId: user.id } } },
-    ] } }),
-    ...(hasAllPropertyAccess(user) && propertyId ? { unit: { propertyId } } : {}),
-  };
+  return { unit: { ...(propertyId ? {propertyId} : {}), ...unitReadScope(user) } };
 }
 
 export function taskAccessWhere(user: { id: string; role: string; allProperties?: boolean }): Prisma.TaskWhereInput {
-  if (hasAllPropertyAccess(user)) return {};
+  if (canSeeAll(user.role)) return {};
   return { OR: [
     { propertyId: null, OR: [{ createdById: user.id }, { assigneeId: user.id }, { members: { some: { userId: user.id } } }] },
     { property: { memberships: { some: { userId: user.id } } } },
@@ -95,24 +90,20 @@ export function taskAccessWhere(user: { id: string; role: string; allProperties?
 }
 
 export function bankTransactionAccessWhere(user: { id: string; role: string; allProperties?: boolean }): Prisma.BankTransactionWhereInput {
-  if (hasAllPropertyAccess(user)) return {};
-  const visibleUnit = { userAccesses: { some: { userId: user.id } } };
+  if (canSeeAll(user.role)) return {};
+  const visibleUnit = unitReadScope(user);
   return { OR: [
-    { bankAccount: { property: { memberships: { some: { userId: user.id } } } } },
+    ...(user.role === "PROPERTY_MANAGER" ? [{ bankAccount: { property: { memberships: { some: { userId: user.id } } } } }] : []),
     { suggestedLease: { unit: visibleUnit } },
     { allocations: { some: { charge: { lease: { unit: visibleUnit } } } } },
     { securityDepositReceipts: { some: { lease: { unit: visibleUnit } } } },
   ] };
 }
-
 export function tenantAccessWhere(user:{id:string;role:string;allProperties?:boolean}): Prisma.TenantWhereInput {
-  if (hasAllPropertyAccess(user)) return {};
-  const visibleUnit: Prisma.UnitWhereInput = { OR: [
-    { property: { memberships: { some: { userId: user.id } } } },
-    { userAccesses: { some: { userId: user.id } } },
-  ] };
+  if (canSeeAll(user.role)) return {};
+  const visibleUnit = unitReadScope(user);
   return { OR: [
-    { propertyLinks: { some: { property: visibleUnit.property } } },
+    ...(user.role === "PROPERTY_MANAGER" ? [{ propertyLinks: { some: { property: {memberships:{some:{userId:user.id}}} } } }] : []),
     { leases: { some: { unit: visibleUnit } } },
     { leaseParties: { some: { lease: { unit: visibleUnit } } } },
   ] };
@@ -122,7 +113,7 @@ export function editableUnitWhere(user:{id:string;role:string;allProperties?:boo
   return {
     ...(propertyId?{propertyId}:{}),
     property:{active:true},
-    ...(hasAllPropertyAccess(user)?{}:{OR:[
+    ...(canSeeAll(user.role)?{}:{OR:[
       {property:{memberships:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}}},
       {userAccesses:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}},
     ]}),
@@ -130,5 +121,5 @@ export function editableUnitWhere(user:{id:string;role:string;allProperties?:boo
 }
 
 export function hasManageableProperty(user: { id: string; role: string; allProperties?: boolean }, property: { memberships: Array<{ userId: string; permission: string }>; units: Array<{ userAccesses: Array<{ userId: string; permission: string }> }> }) {
-  return hasAllPropertyAccess(user) || property.memberships.some((membership) => membership.userId === user.id && ["EDIT", "ADMIN"].includes(membership.permission)) || property.units.some((unit) => unit.userAccesses.some((access) => access.userId === user.id && ["EDIT", "ADMIN"].includes(access.permission)));
+  return canSeeAll(user.role) || property.memberships.some((membership) => membership.userId === user.id && ["EDIT", "ADMIN"].includes(membership.permission)) || property.units.some((unit) => unit.userAccesses.some((access) => access.userId === user.id && ["EDIT", "ADMIN"].includes(access.permission)));
 }

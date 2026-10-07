@@ -54,39 +54,19 @@ export async function tryVerifyNotificationPayment(input: {
   const vs = normalizedVs(input.variableSymbol);
   if (!vs || !accounts.length) return null;
 
-  const links = await prisma.propertyPaymentAccount.findMany({
-    where: { active: true, ownerBankAccountId: { in: accounts.map((account) => account.id) } },
-    include: { property: { include: { units: { select: { id: true, ownerships: { select: { ownerBankAccountId: true } } } } } } },
-  });
-  const candidates = links.filter((link) => linkIsUsedByUnit(link.ownerBankAccountId, link.property.units) && normalizedVs(verificationCodeForAccount(link.ownerBankAccountId)) === vs);
-  if (!candidates.length) return null;
-
-  const link = candidates[0];
-  const verifiedOwnerBankAccountIds = accounts.map((account) => account.id);
-  const affectedOwnerships = await prisma.unitOwnership.findMany({ where: { ownerBankAccountId: { in: verifiedOwnerBankAccountIds } }, select: { unitId: true, unit: { select: { propertyId: true } } } });
-  const coveredUnitIds = [...new Set(affectedOwnerships.map((ownership) => ownership.unitId))];
-  const affectedPropertyIds = [...new Set(affectedOwnerships.map((ownership) => ownership.unit.propertyId))];
+  // Verification belongs to this registration, even before any property/unit exists.
+  // Never verify another owner's registration merely because the physical account matches.
+  const candidates = accounts.filter(account => normalizedVs(verificationCodeForAccount(account.id)) === vs);
+  if (candidates.length !== 1) return null;
+  const account = candidates[0];
+  const links=await prisma.propertyPaymentAccount.findMany({where:{ownerBankAccountId:account.id,active:true},select:{propertyId:true}});
+  const propertyId=links.length===1?links[0].propertyId:null;
   await prisma.$transaction([
-    prisma.ownerBankAccount.updateMany({ where: { id: { in: verifiedOwnerBankAccountIds } }, data: { notificationVerifiedAt: input.receivedAt, lastNotificationAt: input.receivedAt } }),
-    prisma.inboxPayment.update({
-      where: { id: input.inboxId },
-      data: {
-        status: "IGNORED",
-        propertyId: link.propertyId,
-        parseNote: `Ověřovací platba 1,00 Kč přijata. Bankovní e-mail je ověřen pro ${coveredUnitIds.length} jednotek používajících tento účet.`,
-      },
-    }),
-    prisma.auditLog.create({
-      data: {
-        propertyId: link.propertyId,
-        action: "BANK_EMAIL_ACCOUNT_VERIFIED",
-        entityType: "OwnerBankAccount",
-        entityId: link.ownerBankAccountId,
-        details: { inboxId: input.inboxId, verifiedOwnerBankAccountIds, propertyIds: affectedPropertyIds, unitIds: coveredUnitIds },
-      },
-    }),
+    prisma.ownerBankAccount.update({where:{id:account.id},data:{notificationVerifiedAt:input.receivedAt,lastNotificationAt:input.receivedAt}}),
+    prisma.inboxPayment.update({where:{id:input.inboxId},data:{status:"IGNORED",propertyId,parseNote:"Ověřovací platba 1,00 Kč přijata. Bankovní notifikace účtu jsou ověřeny; účet lze použít u jednotek."}}),
+    prisma.auditLog.create({data:{propertyId,action:"BANK_EMAIL_ACCOUNT_VERIFIED",entityType:"OwnerBankAccount",entityId:account.id,details:{inboxId:input.inboxId,verifiedOwnerBankAccountIds:[account.id]}}}),
   ]);
-  return { linkId: link.id, accountId: link.ownerBankAccountId, propertyId: link.propertyId };
+  return {accountId:account.id,propertyId};
 }
 
 export async function manuallyVerifyNotificationPayment(input: { inboxId: string; linkId: string; userId: string }) {
@@ -96,12 +76,12 @@ export async function manuallyVerifyNotificationPayment(input: { inboxId: string
   ]);
   if (!inbox) throw new Error("Bankovní e-mail nebyl nalezen.");
   if (!link || !link.active) throw new Error("Vybrané propojení bankovního účtu není aktivní.");
-  if (!linkIsUsedByUnit(link.ownerBankAccountId, link.property.units)) throw new Error("Bankovní účet není přiřazen žádné jednotce této nemovitosti. Ověření nelze použít pro celý objekt.");
+
   if (inbox.amountCents !== 100) throw new Error("Ruční potvrzení testu je možné pouze pro platbu 1,00 Kč.");
   if (!bankAccountMatches(link.ownerBankAccount, inbox.recipientAccount)) throw new Error("Cílový účet e-mailu neodpovídá vybranému bankovnímu účtu.");
   if (normalizedVs(inbox.variableSymbol) !== normalizedVs(verificationCodeForAccount(link.ownerBankAccountId))) throw new Error("Variabilní symbol neodpovídá testovacímu kódu vybraného účtu.");
   const matchingAccounts = await matchingOwnerBankAccounts(inbox.recipientAccount);
-  const verifiedOwnerBankAccountIds = matchingAccounts.map((account) => account.id);
+  const verifiedOwnerBankAccountIds = [link.ownerBankAccountId];
   const affectedOwnerships = await prisma.unitOwnership.findMany({ where: { ownerBankAccountId: { in: verifiedOwnerBankAccountIds } }, select: { unitId: true, unit: { select: { propertyId: true } } } });
   const coveredUnitIds = [...new Set(affectedOwnerships.map((ownership) => ownership.unitId))];
   const affectedPropertyIds = [...new Set(affectedOwnerships.map((ownership) => ownership.unit.propertyId))];

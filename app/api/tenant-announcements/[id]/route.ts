@@ -8,6 +8,7 @@ import { goWithMessage } from "@/lib/route-response";
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params, target = "/ukoly/oznameni/najemnici";
   try {
+    if(id.startsWith("bank-change:"))throw new Error("Oznámení změny účtu je neměnné. Použijte historii změny účtu.");
     const user = await currentUser();
     if (!user || request.headers.get("sec-fetch-site") === "cross-site") throw new Error("Nemáte oprávnění upravit oznámení.");
     const { where } = await tenantAnnouncementManagerScope(user);

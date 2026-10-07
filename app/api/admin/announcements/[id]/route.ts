@@ -7,6 +7,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
  if(user.role!=="SUPER_ADMIN"||request.headers.get("sec-fetch-site")==="cross-site")return goWithMessage(request,"/portfolio","error","Oznámení může spravovat pouze super-admin.");
  const {id}=await params;
  try{
+ if(id.startsWith("bank-change:"))throw new Error("Oznámení změny účtu je neměnné. Použijte historii změny účtu.");
  const form=await request.formData(),action=String(form.get("action")||"");
  if(!["activate","deactivate","edit"].includes(action))throw new Error("Neplatná akce.");
  await serializableTransaction(async tx=>{
