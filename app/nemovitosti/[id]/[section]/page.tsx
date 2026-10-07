@@ -1,5 +1,5 @@
 import { unitAccessWhere } from "@/lib/access";
-import { bankAccountReadScope } from "@/lib/bank-account-permissions";
+import { bankAccountReadScope, hasPropertyUnitReadAccess } from "@/lib/bank-account-permissions";
 import { CollaboratorPicker } from "@/components/CollaboratorPicker";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
@@ -73,21 +73,24 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   if (!p) notFound();
   const photos = await loadEntityPhotos(user, [id]);
   const membership = p.memberships.find((row) => row.userId === user.id);
-  const propertyWide = hasAllPropertyAccess(user) || (user.role === "PROPERTY_MANAGER" && Boolean(membership));
+  const propertyWide = hasAllPropertyAccess(user) || Boolean(membership);
+  const bankWide = hasAllPropertyAccess(user) || (user.role === "PROPERTY_MANAGER" && Boolean(membership));
+  const propertyUnitsVisible = hasPropertyUnitReadAccess(user, p);
   const ownerBankView = user.role === "OWNER_VIEWER" && section === "banka";
-  if(section === "banka" && !propertyWide && !ownerBankView) notFound();
+  if(!propertyWide&&!["prehled","jednotky","najemnici","smlouvy","platby","dluznici","banka"].includes(section))notFound();
+  if(section === "banka" && !bankWide && !ownerBankView) notFound();
   const visibleUnitIds = p.units.map(unit=>unit.id);
   const canManage = hasAllPropertyAccess(user) || membership?.permission === "EDIT" || membership?.permission === "ADMIN";
   const canAdmin = hasAllPropertyAccess(user) || membership?.permission === "ADMIN";
   const period = currentPeriod();
   const leases = p.units.flatMap((unit) => unit.leases.map((lease) => ({ ...lease, unit })));
-  const linkedTenants = section === "najemnici" && propertyWide ? await prisma.tenant.findMany({ where: { propertyLinks: { some: { propertyId: id } } }, orderBy: { name: "asc" } }) : [];
+  const linkedTenants = section === "najemnici" && propertyUnitsVisible ? await prisma.tenant.findMany({ where: { propertyLinks: { some: { propertyId: id } } }, orderBy: { name: "asc" } }) : [];
   const currentCharges = leases.flatMap((lease) => lease.charges.filter((charge) => charge.period === period && charge.active).map((charge) => ({ lease, charge, paid: paidCents(charge) })));
   const allCharges = leases.flatMap((lease) => lease.charges.map((charge) => ({ lease, charge, paid: paidCents(charge) }))).sort((a, b) => b.charge.dueDate.getTime() - a.charge.dueDate.getTime());
   const expected = currentCharges.reduce((sum, row) => sum + row.charge.amountCents, 0);
   const paid = currentCharges.reduce((sum, row) => sum + row.paid, 0);
   const txRows = await prisma.bankTransaction.findMany({
-    where: { bankAccount: { propertyId: id }, amountCents: { gt: 0 }, ...(propertyWide?{}:{OR:[{suggestedLease:{unitId:{in:visibleUnitIds}}},{allocations:{some:{charge:{lease:{unitId:{in:visibleUnitIds}}}}}}]}) },
+    where: { bankAccount: { propertyId: id }, amountCents: { gt: 0 }, ...(bankWide?{}:{OR:[{suggestedLease:{unitId:{in:visibleUnitIds}}},{allocations:{some:{charge:{lease:{unitId:{in:visibleUnitIds}}}}}}]}) },
     orderBy: { bookedAt: "desc" },
     include: { bankAccount: true, allocations: true, suggestedLease: { include: { unit: true, tenant: true } } },
   });

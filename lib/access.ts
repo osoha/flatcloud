@@ -1,7 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { canSeeAll, hasAllPropertyAccess } from "./auth";
-import { unitReadScope } from "./bank-account-permissions";
+import { unitReadScope, hasPropertyUnitReadAccess } from "./bank-account-permissions";
 import { compareUnitLabels } from "./unit-label-sort";
 
 
@@ -48,8 +48,9 @@ export async function accessibleProperties(user:{id:string;role:string;allProper
   });
   if(hasAllPropertyAccess(user)) return properties.map(property=>({...property,units:property.units.sort(compareUnitLabels)}));
   return properties.map(property=>{
-    const propertyWide=user.role==="PROPERTY_MANAGER" && property.memberships.some(m=>m.userId===user.id);
-    return {...property,bankAccounts:propertyWide?property.bankAccounts:[],matchingRules:propertyWide?property.matchingRules:[],paymentAccounts:propertyWide?property.paymentAccounts:property.paymentAccounts.filter(link=>link.ownerBankAccount.owner.userId===user.id),units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id)||unit.ownerships.some(row=>row.owner.userId===user.id))).sort(compareUnitLabels)};
+    const propertyWide=hasPropertyUnitReadAccess(user, property);
+    const bankWide=user.role==="PROPERTY_MANAGER" && property.memberships.some(m=>m.userId===user.id);
+    return {...property,bankAccounts:bankWide?property.bankAccounts:[],matchingRules:bankWide?property.matchingRules:[],paymentAccounts:bankWide?property.paymentAccounts:property.paymentAccounts.filter(link=>link.ownerBankAccount.owner.userId===user.id),units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id)||unit.ownerships.some(row=>row.owner.userId===user.id))).sort(compareUnitLabels)};
   });
 }
 
@@ -60,8 +61,9 @@ export async function requirePropertyAccess(user:{id:string;role:string;allPrope
   });
   if(!property) return property;
   if(hasAllPropertyAccess(user)) return {...property,units:property.units.sort(compareUnitLabels)};
-  const propertyWide=user.role==="PROPERTY_MANAGER" && property.memberships.some(m=>m.userId===user.id);
-  return {...property,bankAccounts:propertyWide?property.bankAccounts:[],matchingRules:propertyWide?property.matchingRules:[],paymentAccounts:propertyWide?property.paymentAccounts:property.paymentAccounts.filter(link=>link.ownerBankAccount.owner.userId===user.id),units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id)||unit.ownerships.some(row=>row.owner.userId===user.id))).sort(compareUnitLabels)};
+  const propertyWide=hasPropertyUnitReadAccess(user, property);
+  const bankWide=user.role==="PROPERTY_MANAGER" && property.memberships.some(m=>m.userId===user.id);
+  return {...property,bankAccounts:bankWide?property.bankAccounts:[],matchingRules:bankWide?property.matchingRules:[],paymentAccounts:bankWide?property.paymentAccounts:property.paymentAccounts.filter(link=>link.ownerBankAccount.owner.userId===user.id),units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id)||unit.ownerships.some(row=>row.owner.userId===user.id))).sort(compareUnitLabels)};
 }
 
 export async function requireUnitAccess(user:{id:string;role:string;allProperties?:boolean},propertyId:string,unitId:string){

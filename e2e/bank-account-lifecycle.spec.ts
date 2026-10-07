@@ -36,6 +36,10 @@ test("owner registration, isolated visibility, independent verification, notices
   expect((await page.goto(`/nemovitosti/${property.id}/jednotky/${foreignUnit.id}`))?.status()).toBe(404);
   expect((await page.goto(`/nemovitosti/${property.id}/jednotky/nova`))?.status()).toBe(404);
   expect((await page.goto(`/nemovitosti/${property.id}/jednotky/hromadne`))?.status()).toBe(404);
+  await page.goto(`/nemovitosti/${property.id}/jednotky`);
+  await expect(page.locator("main")).toContainText(unit.label);
+  await expect(page.locator("main")).not.toContainText(foreignUnit.label);
+  await expect(page.locator("main")).not.toContainText(foreign.accountNumber!);
   await page.goto(`/bankovni-ucty?unitId=${unit.id}`);
   await expect(page.locator("main")).not.toContainText(foreign.accountNumber!);
   const create=page.locator("#pridat-ucet form");await create.getByLabel("Vlastník účtu").selectOption(owner.id);await create.getByLabel("Název účtu").fill("Nový účet ČSOB");await create.getByLabel("Číslo účtu").fill(`7${suffix}`);await create.getByLabel("Kód banky").fill("0300");await create.getByRole("button",{name:"Přidat a ověřit účet"}).click();
