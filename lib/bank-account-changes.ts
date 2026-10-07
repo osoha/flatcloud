@@ -74,7 +74,6 @@ export async function scheduleBankAccountChange(user: BankActor,input:BankChange
     if(!actor||actor.role==="TENANT")throw new Error("Aktuální uživatel nemá oprávnění ke změně účtu.");
     const account=await tx.ownerBankAccount.findFirst({where:{id:input.accountId,active:true,usageState:"AVAILABLE",AND:[bankAccountReadScope(actor),{owner:{active:true}}]}});
     if(!account)throw new Error("Vybraný účet není dostupný pro nové platební pokyny.");
-    if(!account.notificationVerifiedAt)throw new Error("Nejprve ověřte bankovní notifikace nového účtu.");
     const units=await tx.unit.findMany({where:{id:{in:ids},...bankEditableUnitScope(actor)},include,orderBy:{id:"asc"}});
     if(units.length!==ids.length)throw new Error("Některá jednotka není ve vašem oprávněném rozsahu.");
     if(await tx.bankAccountChangeUnit.count({where:{unitId:{in:ids},change:{status:{in:["SCHEDULED","BLOCKED"]}}}}))throw new Error("Jednotka již má naplánovanou změnu. Nejprve ji zrušte nebo vyřešte.");
@@ -120,7 +119,7 @@ export async function applyDueBankAccountChanges(now=new Date()) {
       try{for(const unit of units)for(const lease of liveLeases(unit,now))await assertUniqueVariableSymbol(tx,change.accountId,lease.variableSymbol,lease.id);}
       catch(error){if(error instanceof Error&&error.message.startsWith("Variabilní symbol"))conflict=true;else throw error;}
     }
-    if(conflict||!change.account.active||!change.account.notificationVerifiedAt||change.account.usageState!=="AVAILABLE"){
+    if(conflict||!change.account.active||change.account.usageState!=="AVAILABLE"){
       await tx.bankAccountChange.update({where:{id:change.id},data:{status:"BLOCKED",failure:"Vlastnictví, účet nebo okruh smluv se po oznámení změnily. Zrušte změnu a připravte nový přehled."}});
       await tx.task.upsert({where:{dedupeKey:`bank-change-blocked:${change.id}`},create:{dedupeKey:`bank-change-blocked:${change.id}`,title:"Změna platebního účtu vyžaduje kontrolu",description:`Otevřete /bankovni-ucty/zmeny/${change.id}. Nájemníci již mohli obdržet oznámení; zajistěte navazující sdělení.`,createdById:change.actorId,assigneeId:change.actorId,priority:"HIGH"},update:{}});return;
     }
