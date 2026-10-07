@@ -1,3 +1,4 @@
+import { canonicalPaymentIdentity, samePhysicalBankAccount } from "./owner-bank-account";
 import type { Prisma } from "@prisma/client";
 import { isPropertyCode, isUnitCode } from "./business-identity";
 
@@ -41,17 +42,20 @@ export async function assertUniqueVariableSymbol(
   value: string,
   excludeLeaseId?: string,
 ) {
-  const lockKey = `flatcloud:lease-variable-symbol:${ownerBankAccountId}:${value}`;
+  const account=await tx.ownerBankAccount.findUniqueOrThrow({where:{id:ownerBankAccountId}});
+  const normalized=value.replace(/^0+(?=\d)/, "");
+  const variants=Array.from({length:Math.max(1,11-normalized.length)},(_,i)=>normalized.padStart(normalized.length+i,"0"));
+  const lockKey = `flatcloud:lease-variable-symbol:${canonicalPaymentIdentity(account)}:${normalized}`;
   await tx.$queryRaw<Array<{ locked: number }>>`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
+  const accountIds=(await tx.ownerBankAccount.findMany()).filter(a=>samePhysicalBankAccount(a,account)).map(a=>a.id);
   const duplicate = await tx.lease.findFirst({
     where: {
-      ownerBankAccountId,
-      variableSymbol: value,
+      OR: [{ownerBankAccountId:{in:accountIds},variableSymbol:{in:variants}}, {receiptAccounts:{some:{accountId:{in:accountIds},variableSymbol:{in:variants}}}}],
       ...(excludeLeaseId ? { id: { not: excludeLeaseId } } : {}),
     },
     include: { unit: true, tenant: true },
   });
   if (duplicate) {
-    throw new Error(`Variabilní symbol ${value} už na tomto účtu historicky používá smlouva ${duplicate.unit.label} · ${duplicate.tenant.name}. Zvolte jiný VS.`);
+    throw new Error(`Variabilní symbol ${value} na tomto účtu historicky používá smlouva nebo je rezervován jinou smlouvou. Zvolte jiný VS.`);
   }
 }

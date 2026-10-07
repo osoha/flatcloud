@@ -23,6 +23,8 @@ function percentToBps(value: string | null) {
 
 export async function createLeaseFromForm(tx: Tx, propertyId: string, form: FormData, tenantId?: string, createdById?: string, partySelections: LeasePartySelections = {}) {
   const unitId = text(form, "unitId", true)!;
+  await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended('flatberry:bank-account-changes',0))`;
+  if(await tx.bankAccountChangeUnit.count({where:{unitId,change:{status:{in:["SCHEDULED","BLOCKED"]}}}}))throw new Error("Jednotka má naplánovanou změnu platebního účtu. Před vytvořením smlouvy ji dokončete nebo zrušte.");
   const unit = await tx.unit.findFirst({ where: { id: unitId, propertyId }, include: { property: {select:{tenantPortalInvitationMode:true}}, ownerships: { include: { owner: true, ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } });
   if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");
   const selectedOwnerId = text(form, "landlordOwnerId");

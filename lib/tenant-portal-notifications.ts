@@ -10,13 +10,13 @@ import { taskStatuses } from "./labels";
 import { serializableTransaction } from "./serializable";
 
 type Client = Prisma.TransactionClient;
-export type TenantNotificationKind = "TASK_PUBLISHED" | "REPLY" | "STATUS" | "DUE_SOON" | "OVERDUE" | "CONTACT_RESOLVED" | "ANNOUNCEMENT";
+export type TenantNotificationKind = "TASK_PUBLISHED" | "REPLY" | "STATUS" | "DUE_SOON" | "OVERDUE" | "CONTACT_RESOLVED" | "ANNOUNCEMENT" | "BANK_ACCOUNT_CHANGE";
 const leaseSelect = { id: true, tenantId: true, unitId: true, startDate: true, endDate: true, terminatedOn: true, cancelledAt: true, parties: { select: { tenantId: true, role: true } }, unit: { select: { propertyId: true, property: { select: { active: true } } } } } satisfies Prisma.LeaseSelect;
 const taskSelect = { id: true, tenantId: true, leaseId: true, unitId: true, propertyId: true, tenantPortalRequest: true, tenantPortalPublishedAt: true, tenantPortalTitle: true, tenantPortalBody: true, dueAt: true, status: true, updatedAt: true } satisfies Prisma.TaskSelect;
 
 type Lease = Prisma.LeaseGetPayload<{ select: typeof leaseSelect }>;
-function activeContract(lease: Lease | null, tenantId: string, now: Date) {
-  return Boolean(lease && lease.unit.property.active && leaseStatusAt(lease, now) === "ACTIVE" && (lease.tenantId === tenantId || lease.parties.some(p => p.tenantId === tenantId && p.role === "CONTRACTING_PARTY")));
+function activeContract(lease: Lease | null, tenantId: string, now: Date, future = false) {
+  return Boolean(lease && lease.unit.property.active && (leaseStatusAt(lease, now) === "ACTIVE" || future && leaseStatusAt(lease, now) === "FUTURE") && (lease.tenantId === tenantId || lease.parties.some(p => p.tenantId === tenantId && p.role === "CONTRACTING_PARTY")));
 }
 function publicTask(task: Prisma.TaskGetPayload<{ select: typeof taskSelect }>) {
   return Boolean(task.tenantPortalTitle && task.tenantPortalBody && (task.tenantPortalRequest || task.tenantPortalPublishedAt));
@@ -27,7 +27,7 @@ async function recipients(client: Client, tenantId: string, excludeUserId?: stri
 }
 
 /** Durable operational mail. Call inside the same transaction as the public event. */
-export async function enqueueTenantTaskNotification(client: Client, input: { taskId: string; kind: Exclude<TenantNotificationKind, "ANNOUNCEMENT">; eventKey: string; entryId?: string; sourceRevision?: Date; contactRequestId?: string; excludeUserId?: string }, now = new Date()) {
+export async function enqueueTenantTaskNotification(client: Client, input: { taskId: string; kind: Exclude<TenantNotificationKind, "ANNOUNCEMENT" | "BANK_ACCOUNT_CHANGE">; eventKey: string; entryId?: string; sourceRevision?: Date; contactRequestId?: string; excludeUserId?: string }, now = new Date()) {
   if (input.kind === "REPLY" && !input.entryId) return 0;
   const task = await client.task.findUnique({ where: { id: input.taskId }, select: taskSelect });
   if (!task?.leaseId || !task.tenantId || !task.propertyId || !task.unitId || !publicTask(task)) return 0;
@@ -53,14 +53,15 @@ async function queueTenantAnnouncementNotification(client: Client, announcementI
   const propertyIds = item.audiences.filter(a => a.kind === "TENANT_PROPERTY" && a.propertyId).map(a => a.propertyId!);
   if (!leaseIds.length && !propertyIds.length) return 0;
   const leases = await client.lease.findMany({ where: { OR: [{ id: { in: leaseIds } }, { unit: { propertyId: { in: propertyIds } } }] }, select: leaseSelect, orderBy: { id: "asc" } });
+  const bankNotice=item.id.startsWith("bank-change:")?await client.bankAccountNotice.findUnique({where:{announcementId:item.id},select:{tenantIds:true}}):null;
   let queued = 0;
   for (const lease of leases) {
-    const tenants = new Set([lease.tenantId, ...lease.parties.filter(p => p.role === "CONTRACTING_PARTY").map(p => p.tenantId)]);
+    const tenants = new Set(bankNotice?.tenantIds || [lease.tenantId, ...lease.parties.filter(p => p.role === "CONTRACTING_PARTY").map(p => p.tenantId)]);
     for (const tenantId of tenants) {
-      if (!activeContract(lease, tenantId, now)) continue;
+      if (bankNotice ? !lease.unit.property.active || !bankNotice.tenantIds.includes(tenantId) : !activeContract(lease, tenantId, now)) continue;
       const people = await recipients(client, tenantId);
       if (!people.length) continue;
-      const result = await client.tenantPortalNotification.createMany({ data: people.map(user => ({ id: randomUUID(), dedupeKey: `announcement:${item.id}:${item.tenantPortalNotificationRevision!.toISOString()}:${user.id}`, userId: user.id, tenantId, leaseId: lease.id, propertyId: lease.unit.propertyId, kind: "ANNOUNCEMENT", announcementId: item.id, sourceRevision: item.tenantPortalNotificationRevision })), skipDuplicates: true });
+      const result = await client.tenantPortalNotification.createMany({ data: people.map(user => ({ id: randomUUID(), dedupeKey: `announcement:${item.id}:${item.tenantPortalNotificationRevision!.toISOString()}:${user.id}`, userId: user.id, tenantId, leaseId: lease.id, propertyId: lease.unit.propertyId, kind: item.id.startsWith("bank-change:") ? "BANK_ACCOUNT_CHANGE" : "ANNOUNCEMENT", announcementId: item.id, sourceRevision: item.tenantPortalNotificationRevision })), skipDuplicates: true });
       queued += result.count;
     }
   }
@@ -96,7 +97,7 @@ export async function collectTenantPortalNotifications(now = new Date()) {
   return { observed: changed.length, announcements: announcements.length };
 }
 
-const subjects: Record<TenantNotificationKind, string> = { TASK_PUBLISHED: "Nový úkol od správce", REPLY: "Nová zpráva od správce", STATUS: "Aktualizace vašeho požadavku", DUE_SOON: "Blíží se termín úkolu", OVERDUE: "Připomenutí termínu úkolu", CONTACT_RESOLVED: "Vyřízení změny kontaktních údajů", ANNOUNCEMENT: "Nové oznámení pro váš domov" };
+const subjects: Record<TenantNotificationKind, string> = { TASK_PUBLISHED: "Nový úkol od správce", REPLY: "Nová zpráva od správce", STATUS: "Aktualizace vašeho požadavku", DUE_SOON: "Blíží se termín úkolu", OVERDUE: "Připomenutí termínu úkolu", CONTACT_RESOLVED: "Vyřízení změny kontaktních údajů", ANNOUNCEMENT: "Nové oznámení pro váš domov", BANK_ACCOUNT_CHANGE: "Změna platebních údajů" };
 export function tenantMailSafety(input: { email: string; isTestIdentity: boolean; origin: string; branch?: string; externalUrl?: string }) {
   const url = new URL(input.origin);
   if (input.branch?.startsWith("sandbox/") || url.hostname.includes("sandbox") || input.externalUrl?.includes("sandbox") || input.isTestIdentity || /\.(test|invalid)$/i.test(input.email)) return "Testovací prostředí nebo testovací příjemce: e-mail neodeslán.";
@@ -124,12 +125,14 @@ export async function processTenantPortalNotifications(options: { now?: Date; li
     try {
       const access = await prisma.tenantPortalAccess.findUnique({ where: { userId_tenantId: { userId: row.userId, tenantId: row.tenantId } }, include: { user: true, tenant: true } });
       const lease = await prisma.lease.findUnique({ where: { id: row.leaseId }, select: leaseSelect });
-      if (!access?.user.active || !access.tenant.active || !tenantPortalContactMatches(access.user.email, access.tenant) || !activeContract(lease, row.tenantId, now) || lease!.unit.propertyId !== row.propertyId) { await finish("SKIPPED", "Příjemce nebo nájem již nemá přístup; případně je nemovitost neaktivní."); skipped++; continue; }
+      const bankNotice=row.kind==="BANK_ACCOUNT_CHANGE"&&row.announcementId?await prisma.bankAccountNotice.findUnique({where:{announcementId:row.announcementId},select:{tenantIds:true,leaseId:true}}):null;
+      const validContract=bankNotice?Boolean(lease?.unit.property.active&&bankNotice.leaseId===row.leaseId&&bankNotice.tenantIds.includes(row.tenantId)):row.kind!=="BANK_ACCOUNT_CHANGE"&&activeContract(lease,row.tenantId,now);
+      if (!access?.user.active || !access.tenant.active || !tenantPortalContactMatches(access.user.email, access.tenant) || !validContract || lease!.unit.propertyId !== row.propertyId) { await finish("SKIPPED", "Příjemce nebo nájem již nemá přístup; případně je nemovitost neaktivní."); skipped++; continue; }
       let title = "", context = "", anchor = "oznameni";
       if (row.announcementId) {
         const item = await prisma.announcement.findFirst({ where: { id: row.announcementId, active: true, startsAt: { lte: now }, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }], tenantPortalNotificationRevision: row.sourceRevision, ...portalAnnouncementAudience(lease!.id, row.propertyId) } });
         if (!item) { await finish("SKIPPED", "Oznámení již není platné nebo se změnilo."); skipped++; continue; }
-        title = item.title; context = item.body;
+        title = item.title; context = item.body; if(bankNotice)anchor="bankovni-oznameni";
       } else if (row.taskId) {
         const task = await prisma.task.findUnique({ where: { id: row.taskId }, select: taskSelect });
         if (!task || !publicTask(task) || task.leaseId !== row.leaseId || task.tenantId !== row.tenantId || task.propertyId !== row.propertyId || task.unitId !== lease!.unitId) { await finish("SKIPPED", "Požadavek již není příjemci přístupný."); skipped++; continue; }

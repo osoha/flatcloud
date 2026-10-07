@@ -111,6 +111,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         </CollapsibleNavGroup>
 
         <CollapsibleNavGroup id="finance" label="Finance" activeRoots={["/platby","/reporty/predpisy","/reporty/saldo","/kauce"]} forceOpen={unmatchedCount > 0}>
+          <Nav href="/bankovni-ucty" icon={<WalletCards size={17}/>} label="Bankovní účty"/>
           <Nav href="/platby/banka" icon={<WalletCards size={17}/>} label="Bankovní pohyby"/>
           {(superAdmin || unmatchedCount > 0) && <Nav href="/platby/nesparovane" icon={<AlertTriangle size={17}/>} label="Nespárované platby" count={unmatchedCount}/>}
           <Nav href="/reporty/predpisy" icon={<ReceiptText size={17}/>} label="Předpisy"/>

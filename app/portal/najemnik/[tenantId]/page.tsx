@@ -1,3 +1,5 @@
+import { applyDueBankAccountChanges } from "@/lib/bank-account-changes";
+import { BankAccountLeaseHistory } from "@/components/BankAccountLeaseHistory";
 import "../../tenant-portal.css";
 import {randomUUID} from "node:crypto";
 import Link from "next/link";
@@ -50,6 +52,7 @@ export default async function TenantPortal({params, searchParams}: {
   const tenant = await prisma.tenant.findUnique({where: {id: tenantId}});
   if (!tenant) notFound();
   const flash = await searchParams;
+  if (!preview) await applyDueBankAccountChanges();
   const leaseRows = await prisma.lease.findMany({
     where: {...(!tenantAccess ? {id: {in: manageableIds}} : {}), OR: [{tenantId}, {parties: {some: {tenantId, role: {in: ["CONTRACTING_PARTY", "PAYER"]}}}}]},
     include: {
@@ -108,7 +111,7 @@ export default async function TenantPortal({params, searchParams}: {
     <div className="tp-shell">
       <TenantPortalNav leaseId={first?.id} canAct={firstCanAct}/>
       <main className="tp-main" id="prehled">
-        <Flash {...flash}/>
+        <Flash {...flash}/><BankAccountLeaseHistory leaseIds={leaseRows.map(l=>l.id)} tenantId={tenantId} userId={actor.id} preview={preview}/>
         <section className="tp-welcome">
           <div className="tp-welcome-copy"><h1>{greeting(tenant.name, tenant.type === "PERSON")}</h1><p>Vše důležité pro vaše bydlení.</p>
             {first && <a className="tp-home-strip" href={`#domov-${first.id}`}><span className="tp-home-thumb"><EntityAvatar kind="unit" size="lg" identity={first.unitId} photoId={defaultPropertyIllustration("unit", first.unit.propertyId)}/></span><span><strong>Můj domov</strong><small>{[first.unit.property.address, [first.unit.property.postalCode, first.unit.property.city].filter(Boolean).join(" ")].filter(Boolean).join(", ")} · {first.unit.label}</small></span><span className="tp-home-link">Podrobnosti bydlení <ArrowRight size={17}/></span></a>}

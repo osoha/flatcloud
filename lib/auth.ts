@@ -56,5 +56,6 @@ export async function currentUser() {
     if (path.startsWith("/api/")) return null;
     redirect("/portfolio");
   }
+  if(user && !context.requested) { const {applyDueBankAccountChanges}=await import("./bank-account-changes"); await applyDueBankAccountChanges(); }
   return user;
 }

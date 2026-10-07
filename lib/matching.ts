@@ -131,6 +131,7 @@ export async function processTransaction(transactionId: string) {
     include: {
       tenant: true,
       ownerBankAccount: true,
+      receiptAccounts: {include:{account:true}},
       charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true }, orderBy: { dueDate: "asc" } },
     },
   });
@@ -143,7 +144,7 @@ export async function processTransaction(transactionId: string) {
     const exactAmount = outstanding.includes(transaction.amountCents) || totalOutstanding === transaction.amountCents;
     const vs = Boolean(txVs && lease.variableSymbol.replace(/^0+(?=\d)/, "") === txVs);
     const payer = Boolean(payerAccount && [lease.tenantBankAccount, ...lease.tenant.payerAccounts].map(normalizeBankAccount).filter(Boolean).includes(payerAccount));
-    const ownerAccount = Boolean(recipient && lease.ownerBankAccount && bankAccountMatches(lease.ownerBankAccount, recipient));
+    const ownerAccount = Boolean(recipient && ((lease.ownerBankAccount && bankAccountMatches(lease.ownerBankAccount, recipient)) || lease.receiptAccounts.some(a=>bankAccountMatches(a.account,recipient))));
     return { lease, exactAmount, vs, payer, ownerAccount };
   });
 

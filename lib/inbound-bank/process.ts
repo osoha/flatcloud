@@ -34,11 +34,11 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
   if (ownerAccountIds.length && vs) {
     const leases = await prisma.lease.findMany({
       where: {
-        ...(ownerAccountIds.length ? { ownerBankAccountId: { in: ownerAccountIds } } : {}),
+        ...(ownerAccountIds.length ? { OR:[{ownerBankAccountId:{in:ownerAccountIds}},{receiptAccounts:{some:{accountId:{in:ownerAccountIds}}}}] } : {}),
       },
-      include: { unit: true, ownerBankAccount: true, tenant: true },
+      include: { unit: true, ownerBankAccount: true, tenant: true, receiptAccounts:true },
     });
-    const exact = leases.filter((lease) => normalizedVs(lease.variableSymbol) === vs);
+    const exact = leases.filter((lease) => (ownerAccountIds.includes(lease.ownerBankAccountId||"")&&normalizedVs(lease.variableSymbol)===vs)||lease.receiptAccounts.some(a=>ownerAccountIds.includes(a.accountId)&&normalizedVs(a.variableSymbol)===vs));
     if (exact.length === 1) return { propertyId: exact[0].unit.propertyId, leaseId: exact[0].id, ownerId: exact[0].ownerBankAccount?.ownerId || null, reason: "cílový účet + VS", strong: true };
   }
 
@@ -46,10 +46,10 @@ async function inferRoute(input: { recipientAccount?: string | null; variableSym
     const payer = normalizeBankAccount(input.counterpartyAccount);
     const leases = await prisma.lease.findMany({
       where: {},
-      include: { unit: true, tenant: true, ownerBankAccount: true },
+      include: { unit: true, tenant: true, ownerBankAccount: true, receiptAccounts:true },
     });
     const exact = leases.filter((lease) => {
-      if (ownerAccountIds.length && (!lease.ownerBankAccountId || !ownerAccountIds.includes(lease.ownerBankAccountId))) return false;
+      if (ownerAccountIds.length && (!lease.ownerBankAccountId || !ownerAccountIds.includes(lease.ownerBankAccountId)) && !lease.receiptAccounts.some(a=>ownerAccountIds.includes(a.accountId))) return false;
       const aliases = [lease.tenantBankAccount, ...lease.tenant.payerAccounts].map(normalizeBankAccount).filter(Boolean);
       return aliases.includes(payer);
     });

@@ -1,3 +1,4 @@
+import { bankOwnerScope, bankAccountReadScope } from "@/lib/bank-account-permissions";
 import { UnitDisposition, UnitOperationalStatus, UnitType } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { floatValue, text } from "@/lib/forms";
@@ -21,8 +22,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const ownerBankAccountId = text(form, "ownerBankAccountId");
     const [property, owner, account] = await Promise.all([
       prisma.property.findUnique({ where: { id }, select: { id: true } }),
-      prisma.owner.findFirst({where:{id:ownerId,active:true},select:{id:true}}),
-      ownerBankAccountId?prisma.ownerBankAccount.findFirst({ where: { id: ownerBankAccountId, ownerId, active: true }, select: { id: true } }):Promise.resolve(null),
+      prisma.owner.findFirst({where:{id:ownerId,active:true,...bankOwnerScope(access.user)},select:{id:true}}),
+      ownerBankAccountId?prisma.ownerBankAccount.findFirst({ where: { id: ownerBankAccountId, ownerId, active: true, usageState:"AVAILABLE", ...bankAccountReadScope(access.user) }, select: { id: true } }):Promise.resolve(null),
     ]);
     if (!property) throw new Error("Nemovitost nebyla nalezena.");
     if (!owner) throw new Error("Vyberte aktivního vlastníka.");

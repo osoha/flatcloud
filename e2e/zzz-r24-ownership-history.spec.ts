@@ -1,3 +1,4 @@
+import {scheduleBankAccountChange,changeableBankUnits,bankUnitRevision} from "../lib/bank-account-changes";
 import { randomUUID } from "node:crypto";
 import { test, expect, type Page } from "@playwright/test";
 import { prisma as db } from "../lib/db";
@@ -53,12 +54,19 @@ test("R24 ownership: transfer leaves lease recipients intact; separate confirmat
  expect((await db.lease.findUniqueOrThrow({where:{id:f.active.id}})).ownerBankAccountId).toBe(f.oldAccount.id);
  expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:f.unit.id}})).ownerBankAccountId).toBeNull();
  const pay=form(f.next.id,f.next.id,{mode:"payment-recipient",ownerBankAccountId:f.newAccount.id,expectedAccountId:""});
- const paymentArgs={...args,form:pay};await transferOwnership(paymentArgs);await transferOwnership(paymentArgs);
+ await expect(transferOwnership({...args,form:pay})).rejects.toThrow("Bankovní účty");
+ await db.ownerBankAccount.update({where:{id:f.newAccount.id},data:{notificationVerifiedAt:new Date()}});
+ await db.propertyPaymentAccount.create({data:{propertyId:f.property.id,ownerBankAccountId:f.newAccount.id}});
+ const unit=(await changeableBankUnits(f.actor)).find(u=>u.id===f.unit.id)!;
+ const input={requestId:randomUUID(),accountId:f.newAccount.id,unitIds:[f.unit.id],effectiveDate:today(),reason:"Doložené platební pokyny QA",revisions:{[f.unit.id]:bankUnitRevision(unit)},confirmed:true,noticeAllowed:true};
+ await scheduleBankAccountChange(f.actor,input);await scheduleBankAccountChange(f.actor,input);
  expect((await db.lease.findUniqueOrThrow({where:{id:f.active.id}})).ownerBankAccountId).toBe(f.newAccount.id);
  expect((await db.lease.findUniqueOrThrow({where:{id:f.ended.id}})).ownerBankAccountId).toBe(f.oldAccount.id);
- expect(await db.auditLog.count({where:{propertyId:f.property.id,action:"OWNERSHIP_PAYMENT_RECIPIENT_CONFIRMED"}})).toBe(1);
- await expect(transferOwnership({...args,form:form(f.next.id,f.next.id,{mode:"payment-recipient",ownerBankAccountId:f.newAccount.id,expectedAccountId:""})})).rejects.toThrow("mezitím");
- const audit=await db.auditLog.findFirstOrThrow({where:{propertyId:f.property.id,action:"OWNERSHIP_PAYMENT_RECIPIENT_CONFIRMED"}});expect(JSON.stringify(audit.details)).toContain(f.oldAccount.id);
+ expect(await db.auditLog.count({where:{entityId:f.active.id,action:"LEASE_BANK_CHANGE_EFFECTIVE"}})).toBe(1);
+ await expect(scheduleBankAccountChange(f.actor,{...input,requestId:randomUUID()})).rejects.toThrow("mezitím");
+ const audit=await db.auditLog.findFirstOrThrow({where:{entityId:f.active.id,action:"LEASE_BANK_CHANGE_EFFECTIVE"}});expect(JSON.stringify(audit.details)).toContain(f.oldAccount.id);
+ expect(await db.bankAccountNotice.count({where:{leaseId:f.active.id}})).toBe(1);
+
 });
 
 test("R24 ownership: concurrent transfers admit one winner and reject future or invalid dates",async()=>{
