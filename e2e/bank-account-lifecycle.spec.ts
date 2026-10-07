@@ -75,7 +75,7 @@ test("owner registration, isolated visibility, independent verification, notices
   expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
   await cancelBankAccountChange(user,input.requestId);await applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey));
   expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBeNull();
-  const replay={...input,requestId:randomUUID()};await scheduleBankAccountChange(user,replay);await applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey));
+  const replay={...input,requestId:randomUUID()};await scheduleBankAccountChange(user,replay);await Promise.all([applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey)),applyDueBankAccountChanges(businessDateKeyToInstant(effectiveDate as BusinessDateKey))]);
   expect((await db.unitOwnership.findFirstOrThrow({where:{unitId:vacant.id}})).ownerBankAccountId).toBe(account.id);
   // Revocation between announcement and effectiveness blocks activation.
   const oldRevision=bankUnitRevision((await changeableBankUnits(user)).find(u=>u.id===unit.id)!);

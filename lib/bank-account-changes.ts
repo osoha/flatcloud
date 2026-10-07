@@ -24,6 +24,15 @@ export async function changeableBankUnits(user: BankActor) {
 }
 export type BankChangeInput = { requestId:string; accountId:string; unitIds:string[]; effectiveDate:string; reason:string; revisions:Record<string,string>; confirmed:boolean; noticeAllowed:boolean };
 
+// Competing page loads can observe the same due change. Retry the whole
+// serializable transaction; notices and audit rows are committed atomically.
+async function bankTransaction<T>(work:(tx:Prisma.TransactionClient)=>Promise<T>,timeout:number):Promise<T>{
+  for(let attempt=0;;attempt++){
+    try{return await prisma.$transaction(work,{timeout,maxWait:10000,isolationLevel:Prisma.TransactionIsolationLevel.Serializable});}
+    catch(error){if(!(error instanceof Prisma.PrismaClientKnownRequestError)||error.code!=="P2034"||attempt>=3)throw error;}
+  }
+}
+
 async function lock(tx: Prisma.TransactionClient) { await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended('flatberry:bank-account-changes',0))`; }
 
 async function notice(tx: Prisma.TransactionClient, change: {id:string;actorId:string;ownerId:string;effectiveAt:Date;reason:string;account:{accountNumber:string|null;bankCode:string|null;iban:string|null;label:string|null;currency:string}}, unit:Unit, lease:Unit["leases"][number], kind="CHANGE", original?:{body:string;tenantIds:string[]}) {
@@ -57,7 +66,7 @@ export async function scheduleBankAccountChange(user: BankActor,input:BankChange
   const effectiveAt=businessDateKeyToInstant(input.effectiveDate as BusinessDateKey);
   if(businessDateKey(effectiveAt)!==input.effectiveDate||input.effectiveDate<businessDateKey(new Date()))throw new Error("Datum účinnosti musí být dnešní nebo budoucí.");
   const fingerprint=hash({...input,unitIds:ids,actorId:user.id});
-  const result=await prisma.$transaction(async tx=>{
+  const result=await bankTransaction(async tx=>{
     await lock(tx);
     const previous=await tx.bankAccountChange.findUnique({where:{id:input.requestId}});
     if(previous){if(previous.fingerprint!==fingerprint)throw new Error("Požadavek už byl použit pro jinou změnu.");return previous;}
@@ -88,25 +97,29 @@ export async function scheduleBankAccountChange(user: BankActor,input:BankChange
       await tx.announcement.create({data:{title:`Změna účtu pro nájemné - ${unit.label}`,body:`${unit.property.name}: od ${input.effectiveDate} účet ${ownerBankAccountLabel(account)}. Přehled: /bankovni-ucty/zmeny/${change.id}`,createdById:user.id,audiences:{create:recipients.map(userId=>({kind:"USER" as const,userId}))}}});
     }
     return change;
-  },{timeout:120000,isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+  },120000);
   await applyDueBankAccountChanges();
   return result;
 }
 
 export async function applyDueBankAccountChanges(now=new Date()) {
   const rows=await prisma.bankAccountChange.findMany({where:{status:"SCHEDULED",effectiveAt:{lte:now}},select:{id:true},orderBy:{effectiveAt:"asc"},take:100});
-  for(const row of rows)await prisma.$transaction(async tx=>{
+  for(const row of rows)await bankTransaction(async tx=>{
     await lock(tx);
     const change=await tx.bankAccountChange.findUnique({where:{id:row.id},include:{account:true,units:true}});
     if(!change||change.status!=="SCHEDULED")return;
     const units=await tx.unit.findMany({where:{id:{in:change.units.map(u=>u.unitId)}},include});
     const actor=await tx.user.findFirst({where:{id:change.actorId,active:true},select:{id:true,role:true}});
     const permitted=actor?await tx.unit.count({where:{id:{in:change.units.map(u=>u.unitId)},...bankEditableUnitScope(actor)}}):0;
-    const conflict=permitted!==change.units.length||units.length!==change.units.length||units.some(unit=>{
+    let conflict=permitted!==change.units.length||units.length!==change.units.length||units.some(unit=>{
       const expected=change.units.find(u=>u.unitId===unit.id)!;
       const leases=expected.expectedLeases as Array<{id:string;accountId:string|null;revision:string}>;
       return unit.ownerships.length!==1||unit.ownerships[0].ownerId!==change.ownerId||unit.ownerships[0].ownerBankAccountId!==expected.expectedAccountId||liveLeases(unit,now).length!==leases.length||liveLeases(unit,now).some(l=>!leases.some(e=>e.id===l.id&&e.accountId===l.ownerBankAccountId&&e.revision===leaseRevision(l)));
     });
+    if(!conflict){
+      try{for(const unit of units)for(const lease of liveLeases(unit,now))await assertUniqueVariableSymbol(tx,change.accountId,lease.variableSymbol,lease.id);}
+      catch(error){if(error instanceof Error&&error.message.startsWith("Variabilní symbol"))conflict=true;else throw error;}
+    }
     if(conflict||!change.account.active||!change.account.notificationVerifiedAt||change.account.usageState!=="AVAILABLE"){
       await tx.bankAccountChange.update({where:{id:change.id},data:{status:"BLOCKED",failure:"Vlastnictví, účet nebo okruh smluv se po oznámení změnily. Zrušte změnu a připravte nový přehled."}});
       await tx.task.upsert({where:{dedupeKey:`bank-change-blocked:${change.id}`},create:{dedupeKey:`bank-change-blocked:${change.id}`,title:"Změna platebního účtu vyžaduje kontrolu",description:`Otevřete /bankovni-ucty/zmeny/${change.id}. Nájemníci již mohli obdržet oznámení; zajistěte navazující sdělení.`,createdById:change.actorId,assigneeId:change.actorId,priority:"HIGH"},update:{}});return;
@@ -114,18 +127,17 @@ export async function applyDueBankAccountChanges(now=new Date()) {
     for(const unit of units){
       await tx.unitOwnership.update({where:{id:unit.ownerships[0].id},data:{ownerBankAccountId:change.accountId}});
       for(const lease of liveLeases(unit,now)){
-        await assertUniqueVariableSymbol(tx,change.accountId,lease.variableSymbol,lease.id);
         await tx.lease.update({where:{id:lease.id},data:{ownerBankAccountId:change.accountId}});
         await tx.auditLog.create({data:{userId:change.actorId,propertyId:unit.propertyId,entityType:"Lease",entityId:lease.id,action:"LEASE_BANK_CHANGE_EFFECTIVE",details:json({changeId:change.id,before:lease.ownerBankAccountId,after:change.accountId,effectiveAt:change.effectiveAt})}});
       }
     }
     await tx.bankAccountChange.update({where:{id:change.id},data:{status:"APPLIED",appliedAt:now}});
-  },{timeout:30000,isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+  },30000);
   return rows.length;
 }
 
 export async function cancelBankAccountChange(user:BankActor,id:string){
-  return prisma.$transaction(async tx=>{
+  return bankTransaction(async tx=>{
     await lock(tx);
     const change=await tx.bankAccountChange.findUnique({where:{id},include:{account:true,units:true}});
     if(!change)throw new Error("Změna není dostupná.");
@@ -136,5 +148,5 @@ export async function cancelBankAccountChange(user:BankActor,id:string){
     const originals=await tx.bankAccountNotice.findMany({where:{changeId:id,kind:"CHANGE"}});
     for(const original of originals){const unit=units.find(u=>u.leases.some(l=>l.id===original.leaseId));const lease=unit?.leases.find(l=>l.id===original.leaseId);if(unit&&lease)await notice(tx,{...change,actorId:user.id},unit,lease,"CANCEL",original);}
     await tx.bankAccountChange.update({where:{id},data:{status:"CANCELLED",cancelledAt:new Date()}});
-  },{timeout:120000,isolationLevel:Prisma.TransactionIsolationLevel.Serializable});
+  },120000);
 }

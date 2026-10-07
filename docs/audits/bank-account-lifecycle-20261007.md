@@ -39,3 +39,5 @@ Průvodce vyžaduje potvrzení smluvního podkladu pro oznámení. Nepředstír�
 - První úplné CI zachytilo regresi výslovného globálního práva pro čtení archivu dokladů. Toto právo je zachované; nezakládá právo změny bankovního účtu. Běžné VIEW členství domu nadále neodemyká cizí jednotky a účty.
 - Obecná dokumentová autorizace byla vrácena přesně na produkční verzi; její integrity-pinned test se nemění. Nová bankovní oznámení mají oddělené vlastní autorizované endpointy.
 - Nový účet drží kontext jednotky po registraci i kontrole ověření; domácí číslo účtu a vyplněný IBAN musí souhlasit.
+
+- Souběžné aktivace při načtení stránek opakují celou serializovatelnou transakci při konfliktu P2034; nový E2E spouští dva aktivátory současně. Kolize VS při aktivaci blokuje konkrétní změnu místo opakovaných chyb všech přihlášených stránek.
