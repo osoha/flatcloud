@@ -10,7 +10,7 @@ Uživatel po předložení auditu schválil implementaci a produkční nasazení
 - Neměnné PDF s hashem, oznámení v portálu, emailová fronta, audit smlouvy, individuální potvrzení přečtení a úkol pro doložení doručení. Automatický email vyžaduje existující portálový kontakt a aktivní objekt. Neúspěšné nebo jiné doručení řeší evidovaný úkol.
 - Zrušení plánované změny vytváří další oznámení s původním seznamem nájemců. Původní dokumenty zůstávají zachované.
 - Historické účty se uchovávají pro rozpoznání dobíhajících plateb. Stav archivace neruší historii ani příjem.
-- Čtení a výběr cizích účtů omezeny na vlastnictví a spravovaný rozsah. Samotné VIEW členství objektu nedává přístup ke všem jeho jednotkám a účtům.
+- Čtení a výběr cizích účtů omezeny na vlastnictví a spravovaný rozsah. Vlastník propojený s konkrétní jednotkou a pouze VIEW členstvím zůstává omezen na své jednotky; výslovná delegace EDIT/ADMIN a existující přístupy čtenářů celého domu jsou zachovány. Přístup k účtům se posuzuje samostatně.
 
 ## Migrace a provoz
 Aditivní migrace 20261007090000_bank_account_lifecycle: nové tabulky historie/oznámení/doručení/příjmových vazeb, dvě pole účtu. Bez mazání a bez převodu reálných účtů. Aktivace je součást scheduleru a přihlášených požadavků. Nová smlouva u jednotky s čekající změnou vyžaduje nejprve vyřešení této změny.
@@ -36,10 +36,12 @@ Průvodce vyžaduje potvrzení smluvního podkladu pro oznámení. Nepředstír�
 - Rozšířené E2E: změněný idempotentní požadavek, normalizovaný VS, ztráta oprávnění před účinností, blokace a zrušení s oznámením.
 - ČSOB parser, v21.3.6, v21.6 a Prisma validate lokálně znovu prošly. Kompletní CI této finální změny dosud není dokončeno; nejde o READY.
 
-- První úplné CI zachytilo regresi výslovného globálního práva pro čtení archivu dokladů. Toto právo je zachované; nezakládá právo změny bankovního účtu. Běžné VIEW členství domu nadále neodemyká cizí jednotky a účty.
+- První úplné CI zachytilo regresi výslovného globálního práva pro čtení archivu dokladů. Toto právo je zachované; nezakládá právo změny bankovního účtu. VIEW členství propojeného vlastníka nadále neodemyká cizí jednotky a účty.
 - Obecná dokumentová autorizace byla vrácena přesně na produkční verzi; její integrity-pinned test se nemění. Nová bankovní oznámení mají oddělené vlastní autorizované endpointy.
 - Nový účet drží kontext jednotky po registraci i kontrole ověření; domácí číslo účtu a vyplněný IBAN musí souhlasit.
 
 - Souběžné aktivace při načtení stránek opakují celou serializovatelnou transakci při konfliktu P2034; nový E2E spouští dva aktivátory současně. Kolize VS při aktivaci blokuje konkrétní změnu místo opakovaných chyb všech přihlášených stránek.
 
 - Portál původního ověřeného adresáta uchová bankovní oznámení i po změně smluvních osob; manažerský náhled zůstává omezen na své smlouvy. E2E ověřuje původního adresáta a nepřítomnost oznámení pro nového nájemníka. Výběr při zakládání jednotky skrývá archivované účty.
+
+- Úplné browser CI zachytilo šest regresí příliš širokého omezení role OWNER_VIEWER (ocenění, správa týmu, revize, dvě varianty úkolů, vyúčtování). Zachovány původní explicitní přístupy čtenářů a spolupracovníků k domu; rozsah propojených vlastníků jednotek a účtů se posuzuje odděleně. Původních šest testů zůstalo beze změny, nový bankovní E2E navíc kontroluje seznam jednotek proti cizímu bytu a účtu.
