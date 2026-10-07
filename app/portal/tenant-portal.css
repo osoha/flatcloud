@@ -444,3 +444,18 @@
   .tenant-portal-v2 .tp-contact .tenant-portal-call{font-size:18px}
   .tenant-portal-v2 .tp-contact-email{font-size:12px}
 }
+
+/* Account forms keep the staff form controls inside the tenant navigation. */
+.tenant-portal-v2 .tp-account-preview{display:flex;align-items:flex-start;gap:12px;padding:12px;color:var(--tp-muted);font-size:14px}
+.tenant-portal-v2 .tp-account-preview small{display:block;margin-top:5px;font-size:11px;line-height:1.4;max-width:135px}
+.tenant-account .page{padding:0;max-width:100%;min-width:0}
+.tenant-account .page-title{margin-bottom:20px}
+.tenant-account .page-title p{overflow-wrap:anywhere;margin-top:6px;color:var(--tp-muted)}
+.tenant-account .account-card{margin-bottom:18px;border:1px solid var(--tp-line);border-radius:var(--tp-radius);background:#fff}
+.tenant-account .account-card h2{margin-bottom:12px}
+.tenant-account .account-card p{margin-bottom:16px}
+.tenant-account .account-card :is(input,select){max-width:100%;min-width:0}
+.tenant-account .account-avatar-form{flex-wrap:wrap}
+.tenant-account .account-avatar-fields{min-width:0}
+.tenant-account .account-form{margin-top:16px}
+@media(max-width:760px){.tenant-account .account-card{padding:18px}.tenant-account .account-form input{font-size:16px}.tenant-account .account-avatar-fields{width:100%}.tenant-portal-v2 .tp-account-preview{flex-shrink:0}}

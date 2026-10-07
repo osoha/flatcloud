@@ -33,7 +33,7 @@ function withPropertyScope(href: string, propertyScope: string | null) {
   const [pathAndQuery, hash = ""] = href.split("#", 2);
   const [path, query = ""] = pathAndQuery.split("?", 2);
   const params = new URLSearchParams(query);
-  if (!params.has("properties")) params.set("properties", propertyScope);
+  if (!params.has("properties") && !params.has("propertyId")) params.set("properties", propertyScope);
   return `${path}?${params.toString()}${hash ? `#${hash}` : ""}`;
 }
 
@@ -48,7 +48,7 @@ export function ScopeAwareLink({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentScope = searchParams.get("properties");
+  const currentScope = searchParams.get("properties") ?? searchParams.get("propertyId");
   const [rememberedScope, setRememberedScope] = useState(currentScope);
 
   useEffect(() => {

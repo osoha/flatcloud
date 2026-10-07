@@ -13,7 +13,11 @@ assert.match(portfolio, /accessibleProperties\(user, \{ includeInactive: true \}
 assert.match(portfolio, /activeProperties = properties\.filter/);
 assert.match(portfolio, /Neaktivní \/ archivované/);
 assert.match(portfolio, /leaseAlertsForProperties\(activeProperties\)/);
-assert.match(portfolio, /taskScope = fullAccess \? \{ propertyId: \{ in: propertyIds \} \}/);
+// Work queues include open work on inactive properties. Financial KPIs and
+// alerts remain live-only above. Browser coverage checks matching counts on
+// Portfolio, sidebar and Tasks for an explicitly selected inactive property.
+assert.match(portfolio, /taskVisibilityScope = \{ AND: \[taskAccessWhere\(user\)/);
+assert.match(portfolio, /selection.mode === "ALL" \? \{\} : \{ OR: \[\{ propertyId: \{ in: allowedSelection \}/);
 assert.match(portfolio, /unmatchedQueueCount\(user,propertyIds\)/);
 const queueCounts = read("lib/inbound-bank/queue-counts.ts");
 assert.match(queueCounts, /bankAccountScopes\(actor\)/);

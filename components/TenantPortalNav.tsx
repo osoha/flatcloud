@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import {useEffect, useState} from "react";
-import {Bell, CreditCard, Droplets, FileText, House, Phone, Wrench} from "lucide-react";
+import {Bell, CreditCard, Droplets, FileText, House, Phone, UserRound, Wrench} from "lucide-react";
 
-export function TenantPortalNav({leaseId, canAct}: {leaseId?: string; canAct: boolean}) {
+export function TenantPortalNav({leaseId, canAct, preview = false, accountPage = false}: {leaseId?: string; canAct: boolean; preview?: boolean; accountPage?: boolean}) {
   const [active, setActive] = useState("prehled");
   const entries = [{id: "prehled", label: "Přehled", Icon: House}, ...(leaseId ? [
     {id: `najem-${leaseId}`, label: "Můj nájem", Icon: CreditCard},
@@ -25,5 +26,5 @@ export function TenantPortalNav({leaseId, canAct}: {leaseId?: string; canAct: bo
     sync(); window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, [leaseId]);
-  return <nav className="tp-nav" aria-label="Portál nájemníka">{entries.map(({id, label, Icon}) => <a key={id} href={`#${id}`} aria-current={active === id || active.startsWith(`${id}-`) ? "location" : undefined} onClick={() => setActive(id)}><Icon size={21} aria-hidden="true"/><span>{label}</span></a>)}</nav>;
+  return <nav className="tp-nav" aria-label="Portál nájemníka">{entries.map(({id, label, Icon}) => <a key={id} href={accountPage ? `/portal/najemnik#${id}` : `#${id}`} aria-current={!accountPage && (active === id || active.startsWith(`${id}-`)) ? "location" : undefined} onClick={() => setActive(id)}><Icon size={21} aria-hidden="true"/><span>{label}</span></a>)}{preview ? <span className="tp-account-preview" aria-disabled="true"><UserRound size={21} aria-hidden="true"/><span>Můj účet<small>Nastavení je dostupné po přihlášení nájemníka.</small></span></span> : <Link href="/ucet" aria-current={accountPage ? "page" : undefined}><UserRound size={21} aria-hidden="true"/><span>Můj účet</span></Link>}</nav>;
 }

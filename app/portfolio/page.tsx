@@ -63,8 +63,7 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   const propertyIds = activeProperties.map((property)=>property.id);
   const propertyWideIds = fullAccess ? propertyIds : activeProperties.filter((property)=>property.memberships.some((m)=>m.userId===user.id)).map((property)=>property.id);
   const visibleUnitIds = activeProperties.flatMap((property)=>property.units.map((unit)=>unit.id));
-  const taskScope = fullAccess ? { propertyId: { in: propertyIds } } : taskAccessWhere(user);
-  const taskVisibilityScope = { AND: [taskAccessWhere(user), selection.mode === "ALL" ? (fullAccess ? { OR: [taskScope, { propertyId: null }] } : {}) : { OR: [{ propertyId: { in: propertyIds } }, { propertyId: null }] }] };
+  const taskVisibilityScope = { AND: [taskAccessWhere(user), selection.mode === "ALL" ? {} : { OR: [{ propertyId: { in: allowedSelection } }, { propertyId: null }] }] };
   const revisionScope = fullAccess ? { propertyId: { in: propertyIds } } : { propertyId: { in: propertyWideIds } };
   const revisionHorizon = new Date(Date.now()+60*86_400_000);
 

@@ -109,7 +109,7 @@ export default async function TenantPortal({params, searchParams}: {
       {preview ? <Link className="tp-back" href={`/najemnici/${tenant.id}`}><ArrowLeft size={16}/> Zpět na nájemníka</Link> : <form action="/api/auth/logout" method="post"><button type="submit" className="tp-text-button">Odhlásit se</button></form>}
     </header>
     <div className="tp-shell">
-      <TenantPortalNav leaseId={first?.id} canAct={firstCanAct}/>
+      <TenantPortalNav leaseId={first?.id} canAct={firstCanAct} preview={preview}/>
       <main className="tp-main" id="prehled">
         <Flash {...flash}/><BankAccountLeaseHistory leaseIds={leaseRows.map(l=>l.id)} tenantId={tenantId} userId={actor.id} preview={preview}/>
         <section className="tp-welcome">
