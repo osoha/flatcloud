@@ -35,3 +35,7 @@ Průvodce vyžaduje potvrzení smluvního podkladu pro oznámení. Nepředstír�
 - Úprava běžných údajů smlouvy zachovává její platební účet a kontroluje souběžnou změnu.
 - Rozšířené E2E: změněný idempotentní požadavek, normalizovaný VS, ztráta oprávnění před účinností, blokace a zrušení s oznámením.
 - ČSOB parser, v21.3.6, v21.6 a Prisma validate lokálně znovu prošly. Kompletní CI této finální změny dosud není dokončeno; nejde o READY.
+
+- První úplné CI zachytilo regresi výslovného globálního práva pro čtení archivu dokladů. Toto právo je zachované; nezakládá právo změny bankovního účtu. Běžné VIEW členství domu nadále neodemyká cizí jednotky a účty.
+- Obecná dokumentová autorizace byla vrácena přesně na produkční verzi; její integrity-pinned test se nemění. Nová bankovní oznámení mají oddělené vlastní autorizované endpointy.
+- Nový účet drží kontext jednotky po registraci i kontrole ověření; domácí číslo účtu a vyplněný IBAN musí souhlasit.

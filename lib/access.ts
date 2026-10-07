@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { canSeeAll } from "./auth";
+import { canSeeAll, hasAllPropertyAccess } from "./auth";
 import { unitReadScope } from "./bank-account-permissions";
 import { compareUnitLabels } from "./unit-label-sort";
 
@@ -42,11 +42,11 @@ const propertyInclude = {
 export async function accessibleProperties(user:{id:string;role:string;allProperties?:boolean}, options: { includeInactive?: boolean } = {}){
   const includeInactive = Boolean(options.includeInactive && ["SUPER_ADMIN", "MANAGER", "PROPERTY_MANAGER"].includes(user.role));
   const properties = await prisma.property.findMany({
-    where: { ...(canSeeAll(user.role) ? {} : { OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}},{units:{some:{ownerships:{some:{owner:{userId:user.id}}}}}}] }), ...(includeInactive ? {} : { active: true }) },
+    where: { ...(hasAllPropertyAccess(user) ? {} : { OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}},{units:{some:{ownerships:{some:{owner:{userId:user.id}}}}}}] }), ...(includeInactive ? {} : { active: true }) },
     include: propertyInclude,
     orderBy:{name:"asc"}
   });
-  if(canSeeAll(user.role)) return properties.map(property=>({...property,units:property.units.sort(compareUnitLabels)}));
+  if(hasAllPropertyAccess(user)) return properties.map(property=>({...property,units:property.units.sort(compareUnitLabels)}));
   return properties.map(property=>{
     const propertyWide=user.role==="PROPERTY_MANAGER" && property.memberships.some(m=>m.userId===user.id);
     return {...property,bankAccounts:propertyWide?property.bankAccounts:[],matchingRules:propertyWide?property.matchingRules:[],paymentAccounts:propertyWide?property.paymentAccounts:property.paymentAccounts.filter(link=>link.ownerBankAccount.owner.userId===user.id),units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id)||unit.ownerships.some(row=>row.owner.userId===user.id))).sort(compareUnitLabels)};
@@ -55,11 +55,11 @@ export async function accessibleProperties(user:{id:string;role:string;allProper
 
 export async function requirePropertyAccess(user:{id:string;role:string;allProperties?:boolean},propertyId:string){
   const property=await prisma.property.findFirst({
-    where:{id:propertyId,...(canSeeAll(user.role)?{}:{OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}},{units:{some:{ownerships:{some:{owner:{userId:user.id}}}}}}]})},
+    where:{id:propertyId,...(hasAllPropertyAccess(user)?{}:{OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}},{units:{some:{ownerships:{some:{owner:{userId:user.id}}}}}}]})},
     include: propertyInclude,
   });
   if(!property) return property;
-  if(canSeeAll(user.role)) return {...property,units:property.units.sort(compareUnitLabels)};
+  if(hasAllPropertyAccess(user)) return {...property,units:property.units.sort(compareUnitLabels)};
   const propertyWide=user.role==="PROPERTY_MANAGER" && property.memberships.some(m=>m.userId===user.id);
   return {...property,bankAccounts:propertyWide?property.bankAccounts:[],matchingRules:propertyWide?property.matchingRules:[],paymentAccounts:propertyWide?property.paymentAccounts:property.paymentAccounts.filter(link=>link.ownerBankAccount.owner.userId===user.id),units:(propertyWide?property.units:property.units.filter(unit=>unit.userAccesses.some(access=>access.userId===user.id)||unit.ownerships.some(row=>row.owner.userId===user.id))).sort(compareUnitLabels)};
 }
@@ -80,7 +80,7 @@ export function leaseAccessWhere(user:{id:string;role:string;allProperties?:bool
 }
 
 export function taskAccessWhere(user: { id: string; role: string; allProperties?: boolean }): Prisma.TaskWhereInput {
-  if (canSeeAll(user.role)) return {};
+  if (hasAllPropertyAccess(user)) return {};
   return { OR: [
     { propertyId: null, OR: [{ createdById: user.id }, { assigneeId: user.id }, { members: { some: { userId: user.id } } }] },
     { property: { memberships: { some: { userId: user.id } } } },
@@ -90,7 +90,7 @@ export function taskAccessWhere(user: { id: string; role: string; allProperties?
 }
 
 export function bankTransactionAccessWhere(user: { id: string; role: string; allProperties?: boolean }): Prisma.BankTransactionWhereInput {
-  if (canSeeAll(user.role)) return {};
+  if (hasAllPropertyAccess(user)) return {};
   const visibleUnit = unitReadScope(user);
   return { OR: [
     ...(user.role === "PROPERTY_MANAGER" ? [{ bankAccount: { property: { memberships: { some: { userId: user.id } } } } }] : []),
@@ -100,7 +100,7 @@ export function bankTransactionAccessWhere(user: { id: string; role: string; all
   ] };
 }
 export function tenantAccessWhere(user:{id:string;role:string;allProperties?:boolean}): Prisma.TenantWhereInput {
-  if (canSeeAll(user.role)) return {};
+  if (hasAllPropertyAccess(user)) return {};
   const visibleUnit = unitReadScope(user);
   return { OR: [
     ...(user.role === "PROPERTY_MANAGER" ? [{ propertyLinks: { some: { property: {memberships:{some:{userId:user.id}}} } } }] : []),

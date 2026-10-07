@@ -73,9 +73,8 @@ export default async function PropertyPage({ params, searchParams }: { params: P
   if (!p) notFound();
   const photos = await loadEntityPhotos(user, [id]);
   const membership = p.memberships.find((row) => row.userId === user.id);
-  const propertyWide = ["SUPER_ADMIN","MANAGER"].includes(user.role) || (user.role === "PROPERTY_MANAGER" && Boolean(membership));
+  const propertyWide = hasAllPropertyAccess(user) || (user.role === "PROPERTY_MANAGER" && Boolean(membership));
   const ownerBankView = user.role === "OWNER_VIEWER" && section === "banka";
-  if(!propertyWide&&!["prehled","jednotky","najemnici","smlouvy","platby","dluznici","banka"].includes(section))notFound();
   if(section === "banka" && !propertyWide && !ownerBankView) notFound();
   const visibleUnitIds = p.units.map(unit=>unit.id);
   const canManage = hasAllPropertyAccess(user) || membership?.permission === "EDIT" || membership?.permission === "ADMIN";

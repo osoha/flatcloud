@@ -1,13 +1,13 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
-import { canSeeAll } from "./auth";
+import { canSeeAll, hasAllPropertyAccess } from "./auth";
 
 export type BankActor = { id: string; role: string; allProperties?: boolean };
 function managedProperty(user: BankActor): Prisma.PropertyWhereInput {
  return {memberships:{some:{userId:user.id,permission:{in:["EDIT","ADMIN"]}}}};
 }
 export function unitReadScope(user: BankActor): Prisma.UnitWhereInput {
-  if (canSeeAll(user.role)) return {};
+  if (hasAllPropertyAccess(user)) return {};
   return { OR: [
     { ownerships: { some: { owner: { userId: user.id } } } },
     { userAccesses: { some: { userId: user.id } } },

@@ -44,7 +44,7 @@ export async function assertUniqueVariableSymbol(
 ) {
   const account=await tx.ownerBankAccount.findUniqueOrThrow({where:{id:ownerBankAccountId}});
   const normalized=value.replace(/^0+(?=\d)/, "");
-  const variants=Array.from({length:11-normalized.length},(_,i)=>normalized.padStart(normalized.length+i,"0"));
+  const variants=Array.from({length:Math.max(1,11-normalized.length)},(_,i)=>normalized.padStart(normalized.length+i,"0"));
   const lockKey = `flatcloud:lease-variable-symbol:${canonicalPaymentIdentity(account)}:${normalized}`;
   await tx.$queryRaw<Array<{ locked: number }>>`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`;
   const accountIds=(await tx.ownerBankAccount.findMany()).filter(a=>samePhysicalBankAccount(a,account)).map(a=>a.id);
@@ -56,6 +56,6 @@ export async function assertUniqueVariableSymbol(
     include: { unit: true, tenant: true },
   });
   if (duplicate) {
-    throw new Error(`Variabilní symbol ${value} je na tomto účtu již používán nebo rezervován jinou smlouvou. Zvolte jiný VS.`);
+    throw new Error(`Variabilní symbol ${value} na tomto účtu historicky používá smlouva nebo je rezervován jinou smlouvou. Zvolte jiný VS.`);
   }
 }

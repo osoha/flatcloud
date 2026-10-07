@@ -4,9 +4,9 @@ import { bankAccountReadScope } from "@/lib/bank-account-permissions";
 import { bankAccountScopes } from "@/lib/account-banking-access";
 import { go, goWithMessage } from "@/lib/route-response";
 export async function POST(request:Request,{params}:{params:Promise<{accountId:string}>}){
- const user=await currentUser();if(!user)return go(request,"/login");const{accountId}=await params,back=`/bankovni-ucty#ucet-${accountId}`;
+ const user=await currentUser();if(!user)return go(request,"/login");const{accountId}=await params;const form=await request.formData(),unitId=String(form.get("returnUnitId")||"");const back=`/bankovni-ucty?accountId=${encodeURIComponent(accountId)}${unitId?`&unitId=${encodeURIComponent(unitId)}`:""}#ucet-${accountId}`;
  try{
-  const form=await request.formData(),usageState=String(form.get("usageState")||""),label=String(form.get("label")||"").trim();
+  const usageState=String(form.get("usageState")||""),label=String(form.get("label")||"").trim();
   if(!["AVAILABLE","RECEIPTS_ONLY","ARCHIVED"].includes(usageState)||label.length>100)throw new Error("Neplatné údaje účtu.");
   // Renaming/archiving a shared account affects all properties: require complete scope.
   await prisma.$transaction(async tx=>{
