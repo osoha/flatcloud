@@ -9,11 +9,13 @@ test("sandbox communication examples fit desktop and mobile, and PDF preview req
   test.skip(process.env.LEASE_CONTRACT_LOCAL_PILOT!=="1","Communication preview belongs to the contract sandbox");
   test.setTimeout(90000);
   const password="Communication-QA-Only-2026",user=await db.user.create({data:{email:`communication-${randomUUID()}@flatcloud.test`,name:"Náhled komunikace QA",passwordHash:await bcrypt.hash(password,8),role:"SUPER_ADMIN",isTestIdentity:true}});
+  const emailPage=await page.context().newPage();
   try {
     expect((await page.request.get("/api/admin/communication-preview")).status()).toBe(404);
     await page.goto("/login");await page.getByLabel("E-mail").fill(user.email);await page.getByLabel("Heslo",{exact:true}).fill(password);await page.getByRole("button",{name:"Přihlásit se",exact:true}).click();await expect(page).not.toHaveURL(/\/login/);
     await page.goto("/nastaveni/nahled-komunikace");await expect(page.getByRole("heading",{name:"Náhled komunikace",exact:true})).toBeVisible();
     await expect(page.locator("iframe")).toHaveCount(4);
+    await emailPage.goto("/api/health");
     for(const width of [1280,390]) {
       await page.setViewportSize({width,height:900});
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
@@ -22,13 +24,18 @@ test("sandbox communication examples fit desktop and mobile, and PDF preview req
         await expect(frame.locator("h1")).toBeVisible();
         expect(await frame.locator("body").evaluate(el=>el.scrollWidth<=el.clientWidth+1)).toBe(true);
         const screenshot=info.outputPath(`mail-${title.replace(/\s/g,"-")}-${width}.png`);
-        await page.locator(`iframe[title="${title}"]`).screenshot({path:screenshot});
+        // Render the exact srcdoc on its own canvas so sticky application navigation
+        // cannot cover a tall email in the captured evidence.
+        await emailPage.setViewportSize({width:width===1280?720:390,height:900});
+        await emailPage.setContent((await page.locator(`iframe[title="${title}"]`).getAttribute("srcdoc"))!);
+        await emailPage.screenshot({path:screenshot,fullPage:true});
         await info.attach(`mail-${title}-${width}`,{path:screenshot,contentType:"image/png"});
       }
     }
-    const response=await page.request.get("/api/admin/communication-preview");expect(response.status()).toBe(200);expect(response.headers()["content-type"]).toBe("application/pdf");expect((await response.body()).subarray(0,4).toString()).toBe("%PDF");
+    const headers={Cookie:(await page.context().cookies()).map(c=>`${c.name}=${c.value}`).join("; ")};
+    const response=await page.request.get("/api/admin/communication-preview",{headers});expect(response.status()).toBe(200);expect(response.headers()["content-type"]).toBe("application/pdf");expect((await response.body()).subarray(0,4).toString()).toBe("%PDF");
     await info.attach("official-notice.pdf",{body:await response.body(),contentType:"application/pdf"});
     await db.user.update({where:{id:user.id},data:{role:"TENANT"}});
-    expect((await page.request.get("/api/admin/communication-preview")).status()).toBe(404);
-  }finally{await db.user.delete({where:{id:user.id}});}
+    expect((await page.request.get("/api/admin/communication-preview",{headers})).status()).toBe(404);
+  }finally{await emailPage.close();await db.user.delete({where:{id:user.id}});}
 });

@@ -65,6 +65,11 @@ test("owner registration, isolated visibility, independent verification, notices
   const mails:MailInput[]=[], oldOrigin=process.env.APP_URL;
   try {
     process.env.APP_URL="https://flatberry.test";
+    // The HTTP route's after() worker must finish its real-transport safety skip first.
+    // Requeue only this isolated fixture, then use the injected transport below.
+    await expect.poll(async()=> (await db.tenantPortalNotification.findFirst({where:{announcementId:notice.announcementId}}))?.status).toBe("SKIPPED");
+    await db.tenantPortalNotification.updateMany({where:{announcementId:notice.announcementId,status:"SKIPPED"},data:{status:"PENDING",attempts:0,claimedAt:null,nextAttemptAt:new Date()}});
+
     const result=await processTenantPortalNotifications({tenantId:tenant.id,transport:async mail=>{mails.push(mail);return {sent:true};}});
     expect(result.sent).toBe(1);
     expect(mails[0].to).toBe(tenantUser.email);
