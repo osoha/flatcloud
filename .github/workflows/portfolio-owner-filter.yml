@@ -32,6 +32,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/portfolio_owner_test?schema=public
       SESSION_SECRET: portfolio-owner-test-isolated-session-secret-2026
+      INITIAL_ADMIN_EMAIL: e2e.admin@flatcloud.test
+      INITIAL_ADMIN_PASSWORD: FlatCloud-E2E-Only-Password-2026
+      INITIAL_ADMIN_NAME: E2E administrátor
       NEXT_TELEMETRY_DISABLED: '1'
     steps:
       - uses: actions/checkout@v6
