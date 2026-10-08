@@ -1,5 +1,5 @@
+import { portfolioSelectionQuery, parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { filterPortfolioProperties } from "@/lib/portfolio-ownership";
-import { portfolioSelectionQuery } from "@/lib/portfolio-selection";
 import { PageHeading } from "@/components/PageHeading";
 import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
 import { requireUser } from "@/lib/auth";
@@ -11,7 +11,6 @@ import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { isLeaseExpiring, leaseMatchesQuery, leaseMatchesView, type LeaseCatalogView } from "@/lib/lease-catalog";
 import { securityDepositSnapshot } from "@/lib/security-deposit";
 import { contractingPartyNames } from "@/lib/lease-parties";
-import { parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 
 export const dynamic = "force-dynamic";
 const views: Array<[LeaseCatalogView, string]> = [["ACTIVE", "Aktivní"], ["FUTURE", "Budoucí"], ["EXPIRING", "Expirující"], ["HISTORY", "Ukončené"], ["ALL", "Všechny"]];

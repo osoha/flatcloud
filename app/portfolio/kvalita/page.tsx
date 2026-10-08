@@ -1,5 +1,5 @@
-import { portfolioSelectionQuery, withPortfolioSelection } from "@/lib/portfolio-selection";
-import { filterPortfolioProperties, portfolioPropertyOption, } from "@/lib/portfolio-ownership";
+import { portfolioSelectionQuery, withPortfolioSelection, parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
+import { filterPortfolioProperties, portfolioPropertyOption } from "@/lib/portfolio-ownership";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
@@ -16,7 +16,6 @@ import { accessibleProperties } from "@/lib/access";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
-import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { unitConditionPlanStatuses, unitConditionRatings, unitConditionUrgencies } from "@/lib/portfolio/unit-condition-assessments";
 import { unitConditionCapexVariance, unitConditionExecutionState, unitConditionPriority } from "@/lib/portfolio/unit-condition-execution";
 
@@ -27,7 +26,6 @@ export default async function PortfolioQualityPage({ searchParams }: { searchPar
   const [availableProperties, query] = await Promise.all([accessibleProperties(user, { includeInactive: true }), searchParams]);
   const selection = parsePortfolioSelection(query);
   const allowedPropertyIds = selectedPropertyIds(selection, availableProperties.map((property) => property.id));
-  const selected = new Set(allowedPropertyIds);
   const properties = filterPortfolioProperties(availableProperties, selection);
   const units = properties.flatMap((property) => property.units.map((unit) => ({ ...unit, property })));
   const unitIds = units.map((unit) => unit.id);

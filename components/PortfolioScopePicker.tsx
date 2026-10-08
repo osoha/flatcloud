@@ -8,6 +8,8 @@ import { portfolioSelectionLabel, withPortfolioSelection, type PortfolioSelectio
 
 import { portfolioOwnerPresets, type PortfolioPropertyOption as PropertyOption } from "@/lib/portfolio-ownership";
 
+const unitCountLabel = (count: number) => `${count} ${count === 1 ? "jednotka" : count > 1 && count < 5 ? "jednotky" : "jednotek"}`;
+
 export function PortfolioScopePicker({ availableProperties, selection }: { availableProperties: PropertyOption[]; selection: PortfolioSelection }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -40,7 +42,7 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
     return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); window.visualViewport?.removeEventListener("resize", place); window.visualViewport?.removeEventListener("scroll", place); };
   }, [open]);
   const [search, setSearch] = useState("");
-  const selectionKey = `${selection.ownerId || ""}:` + (selection.mode === "ALL" ? `ALL:${availableProperties.map((property) => property.id).join(",")}` : `SELECTED:${selection.propertyIds.join(",")}`);
+  const selectionKey = `${selection.ownerId || ""}:` + (selection.mode === "ALL" ? `ALL:${availableProperties.filter(property => !selection.ownerId || property.owners.some(owner => owner.id === selection.ownerId)).map((property) => property.id).join(",")}` : `SELECTED:${selection.propertyIds.join(",")}`);
   const initial = useMemo(() => selection.mode === "ALL" ? availableProperties.filter(property => !selection.ownerId || property.owners.some(owner => owner.id === selection.ownerId)).map((property) => property.id) : selection.propertyIds, [selectionKey]);
   const [draftOwnerId, setDraftOwnerId] = useState(selection.ownerId);
   const [draft, setDraft] = useState<string[]>(initial);
@@ -76,6 +78,7 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
     { key: "EXTERNAL", label: "Externí správa" },
     { key: "UNCLASSIFIED", label: "Nezařazené" },
   ].map((preset) => ({ ...preset, propertyIds: availableProperties.filter((property) => property.scopeKind === preset.key).map((property) => property.id) })).filter((preset) => preset.propertyIds.length);
+  const selectedUnitCount = availableProperties.filter(property => initial.includes(property.id)).reduce((sum, property) => sum + (property.owners.find(owner => owner.id === selection.ownerId)?.unitIds.length ?? 0), 0);
   const selectedCount = selection.mode === "ALL" ? initial.length : selection.propertyIds.length;
 
   function close(reset = true) {
@@ -94,15 +97,16 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
 
   if (availableProperties.length <= 1 && !ownerPresets.length && !selection.ownerId) return <span className="scope-picker-single">{portfolioSelectionLabel(selection, selectedCount, availableProperties.length, availableProperties.filter((property) => property.active).length)}</span>;
   return <div className="scope-picker" ref={pickerRef}>
-    <button ref={triggerRef} className="scope-picker-trigger" type="button" title="Zobrazené objekty" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><span><small>Rozsah správy</small><strong>{selection.ownerId ? `${selectedOwner?.name || "Vybraný vlastník"} · ${selectedCount} objektů` : selection.mode === "ALL" ? `Vše ve správě · ${availableProperties.length} objektů` : `${selectedCount} z ${availableProperties.length} objektů`}</strong></span><ChevronDown size={16}/></button>
+    <button ref={triggerRef} className="scope-picker-trigger" type="button" title="Zobrazené objekty" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><span><small>Rozsah správy</small><strong>{selection.ownerId ? `${selectedOwner?.name || "Vybraný vlastník"} · ${unitCountLabel(selectedUnitCount)}` : selection.mode === "ALL" ? `Vše ve správě · ${availableProperties.length} objektů` : `${selectedCount} z ${availableProperties.length} objektů`}</strong></span><ChevronDown size={16}/></button>
     {open && createPortal(<div ref={popoverRef} className="scope-picker-popover" style={placement} role="dialog" aria-label="Vybrat zobrazené objekty">
       <div className="scope-actions"><button className="secondary" type="button" onClick={() => close()}>Zrušit změny</button><button className="primary" type="button" onClick={apply}>Použít výběr</button></div>
       <div className="scope-bulk-actions"><button type="button" aria-label="Vybrat vše ve správě" onClick={() => { setDraftOwnerId(undefined); setDraft(availableProperties.map((property) => property.id)); }}>Označit vše</button><button type="button" onClick={() => setDraft([])}>Odznačit vše</button><span aria-live="polite">Vybráno {draft.length} z {availableProperties.length}</span></div>
       <label className="scope-search"><Search size={15}/><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Najít dům nebo vlastníka…" aria-label="Hledat nemovitost nebo vlastníka"/></label>
       <div className="scope-picker-scroll">
       <div className="scope-presets" aria-label="Rychlý výběr rozsahu">
+        <p className="muted-copy">Vlastník vybere své jednotky napříč domy. Níže můžete výběr omezit na konkrétní objekty.</p>
         {groupPresets.map((preset) => <button className={`scope-group-preset ${preset.key.toLocaleLowerCase()}`} type="button" onClick={() => { setDraftOwnerId(undefined); setDraft(preset.propertyIds); }} key={preset.key}>{preset.label}<span>{preset.propertyIds.length}</span></button>)}
-        {ownerPresets.map((owner) => <button className="scope-owner-preset" type="button" aria-pressed={draftOwnerId === owner.id} onClick={() => { setDraftOwnerId(owner.id); setDraft(owner.propertyIds); }} key={owner.id}>{owner.name}<span>{owner.unitIds.length} j.</span></button>)}
+        {ownerPresets.map((owner) => <button className="scope-owner-preset" type="button" aria-pressed={draftOwnerId === owner.id} onClick={() => { setDraftOwnerId(owner.id); setDraft(owner.propertyIds); }} key={owner.id}>{owner.name}<span>{unitCountLabel(owner.unitIds.length)}</span></button>)}
         {draftOwnerId && <button type="button" onClick={() => { setDraftOwnerId(undefined); setDraft(availableProperties.map(property => property.id)); }}>Zrušit filtr vlastníka</button>}
       </div>
 

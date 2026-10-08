@@ -1,5 +1,5 @@
-import { portfolioSelectionQuery, } from "@/lib/portfolio-selection";
-import { filterPortfolioProperties, portfolioPropertyOption, } from "@/lib/portfolio-ownership";
+import { portfolioSelectionQuery, parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
+import { filterPortfolioProperties, portfolioPropertyOption } from "@/lib/portfolio-ownership";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
@@ -11,7 +11,6 @@ import { accessibleProperties } from "@/lib/access";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
-import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { buildCapexRenewalForecast, capexForecastStageLabels } from "@/lib/portfolio/capex-renewal-forecast";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +20,6 @@ export default async function PortfolioCapexPlanPage({ searchParams }: { searchP
   const [availableProperties, query] = await Promise.all([accessibleProperties(user, { includeInactive: true }), searchParams]);
   const selection = parsePortfolioSelection(query);
   const allowedPropertyIds = selectedPropertyIds(selection, availableProperties.map((property) => property.id));
-  const selected = new Set(allowedPropertyIds);
   const properties = filterPortfolioProperties(availableProperties, selection);
   const unitRows = properties.flatMap((property) => property.units.map((unit) => ({ property, unit })));
   const unitIds = unitRows.map((row) => row.unit.id);

@@ -1,4 +1,4 @@
-import { filterPortfolioProperties, portfolioPropertyOption, } from "@/lib/portfolio-ownership";
+import { filterPortfolioProperties, portfolioPropertyOption } from "@/lib/portfolio-ownership";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
 import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";

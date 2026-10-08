@@ -1,4 +1,4 @@
-import { accessibleProperties } from "@/lib/access";
+import { accessibleProperties, leaseAccessWhere, taskAccessWhere } from "@/lib/access";
 import { filterPortfolioProperties, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import {headers} from "next/headers";
 import {parsePortfolioSelection,withPortfolioSelection} from "@/lib/portfolio-selection";
@@ -18,8 +18,6 @@ import { openTaskStatuses } from "@/lib/operations";
 import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
 import { UserAvatar } from "@/components/UserAvatar";
 import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
-import { leaseAccessWhere } from "@/lib/access";
-import { taskAccessWhere } from "@/lib/access";
 import { unreadAnnouncementWhere } from "@/lib/announcements";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";

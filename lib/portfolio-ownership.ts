@@ -2,7 +2,7 @@ import type { PortfolioSelection } from "./portfolio-selection";
 
 type Owner = { id: string; name: string };
 type Ownership = { ownerId: string; shareBasisPoints?: number; owner: Owner };
-type Unit = { id: string; ownerships: Ownership[] };
+type Unit = { id: string; ownerships: Ownership[]; leases?: Array<{ tenantId: string }> };
 export type OwnershipProperty = { id: string; ownershipMode: string; owner: Owner; ownerships: Ownership[]; units: Unit[] };
 
 /** Unit ownership is authoritative. A communication contact/SVJ never implies ownership. */
@@ -57,9 +57,11 @@ export function portfolioOwnerPresets(properties: PortfolioPropertyOption[]) {
 export function portfolioTaskFilter(properties: OwnershipProperty[], selection: PortfolioSelection) {
   if (!selection.ownerId) return selection.mode === "ALL" ? {} : { OR: [{ propertyId: { in: properties.map(p => p.id) } }, { propertyId: null }] };
   const unitIds = properties.flatMap(p => p.units.map(u => u.id));
+  const tenantIds = [...new Set(properties.flatMap(p => p.units.flatMap(u => (u.leases ?? []).map(lease => lease.tenantId))))];
   return { OR: [
     { unitId: { in: unitIds } },
     { unitId: null, lease: { unitId: { in: unitIds } } },
+    { unitId: null, leaseId: null, tenantId: { in: tenantIds }, propertyId: { in: properties.map(p => p.id) } },
     { unitId: null, leaseId: null, tenantId: null, propertyId: { in: properties.map(p => p.id) } },
   ] };
 }

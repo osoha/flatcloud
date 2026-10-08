@@ -1,4 +1,4 @@
-import { portfolioSelectionQuery, withPortfolioSelection } from "@/lib/portfolio-selection";
+import { portfolioSelectionQuery, withPortfolioSelection, liveSelectedPropertyIds, parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { filterPortfolioProperties, portfolioPropertyOption, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import { PortfolioStatusStrip } from "@/components/PortfolioStatusStrip";
 import { BasicPortfolio } from "@/components/BasicPortfolio";
@@ -31,7 +31,6 @@ import { prisma } from "@/lib/db";
 import {unmatchedQueueCount} from "@/lib/inbound-bank/queue-counts";
 import { bankVerificationCoverage } from "@/lib/bank-verification-scope";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
-import { liveSelectedPropertyIds, parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { businessDateKeyToInstant, businessTodayKey } from "@/lib/calendar";
 import { portfolioPropertyStatus } from "@/lib/portfolio-property-status";
 import { consolidationLabel } from "@/lib/ownership-scope";
@@ -53,7 +52,6 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   const [availableProperties, query, mode] = await Promise.all([accessibleProperties(user, { includeInactive: true }), searchParams, displayMode(user.id, user.onboardingStatus === "pending" ? "basic" : user.defaultDisplayMode === "basic" ? "basic" : "pro")]);
   const selection = parsePortfolioSelection(query);
   const allowedSelection = selectedPropertyIds(selection, availableProperties.map((property)=>property.id));
-  const selectedSet = new Set(allowedSelection);
   const properties = filterPortfolioProperties(availableProperties, selection);
   const selectionValue = serializePortfolioSelection(selection);
   const scopeQuery = portfolioSelectionQuery(selection) ? `&${portfolioSelectionQuery(selection)}` : "";

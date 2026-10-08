@@ -39,7 +39,7 @@ test("owner portfolio includes units in shared houses, narrows money and tasks, 
   }
   const a = await house("Samostatná A", ondrej.id), b = await house("Samostatná B", ondrej.id), veska = await house("Veská", contact.id), moskevska = await house("Moskevská", contact.id);
   async function rentedUnit(propertyId: string, label: string, ownerId: string, amountCents: number) {
-    const unit = await db.unit.create({ data: { propertyId, label: `${label} ${tag}`, ownerships: { create: { ownerId } }, operationalStatusEvents: { create: { status: "STANDARD", effectiveAt: new Date("2020-01-01T12:00Z"), createdById: admin.id } } } });
+    const unit = await db.unit.create({ data: { propertyId, label: `${label} ${tag}`, ownerships: { create: { ownerId } }, operationalStatusEvents: { create: { status: "STANDARD", source: "MANUAL_BASELINE", effectiveAt: new Date("2020-01-01T12:00Z"), createdById: admin.id } } } });
     const tenant = await db.tenant.create({ data: { name: `Nájemce ${label} ${tag}` } });
     const lease = await db.lease.create({ data: { unitId: unit.id, tenantId: tenant.id, startDate: new Date("2020-01-01T12:00Z"), financialTrackingFromPeriod: "2020-01", rentCents: amountCents, servicesCents: 0, variableSymbol: `${tag}-${label}`, charges: { create: { period, dueDate: new Date(Date.now() - 86400000), amountCents } } } });
     return { unit, tenant, lease };

@@ -1,5 +1,5 @@
+import { portfolioSelectionQuery, parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { filterPortfolioProperties } from "@/lib/portfolio-ownership";
-import { portfolioSelectionQuery } from "@/lib/portfolio-selection";
 import { PageHeading } from "@/components/PageHeading";
 import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
 import { notFound, redirect } from "next/navigation";
@@ -13,7 +13,6 @@ import { leaseStatuses } from "@/lib/labels";
 import { leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { Shell } from "@/components/Shell";
 import { CollectionChart } from "@/components/ReportChart";
-import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 
 export const dynamic = "force-dynamic";
 

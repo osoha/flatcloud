@@ -1,4 +1,4 @@
-import { portfolioSelectionQuery, } from "@/lib/portfolio-selection";
+import { portfolioSelectionQuery, parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds } from "@/lib/portfolio-selection";
 import { filterPortfolioProperties, portfolioPropertyOption, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import { TaskSectionNav } from "@/components/TaskSectionNav";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
@@ -14,7 +14,6 @@ import { openTaskStatuses } from "@/lib/operations";
 import { Shell } from "@/components/Shell";
 import { NavigableTableRow } from "@/components/NavigableTableRow";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
-import { parsePortfolioSelection, portfolioSelectionLabel, selectedPropertyIds } from "@/lib/portfolio-selection";
 import { displayMode } from "@/lib/display-mode";
 import { BasicSectionHero, BasicSectionStat, BasicSectionItem } from "@/components/BasicSection";
 import { Bell, ListChecks } from "lucide-react";
