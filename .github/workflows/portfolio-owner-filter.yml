@@ -1,0 +1,53 @@
+name: Portfolio owner filter
+on:
+  pull_request:
+    branches: [main, sandbox/ux-agent]
+    paths:
+      - 'lib/portfolio-*.ts'
+      - 'lib/reporting/live-service.ts'
+      - 'components/PortfolioScopePicker.tsx'
+      - 'components/ScopeAwareLink.tsx'
+      - 'app/portfolio/**'
+      - 'e2e/portfolio-owner-filter.spec.ts'
+      - '.github/workflows/portfolio-owner-filter.yml'
+jobs:
+  owner-scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: portfolio_owner_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/portfolio_owner_test?schema=public
+      SESSION_SECRET: portfolio-owner-test-isolated-session-secret-2026
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22.23.1'
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma validate
+      - run: npx prisma migrate deploy
+      - run: node --import tsx scripts/verify-portfolio-ownership.ts
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test e2e/portfolio-owner-filter.spec.ts --reporter=line
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: portfolio-owner-filter-evidence
+          path: test-results/
+          retention-days: 7

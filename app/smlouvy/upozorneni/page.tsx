@@ -1,5 +1,6 @@
+import { filterPortfolioProperties } from "@/lib/portfolio-ownership";
 import { PageHeading } from "@/components/PageHeading";
-import Link from "next/link";
+import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
 import { requireUser } from "@/lib/auth";
 import { accessibleProperties } from "@/lib/access";
 import { date } from "@/lib/format";
@@ -10,13 +11,13 @@ import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelecti
 
 export const dynamic = "force-dynamic";
 
-export default async function LeaseAlertsPage({ searchParams }: { searchParams: Promise<{ propertyId?: string; properties?: string; kind?: string }> }) {
+export default async function LeaseAlertsPage({ searchParams }: { searchParams: Promise<{ propertyId?: string; ownerId?: string; properties?: string; kind?: string }> }) {
   const user = await requireUser();
   const [allProperties, query] = await Promise.all([accessibleProperties(user), searchParams]);
-  const selection = query.properties === undefined ? { mode: "ALL" } as const : parsePortfolioSelection({ properties: query.properties });
+  const selection = parsePortfolioSelection({ properties: query.properties, ownerId: query.ownerId });
   const selectedIds = selectedPropertyIds(selection, allProperties.map((property) => property.id));
   const selectedIdSet = new Set(selectedIds);
-  const scopedProperties = allProperties.filter((property) => selectedIdSet.has(property.id));
+  const scopedProperties = filterPortfolioProperties(allProperties, selection);
   const propertyId = query.propertyId && selectedIdSet.has(query.propertyId) ? query.propertyId : "";
   const properties = propertyId ? scopedProperties.filter((property) => property.id === propertyId) : scopedProperties;
   const allAlerts = leaseAlertsForProperties(properties);

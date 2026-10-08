@@ -1,3 +1,5 @@
+import { portfolioSelectionQuery, } from "@/lib/portfolio-selection";
+import { filterPortfolioProperties, portfolioPropertyOption, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import { TaskSectionNav } from "@/components/TaskSectionNav";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
@@ -22,17 +24,17 @@ export const dynamic = "force-dynamic";
 const archivePageSize = 25;
 const recentCompletedCount = 5;
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<{ properties?: string; propertyId?: string; status?: string; view?: string; page?: string }> }) {
+export default async function TasksPage({ searchParams }: { searchParams: Promise<{ ownerId?: string; properties?: string; propertyId?: string; status?: string; view?: string; page?: string }> }) {
   const user = await requireUser();
   const basic = await displayMode(user.id, user.onboardingStatus === "pending" || user.defaultDisplayMode === "basic" ? "basic" : "pro") === "basic";
   const query = await searchParams;
   const availableProperties = await accessibleProperties(user,{includeInactive:true});
   const selection = parsePortfolioSelection(query);
   const allowedIds = selectedPropertyIds(selection, availableProperties.map((property) => property.id));
-  const properties = availableProperties.filter((property) => allowedIds.includes(property.id));
+  const properties = filterPortfolioProperties(availableProperties, selection);
   const propertyIds = properties.map((property) => property.id);
   const accessScope = taskAccessWhere(user);
-  const selectionScope = selection.mode === "ALL" ? {} : { OR: [{ propertyId: { in: propertyIds } }, { propertyId: null }] };
+  const selectionScope = portfolioTaskFilter(properties, selection);
   const archive = query.status === "done";
   const defaultView = !query.status && !query.view;
   const requestedPage = Math.max(1, Number.parseInt(query.page || "1", 10) || 1);
@@ -58,7 +60,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     prisma.task.count({where:{AND:[accessScope,selectionScope,{status:{in:openTaskStatuses},category:"COLLECTION"}]}}),
     prisma.task.count({where:{AND:[accessScope,selectionScope,{status:{in:openTaskStatuses},dueAt:{lt:new Date()}}]}}),
   ]) : [tasks.filter((task) => openTaskStatuses.includes(task.status)).length,tasks.filter((task) => task.category === "COLLECTION" && openTaskStatuses.includes(task.status)).length,tasks.filter((task) => task.dueAt && task.dueAt < new Date() && openTaskStatuses.includes(task.status)).length];
-  const selectionValue = selection.mode === "ALL" ? "" : `&properties=${encodeURIComponent(allowedIds.join(","))}`;
+  const selectionValue = portfolioSelectionQuery(selection) ? `&${portfolioSelectionQuery(selection)}` : "";
   const archiveHref = `/ukoly?status=done${selectionValue}`;
   const unseenArchiveCount = archiveCount - tasks.filter(task=>task.status==="DONE").length;
   const archiveLink = defaultView && archiveCount > 0 ? <Link className="task-archive-link" href={archiveHref}>› Zobrazit archivované dokončené úkoly {unseenArchiveCount > 0 ? `(${unseenArchiveCount} dalších)` : ""}</Link> : null;
@@ -66,7 +68,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   return <Shell user={user} taskPropertyId={properties.length===1?properties[0].id:undefined}>{basic ? <div className="page basic-section-page" data-guide="tasks">
     <BasicSectionHero eyebrow="Moje práce" title="Úkoly" description="Dnešní priority, otevřené případy a společná konverzace." berry="tasks" message={overdue ? `${overdue} ${overdue===1?"úkol je":"úkoly jsou"} po termínu.` : open ? `${open} ${open===1?"otevřený úkol":"otevřených úkolů"} čeká na vyřízení.` : "Všechny úkoly jsou vyřízené."}/>
     <div className="basic-section-stats"><BasicSectionStat label="Otevřené" value={String(open)} detail="případy k řešení" tone="amber"/><BasicSectionStat label="Po termínu" value={String(overdue)} detail="nejvyšší priorita" tone={overdue?"red":"green"}/><BasicSectionStat label="Upomínky" value={String(collection)} detail="aktivní případy plateb" tone="blue"/></div>
-    <PortfolioScopePicker availableProperties={availableProperties.map((property)=>({id:property.id,name:property.name,address:property.address,city:property.city,active:property.active,ownerId:property.communicationOwner?.id||property.owner.id,ownerName:property.communicationOwner?.name||property.owner.name,scopeKind: !isFlatcloudMember(user) ? undefined : property.flatcloudConsolidationBasisPoints==null?"UNCLASSIFIED" as const:property.flatcloudConsolidationBasisPoints>0?"FLATCLOUD" as const:"EXTERNAL" as const}))} selection={selection.mode==="ALL"?selection:{mode:"SELECTED",propertyIds:allowedIds}}/>
+    <PortfolioScopePicker availableProperties={availableProperties.map(property => portfolioPropertyOption(property, isFlatcloudMember(user)))} selection={selection.mode==="ALL"?selection:{...selection,mode:"SELECTED",propertyIds:allowedIds}}/>
     <TaskSectionNav user={user} active="tasks"/>
     <div className="task-status-tabs"><Link className={!query.status&&!query.view?"active":""} href={`/ukoly?${selectionValue.slice(1)}`}>K vyřízení</Link><Link className={query.status==="open"?"active":""} href={`/ukoly?status=open${selectionValue}`}>Otevřené</Link><Link className={query.status==="done"?"active":""} href={archiveHref}>Archiv</Link><Link className={query.view==="favorites"?"active":""} href={`/ukoly?view=favorites${selectionValue}`}>★ Oblíbené</Link><Link className={query.view==="hidden"?"active":""} href={`/ukoly?view=hidden${selectionValue}`}>Skryté</Link></div>
     <div className="basic-section-heading"><h2>{archive?"Dokončené a zrušené":query.view==="favorites"?"Oblíbené":query.view==="hidden"?"Skryté":"K vyřízení"}</h2><Link className="primary" href="/ukoly/novy">＋ Nový úkol</Link></div>
@@ -74,7 +76,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     {archiveLink}{archivePages}
     <div className="basic-section-heading"><h2>Oznámení</h2><Link href="/ukoly/oznameni">Všechna oznámení →</Link></div><BasicSectionItem href="/ukoly/oznameni" icon={<Bell size={23}/>} title="Zprávy pro vás" context="Oznámení a společné informace"/>
   </div> : <div className="page">
-    <div data-guide="tasks" className="page-title"><div><PageHeading>Úkoly a případy</PageHeading><p>Jedno místo pro provozní úkoly, vymáhání nájemného a komunikaci mezi správcem a vlastníkem.</p></div><PortfolioScopePicker availableProperties={availableProperties.map((property)=>({id:property.id,name:property.name,address:property.address,city:property.city,active:property.active,ownerId:property.communicationOwner?.id||property.owner.id,ownerName:property.communicationOwner?.name||property.owner.name,scopeKind: !isFlatcloudMember(user) ? undefined : property.flatcloudConsolidationBasisPoints==null?"UNCLASSIFIED" as const:property.flatcloudConsolidationBasisPoints>0?"FLATCLOUD" as const:"EXTERNAL" as const}))} selection={selection.mode==="ALL"?selection:{mode:"SELECTED",propertyIds:allowedIds}}/></div>
+    <div data-guide="tasks" className="page-title"><div><PageHeading>Úkoly a případy</PageHeading><p>Jedno místo pro provozní úkoly, vymáhání nájemného a komunikaci mezi správcem a vlastníkem.</p></div><PortfolioScopePicker availableProperties={availableProperties.map(property => portfolioPropertyOption(property, isFlatcloudMember(user)))} selection={selection.mode==="ALL"?selection:{...selection,mode:"SELECTED",propertyIds:allowedIds}}/></div>
     <TaskSectionNav user={user} active="tasks"/>
     <div className="task-status-tabs"><Link className={!query.status&&!query.view?"active":""} href={`/ukoly?${selectionValue.slice(1)}`}>Vše</Link><Link className={query.status==="open"?"active":""} href={`/ukoly?status=open${selectionValue}`}>Otevřené</Link><Link className={query.status==="done"?"active":""} href={archiveHref}>Archiv</Link><Link className={query.view==="favorites"?"active":""} href={`/ukoly?view=favorites${selectionValue}`}>★ Oblíbené</Link><Link className={query.view==="hidden"?"active":""} href={`/ukoly?view=hidden${selectionValue}`}>Skryté z přehledu</Link></div>
     <div className="stat-grid compact-stats"><MiniStat label="Otevřené" value={String(open)} note="vyžadují řešení"/><MiniStat label="Upomínky" value={String(collection)} note="aktivní případy" bad={collection>0}/><MiniStat label="Po termínu" value={String(overdue)} note="úkoly po deadline" bad={overdue>0}/></div>

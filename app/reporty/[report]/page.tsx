@@ -1,5 +1,7 @@
+import { filterPortfolioProperties } from "@/lib/portfolio-ownership";
+import { portfolioSelectionQuery } from "@/lib/portfolio-selection";
 import { PageHeading } from "@/components/PageHeading";
-import Link from "next/link";
+import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
 import { notFound, redirect } from "next/navigation";
 import { Building2, TrendingUp, WalletCards } from "lucide-react";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
@@ -33,18 +35,18 @@ function recentPeriods(count = 12) {
   });
 }
 
-export default async function ReportPage({ params, searchParams }: { params: Promise<{ report: string }>; searchParams: Promise<{ properties?: string; propertyId?: string }> }) {
+export default async function ReportPage({ params, searchParams }: { params: Promise<{ report: string }>; searchParams: Promise<{ ownerId?: string; properties?: string; propertyId?: string }> }) {
   const [{ report }, query] = await Promise.all([params, searchParams]);
   if (!(report in reportTitles)) notFound();
   const reportKey = report as ReportKey;
   const requestedSelection = parsePortfolioSelection(query);
   const requestedValue = serializePortfolioSelection(requestedSelection);
-  if (["inkaso","nemovitosti","vlastnici"].includes(reportKey)) redirect(`/reporty?view=${reportKey==="inkaso"?"collections":"overview"}${requestedValue!==null?`&properties=${encodeURIComponent(requestedValue)}`:""}`);
+  if (["inkaso","nemovitosti","vlastnici"].includes(reportKey)) redirect(`/reporty?view=${reportKey==="inkaso"?"collections":"overview"}${portfolioSelectionQuery(requestedSelection)?`&${portfolioSelectionQuery(requestedSelection)}`:""}`);
   const user = await requireUser();
   const allProperties = await accessibleProperties(user);
   const allowedIds = selectedPropertyIds(requestedSelection, allProperties.map((property)=>property.id));
   if (requestedSelection.mode === "SELECTED" && requestedSelection.propertyIds.length !== allowedIds.length) notFound();
-  const properties = allProperties.filter((property)=>allowedIds.includes(property.id));
+  const properties = filterPortfolioProperties(allProperties, requestedSelection);
   const propertyScope = properties.length === 1 ? properties[0] : undefined;
   const period = currentPeriod();
   const periods = recentPeriods();

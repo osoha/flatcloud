@@ -6,7 +6,7 @@ import { ChevronDown, Search } from "lucide-react";
 import { createPortal } from "react-dom";
 import { portfolioSelectionLabel, withPortfolioSelection, type PortfolioSelection } from "@/lib/portfolio-selection";
 
-type PropertyOption = { id: string; name: string; address: string; city: string; active: boolean; ownerId?: string; ownerName?: string; scopeKind?: "FLATCLOUD" | "EXTERNAL" | "UNCLASSIFIED" };
+import { portfolioOwnerPresets, type PortfolioPropertyOption as PropertyOption } from "@/lib/portfolio-ownership";
 
 export function PortfolioScopePicker({ availableProperties, selection }: { availableProperties: PropertyOption[]; selection: PortfolioSelection }) {
   const router = useRouter();
@@ -40,10 +40,11 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
     return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); window.visualViewport?.removeEventListener("resize", place); window.visualViewport?.removeEventListener("scroll", place); };
   }, [open]);
   const [search, setSearch] = useState("");
-  const selectionKey = selection.mode === "ALL" ? `ALL:${availableProperties.map((property) => property.id).join(",")}` : `SELECTED:${selection.propertyIds.join(",")}`;
-  const initial = useMemo(() => selection.mode === "ALL" ? availableProperties.map((property) => property.id) : selection.propertyIds, [selectionKey]);
+  const selectionKey = `${selection.ownerId || ""}:` + (selection.mode === "ALL" ? `ALL:${availableProperties.map((property) => property.id).join(",")}` : `SELECTED:${selection.propertyIds.join(",")}`);
+  const initial = useMemo(() => selection.mode === "ALL" ? availableProperties.filter(property => !selection.ownerId || property.owners.some(owner => owner.id === selection.ownerId)).map((property) => property.id) : selection.propertyIds, [selectionKey]);
+  const [draftOwnerId, setDraftOwnerId] = useState(selection.ownerId);
   const [draft, setDraft] = useState<string[]>(initial);
-  useEffect(() => { setDraft(initial); setOpen(false); setSearch(""); }, [selectionKey, initial]);
+  useEffect(() => { setDraft(initial); setDraftOwnerId(selection.ownerId); setOpen(false); setSearch(""); }, [selectionKey, initial]);
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
       // Native page scrollbar is not a dismiss action.
@@ -66,50 +67,43 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
   }, [open, initial]);
   const visible = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase("cs");
-    return availableProperties.filter((property) => !needle || `${property.name} ${property.address} ${property.city} ${property.ownerName || ""}`.toLocaleLowerCase("cs").includes(needle));
-  }, [availableProperties, search]);
-  const ownerPresets = useMemo(() => {
-    const groups = new Map<string, { name: string; propertyIds: string[] }>();
-    for (const property of availableProperties) {
-      if (!property.ownerName) continue;
-      const key = property.ownerId || property.ownerName;
-      const group = groups.get(key) || { name: property.ownerName, propertyIds: [] };
-      group.propertyIds.push(property.id);
-      groups.set(key, group);
-    }
-    return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name, "cs"));
-  }, [availableProperties]);
+    return availableProperties.filter((property) => (!draftOwnerId || property.owners.some(owner => owner.id === draftOwnerId)) && (!needle || `${property.name} ${property.address} ${property.city} ${property.ownerName || ""} ${property.owners.map(owner => owner.name).join(" ")}`.toLocaleLowerCase("cs").includes(needle)));
+  }, [availableProperties, search, draftOwnerId]);
+  const ownerPresets = useMemo(() => portfolioOwnerPresets(availableProperties), [availableProperties]);
+  const selectedOwner = ownerPresets.find(owner => owner.id === selection.ownerId);
   const groupPresets = [
     { key: "FLATCLOUD", label: "FlatCloud Group" },
     { key: "EXTERNAL", label: "Externí správa" },
     { key: "UNCLASSIFIED", label: "Nezařazené" },
   ].map((preset) => ({ ...preset, propertyIds: availableProperties.filter((property) => property.scopeKind === preset.key).map((property) => property.id) })).filter((preset) => preset.propertyIds.length);
-  const selectedCount = selection.mode === "ALL" ? availableProperties.length : selection.propertyIds.length;
+  const selectedCount = selection.mode === "ALL" ? initial.length : selection.propertyIds.length;
 
   function close(reset = true) {
-    if (reset) setDraft(initial);
+    if (reset) { setDraft(initial); setDraftOwnerId(selection.ownerId); }
     setOpen(false);
     setSearch("");
   }
   function apply() {
-    const next: PortfolioSelection = draft.length === availableProperties.length ? { mode: "ALL" } : { mode: "SELECTED", propertyIds: [...draft].sort() };
+    const eligible = availableProperties.filter(property => !draftOwnerId || property.owners.some(owner => owner.id === draftOwnerId));
+    const next: PortfolioSelection = draft.length === eligible.length && eligible.every(property => draft.includes(property.id)) ? { mode: "ALL", ownerId: draftOwnerId } : { mode: "SELECTED", propertyIds: [...draft].sort(), ownerId: draftOwnerId };
     const params = new URLSearchParams(searchParams.toString());
     if (pathname === "/reporty") params.delete("unitId");
     router.push(withPortfolioSelection(pathname, params, next));
     setOpen(false);
   }
 
-  if (availableProperties.length <= 1) return <span className="scope-picker-single">{portfolioSelectionLabel(selection, selectedCount, availableProperties.length, availableProperties.filter((property) => property.active).length)}</span>;
+  if (availableProperties.length <= 1 && !ownerPresets.length && !selection.ownerId) return <span className="scope-picker-single">{portfolioSelectionLabel(selection, selectedCount, availableProperties.length, availableProperties.filter((property) => property.active).length)}</span>;
   return <div className="scope-picker" ref={pickerRef}>
-    <button ref={triggerRef} className="scope-picker-trigger" type="button" title="Zobrazené objekty" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><span><small>Rozsah správy</small><strong>{selection.mode === "ALL" ? `Vše ve správě · ${availableProperties.length} objektů` : `${selectedCount} z ${availableProperties.length} objektů`}</strong></span><ChevronDown size={16}/></button>
+    <button ref={triggerRef} className="scope-picker-trigger" type="button" title="Zobrazené objekty" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(!open)}><span><small>Rozsah správy</small><strong>{selection.ownerId ? `${selectedOwner?.name || "Vybraný vlastník"} · ${selectedCount} objektů` : selection.mode === "ALL" ? `Vše ve správě · ${availableProperties.length} objektů` : `${selectedCount} z ${availableProperties.length} objektů`}</strong></span><ChevronDown size={16}/></button>
     {open && createPortal(<div ref={popoverRef} className="scope-picker-popover" style={placement} role="dialog" aria-label="Vybrat zobrazené objekty">
       <div className="scope-actions"><button className="secondary" type="button" onClick={() => close()}>Zrušit změny</button><button className="primary" type="button" onClick={apply}>Použít výběr</button></div>
-      <div className="scope-bulk-actions"><button type="button" aria-label="Vybrat vše ve správě" onClick={() => setDraft(availableProperties.map((property) => property.id))}>Označit vše</button><button type="button" onClick={() => setDraft([])}>Odznačit vše</button><span aria-live="polite">Vybráno {draft.length} z {availableProperties.length}</span></div>
+      <div className="scope-bulk-actions"><button type="button" aria-label="Vybrat vše ve správě" onClick={() => { setDraftOwnerId(undefined); setDraft(availableProperties.map((property) => property.id)); }}>Označit vše</button><button type="button" onClick={() => setDraft([])}>Odznačit vše</button><span aria-live="polite">Vybráno {draft.length} z {availableProperties.length}</span></div>
       <label className="scope-search"><Search size={15}/><input autoFocus value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Najít dům nebo vlastníka…" aria-label="Hledat nemovitost nebo vlastníka"/></label>
       <div className="scope-picker-scroll">
       <div className="scope-presets" aria-label="Rychlý výběr rozsahu">
-        {groupPresets.map((preset) => <button className={`scope-group-preset ${preset.key.toLocaleLowerCase()}`} type="button" onClick={() => setDraft(preset.propertyIds)} key={preset.key}>{preset.label}<span>{preset.propertyIds.length}</span></button>)}
-        {ownerPresets.length > 1 && ownerPresets.map((owner) => <button className="scope-owner-preset" type="button" onClick={() => setDraft(owner.propertyIds)} key={`${owner.name}:${owner.propertyIds.join(",")}`}>{owner.name}<span>{owner.propertyIds.length}</span></button>)}
+        {groupPresets.map((preset) => <button className={`scope-group-preset ${preset.key.toLocaleLowerCase()}`} type="button" onClick={() => { setDraftOwnerId(undefined); setDraft(preset.propertyIds); }} key={preset.key}>{preset.label}<span>{preset.propertyIds.length}</span></button>)}
+        {ownerPresets.map((owner) => <button className="scope-owner-preset" type="button" aria-pressed={draftOwnerId === owner.id} onClick={() => { setDraftOwnerId(owner.id); setDraft(owner.propertyIds); }} key={owner.id}>{owner.name}<span>{owner.unitIds.length} j.</span></button>)}
+        {draftOwnerId && <button type="button" onClick={() => { setDraftOwnerId(undefined); setDraft(availableProperties.map(property => property.id)); }}>Zrušit filtr vlastníka</button>}
       </div>
 
       <div className="scope-options">{visible.map((property) => <label key={property.id} className={!property.active ? "archived" : ""}><input type="checkbox" checked={draft.includes(property.id)} onChange={(event) => setDraft(event.target.checked ? [...new Set([...draft, property.id])] : draft.filter((id) => id !== property.id))}/><span><strong>{property.name}</strong><small>{property.ownerName ? `${property.ownerName} · ` : ""}{property.city} · {property.address}{!property.active ? " · Archivováno" : ""}</small></span></label>)}</div>

@@ -1,3 +1,5 @@
+import { portfolioSelectionQuery, withPortfolioSelection } from "@/lib/portfolio-selection";
+import { filterPortfolioProperties, portfolioPropertyOption, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import { PortfolioStatusStrip } from "@/components/PortfolioStatusStrip";
 import { BasicPortfolio } from "@/components/BasicPortfolio";
 import { displayMode } from "@/lib/display-mode";
@@ -8,7 +10,7 @@ import { loadEntityAppearances } from "@/lib/entity-appearance";
 import { collectionComparison } from "@/lib/collection-comparison";
 import { KpiTrend } from "@/components/KpiTrend";
 import { PageHeading } from "@/components/PageHeading";
-import Link from "next/link";
+import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
 import { AlertCircle, CalendarCheck2, CheckCircle2, ClipboardCheck, ListChecks, WalletCards } from "lucide-react";
 import { EntityAvatar } from "@/components/EntityAvatar";
 import { CollectionProgress } from "@/components/CollectionProgress";
@@ -46,15 +48,15 @@ function announcementPreview(body: string) {
   return `${(lastSpace >= 200 ? start.slice(0, lastSpace) : start).trimEnd()}…`;
 }
 
-export default async function Portfolio({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; properties?: string; propertyId?: string }> }) {
+export default async function Portfolio({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; ownerId?: string; properties?: string; propertyId?: string }> }) {
   const user = await requireUser();
   const [availableProperties, query, mode] = await Promise.all([accessibleProperties(user, { includeInactive: true }), searchParams, displayMode(user.id, user.onboardingStatus === "pending" ? "basic" : user.defaultDisplayMode === "basic" ? "basic" : "pro")]);
   const selection = parsePortfolioSelection(query);
   const allowedSelection = selectedPropertyIds(selection, availableProperties.map((property)=>property.id));
   const selectedSet = new Set(allowedSelection);
-  const properties = availableProperties.filter((property)=>selectedSet.has(property.id));
+  const properties = filterPortfolioProperties(availableProperties, selection);
   const selectionValue = serializePortfolioSelection(selection);
-  const scopeQuery = selectionValue === null ? "" : `&properties=${encodeURIComponent(allowedSelection.join(","))}`;
+  const scopeQuery = portfolioSelectionQuery(selection) ? `&${portfolioSelectionQuery(selection)}` : "";
   const liveIds = new Set(liveSelectedPropertyIds(selection, availableProperties));
   const activeProperties = properties.filter((property) => liveIds.has(property.id));
   const [photos, appearances] = await Promise.all([loadEntityPhotos(user, properties.map(property => property.id)), loadEntityAppearances(user.id)]);
@@ -63,7 +65,7 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   const propertyIds = activeProperties.map((property)=>property.id);
   const propertyWideIds = fullAccess ? propertyIds : activeProperties.filter((property)=>property.memberships.some((m)=>m.userId===user.id)).map((property)=>property.id);
   const visibleUnitIds = activeProperties.flatMap((property)=>property.units.map((unit)=>unit.id));
-  const taskVisibilityScope = { AND: [taskAccessWhere(user), selection.mode === "ALL" ? {} : { OR: [{ propertyId: { in: allowedSelection } }, { propertyId: null }] }] };
+  const taskVisibilityScope = { AND: [taskAccessWhere(user), portfolioTaskFilter(properties, selection)] };
   const revisionScope = fullAccess ? { propertyId: { in: propertyIds } } : { propertyId: { in: propertyWideIds } };
   const revisionHorizon = new Date(Date.now()+60*86_400_000);
 
@@ -115,7 +117,7 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   const contractAlerts = leaseAlertsForProperties(activeProperties);
   const expiryCount = contractAlerts.filter((row) => row.kind === "EXPIRY").length;
   const anniversaryCount = contractAlerts.filter((row) => row.kind === "ANNIVERSARY").length;
-  const unmatchedCount = await unmatchedQueueCount(user,propertyIds);
+  const unmatchedCount = await unmatchedQueueCount(user,propertyIds,selection.ownerId);
   const bankVerifiedUnits = activeRows.reduce((sum, row) => sum + row.bankVerifiedCount, 0);
   const bankTotalUnits = activeRows.reduce((sum, row) => sum + row.bankUnits, 0);
 
@@ -126,10 +128,10 @@ export default async function Portfolio({ searchParams }: { searchParams: Promis
   for(const item of revisions.slice(0,3))attention.push({title:item.name,detail:`${item.property.name} · ${date(item.nextDueAt)} · ${complianceState(item).label}`,href:`/nemovitosti/${item.propertyId}/provoz#revize`,tone:complianceState(item).key==="overdue"?"bad":"warn"});
   for(const alert of hideAlertsCoveredByAutomaticTasks(contractAlerts,tasks).slice(0,3))attention.push({title:`${alert.kind==="EXPIRY"?"Expirace":"Výročí"} · ${alert.lease.unit.label}`,detail:`${alert.property.name} · ${alert.lease.tenant.name} · ${date(alert.date)}`,href:`/smlouvy/${alert.lease.id}`,tone:"info"});
 
-  const displayReturnTo = selectionValue === null ? "/portfolio" : `/portfolio?properties=${encodeURIComponent(allowedSelection.join(","))}`;
-  if (mode === "basic") return <Shell user={user} displayReturnTo={displayReturnTo}><BasicPortfolio name={user.name} period={period} rows={rows} photos={photos} expected={expected} paid={paid} debt={debt} taskCount={taskCount} attention={attention} announcementCount={announcements.length} scopeOptions={availableProperties.map(({id,name,address,city,active,owner,communicationOwner,flatcloudConsolidationBasisPoints})=>({id,name,address,city,active,ownerId:communicationOwner?.id||owner.id,ownerName:communicationOwner?.name||owner.name,scopeKind: !isFlatcloudMember(user) ? undefined : flatcloudConsolidationBasisPoints==null?"UNCLASSIFIED" as const:flatcloudConsolidationBasisPoints>0?"FLATCLOUD" as const:"EXTERNAL" as const}))} selection={selection.mode==="ALL"?selection:{mode:"SELECTED",propertyIds:allowedSelection}}/></Shell>;
+  const displayReturnTo = withPortfolioSelection("/portfolio", new URLSearchParams(), selection);
+  if (mode === "basic") return <Shell user={user} displayReturnTo={displayReturnTo}><BasicPortfolio name={user.name} period={period} rows={rows} photos={photos} expected={expected} paid={paid} debt={debt} taskCount={taskCount} attention={attention} announcementCount={announcements.length} scopeOptions={availableProperties.map(property => portfolioPropertyOption(property, isFlatcloudMember(user)))} selection={selection.mode==="ALL"?selection:{...selection,mode:"SELECTED",propertyIds:allowedSelection}}/></Shell>;
 
-  return <Shell user={user} displayReturnTo={displayReturnTo}><div className="page v21-portfolio"><div className="page-title"><div><PageHeading>Portfolio</PageHeading><p>{portfolioSelectionLabel(selection,properties.length,availableProperties.length,availableProperties.filter((property)=>property.active).length)} · období {period}.</p></div><div className="action-row"><PortfolioScopePicker availableProperties={availableProperties.map(({id,name,address,city,active,owner,communicationOwner,flatcloudConsolidationBasisPoints})=>({id,name,address,city,active,ownerId:communicationOwner?.id||owner.id,ownerName:communicationOwner?.name||owner.name,scopeKind: !isFlatcloudMember(user) ? undefined : flatcloudConsolidationBasisPoints==null?"UNCLASSIFIED" as const:flatcloudConsolidationBasisPoints>0?"FLATCLOUD" as const:"EXTERNAL" as const}))} selection={selection.mode==="ALL"?selection:{mode:"SELECTED",propertyIds:allowedSelection}}/></div></div><Flash ok={query.ok} error={query.error}/>
+  return <Shell user={user} displayReturnTo={displayReturnTo}><div className="page v21-portfolio"><div className="page-title"><div><PageHeading>Portfolio</PageHeading><p>{portfolioSelectionLabel(selection,properties.length,availableProperties.length,availableProperties.filter((property)=>property.active).length)} · období {period}.</p></div><div className="action-row"><PortfolioScopePicker availableProperties={availableProperties.map(property => portfolioPropertyOption(property, isFlatcloudMember(user)))} selection={selection.mode==="ALL"?selection:{...selection,mode:"SELECTED",propertyIds:allowedSelection}}/></div></div><Flash ok={query.ok} error={query.error}/>
     <div data-guide="portfolio" className="stat-grid v21-stat-grid"><Kpi href={`/reporty?view=collections${scopeQuery}`} icon={<CheckCircle2/>} label="Inkaso" value={collectionExpected?`${Math.round(collectionPaid/collectionExpected*100)} %`:"—"} note={`${money(collectionPaid)} z ${money(collectionExpected)}${comparison ? ` · k ${comparison.comparisonDay}. dni` : ""}`} tone="green" trend={<KpiTrend comparison={collectionTrend}/>}/><Kpi href={`/reporty?view=collections${scopeQuery}`} icon={<WalletCards/>} label="Dluh" value={money(debt)} note="po splatnosti" tone={debt > 0 ? "red" : "green"} bad={debt>0} trend={<MetricTrend current={debt} previous={comparison?previousDebt:null} unit="cents" period={previousDate.toLocaleDateString("cs-CZ")} higherIsBetter={false}/>}/><Kpi href={`/ukoly?${scopeQuery.slice(1)}`} icon={<ListChecks/>} label="Úkoly" value={String(taskCount)} note="otevřených případů" tone="orange" bad={tasks.some(t=>t.priority==="URGENT")}/><Kpi href={`/revize?${scopeQuery.slice(1)}`} icon={<ClipboardCheck/>} label="Revize" value={String(revisionCount)} note={`${overdueRevisionCount} po termínu`} tone="purple" bad={overdueRevisionCount>0}/><Kpi href={`/smlouvy/upozorneni?${scopeQuery.slice(1)}`} icon={<CalendarCheck2/>} label="Smlouvy" value={String(contractAlerts.length)} note={`${expiryCount} expirace · ${anniversaryCount} výročí`} tone="blue"/>{(canManageProperty(user.role)||unmatchedCount>0)&&<Kpi href={`/platby/nesparovane?${scopeQuery.slice(1)}`} icon={<AlertCircle/>} label="Nespárované" value={String(unmatchedCount)} note="plateb k řešení" tone="red" bad={unmatchedCount>0}/>}</div>
     <PortfolioStatusStrip userId={user.id} items={[
       { label: "Aktivní nemovitosti", value: String(activeRows.length) },

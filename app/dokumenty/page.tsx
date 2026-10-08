@@ -1,3 +1,5 @@
+import { withPortfolioSelection } from "@/lib/portfolio-selection";
+import { filterPortfolioProperties, portfolioPropertyOption, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import { accessibleProperties } from "@/lib/access";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
 import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
@@ -19,7 +21,7 @@ import { EntityAvatar } from "@/components/EntityAvatar";
 import { loadEntityPhotos } from "@/lib/entity-photos";
 
 export const dynamic = "force-dynamic";
-type Query = { properties?: string; propertyId?: string; q?: string; property?: string; category?: string; type?: string; dateFrom?: string; dateTo?: string; page?: string; ok?: string; error?: string };
+type Query = { ownerId?: string; properties?: string; propertyId?: string; q?: string; property?: string; category?: string; type?: string; dateFrom?: string; dateTo?: string; page?: string; ok?: string; error?: string };
 const validDate = (value?: string): value is BusinessDateKey => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T12:00:00Z`)));
 
 export default async function DocumentsPage({ searchParams }: { searchParams: Promise<Query> }) {
@@ -29,17 +31,27 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
   const availableProperties = await accessibleProperties(user, { includeInactive: true });
   const selection = parsePortfolioSelection(q);
   const selectedIds = selectedPropertyIds(selection, availableProperties.map(property => property.id));
-  const scopedProperties = availableProperties.filter(property => selectedIds.includes(property.id));
-  const selectionValue = serializePortfolioSelection(selection.mode === "ALL" ? selection : { mode: "SELECTED", propertyIds: selectedIds });
+  const scopedProperties = filterPortfolioProperties(availableProperties, selection);
+  const selectionValue = serializePortfolioSelection(selection.mode === "ALL" ? selection : { ...selection, mode: "SELECTED", propertyIds: selectedIds });
   const catalogQuery = { ...q, properties: selectionValue ?? undefined, propertyId: undefined };
-  const resetHref = selectionValue === null ? "/dokumenty" : `/dokumenty?properties=${encodeURIComponent(selectionValue)}`;
-  const scopeInput = selectionValue === null ? null : <input type="hidden" name="properties" value={selectionValue}/>;
-  const scopePicker = <PortfolioScopePicker availableProperties={availableProperties.map(property => ({ id: property.id, name: property.name, address: property.address, city: property.city, active: property.active }))} selection={selection.mode === "ALL" ? selection : { mode: "SELECTED", propertyIds: selectedIds }}/>;
+  const resetHref = withPortfolioSelection("/dokumenty", new URLSearchParams(), selection);
+  const scopeInput = <>{selection.ownerId && <input type="hidden" name="ownerId" value={selection.ownerId}/>} {selectionValue !== null && <input type="hidden" name="properties" value={selectionValue}/>}</>;
+  const scopePicker = <PortfolioScopePicker availableProperties={availableProperties.map(property => portfolioPropertyOption(property))} selection={selection.mode === "ALL" ? selection : { ...selection, mode: "SELECTED", propertyIds: selectedIds }}/>;
   const page = Math.max(1, Number(q.page) || 1);
   const dateFrom = validDate(q.dateFrom) ? businessDateKeyToInstant(q.dateFrom) : undefined;
   const dateTo = validDate(q.dateTo) ? businessDateEndInstant(q.dateTo) : undefined;
+  const ownerUnitIds = scopedProperties.flatMap(property => property.units.map(unit => unit.id));
+  const ownedTask = portfolioTaskFilter(scopedProperties, selection);
+  const ownerDocumentScope: Prisma.DocumentWhereInput = selection.ownerId ? { OR: [
+    { unitId: { in: ownerUnitIds } },
+    { unitId: null, lease: { unitId: { in: ownerUnitIds } } },
+    { unitId: null, leaseId: null, task: ownedTask },
+    { unitId: null, leaseId: null, taskEntry: { task: ownedTask } },
+    { unitId: null, leaseId: null, propertyCost: { unitId: { in: ownerUnitIds } } },
+    { unitId: null, leaseId: null, taskId: null, taskEntryId: null, propertyCostId: null, propertyId: { in: scopedProperties.map(property => property.id) } },
+  ] } : {};
   const filters: Prisma.DocumentWhereInput = {
-    AND: [documentAccessWhere(user), ...(selection.mode === "ALL" ? [] : [{ propertyId: { in: selectedIds } }])],
+    AND: [documentAccessWhere(user), ownerDocumentScope, ...(selection.mode === "ALL" ? [] : [{ propertyId: { in: selectedIds } }])],
     ...(q.property ? { propertyId: q.property } : {}),
     ...(q.category && Object.values(DocumentCategory).includes(q.category as DocumentCategory) ? { category: q.category as DocumentCategory } : {}),
     ...(q.type ? { fileAsset: { mimeType: { startsWith: q.type === "image" ? "image/" : q.type } } } : {}),
