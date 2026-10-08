@@ -6,8 +6,24 @@ import { currentPeriod } from "../lib/period";
 
 const db = new PrismaClient();
 const password = "Owner-Scope-Isolated-2026";
+let fixtureTag: string | undefined;
 test.beforeAll(() => {
   if (!process.env.DATABASE_URL || !["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error("Isolated database required");
+});
+test.afterEach(async () => {
+  if (!fixtureTag) return;
+  const taggedName = { endsWith: ` ${fixtureTag}` };
+  const taggedEmail = { endsWith: `${fixtureTag}@flatcloud.test` };
+  await db.$transaction([
+    db.task.deleteMany({ where: { property: { name: taggedName } } }),
+    // Property deletion cascades through units, leases, charges and ownerships.
+    db.property.deleteMany({ where: { name: taggedName } }),
+    db.tenant.deleteMany({ where: { name: taggedName } }),
+    db.owner.deleteMany({ where: { name: taggedName } }),
+    db.auditLog.deleteMany({ where: { user: { email: taggedEmail } } }),
+    db.user.deleteMany({ where: { email: taggedEmail } }),
+  ]);
+  fixtureTag = undefined;
 });
 test.afterAll(() => db.$disconnect());
 async function login(page: Page, email: string) {
@@ -27,6 +43,7 @@ async function selectOwner(page: Page, name: string) {
 test("owner portfolio includes units in shared houses, narrows money and tasks, and survives navigation", async ({ page, browser }, info) => {
   test.setTimeout(120000);
   const tag = randomUUID(), hash = await bcrypt.hash(password, 8), period = currentPeriod();
+  fixtureTag = tag;
   const admin = await db.user.create({ data: { email: `scope-admin-${tag}@flatcloud.test`, name: "Správce filtru", role: "SUPER_ADMIN", passwordHash: hash, onboardingStatus: "completed", defaultDisplayMode: "basic", isTestIdentity: true } });
   const viewer = await db.user.create({ data: { email: `scope-viewer-${tag}@flatcloud.test`, name: "Vlastník test", role: "OWNER_VIEWER", passwordHash: hash, onboardingStatus: "completed", defaultDisplayMode: "basic", isTestIdentity: true } });
   const restricted = await db.user.create({ data: { email: `scope-limited-${tag}@flatcloud.test`, name: "Pouze jednotka", role: "OWNER_VIEWER", passwordHash: hash, onboardingStatus: "completed", defaultDisplayMode: "basic", isTestIdentity: true } });
