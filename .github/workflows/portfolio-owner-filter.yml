@@ -9,6 +9,8 @@ on:
       - 'components/ScopeAwareLink.tsx'
       - 'app/portfolio/**'
       - 'e2e/portfolio-owner-filter.spec.ts'
+      - 'e2e/zzz-bank-verification.spec.ts'
+      - 'e2e/zzz-r24-report-defaults.spec.ts'
       - '.github/workflows/portfolio-owner-filter.yml'
 jobs:
   owner-scope:
@@ -41,10 +43,12 @@ jobs:
       - run: npx prisma generate
       - run: npx prisma validate
       - run: npx prisma migrate deploy
+      - run: npm run e2e:seed
+      - run: npm run e2e:seed:r24-roles
       - run: node --import tsx scripts/verify-portfolio-ownership.ts
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test e2e/portfolio-owner-filter.spec.ts --reporter=line
+      - run: npx playwright test e2e/portfolio-owner-filter.spec.ts e2e/zzz-bank-verification.spec.ts e2e/zzz-r24-report-defaults.spec.ts --reporter=line
       - uses: actions/upload-artifact@v4
         if: always()
         with:
