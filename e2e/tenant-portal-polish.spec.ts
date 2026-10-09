@@ -36,14 +36,14 @@ test("payment colors follow debt and Czech calendar, including partial and settl
   for (const debtTreatment of ["HISTORICAL", "EXCLUDED"] as const) expect(tenantPortalPaymentState({...charge, debtTreatment, dueDate: new Date("2025-01-01T12:00:00Z")}, "2026-10-05").tone).toBe("neutral");
 });
 
-test("portal shares canonical branding, landlord wording, four payment colors and working staff archive links", async ({page, browser}, info) => {
+test("portal shares canonical branding, contact priority, four payment colors and working staff archive links", async ({page, browser}, info) => {
   test.setTimeout(90000);
   const tag = randomUUID(), passwordHash = await bcrypt.hash(password, 8);
   const manager = await db.user.create({data: {email: `polish-manager-${tag}@flatcloud.test`, name: "Petra Testovací", role: "PROPERTY_MANAGER", passwordHash, isTestIdentity: true, defaultDisplayMode: "pro", profiGraphics: true}});
   const actor = await db.user.create({data: {email: `polish-tenant-${tag}@flatcloud.test`, name: "Jana Testovací", role: "TENANT", passwordHash, isTestIdentity: true}});
   const owner = await db.owner.create({data: {name: "Brickflow QA", email: `owner-${tag}@flatcloud.test`}});
   const photo = await sharp({create: {width: 80, height: 80, channels: 3, background: "#e6d9c5"}}).png().toBuffer();
-  const property = await db.property.create({data: {ownerId: owner.id, name: `Portál QA ${tag}`, address: "Testovací 1", postalCode: "110 00", city: "Praha", avatarPhotoId: "upload", avatarMimeType: "image/png", avatarData: new Uint8Array(photo), memberships: {create: {userId: manager.id, permission: "EDIT"}}}});
+  const property = await db.property.create({data: {ownerId: owner.id, name: `Portál QA ${tag}`, address: "Testovací 1", postalCode: "110 00", city: "Praha", avatarPhotoId: "upload", avatarMimeType: "image/png", avatarData: new Uint8Array(photo)}});
   const unit = await db.unit.create({data: {propertyId: property.id, label: "Byt 12"}});
   const tenant = await db.tenant.create({data: {name: actor.name, email: actor.email}});
   const lease = await db.lease.create({data: {unitId: unit.id, tenantId: tenant.id, startDate: new Date("2024-01-01T12:00:00Z"), financialTrackingFromPeriod: "2024-01", rentCents: 1250000, servicesCents: 0, variableSymbol: tag}});
@@ -108,6 +108,12 @@ test("portal shares canonical branding, landlord wording, four payment colors an
     await expect(documents).toContainText(sharedDocument.title); await expect(documents).not.toContainText("Soukromá příloha správy");
     await expect(documents.getByRole("link", {name: "Stáhnout", exact: true})).toHaveAttribute("href", `/api/portal/tenants/${tenant.id}/documents/${sharedDocument.id}`);
 
+    // Without an assigned manager the landlord is shown; a whole-house grant takes precedence.
+    await db.userProperty.create({data: {userId: manager.id, propertyId: property.id, permission: "EDIT"}});
+    await page.goto(`/portal/najemnik/${tenant.id}`);
+    await expect(page.getByRole("heading", {name: "Váš správce", exact: true})).toBeVisible();
+    await expect(page.locator(".tp-contact")).toContainText(manager.name);
+    await expect(page.getByRole("heading", {name: "Kontakt na pronajímatele", exact: true})).toHaveCount(0);
     await login(managerPage, manager.email);
     await managerPage.goto(`/portal/najemnik/${tenant.id}#dokumenty-${lease.id}`);
     const preview = managerPage.getByRole("dialog", {name: "Dokumenty", exact: true});

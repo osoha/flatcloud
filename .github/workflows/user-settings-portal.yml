@@ -17,6 +17,7 @@ on:
       - 'e2e/user-settings-portal.spec.ts'
       - 'e2e/bank-account-lifecycle.spec.ts'
       - 'e2e/task-archive-admin-avatar.spec.ts'
+      - 'e2e/tenant-portal-polish.spec.ts'
       - '.github/workflows/user-settings-portal.yml'
 jobs:
   user-settings-portal:
@@ -57,7 +58,7 @@ jobs:
       - run: node --import tsx scripts/verify-submitted-user-permissions.ts
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test e2e/user-settings-portal.spec.ts e2e/bank-account-lifecycle.spec.ts e2e/tenant-portal-conversations.spec.ts e2e/task-archive-admin-avatar.spec.ts --reporter=line
+      - run: npx playwright test e2e/user-settings-portal.spec.ts e2e/bank-account-lifecycle.spec.ts e2e/tenant-portal-conversations.spec.ts e2e/task-archive-admin-avatar.spec.ts e2e/tenant-portal-polish.spec.ts --reporter=line
       - uses: actions/upload-artifact@v4
         if: always()
         with:
