@@ -64,6 +64,9 @@ test("owner registration, isolated visibility, independent verification, notices
   await login(tenantPage,tenantUser.email,password);await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
   await expect(tenantPage.locator("#bankovni-oznameni")).toContainText("Oznámení o změně platebních údajů");
   const noticeRow=tenantPage.locator(`#bankovni-oznameni-${notice.id}`);
+  const change=await db.bankAccountChange.findUniqueOrThrow({where:{id:notice.changeId}});
+  const [effectiveYear,effectiveMonth,effectiveDay]=businessDateKey(change.effectiveAt).split("-");
+  await expect(noticeRow.locator("summary")).toContainText(`Účinnost ${Number(effectiveDay)}. ${Number(effectiveMonth)}. ${effectiveYear}`);
   await expect(tenantPage.locator(".tp-messages #bankovni-oznameni")).toHaveCount(1);
   await expect(tenantPage.getByRole("heading",{name:notice.title,exact:true})).toHaveCount(1);
   await noticeRow.locator("summary").click();
