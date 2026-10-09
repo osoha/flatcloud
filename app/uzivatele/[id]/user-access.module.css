@@ -1,4 +1,4 @@
-.formStack{display:grid;gap:16px}
+.formStack{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
 .accessOverview{display:grid;gap:14px;background:var(--fb-surface,#fff)}
 .overviewHead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .overviewHead h2,.sectionHead h2{margin:0;font-size:15px}
@@ -9,7 +9,7 @@
 .overviewItem span,.overviewItem strong{display:block}
 .overviewItem span{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.45px}
 .overviewItem strong{font-size:12px;margin-top:4px;overflow-wrap:anywhere}
-.sectionCard{display:grid;gap:18px}
+.sectionCard{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;min-width:0}
 .sectionHead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding-bottom:13px;border-bottom:1px solid var(--line)}
 .sectionTag{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.55px;color:var(--blue);background:var(--blue-soft);padding:6px 8px;border-radius:999px;white-space:nowrap}
 .profileGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
@@ -54,7 +54,10 @@
 .confirmBox span{margin-top:3px;color:var(--muted);font-size:9px;line-height:1.45}
 .actions{display:flex;justify-content:flex-end;gap:9px;align-items:center}
 .emptyState{padding:14px;color:var(--muted);font-size:10px}
-.editor :global(.form-page){width:100%;max-width:1180px;display:grid;gap:18px}
+.editor{min-width:0}
+.editor :global(.form-page){width:100%;max-width:1180px;display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.editor :global(.form-page)>*{min-width:0}
+.editor :global(.field),.editor :global(.field) input{min-width:0}
 .editor :global(.form-page) > :global(.page-title),.editor :global(.form-page) > :global(.breadcrumb),.editor :global(.flash){margin-bottom:0}
 .editor h2{font-size:18px;line-height:1.4;margin:0}
 .editor p{line-height:1.6}

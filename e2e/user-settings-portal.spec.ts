@@ -18,7 +18,9 @@ async function login(page: Page, email: string, pass = password) {
 }
 async function shot(page: Page, info: TestInfo, name: string) {
   await page.evaluate(() => document.fonts.ready);
+  await page.evaluate(() => window.scrollTo(0, 0));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+  expect(await page.locator('.form-page > .card, .form-page > .page-title, [data-testid="user-access-form"]').evaluateAll(elements => elements.every(element => element.getBoundingClientRect().right <= innerWidth + 1))).toBe(true);
   await page.screenshot({path: info.outputPath(`${name}.png`), fullPage: true, animations: "disabled"});
 }
 
