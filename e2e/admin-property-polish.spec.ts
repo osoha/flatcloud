@@ -113,6 +113,8 @@ test("unit histories show ten rows then expand; property tenant and contract row
   await login(page, f.admin);
   expect((await db.user.findUniqueOrThrow({ where: { id: f.admin.id } })).profiGraphics).toBe(true);
   await page.goto(`/nemovitosti/${f.property.id}/jednotky/${f.unit.id}`);
+  await expect(page.locator(".unit-portal-access")).toHaveCount(1);
+  await expect(page.locator("#osoby .unit-portal-access")).toBeVisible();
   const histories = page.locator(".recent-history");
   await expect(histories).toHaveCount(4);
   for (let i = 0; i < 4; i++) {
@@ -122,6 +124,14 @@ test("unit histories show ten rows then expand; property tenant and contract row
     await expect(history.locator("details tbody tr")).toHaveCount(2);
   }
   await page.screenshot({ path: info.outputPath("unit-histories-desktop.png"), fullPage: true });
+  await page.locator('.sidebar .display-mode-switch button[value="basic"]').click();
+  await expect(page.locator(".basic-unit-details")).not.toHaveAttribute("open");
+  await expect(page.locator(".unit-portal-access")).toBeVisible();
+  await expect(page.locator(".unit-portal-access")).toContainText("Portál nájemníka");
+  await expect(page.locator(".basic-unit-details .unit-portal-access")).toHaveCount(0);
+  await expect(page.locator(".unit-portal-access").getByRole("link", { name: "Prohlédnout očima nájemníka" })).toBeVisible();
+  await page.locator('.sidebar .display-mode-switch button[value="pro"]').click();
+  await expect(page.locator("#osoby .unit-portal-access")).toBeVisible();
   await page.goto(`/nemovitosti/${f.property.id}/najemnici`);
   await page.locator(".navigable-table-row").first().locator("td").nth(2).click();
   await expect(page).toHaveURL(new RegExp(`/najemnici/${f.tenant.id}`));
