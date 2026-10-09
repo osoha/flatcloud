@@ -77,7 +77,7 @@ export function PortfolioScopePicker({ availableProperties, selection, viewerId 
   }, [open, initial]);
   const visible = useMemo(() => {
     const needle = normalizeSearch(search.trim());
-    return availableProperties.filter((property) => (!draftOwnerId || property.owners.some(owner => owner.id === draftOwnerId)) && (!needle || normalizeSearch(`${property.name} ${property.address} ${property.city} ${property.ownerName || ""} ${property.owners.map(owner => owner.name).join(" ")}`).includes(needle)));
+    return availableProperties.filter((property) => (!draftOwnerId || property.owners.some(owner => owner.id === draftOwnerId)) && (!needle || normalizeSearch(`${property.name} ${property.address} ${property.city} ${property.ownerName || ""} ${(property.ownerSearchNames || []).join(" ")} ${property.owners.map(owner => owner.name).join(" ")}`).includes(needle)));
   }, [availableProperties, search, draftOwnerId]);
   const ownerPresets = useMemo(() => portfolioOwnerPresets(availableProperties), [availableProperties]);
   const selectedOwner = ownerPresets.find(owner => owner.id === selection.ownerId);

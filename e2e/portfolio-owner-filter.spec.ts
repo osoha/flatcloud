@@ -143,3 +143,21 @@ test("owner portfolio includes units in shared houses, narrows money and tasks, 
   await expect(ownerPage.locator("main")).not.toContainText(/88\s?000/);
   await ownerPage.close();
 });
+
+test("search finds a house-level owner without treating that name as the legal unit owner", async ({ page }) => {
+  const tag = randomUUID(); fixtureTag = tag;
+  const admin = await db.user.create({ data: { email: `scope-alias-${tag}@flatcloud.test`, name: "Správce hledání", role: "SUPER_ADMIN", passwordHash: await bcrypt.hash(password, 8), onboardingStatus: "completed", defaultDisplayMode: "basic", isTestIdentity: true } });
+  const person = await db.owner.create({ data: { name: `Ondřej Šohaj ${tag}` } });
+  const company = await db.owner.create({ data: { name: `BrickFlow ${tag}` } });
+  const association = await db.owner.create({ data: { name: `SVJ ${tag}` } });
+  const property = await db.property.create({ data: { name: `Veská ${tag}`, address: "Testovací 1", city: "Plzeň", ownershipMode: "UNIT_BASED", ownerId: association.id, communicationOwnerId: association.id, ownerships: { create: [{ ownerId: person.id, shareBasisPoints: 1000 }, { ownerId: association.id, shareBasisPoints: 9000 }] } } });
+  await db.unit.create({ data: { propertyId: property.id, label: "Firemní jednotka", ownerships: { create: { ownerId: company.id } } } });
+  await login(page, admin.email);
+  await page.getByRole("button", { name: /Rozsah správy/ }).click();
+  await page.getByLabel("Hledat nemovitost nebo vlastníka").fill(`sohaj ${tag}`);
+  await expect(page.locator(".scope-options label")).toHaveCount(1);
+  await expect(page.locator(".scope-options")).toContainText(property.name);
+  const ownerSelect = page.getByLabel("Vlastník jednotek", { exact: true });
+  await expect(ownerSelect.locator("option").filter({ hasText: person.name })).toHaveCount(0);
+  await expect(ownerSelect.locator("option").filter({ hasText: company.name })).toHaveCount(1);
+});

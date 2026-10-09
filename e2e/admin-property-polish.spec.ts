@@ -46,6 +46,14 @@ async function fixture() {
 async function login(page: Page, user: { email: string }) {
   await page.goto("/login"); await page.getByLabel("E-mail", { exact: true }).fill(user.email); await page.getByLabel("Heslo", { exact: true }).fill(password); await page.getByRole("button", { name: "Přihlásit se", exact: true }).click(); await expect(page).toHaveURL(/\/portfolio/);
 }
+// Chromium sends the production Secure session cookie on trusted loopback HTTP;
+// APIRequestContext does not. Keep these checks inside the authenticated browser.
+async function browserRequest(page: Page, path: string, form?: Record<string, string>) {
+  return page.evaluate(async ({ path, form }) => {
+    const response = await fetch(path, form ? { method: "POST", body: new URLSearchParams(form) } : undefined);
+    return { status: response.status, url: response.url };
+  }, { path, form });
+}
 test.beforeAll(async () => {
   if (!process.env.DATABASE_URL || !["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error("Isolated database required");
   f = await fixture();
@@ -69,10 +77,14 @@ test("personal queue omits unrelated general tasks and responsible person is edi
   await form.getByRole("button", { name: "Přiřadit odpovědného" }).click();
   await expect(page.getByRole("status")).toContainText("Odpovědný byl přiřazen");
   expect((await db.task.findUniqueOrThrow({ where: { id: f.task.id } })).assigneeId).toBe(f.manager.id);
-  await page.request.post(`/api/tasks/${f.task.id}/members`, { form: { action: "assign", userId: f.admin.id, revision } });
+  const stale = await browserRequest(page, `/api/tasks/${f.task.id}/members`, { action: "assign", userId: f.admin.id, revision });
+  expect(stale.status).toBe(200);
+  expect(new URL(stale.url).searchParams.get("error")).toContain("Úkol se mezitím změnil");
   expect((await db.task.findUniqueOrThrow({ where: { id: f.task.id } })).assigneeId).toBe(f.manager.id);
   const fresh = await db.task.findUniqueOrThrow({ where: { id: f.task.id } });
-  await page.request.post(`/api/tasks/${f.task.id}/members`, { form: { action: "assign", userId: f.outsider.id, revision: fresh.updatedAt.toISOString() } });
+  const unauthorized = await browserRequest(page, `/api/tasks/${f.task.id}/members`, { action: "assign", userId: f.outsider.id, revision: fresh.updatedAt.toISOString() });
+  expect(unauthorized.status).toBe(200);
+  expect(new URL(unauthorized.url).searchParams.get("error")).toContain("nemá přístup");
   expect((await db.task.findUniqueOrThrow({ where: { id: f.task.id } })).assigneeId).toBe(f.manager.id);
   expect(await responsibleUserForUnit(f.unit.id)).toBe(f.manager.id);
   await db.userProperty.delete({ where: { userId_propertyId: { userId: f.manager.id, propertyId: f.property.id } } });
@@ -90,7 +102,7 @@ test("a shared-house VIEW grant never exposes another owner's direct or indirect
   await expect(page.locator("main")).not.toContainText("Cizí dokument");
   await page.locator(".document-unit-group summary").click();
   await expect(page.locator("main")).toContainText("Vlastní dokument");
-  for (const document of f.forbidden) expect((await page.request.get(`/api/documents/${document.id}/download`)).status()).toBe(404);
+  for (const document of f.forbidden) expect((await browserRequest(page, `/api/documents/${document.id}/download`)).status).toBe(404);
   // Even an unlinked owner with a building VIEW grant gets common documents only.
   await db.userProperty.create({ data: { userId: f.outsider.id, propertyId: f.property.id, permission: "VIEW" } });
   expect((await db.document.findMany({ where: { AND: [documentAccessWhere(f.outsider), { propertyId: f.property.id }] }, select: { id: true } })).map(row => row.id)).toEqual([f.common.id]);
@@ -118,13 +130,24 @@ test("unit histories show ten rows then expand; property tenant and contract row
   await leaseRow.locator("td").nth(3).click();
   await expect(page).toHaveURL(new RegExp(`/smlouvy/${f.lease.id}`));
   await page.goto(`/nemovitosti/${f.property.id}/platby`);
-  await expect(page.getByRole("columnheader", { name: "Jednotka", exact: true })).toBeVisible();
-  await expect(page.locator("tbody tr").first()).toContainText(f.unit.label);
+  const settledPayments = page.locator(".portfolio-table-card").filter({ has: page.getByRole("heading", { name: "Vyřešené platby", exact: true }) });
+  await expect(settledPayments.getByRole("columnheader", { name: "Jednotka", exact: true })).toBeVisible();
+  await expect(settledPayments.locator("tbody tr")).toHaveCount(12);
+  await expect(settledPayments.locator("tbody tr").first()).toContainText(f.unit.label);
 });
 
 test("admin and property layouts preserve controls on desktop and mobile", async ({ page }, info) => {
   await login(page, f.admin);
-  const routes = ["/nastaveni/system", "/nastaveni/oznameni", "/nastaveni/automaticke-ukoly", "/nastaveni/cenovy-benchmark", "/reporty/sablony", `/nemovitosti/${f.property.id}/nastaveni`, `/nemovitosti/${f.property.id}/technicke-udaje`, `/nemovitosti/${f.property.id}/finance`, `/nemovitosti/${f.property.id}/meridla`];
+  await page.goto(`/nemovitosti/${f.property.id}/prehled`);
+  await expect(page.locator(".v21-stat-grid .stat > div > span")).toHaveText(["Inkaso", "Dluh", "Nespárované", "Smlouvy", "Revize", "Úkoly"]);
+  await expect(page.locator(".property-subnav a")).toHaveCount(13);
+  await expect(page.locator(".onboarding-checklist summary")).toBeVisible();
+  await page.locator(".onboarding-checklist summary").click();
+  await expect(page.locator(".onboarding-step-card").filter({ hasText: "Správce a spolupracovníci" })).toHaveClass(/done/);
+  await expect(page.locator(".property-overview-contacts")).toContainText(f.manager.name);
+  await expect(page.locator(".property-overview-payments tbody tr")).toHaveCount(6);
+  await expect(page.getByRole("heading", { name: "Stav objektu", exact: true })).toHaveCount(0);
+  const routes = [`/nemovitosti/${f.property.id}/prehled`, "/nastaveni/system", "/nastaveni/oznameni", "/nastaveni/automaticke-ukoly", "/nastaveni/cenovy-benchmark", "/reporty/sablony", `/nemovitosti/${f.property.id}/nastaveni`, `/nemovitosti/${f.property.id}/technicke-udaje`, `/nemovitosti/${f.property.id}/finance`, `/nemovitosti/${f.property.id}/meridla`];
   for (const [index, route] of routes.entries()) {
     const response = await page.goto(route); expect(response?.status()).toBe(200);
     await expect(page.locator("main h1")).toBeVisible();

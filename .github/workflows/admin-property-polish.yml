@@ -52,7 +52,7 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test e2e/admin-property-polish.spec.ts e2e/document-catalog-scope.spec.ts e2e/meter-reading-history.spec.ts e2e/meter-task-automation.spec.ts --reporter=line
+      - run: npx playwright test e2e/admin-property-polish.spec.ts e2e/document-catalog-scope.spec.ts e2e/property-team-setup.spec.ts e2e/meter-reading-history.spec.ts e2e/meter-task-automation.spec.ts e2e/bank-account-lifecycle.spec.ts --reporter=line
       - uses: actions/upload-artifact@v4
         if: always()
         with:

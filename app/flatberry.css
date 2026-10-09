@@ -499,3 +499,54 @@ html[data-profi-graphics="false"] .app-shell:not(.basic-shell) .tenant-avatar:no
 .flatberry-shell .sidebar-footer .display-controls-row .display-preferences span{display:none}
 html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .display-controls-row{justify-content:center}
 html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .display-controls-row .display-mode-switch{display:none}
+.flatberry-shell .property-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.15fr) minmax(270px, 1fr);
+  grid-template-areas: "attention contacts" "payments contacts";
+  gap: 16px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.property-overview-attention { grid-area: attention; }
+.property-overview-payments { grid-area: payments; }
+.property-overview-contacts { grid-area: contacts; }
+.flatberry-shell .property-overview-grid > .card { min-width: 0; padding: 20px; }
+.property-overview-grid .card-head { align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.property-overview-grid .card-head h2 { margin: 0; }
+.property-occupancy-summary { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.property-occupancy-summary a { color: inherit; }
+.property-occupancy-summary a:hover { color: var(--blue); text-decoration: underline; }
+.flatberry-shell .property-overview-attention .attention-item { padding: 12px; border: 1px solid var(--line); border-radius: 10px; gap: 14px; }
+.flatberry-shell .property-overview-attention .attention-item.warn { background: var(--orange-soft); }
+.flatberry-shell .property-overview-attention .attention-item.bad { background: var(--red-soft); }
+.flatberry-shell .property-overview-attention .attention-item.info { background: var(--blue-soft); }
+.property-overview-attention .attention-item > :nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+.flatberry-shell .property-overview-attention .attention-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--card, #fff); }
+.property-overview-attention .property-attention-action { min-width: 112px; min-height: 38px; padding: 8px 12px; font-size: 12px; text-align: center; white-space: normal; }
+.property-overview-payments th, .property-overview-payments td { padding: 10px 12px; }
+.property-overview-payments :is(td:nth-last-child(2), th:nth-last-child(2)) { text-align: right; white-space: nowrap; }
+.property-overview-payments .owner-sub { margin: 0; }
+.property-contact-cards { display: grid; gap: 20px; }
+.property-primary-contact + .property-primary-contact { padding-top: 18px; border-top: 1px solid var(--line); }
+.property-contact-identity { display: flex; align-items: center; gap: 14px; margin: 4px 0 16px; }
+.property-contact-identity > div:last-child { display: grid; gap: 5px; min-width: 0; overflow-wrap: anywhere; }
+.property-contact-identity strong { font-size: 14px; }
+.property-contact-identity span { color: var(--muted); font-size: 12px; }
+.property-contact-identity .avatar { flex-shrink: 0; }
+.property-manager-missing { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+.property-contact-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.property-contact-actions :is(a, .contact-unavailable) { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; min-width: 0; padding: 8px; font-size: 12px; }
+.contact-unavailable { color: var(--muted); text-align: center; border: 1px dashed var(--line); border-radius: 9px; }
+.property-manager-setup { display: inline-block; margin-top: 12px; font-size: 12px; }
+.property-service-contacts { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.property-service-contacts h3 { margin: 0 0 14px; font-size: 14px; }
+.property-service-contacts summary { padding: 6px 0; cursor: pointer; color: var(--blue); font-size: 13px; }
+.property-service-contacts .contact-quick-list { display: grid; gap: 10px; margin-top: 12px; }
+@media (max-width: 1050px) {
+  .flatberry-shell .property-overview-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "attention" "payments" "contacts"; }
+}
+@media (max-width: 600px) {
+  .flatberry-shell .property-overview-grid > .card { padding: 16px; }
+  .property-overview-attention .attention-item { grid-template-columns: auto minmax(0, 1fr); }
+  .property-overview-attention .property-attention-action { grid-column: 2; justify-self: start; }
+}
