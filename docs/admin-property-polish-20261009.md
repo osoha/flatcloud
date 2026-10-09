@@ -33,6 +33,8 @@ Stav: DRAFT — před produkcí vyžaduje výsledek CI a lidské rozhodnutí pod
 
 Po dokončení přihlášení ověřeno pouze čtením živé aplikace: hledání „Šohaj“ vracelo dva objekty, zatímco hlavička Veské uvádí Ondřeje Šohaje a SVJ. Jednotka 3 je vlastněná společností BrickFlow; Ondřej je u společnosti uvedený jako podepisující osoba. Hledání dosud neobsahovalo vlastníky z evidence domu. Oprava přidává jejich jména do hledání, ale právní vlastnictví jednotek zůstává oddělené. Syntetická regrese ověřuje oba případy: přímé vlastnictví jednotky a dům dohledatelný pod osobou, jejíž jednotka je evidovaná na společnost. Žádná produkční data ani propojení účtů se neměnila.
 
+U Onšovecké není profil vlastníka Ondřeje Šohaje ani BrickFlow propojený s uživatelským účtem. Proto pro odpovědnost dosud neexistuje jednoznačná systémová vazba. Doplnění propojení ovlivňuje přístup k údajům vlastníka a vyžaduje samostatné potvrzení. Opravená automatika toto propojení respektuje; neodvozuje ID z podobnosti jmen. V detailu úkolu lze mezitím zvolit oprávněného odpovědného explicitně.
+
 ## Rizika a schválení
 
 - Zpřísnění bezpečnostní hranice dokumentů; ověřit seznam i přímé stažení cizích příloh.
