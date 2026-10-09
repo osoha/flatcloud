@@ -150,7 +150,7 @@ test("search finds a house-level owner without treating that name as the legal u
   const person = await db.owner.create({ data: { name: `Ondřej Šohaj ${tag}` } });
   const company = await db.owner.create({ data: { name: `BrickFlow ${tag}` } });
   const association = await db.owner.create({ data: { name: `SVJ ${tag}` } });
-  const property = await db.property.create({ data: { name: `Veská ${tag}`, address: "Testovací 1", city: "Plzeň", ownershipMode: "UNIT_BASED", ownerId: association.id, communicationOwnerId: association.id, ownerships: { create: [{ ownerId: person.id, shareBasisPoints: 1000 }, { ownerId: association.id, shareBasisPoints: 9000 }] } } });
+  const property = await db.property.create({ data: { name: `Veská ${tag}`, address: "Testovací 1", city: "Plzeň", ownershipMode: "UNIT_BASED", ownerId: association.id, communicationOwnerId: association.id, ownerships: { create: [{ ownerId: person.id, shareBasisPoints: 0 }, { ownerId: association.id, shareBasisPoints: 10000 }] } } });
   await db.unit.create({ data: { propertyId: property.id, label: "Firemní jednotka", ownerships: { create: { ownerId: company.id } } } });
   await login(page, admin.email);
   await page.getByRole("button", { name: /Rozsah správy/ }).click();

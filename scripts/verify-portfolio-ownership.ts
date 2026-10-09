@@ -36,6 +36,7 @@ const company = { id: "company", name: "BrickFlow" };
 const companyHouse = { ...property("company-unit-house", svj, [unit("company-unit", [company], 500)]), ownerships: [{ ownerId: ondrej.id, owner: ondrej, shareBasisPoints: 1000 }, { ownerId: svj.id, owner: svj, shareBasisPoints: 9000 }] };
 const companyOption = portfolioPropertyOption(companyHouse);
 assert.ok(companyOption.ownerSearchNames?.includes(ondrej.name), "House-level owners remain searchable even when a unit belongs to their company");
+assert.ok(portfolioPropertyOption({ ...companyHouse, ownerships: companyHouse.ownerships.map(row => ({ ...row, shareBasisPoints: 0 })) }).ownerSearchNames?.includes(ondrej.name), "Legacy header names remain searchable even with no direct share; they still confer no unit ownership");
 assert.deepEqual(portfolioOwnerPresets([companyOption]).map(row => row.id), [company.id], "Search aliases must not become legal unit-owner presets");
 assert.deepEqual(filterPortfolioProperties([companyHouse], { mode: "ALL", ownerId: ondrej.id }), [], "Search matches cannot confer another legal owner's unit scope");
 for (const selection of [{ mode: "ALL" as const, ownerId: ondrej.id }, { mode: "SELECTED" as const, propertyIds: ["veska"], ownerId: ondrej.id }, { mode: "SELECTED" as const, propertyIds: [], ownerId: ondrej.id }]) {
