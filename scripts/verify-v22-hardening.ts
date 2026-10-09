@@ -75,6 +75,10 @@ export function runV22HardeningChecks(check: Check) {
   check("unknown history preserves active contract KPI", () => assert.equal(unknownLifecycle.leases.active, 1));
   const quality = calculatePropertySnapshot({ propertyId: "p", asOf: new Date("2026-06-30T12:00Z"), units: [baseUnit([baseLease({ paymentItems: [{ active: true, validFrom: new Date("2026-01-01T12:00Z"), validTo: null, category: "RENT", amountCents: 10000 }] })], null)] });
   check("missing current charge is warning", () => assert.ok(quality.quality.issues.some((issue) => issue.code === "MISSING_CHARGE_FOR_PERIOD" && issue.severity === "WARNING")));
+  const waivedSeptember = calculatePropertySnapshot({ propertyId: "p", asOf: new Date("2026-09-30T12:00Z"), units: [baseUnit([baseLease({ charges: [{ ...charge, period: "2026-09", active: false, manualOverride: true, dueDate: new Date("2026-09-15T12:00Z"), amountCents: 1100000 }] })])] });
+  check("explicitly waived current charge is not a missing invoice or debt", () => { assert.ok(!waivedSeptember.quality.issues.some((issue) => issue.code === "MISSING_CHARGE_FOR_PERIOD")); assert.equal(waivedSeptember.data.collections.overdueDebtCents, 0); assert.equal(waivedSeptember.data.collections.quarterExpectedCents, 0); });
+  const inactiveWithoutManualOverride = calculatePropertySnapshot({ propertyId: "p", asOf: new Date("2026-09-30T12:00Z"), units: [baseUnit([baseLease({ charges: [{ ...charge, period: "2026-09", active: false, manualOverride: false }] })])] });
+  check("inactive charge without manual waiver still warns", () => assert.ok(inactiveWithoutManualOverride.quality.issues.some((issue) => issue.code === "MISSING_CHARGE_FOR_PERIOD")));
   check("missing area makes weighted rent null", () => assert.equal(quality.data.rentRoll.weightedNetRentPerM2Cents, null));
   check("calculated schema permits undefined weighted KPI", () => assert.ok(quarterSnapshotDataSchema.safeParse(quality.data).success));
 
