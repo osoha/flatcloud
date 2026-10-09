@@ -39,9 +39,12 @@ test("QR verification routes a trusted Air Bank test automatically, scoped queue
     await page.getByRole("button", { name: "Přihlásit se" }).click();
     await expect(page).toHaveURL(/\/portfolio(?:\?|$)/);
     await page.goto(`/platby/nesparovane?properties=${property.id}`);
-    await expect(page.locator(`a[href='/platby/nesparovane/email/${row.id}']`)).toBeVisible();
-    await expect(page.locator(`a[href='/platby/nesparovane/email/${unknown.id}']`)).toBeVisible();
-    await expect(page.locator(`a[href='/platby/nesparovane/email/${unrelated.id}']`)).toHaveCount(0);
+    for (const id of [row.id, unknown.id]) {
+      const link = page.locator(`a[href^='/platby/nesparovane/email/${id}']`);
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("href", `/platby/nesparovane/email/${id}?properties=${property.id}`);
+    }
+    await expect(page.locator(`a[href^='/platby/nesparovane/email/${unrelated.id}']`)).toHaveCount(0);
     for (const [sender, testVs, currency] of [["info@airbank.cz.example.invalid", vs, "CZK"], ["info@airbank.cz", "1", "CZK"], ["info@airbank.cz", vs, "EUR"]]) {
       const negative = await db.inboxPayment.create({ data: { messageId: `QR-negative-${randomUUID()}`, sender, rawExcerpt: notification("2000145399/3030", testVs).replaceAll("CZK", currency), status: "ERROR" } });
       await page.goto(`/platby/nesparovane/email/${negative.id}`);

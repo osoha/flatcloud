@@ -14,7 +14,7 @@ import type { PortfolioSelection } from "@/lib/portfolio-selection";
 
 type Property = Awaited<ReturnType<typeof accessibleProperties>>[number];
 type PropertyRow = { property: Property; expected: number; paid: number; debt: number };
-type ScopeOption = { id: string; name: string; address: string; city: string; active: boolean; ownerId: string; ownerName: string; scopeKind?: "FLATCLOUD" | "EXTERNAL" | "UNCLASSIFIED" };
+type ScopeOption = import("@/lib/portfolio-ownership").PortfolioPropertyOption;
 
 export function BasicPortfolio({ name, period, rows, photos, expected, paid, debt, taskCount, attention, announcementCount, scopeOptions, selection }: {
   name: string; period: string; rows: PropertyRow[]; photos: EntityPhotos;

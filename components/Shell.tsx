@@ -1,5 +1,7 @@
+import { accessibleProperties, leaseAccessWhere, taskAccessWhere } from "@/lib/access";
+import { filterPortfolioProperties, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import {headers} from "next/headers";
-import {parsePortfolioSelection} from "@/lib/portfolio-selection";
+import {parsePortfolioSelection,withPortfolioSelection} from "@/lib/portfolio-selection";
 import { ProfiAppearance } from "@/components/ProfiAppearance";
 import { FirstLoginGuide } from "@/components/FirstLoginGuide";
 import { DisplayPreferences } from "@/components/DisplayPreferences";
@@ -16,8 +18,6 @@ import { openTaskStatuses } from "@/lib/operations";
 import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
 import { UserAvatar } from "@/components/UserAvatar";
 import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
-import { leaseAccessWhere } from "@/lib/access";
-import { taskAccessWhere } from "@/lib/access";
 import { unreadAnnouncementWhere } from "@/lib/announcements";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
@@ -55,17 +55,18 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");
   const navigationQuery=new URLSearchParams((await headers()).get("x-flatberry-search")||"");
-  const selection=parsePortfolioSelection({properties:navigationQuery.has("properties")?navigationQuery.get("properties")!:undefined,propertyId:navigationQuery.get("propertyId")||undefined});
-  const scopedDisplayReturnTo=displayReturnTo||(selection.mode==="ALL"?"/portfolio":`/portfolio?properties=${encodeURIComponent(selection.propertyIds.join(","))}`);
-  const taskWhere = {AND:[taskAccessWhere(user),...(selection.mode==="SELECTED"?[{OR:[{propertyId:{in:selection.propertyIds}},{propertyId:null}]}]:[])]};
-  const revisionWhere = fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } };
+  const selection=parsePortfolioSelection({ownerId:navigationQuery.get("ownerId")||undefined,properties:navigationQuery.has("properties")?navigationQuery.get("properties")!:undefined,propertyId:navigationQuery.get("propertyId")||undefined});
+  const scopedDisplayReturnTo=displayReturnTo||withPortfolioSelection("/portfolio",new URLSearchParams(),selection);
+  const ownerProperties = selection.ownerId ? filterPortfolioProperties(await accessibleProperties(contentUser,{includeInactive:true}),selection) : [];
+  const taskWhere = {AND:[taskAccessWhere(user),...(selection.ownerId?[portfolioTaskFilter(ownerProperties,selection)]:[]),...(selection.mode==="SELECTED"?[{OR:[{propertyId:{in:selection.propertyIds}},{propertyId:null}]}]:[])]};
+  const revisionWhere = { ...(fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } }), ...(selection.ownerId ? { propertyId: { in: ownerProperties.filter(property=>property.active).map(property=>property.id) } } : {}) };
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
   const [openTasks, announcementCount, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
     prisma.task.count({ where: { ...taskWhere, status: { in: openTaskStatuses } } }),
     prisma.announcement.count({ where: unreadAnnouncementWhere(user) }),
     prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
-    unmatchedQueueCount(user),
-    prisma.lease.findMany({ where: leaseAccessWhere(user), select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
+    unmatchedQueueCount(user,selection.ownerId?ownerProperties.filter(property=>property.active).map(property=>property.id):undefined,selection.ownerId),
+    prisma.lease.findMany({ where: { AND: [leaseAccessWhere(user), ...(selection.ownerId ? [{unitId:{in:ownerProperties.filter(property=>property.active).flatMap(property=>property.units.map(unit=>unit.id))}}] : [])] }, select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
   ]);
   const today = new Date();
   const leaseHorizon = addCalendarMonths(today, 3);

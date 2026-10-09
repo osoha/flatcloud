@@ -1,6 +1,8 @@
+import { portfolioSelectionQuery, parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
+import { filterPortfolioProperties, portfolioPropertyOption } from "@/lib/portfolio-ownership";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
-import Link from "next/link";
+import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
 import { CalendarRange, CircleDollarSign, ClockAlert, Hammer } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { PortfolioScopePicker } from "@/components/PortfolioScopePicker";
@@ -9,18 +11,16 @@ import { accessibleProperties } from "@/lib/access";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
-import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { buildCapexRenewalForecast, capexForecastStageLabels } from "@/lib/portfolio/capex-renewal-forecast";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortfolioCapexPlanPage({ searchParams }: { searchParams: Promise<{ properties?: string }> }) {
+export default async function PortfolioCapexPlanPage({ searchParams }: { searchParams: Promise<{ ownerId?: string; properties?: string }> }) {
   const user = await requireUser();
   const [availableProperties, query] = await Promise.all([accessibleProperties(user, { includeInactive: true }), searchParams]);
   const selection = parsePortfolioSelection(query);
   const allowedPropertyIds = selectedPropertyIds(selection, availableProperties.map((property) => property.id));
-  const selected = new Set(allowedPropertyIds);
-  const properties = availableProperties.filter((property) => selected.has(property.id));
+  const properties = filterPortfolioProperties(availableProperties, selection);
   const unitRows = properties.flatMap((property) => property.units.map((unit) => ({ property, unit })));
   const unitIds = unitRows.map((row) => row.unit.id);
   const assessments = unitIds.length ? await prisma.unitConditionAssessment.findMany({
@@ -36,13 +36,13 @@ export default async function PortfolioCapexPlanPage({ searchParams }: { searchP
     return { id: assessment.id, propertyId: row.property.id, propertyName: row.property.name, unitId: row.unit.id, unitLabel: row.unit.label, planStatus: assessment.planStatus, plannedAmountCents: assessment.estimatedCapexCents, targetDate: assessment.targetDate, events: assessment.execution?.events || [] };
   }), baseYear);
   const selectionValue = serializePortfolioSelection(selection);
-  const selectionQuery = selectionValue === null ? "" : `?properties=${encodeURIComponent(selectionValue)}`;
-  const pickerProperties = availableProperties.map(({ id, name, address, city, active, owner, communicationOwner, flatcloudConsolidationBasisPoints }) => ({ id, name, address, city, active, ownerId: communicationOwner?.id || owner.id, ownerName: communicationOwner?.name || owner.name, scopeKind: !isFlatcloudMember(user) ? undefined : flatcloudConsolidationBasisPoints == null ? "UNCLASSIFIED" as const : flatcloudConsolidationBasisPoints > 0 ? "FLATCLOUD" as const : "EXTERNAL" as const }));
+  const selectionQuery = portfolioSelectionQuery(selection) ? `?${portfolioSelectionQuery(selection)}` : "";
+  const pickerProperties = availableProperties.map(property => portfolioPropertyOption(property, isFlatcloudMember(user)));
   const maxBucketAmount = Math.max(1, ...forecast.buckets.map((bucket) => bucket.plannedAmountCents));
 
   return <Shell user={user}><div className="page portfolio-quality-page capex-forecast-page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><Link href={`/portfolio/kvalita${selectionQuery}`}>Kvalita a CAPEX</Link><span>›</span><span>CAPEX výhled</span></div>
-    <div className="page-title"><div><PageHeading>Plán obnovy a CAPEX výhled</PageHeading><p>Pětiletý souhrn aktuálních technických plánů napříč zvoleným portfoliem.</p></div><PortfolioScopePicker availableProperties={pickerProperties} selection={selection.mode === "ALL" ? selection : { mode: "SELECTED", propertyIds: allowedPropertyIds }}/></div>
+    <div className="page-title"><div><PageHeading>Plán obnovy a CAPEX výhled</PageHeading><p>Pětiletý souhrn aktuálních technických plánů napříč zvoleným portfoliem.</p></div><PortfolioScopePicker availableProperties={pickerProperties} selection={selection.mode === "ALL" ? selection : { ...selection, mode: "SELECTED", propertyIds: allowedPropertyIds }}/></div>
     <PortfolioQualitySubnav active="forecast" query={selectionQuery}/>
     <div className="stat-grid v21-stat-grid quality-kpis"><Stat icon={<CalendarRange/>} label={`Výhled ${baseYear}–${baseYear + 4}`} value={money(forecast.scheduledFiveYearCents)}/><Stat icon={<ClockAlert/>} label="Po termínu / bez termínu" value={`${money(forecast.overdueCents)} / ${money(forecast.unscheduledCents)}`}/><Stat icon={<Hammer/>} label="Právě v realizaci" value={money(forecast.inProgressCents)}/><Stat icon={<CircleDollarSign/>} label={`Skutečnost ${baseYear}`} value={money(forecast.actualThisYearCents)} note={`Odchylka ${forecast.actualVarianceThisYearCents > 0 ? "+" : ""}${money(forecast.actualVarianceThisYearCents)}`}/></div>
     <section className="card capex-timeline-card"><div className="table-toolbar"><div><h2>Časová mapa obnovy</h2><p>Výše sloupce odpovídá plánovanému CAPEX v daném období; rozpad odlišuje záměry, schválené akce a probíhající realizace.</p></div></div><div className="capex-timeline" role="img" aria-label="Plánovaný CAPEX podle období">{forecast.buckets.map((bucket) => <div className={`capex-timeline-column ${bucket.key === "OVERDUE" || bucket.key === "UNSCHEDULED" ? "attention" : ""}`} key={bucket.key}><div className="capex-timeline-value"><strong>{money(bucket.plannedAmountCents)}</strong><span>{bucket.count} {bucket.count === 1 ? "akce" : "akcí"}</span></div><div className="capex-timeline-track"><i className="intent" style={{ height: `${Math.round(bucket.intentAmountCents / maxBucketAmount * 100)}%` }}/><i className="approved" style={{ height: `${Math.round(bucket.approvedAmountCents / maxBucketAmount * 100)}%` }}/><i className="in-progress" style={{ height: `${Math.round(bucket.inProgressAmountCents / maxBucketAmount * 100)}%` }}/></div><b>{bucket.label}</b></div>)}</div><div className="capex-stage-legend"><span className="intent">Záměr</span><span className="approved">Schváleno</span><span className="in-progress">V realizaci</span></div></section>

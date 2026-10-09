@@ -6,23 +6,26 @@ type Props = {
   range: LiveReportPeriodRange;
   properties: string | null;
   unitId?: string;
+  ownerId?: string;
 };
 
-function href(view: Props["view"], mode: "rolling12" | "ytd", properties: string | null, unitId?:string) {
+function href(view: Props["view"], mode: "rolling12" | "ytd", properties: string | null, unitId?:string, ownerId?:string) {
   const params = new URLSearchParams({ view });
+  if (ownerId) params.set("ownerId", ownerId);
   if (unitId) params.set("unitId",unitId);
   if (mode !== "rolling12") params.set("range", mode);
   if (properties !== null) params.set("properties", properties);
   return `/reporty?${params}`;
 }
 
-export function ReportPeriodPicker({ view, range, properties, unitId }: Props) {
+export function ReportPeriodPicker({ view, range, properties, unitId, ownerId }: Props) {
   return <div className="report-period-picker" aria-label="Období grafu">
     <div className="report-period-presets">
-      <Link aria-current={range.mode === "rolling12" ? "page" : undefined} className={range.mode === "rolling12" ? "active" : ""} href={href(view, "rolling12", properties, unitId)}>12M</Link>
-      <Link aria-current={range.mode === "ytd" ? "page" : undefined} className={range.mode === "ytd" ? "active" : ""} href={href(view, "ytd", properties, unitId)}>YTD</Link>
+      <Link aria-current={range.mode === "rolling12" ? "page" : undefined} className={range.mode === "rolling12" ? "active" : ""} href={href(view, "rolling12", properties, unitId, ownerId)}>12M</Link>
+      <Link aria-current={range.mode === "ytd" ? "page" : undefined} className={range.mode === "ytd" ? "active" : ""} href={href(view, "ytd", properties, unitId, ownerId)}>YTD</Link>
     </div>
     <form action="/reporty" method="get" className={range.mode === "custom" ? "report-period-custom active" : "report-period-custom"}>
+      {ownerId && <input type="hidden" name="ownerId" value={ownerId}/>}
       {unitId && <input type="hidden" name="unitId" value={unitId}/>}
       <input type="hidden" name="view" value={view}/>
       <input type="hidden" name="range" value="custom"/>

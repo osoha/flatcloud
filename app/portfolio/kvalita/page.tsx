@@ -1,6 +1,8 @@
+import { portfolioSelectionQuery, withPortfolioSelection, parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
+import { filterPortfolioProperties, portfolioPropertyOption } from "@/lib/portfolio-ownership";
 import { isFlatcloudMember } from "@/lib/user-context-policy";
 import { PageHeading } from "@/components/PageHeading";
-import Link from "next/link";
+import { ScopeAwareLink as Link } from "@/components/ScopeAwareLink";
 import { CalendarClock, ClipboardCheck, Hammer, Home } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { Flash } from "@/components/FormUi";
@@ -14,19 +16,17 @@ import { accessibleProperties } from "@/lib/access";
 import { requireUser, hasAllPropertyAccess } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { date, money } from "@/lib/format";
-import { parsePortfolioSelection, selectedPropertyIds, serializePortfolioSelection } from "@/lib/portfolio-selection";
 import { unitConditionPlanStatuses, unitConditionRatings, unitConditionUrgencies } from "@/lib/portfolio/unit-condition-assessments";
 import { unitConditionCapexVariance, unitConditionExecutionState, unitConditionPriority } from "@/lib/portfolio/unit-condition-execution";
 
 export const dynamic = "force-dynamic";
 
-export default async function PortfolioQualityPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; properties?: string }> }) {
+export default async function PortfolioQualityPage({ searchParams }: { searchParams: Promise<{ ok?: string; error?: string; ownerId?: string; properties?: string }> }) {
   const user = await requireUser();
   const [availableProperties, query] = await Promise.all([accessibleProperties(user, { includeInactive: true }), searchParams]);
   const selection = parsePortfolioSelection(query);
   const allowedPropertyIds = selectedPropertyIds(selection, availableProperties.map((property) => property.id));
-  const selected = new Set(allowedPropertyIds);
-  const properties = availableProperties.filter((property) => selected.has(property.id));
+  const properties = filterPortfolioProperties(availableProperties, selection);
   const units = properties.flatMap((property) => property.units.map((unit) => ({ ...unit, property })));
   const unitIds = units.map((unit) => unit.id);
   const [latest, openExecutions] = unitIds.length ? await Promise.all([prisma.unitConditionAssessment.findMany({
@@ -45,13 +45,13 @@ export default async function PortfolioQualityPage({ searchParams }: { searchPar
   const plannedCapex = latest.filter((row) => row.planStatus !== "COMPLETED" && (!row.execution || unitConditionExecutionState(row.execution.events).key !== "COMPLETED")).reduce((sum, row) => sum + row.estimatedCapexCents, 0);
   const fullAccess = hasAllPropertyAccess(user);
   const selectionValue = serializePortfolioSelection(selection);
-  const returnTo = selectionValue === null ? "/portfolio/kvalita" : `/portfolio/kvalita?properties=${encodeURIComponent(selectionValue)}`;
-  const selectionQuery = selectionValue === null ? "" : `?properties=${encodeURIComponent(selectionValue)}`;
-  const pickerProperties = availableProperties.map(({ id, name, address, city, active, owner, communicationOwner, flatcloudConsolidationBasisPoints }) => ({ id, name, address, city, active, ownerId: communicationOwner?.id || owner.id, ownerName: communicationOwner?.name || owner.name, scopeKind: !isFlatcloudMember(user) ? undefined : flatcloudConsolidationBasisPoints == null ? "UNCLASSIFIED" as const : flatcloudConsolidationBasisPoints > 0 ? "FLATCLOUD" as const : "EXTERNAL" as const }));
+  const returnTo = withPortfolioSelection("/portfolio/kvalita", new URLSearchParams(), selection);
+  const selectionQuery = portfolioSelectionQuery(selection) ? `?${portfolioSelectionQuery(selection)}` : "";
+  const pickerProperties = availableProperties.map(property => portfolioPropertyOption(property, isFlatcloudMember(user)));
 
   return <Shell user={user}><div className="page portfolio-quality-page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Kvalita a CAPEX</span></div>
-    <div className="page-title"><div><PageHeading>Kvalita a technický stav portfolia</PageHeading><p>Neutrální evidence stavu bytů a plánování obnovy bez vazby na budoucí prodej.</p></div><PortfolioScopePicker availableProperties={pickerProperties} selection={selection.mode === "ALL" ? selection : { mode: "SELECTED", propertyIds: allowedPropertyIds }}/></div>
+    <div className="page-title"><div><PageHeading>Kvalita a technický stav portfolia</PageHeading><p>Neutrální evidence stavu bytů a plánování obnovy bez vazby na budoucí prodej.</p></div><PortfolioScopePicker availableProperties={pickerProperties} selection={selection.mode === "ALL" ? selection : { ...selection, mode: "SELECTED", propertyIds: allowedPropertyIds }}/></div>
     <Flash ok={query.ok} error={query.error}/>
     <PortfolioQualitySubnav active="queue" query={selectionQuery}/>
     <div className="stat-grid v21-stat-grid quality-kpis"><Stat icon={<Home/>} label="Vybrané jednotky" value={String(units.length)}/><Stat icon={<ClipboardCheck/>} label="Aktuálně hodnoceno" value={`${assessed}/${units.length}`}/><Stat icon={<CalendarClock/>} label="Řešit ihned / probíhá" value={`${urgent} / ${inProgress}`}/><Stat icon={<Hammer/>} label="Ke spuštění / otevřený CAPEX" value={`${approvedToExecute} · ${money(plannedCapex)}`}/></div>
