@@ -19,3 +19,15 @@ const fallback={...owner,email:null,user:inactiveUser};
 assert.equal(tenantPortalContact({...withoutManager,ownerBankAccount:{owner:fallback}})?.user,null);
 assert.equal(tenantPortalContact({...withoutManager,ownerBankAccount:{owner:fallback}})?.email,null);
 console.log("Tenant portal contact: manager/owner precedence, ambiguity and inactive identity checks passed.");
+
+const assigned = {...manager, id: "assigned", name: "Přidělený správce", role: "PROPERTY_MANAGER"};
+const byGrant = (memberships: Array<{permission: string; user: typeof assigned}>, direct: typeof manager | null = null) => ({unit: {property: {owner, manager: direct, ownershipMode: "WHOLE_OBJECT", memberships}}});
+assert.equal(tenantPortalContact(byGrant([{permission: "ADMIN", user: assigned}]))?.user?.id, assigned.id);
+assert.equal(tenantPortalContact(byGrant([{permission: "EDIT", user: assigned}], manager))?.user?.id, manager.id, "Explicit house manager has precedence");
+assert.equal(tenantPortalContact(byGrant([{permission: "VIEW", user: assigned}]))?.kind, "owner", "Read-only access is not management");
+assert.equal(tenantPortalContact(byGrant([{permission: "ADMIN", user: {...assigned, active: false}}]))?.kind, "owner");
+assert.equal(tenantPortalContact(byGrant([{permission: "ADMIN", user: {...assigned, role: "OWNER_VIEWER"}}]))?.kind, "owner");
+const ambiguous = tenantPortalContact(byGrant([{permission: "ADMIN", user: assigned}, {permission: "EDIT", user: {...assigned, id: "second"}}]));
+assert.equal(ambiguous?.kind, "manager", "Multiple assigned managers must not expose an unrelated landlord");
+assert.equal(ambiguous?.user, null, "Do not nominate an arbitrary manager");
+console.log("Whole-house manager grants: precedence, permissions, inactive users and ambiguity passed.");

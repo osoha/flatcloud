@@ -12,7 +12,7 @@ test.beforeAll(()=>{if(!process.env.DATABASE_URL||!["localhost","127.0.0.1","pos
 test.afterAll(()=>db.$disconnect());
 async function login(page:Page,email:string,password:string){await page.goto("/login");await page.getByLabel("E-mail").fill(email);await page.getByLabel("Heslo").fill(password);await page.getByRole("button",{name:"Přihlásit se",exact:true}).click();await expect(page).not.toHaveURL(/\/login/);}
 
-test("owner registration, isolated visibility, independent verification, notices and late receipts",async({page,browser})=>{
+test("owner registration, isolated visibility, independent verification, notices and late receipts",async({page,browser},info)=>{
  test.setTimeout(120000);
  const tag=randomUUID(),password="Bank-QA-Only-2026",suffix=String(Date.now()).slice(-9);
  const user=await db.user.create({data:{email:`bank-owner-${tag}@flatcloud.test`,name:"Vlastník bank QA",passwordHash:await bcrypt.hash(password,10),role:"OWNER_VIEWER",isTestIdentity:true}});
@@ -63,7 +63,16 @@ test("owner registration, isolated visibility, independent verification, notices
   const savedPdf=Buffer.from(notice.pdfData);
   await login(tenantPage,tenantUser.email,password);await tenantPage.goto(`/portal/najemnik/${tenant.id}`);
   await expect(tenantPage.locator("#bankovni-oznameni")).toContainText("Oznámení o změně platebních údajů");
-  await tenantPage.getByRole("button",{name:"Potvrzuji, že jsem oznámení přečetl/a"}).click();
+  const noticeRow=tenantPage.locator(`#bankovni-oznameni-${notice.id}`);
+  await expect(tenantPage.locator(".tp-messages #bankovni-oznameni")).toHaveCount(1);
+  await expect(tenantPage.getByRole("heading",{name:notice.title,exact:true})).toHaveCount(1);
+  await noticeRow.locator("summary").click();
+  await expect(noticeRow.getByRole("link",{name:"Stáhnout PDF oznámení"})).toBeVisible();
+  await tenantPage.screenshot({path:info.outputPath("portal-bank-notice-desktop.png"),fullPage:true});
+  await tenantPage.setViewportSize({width:390,height:844});
+  expect(await tenantPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  await tenantPage.screenshot({path:info.outputPath("portal-bank-notice-mobile.png"),fullPage:true});
+  await noticeRow.getByRole("button",{name:"Potvrzuji, že jsem oznámení přečetl/a"}).click();
   expect(await db.bankAccountNoticeRead.count({where:{noticeId:notice.id,userId:tenantUser.id,confirmedAt:{not:null}}})).toBe(1);
   const headers={Cookie:(await tenantPage.context().cookies()).map(c=>`${c.name}=${c.value}`).join("; ")};
   const pdf=await tenantPage.request.get(`/api/portal/tenants/${tenant.id}/bank-notices/${notice.id}`,{headers});expect(pdf.status()).toBe(200);expect(Buffer.compare(savedPdf,await pdf.body())).toBe(0);

@@ -3,7 +3,7 @@ import {prisma} from "@/lib/db";
 import {hasTenantPortalAccess,manageableTenantLeaseIds} from "@/lib/tenant-portal-access";
 import {leaseStatusAt} from "@/lib/lease-lifecycle-core";
 import {normalizeAvatarBytes} from "@/lib/avatar";
-import {portalContactOwnerSelect,portalContactUserSelect,tenantPortalContact} from "@/lib/tenant-portal-contact";
+import {portalContactOwnerSelect,portalContactPropertyInclude,tenantPortalContact} from "@/lib/tenant-portal-contact";
 export const runtime="nodejs";
 export async function GET(_request:Request,{params}:{params:Promise<{tenantId:string;userId:string}>}) {
   const {tenantId,userId}=await params,actor=await actualUser();if(!actor)return new Response(null,{status:404});
@@ -15,7 +15,7 @@ export async function GET(_request:Request,{params}:{params:Promise<{tenantId:st
       ownerBankAccount:{select:{owner:{select:portalContactOwnerSelect}}},
       unit:{select:{
         ownerships:{select:{owner:{select:portalContactOwnerSelect}}},
-        property:{select:{ownershipMode:true,manager:{select:portalContactUserSelect},owner:{select:portalContactOwnerSelect},communicationOwner:{select:portalContactOwnerSelect}}},
+        property:{select:{ownershipMode:true,...portalContactPropertyInclude}},
       }},
     },
   });

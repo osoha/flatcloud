@@ -1,4 +1,4 @@
-import { PropertyPermission, UserRole } from "@prisma/client";
+import { UserRole } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { currentUser } from "@/lib/auth";
 import { audit } from "@/lib/management";
@@ -6,6 +6,7 @@ import { go, goWithMessage } from "@/lib/route-response";
 import { processAvatarUpload } from "@/lib/avatar";
 import { editableUserAccessChanged } from "@/lib/user-access-management";
 import { validIllustration } from "@/lib/illustration-library";
+import { submittedUserPermissions } from "@/lib/submitted-user-permissions";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const admin = await currentUser();
@@ -40,22 +41,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       else if (avatarChoice) avatarUpdate = { avatarChoice, avatarData: null, avatarMimeType: null };
     }
 
-    const properties = await prisma.property.findMany({ select: { id: true } });
-    const units = await prisma.unit.findMany({ select: { id: true } });
-    const memberships = allProperties ? [] : properties.flatMap((property) => {
-      const value = String(form.get(`property:${property.id}`) || "") as PropertyPermission;
-      return Object.values(PropertyPermission).includes(value) ? [{ propertyId: property.id, permission: value }] : [];
-    });
-    const unitMemberships = allProperties ? [] : units.flatMap((unit) => {
-      const value = String(form.get(`unit:${unit.id}`) || "") as PropertyPermission;
-      return Object.values(PropertyPermission).includes(value) ? [{ unitId: unit.id, permission: value }] : [];
-    });
-
     let savedMembership = false;
-    await prisma.$transaction(async (tx) => {
+    const { memberships, unitMemberships } = await prisma.$transaction(async (tx) => {
       const current = await tx.user.findUnique({ where: { id }, select: { active: true, role: true, allProperties: true, flatcloudMember: true, memberships: { select: { propertyId: true, permission: true } }, unitMemberships: { select: { unitId: true, permission: true } } } });
       if (!current) throw new Error("Uživatel nebyl nalezen.");
       if (current.role === UserRole.TENANT) throw new Error("Nájemnický účet spravujte přes profil nájemníka.");
+      const memberships = allProperties ? [] : submittedUserPermissions(form, "property", "propertyId", current.memberships);
+      const unitMemberships = allProperties ? [] : submittedUserPermissions(form, "unit", "unitId", current.unitMemberships);
       if (current.active && current.role === UserRole.SUPER_ADMIN && (!active || role !== UserRole.SUPER_ADMIN)) {
         const activeSuperAdmins = await tx.user.count({ where: { active: true, role: UserRole.SUPER_ADMIN } });
         if (activeSuperAdmins <= 1) throw new Error("Posledního aktivního hlavního administrátora nelze deaktivovat ani změnit jeho roli.");
@@ -70,6 +62,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       await tx.userUnit.deleteMany({ where: { userId: id } });
       if (memberships.length) await tx.userProperty.createMany({ data: memberships.map((membership) => ({ userId: id, ...membership })) });
       if (unitMemberships.length) await tx.userUnit.createMany({ data: unitMemberships.map((membership) => ({ userId: id, ...membership })) });
+      return { memberships, unitMemberships };
     }, { isolationLevel: "Serializable" });
 
     await audit(admin.id, "USER_UPDATED", "User", id, { email, role, active, allProperties, memberships, unitMemberships, avatarChanged: Object.keys(avatarUpdate).length > 0, flatcloudMember: savedMembership });

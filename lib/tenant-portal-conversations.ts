@@ -4,7 +4,7 @@ import { activeTenantLease } from "./tenant-portal-access";
 import { portalMessageLease, type PortalMessageUser } from "./tenant-portal-messages";
 import { canEditTask } from "./task-access";
 import { serializableTransaction } from "./serializable";
-import { tenantPortalContact } from "./tenant-portal-contact";
+import { portalContactPropertyInclude, portalContactOwnerSelect, tenantPortalContact } from "./tenant-portal-contact";
 import { enqueueEntryNotifications } from "./task-notifications";
 import { leaseStatusAt } from "./lease-lifecycle-core";
 
@@ -132,7 +132,7 @@ export async function createTenantPortalConversation(user: PortalMessageUser, te
       return { taskId: previous.id, created: false };
     }
     // The assignee must match the actual manager/owner card, never an unrelated building owner.
-    const contactLease = await tx.lease.findUniqueOrThrow({ where: { id: lease.id }, include: { ownerBankAccount: { include: { owner: { include: { user: true } } } }, unit: { include: { ownerships: { include: { owner: { include: { user: true } } } }, property: { include: { manager: true, owner: { include: { user: true } }, communicationOwner: { include: { user: true } } } } } } } });
+    const contactLease = await tx.lease.findUniqueOrThrow({ where: { id: lease.id }, include: { ownerBankAccount: { include: { owner: { select: portalContactOwnerSelect } } }, unit: { include: { ownerships: { include: { owner: { select: portalContactOwnerSelect } } }, property: { include: portalContactPropertyInclude } } } } });
     const contact = tenantPortalContact(contactLease);
     const taskId = randomUUID();
     const task = await tx.task.create({ data: { id: taskId, title, description: body, tenantPortalTitle: title, tenantPortalBody: body, tenantPortalRequest: true, tenantPortalRequestKind: "MESSAGE", category: "GENERAL", status: "OPEN", propertyId: lease.unit.propertyId, unitId: lease.unitId, leaseId: lease.id, tenantId, createdById: user.id, assigneeId: contact?.user?.id || null, dedupeKey } });
