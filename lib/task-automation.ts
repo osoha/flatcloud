@@ -3,23 +3,16 @@ import { prisma } from "./db";
 import { businessDateKey, businessDateKeyToInstant, businessTodayKey } from "./calendar";
 import { effectiveLeaseEnd, leaseStatusAt } from "./lease-lifecycle-core";
 import { nextLeaseAnniversary } from "./lease-alerts";
+import { resolveHousingResponsibility, responsibilityPropertySelect, type HousingResponsibility } from "./housing-responsibility";
 
 type Client = Prisma.TransactionClient | typeof prisma;
 type RuleWithOverrides = TaskAutomationRule & { overrides: Array<{ propertyId: string; mode: "INHERIT" | "ENABLED" | "DISABLED" }> };
 export type AutomationCandidate = { ruleId: string; ruleCode: string; ruleName: string; event: TaskAutomationEvent; propertyId: string; propertyName: string; leaseId: string; unitId: string; tenantId: string; title: string; eventDate: Date; eventKey: string; description: string; assigneeId: string | null };
 
-type AutomaticAssigneeInput = {
-  manager: { id: string; active: boolean } | null;
-  propertyOwner: { user: { id: string; active: boolean } | null };
-  unitOwnerships: Array<{ owner: { user: { id: string; active: boolean } | null } }>;
-};
+type AutomaticAssigneeInput = HousingResponsibility;
 
 export function resolveAutomaticTaskAssignee(input: AutomaticAssigneeInput) {
-  if (input.manager?.active) return input.manager.id;
-  const unitOwnerUsers = [...new Set(input.unitOwnerships.map((row) => row.owner.user).filter((user): user is { id: string; active: boolean } => Boolean(user?.active)).map((user) => user.id))];
-  if (unitOwnerUsers.length === 1) return unitOwnerUsers[0];
-  if (unitOwnerUsers.length > 1) return null;
-  return input.propertyOwner.user?.active ? input.propertyOwner.user.id : null;
+  return resolveHousingResponsibility(input);
 }
 
 export function shouldBackfillAutomaticAssignee(existing: { assigneeId: string | null; status: string }, candidateAssigneeId: string | null) {
@@ -42,8 +35,8 @@ export async function previewTaskAutomation(now = new Date(), client: Client = p
   const leases = await client.lease.findMany({
     where: { cancelledAt: null, unit: { property: { active: true } }, OR: [{ endDate: { lte: horizon } }, { terminatedOn: { lte: horizon } }, { startDate: { lte: horizon } }] },
     include: { tenant: true, unit: { include: {
-      ownerships: { select: { owner: { select: { user: { select: { id:true,active:true } } } } } },
-      property: { select: { id:true,name:true,manager: { select: { id:true,active:true } }, owner: { select: { user: { select: { id:true,active:true } } } } } },
+      ownerships: { select: { shareBasisPoints: true, owner: { select: { id: true, user: { select: { id:true,active:true } } } } } },
+      property: { select: responsibilityPropertySelect },
     } } },
   });
   const todayKey = businessTodayKey(now);
@@ -65,7 +58,7 @@ export async function previewTaskAutomation(now = new Date(), client: Client = p
     const eventKey=`${rule.code}:${lease.id}:${eventDateKey}`;
     const subject=`${lease.unit.label} · ${lease.tenant.name}`;
     const title=rule.event==="LEASE_EXPIRY"?`Konec nájmu se blíží · ${subject}`:rule.event==="LEASE_ANNIVERSARY"?`Výročí nájmu · ${subject}`:`Ukončení nájmu · ${subject}`;
-    candidates.push({ ruleId:rule.id,ruleCode:rule.code,ruleName:rule.name,event:rule.event,propertyId:property.id,propertyName:property.name,leaseId:lease.id,unitId:lease.unitId,tenantId:lease.tenantId,title,eventDate:businessDateKeyToInstant(eventDateKey),eventKey,description:rule.templateBody,assigneeId:resolveAutomaticTaskAssignee({ manager:property.manager,propertyOwner:property.owner,unitOwnerships:lease.unit.ownerships }) });
+    candidates.push({ ruleId:rule.id,ruleCode:rule.code,ruleName:rule.name,event:rule.event,propertyId:property.id,propertyName:property.name,leaseId:lease.id,unitId:lease.unitId,tenantId:lease.tenantId,title,eventDate:businessDateKeyToInstant(eventDateKey),eventKey,description:rule.templateBody,assigneeId:resolveAutomaticTaskAssignee({ ...property,propertyOwner:property.owner,unitOwnerships:lease.unit.ownerships }) });
   }
   return candidates.sort((a,b)=>a.eventDate.getTime()-b.eventDate.getTime()||a.title.localeCompare(b.title,"cs"));
 }

@@ -35,7 +35,9 @@ async function login(page: Page, email: string) {
 }
 async function selectOwner(page: Page, name: string) {
   await page.getByRole("button", { name: /Rozsah správy/ }).click();
-  await page.getByRole("dialog", { name: "Vybrat zobrazené objekty" }).getByRole("button", { name: new RegExp(name) }).click();
+  const picker = page.getByRole("dialog", { name: "Vybrat zobrazené objekty" });
+  const ownerId = await picker.getByRole("option").filter({ hasText: name }).getAttribute("value");
+  await picker.getByLabel("Vlastník jednotek", { exact: true }).selectOption(ownerId!);
   await page.getByRole("button", { name: "Použít výběr", exact: true }).click();
   await expect(page).toHaveURL(/ownerId=/);
 }
@@ -74,7 +76,20 @@ test("owner portfolio includes units in shared houses, narrows money and tasks, 
     { propertyId: veska.id, title: `Společný úkol ${tag}`, createdById: admin.id },
   ] });
   await login(page, admin.email);
+  await page.getByRole("button", { name: /Rozsah správy/ }).click();
+  await page.getByLabel("Hledat nemovitost nebo vlastníka").fill("sohaj");
+  await expect(page.locator(".scope-options label")).toHaveCount(3);
+  await expect(page.locator(".scope-options")).toContainText("Veská");
+  await page.getByRole("button", { name: "Zrušit změny", exact: true }).click();
   await selectOwner(page, ondrej.name);
+  await page.getByRole("button", { name: /Rozsah správy/ }).click();
+  await page.getByRole("button", { name: "Přidat vlastníka do oblíbených" }).click();
+  await page.getByRole("button", { name: "Zrušit změny", exact: true }).click();
+  await page.reload();
+  await page.getByRole("button", { name: /Rozsah správy/ }).click();
+  await expect(page.locator(".scope-owner-preset")).toHaveCount(1);
+  await expect(page.locator(".scope-owner-preset")).toContainText(ondrej.name);
+  await page.getByRole("button", { name: "Zrušit změny", exact: true }).click();
   await expect(page.locator(".basic-property-card")).toHaveCount(3);
   await expect(page.locator(".basic-payments")).toContainText(/6\s?000/);
   await expect(page.locator(".basic-property-grid").first()).not.toContainText("Cizí");

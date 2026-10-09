@@ -1,3 +1,4 @@
+import { responsibleUserForUnit } from "./housing-responsibility";
 import { createHash, randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db";
@@ -53,7 +54,7 @@ async function notice(tx: Prisma.TransactionClient, change: {id:string;actorId:s
   await tx.announcement.create({data:{id:announcementId,title,body,createdById:change.actorId,audiences:{create:{kind:"TENANT_LEASE",leaseId:lease.id}}}});
   await publishTenantAnnouncementNotification(tx,announcementId);
   // A tracked delivery task also covers people without portal access and failed mail delivery.
-  await tx.task.create({data:{title:`Doručení: ${title} - ${unit.label}`,description:`Ověřte doručení všem smluvním nájemcům. PDF a potvrzení najdete u změny účtu /bankovni-ucty/zmeny/${change.id}. Bez portálu doručte písemně a připojte doklad k tomuto úkolu.`,propertyId:unit.propertyId,unitId:unit.id,leaseId:lease.id,tenantId:lease.tenantId,createdById:change.actorId,assigneeId:unit.property.managerId||change.actorId,dueAt:change.effectiveAt,dedupeKey:`bank-notice:${id}`}});
+  await tx.task.create({data:{title:`Doručení: ${title} - ${unit.label}`,description:`Ověřte doručení všem smluvním nájemcům. PDF a potvrzení najdete u změny účtu /bankovni-ucty/zmeny/${change.id}. Potvrďte v závěru úkolu, že nájemci změnu přijali, nebo připojte doklad o doručení. Bez portálu doručte písemně.`,propertyId:unit.propertyId,unitId:unit.id,leaseId:lease.id,tenantId:lease.tenantId,createdById:change.actorId,assigneeId:await responsibleUserForUnit(unit.id,tx),dueAt:change.effectiveAt,dedupeKey:`bank-notice:${id}`}});
   await tx.auditLog.create({data:{userId:change.actorId,propertyId:unit.propertyId,entityType:"Lease",entityId:lease.id,action:kind==="CANCEL"?"LEASE_BANK_CHANGE_CANCELLED":"LEASE_BANK_CHANGE_ANNOUNCED",details:json({changeId:change.id,noticeId:id,pdfHash:createHash("sha256").update(pdfData).digest("hex"),effectiveAt:change.effectiveAt,oldAccountId:lease.ownerBankAccountId,newAccount:change.account,reason:change.reason})}});
 }
 
@@ -91,9 +92,7 @@ export async function scheduleBankAccountChange(user: BankActor,input:BankChange
     for(const unit of units){
       await tx.propertyPaymentAccount.upsert({where:{propertyId_ownerBankAccountId:{propertyId:unit.propertyId,ownerBankAccountId:account.id}},create:{propertyId:unit.propertyId,ownerBankAccountId:account.id},update:{active:true}});
       for(const lease of liveLeases(unit))await notice(tx,change,unit,lease);
-      const ownerUser=unit.ownerships[0].owner.userId;
-      const recipients=[...new Set([ownerUser,unit.property.managerId,user.id].filter((id):id is string=>Boolean(id)))];
-      await tx.announcement.create({data:{title:`Změna účtu pro nájemné - ${unit.label}`,body:`${unit.property.name}: od ${input.effectiveDate} účet ${ownerBankAccountLabel(account)}. Přehled: /bankovni-ucty/zmeny/${change.id}`,createdById:user.id,audiences:{create:recipients.map(userId=>({kind:"USER" as const,userId}))}}});
+
     }
     return change;
   },120000);

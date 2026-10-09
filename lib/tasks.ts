@@ -1,4 +1,5 @@
 import { TaskEntryKind, TaskPriority, type Prisma } from "@prisma/client";
+import { responsibleUserForUnit } from "./housing-responsibility";
 import { prisma } from "./db";
 import { money } from "./format";
 import { openTaskStatuses } from "./operations";
@@ -39,7 +40,7 @@ export async function ensureCollectionTask(input: {
         unitId: lease.unitId,
         leaseId: lease.id,
         tenantId: lease.tenantId,
-        assigneeId: lease.unit.property.managerId || undefined,
+        assigneeId: await responsibleUserForUnit(lease.unitId) || undefined,
         dedupeKey,
         entries: { create: { kind: "SYSTEM", body: `Úkol byl automaticky založen kvůli neuhrazenému předpisu ${input.period}.` } },
       },
@@ -79,6 +80,6 @@ export async function reconcileCollectionTasksAfterPaymentCorrectionTx(tx:Prisma
     let autoResolvedTaskId:string|undefined;
     for(const candidate of lease.tasks.filter(task=>task.status==="DONE")){const latestClose=await tx.auditLog.findFirst({where:{entityType:"Task",entityId:candidate.id,action:{in:["COLLECTION_TASK_RESOLVED","TASK_CLOSED","TASK_UPDATED"]}},orderBy:{createdAt:"desc"}});if(latestClose?.action==="COLLECTION_TASK_RESOLVED"){autoResolvedTaskId=candidate.id;break}}
     if(autoResolvedTaskId){const task=await tx.task.update({where:{id:autoResolvedTaskId},data:{status:"IN_PROGRESS",closedAt:null,priority:"HIGH"}});await tx.taskEntry.create({data:{taskId:task.id,kind:"SYSTEM",body:"Po opravě přiřazení platby se znovu objevil dluh po splatnosti."}});await tx.auditLog.create({data:{propertyId:lease.unit.propertyId,action:"COLLECTION_TASK_REOPENED_AFTER_PAYMENT_CORRECTION",entityType:"Task",entityId:task.id,details:{leaseId,outstandingCents:overdue}}});continue}
-    const title=`Obnovený dluh po opravě platby · ${lease.unit.label} · ${lease.tenant.name}`,task=await tx.task.create({data:{title,description:`Po opravě přiřazení / stornu platby se znovu objevila pohledávka po splatnosti ${money(overdue)}.`,category:"COLLECTION",status:"IN_PROGRESS",priority:"HIGH",propertyId:lease.unit.propertyId,unitId:lease.unitId,leaseId:lease.id,tenantId:lease.tenantId,assigneeId:lease.unit.property.managerId||undefined,entries:{create:{kind:"SYSTEM",body:"Po opravě přiřazení / stornu platby se znovu objevila pohledávka po splatnosti."}}}});await tx.auditLog.create({data:{propertyId:lease.unit.propertyId,action:"COLLECTION_TASK_CREATED_AFTER_PAYMENT_CORRECTION",entityType:"Task",entityId:task.id,details:{leaseId,period:overdueCharges[0]?.period,outstandingCents:overdue}}})
+    const title=`Obnovený dluh po opravě platby · ${lease.unit.label} · ${lease.tenant.name}`,task=await tx.task.create({data:{title,description:`Po opravě přiřazení / stornu platby se znovu objevila pohledávka po splatnosti ${money(overdue)}.`,category:"COLLECTION",status:"IN_PROGRESS",priority:"HIGH",propertyId:lease.unit.propertyId,unitId:lease.unitId,leaseId:lease.id,tenantId:lease.tenantId,assigneeId:await responsibleUserForUnit(lease.unitId,tx)||undefined,entries:{create:{kind:"SYSTEM",body:"Po opravě přiřazení / stornu platby se znovu objevila pohledávka po splatnosti."}}}});await tx.auditLog.create({data:{propertyId:lease.unit.propertyId,action:"COLLECTION_TASK_CREATED_AFTER_PAYMENT_CORRECTION",entityType:"Task",entityId:task.id,details:{leaseId,period:overdueCharges[0]?.period,outstandingCents:overdue}}})
   }
 }

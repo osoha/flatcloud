@@ -13,6 +13,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const action = String(form.get("action") || "add");
   const userId = String(form.get("userId") || "");
   if (!userId) return goWithMessage(request, `/ukoly/${id}`, "error", "Vyberte uživatele.");
+  if (action === "assign") {
+    const target = await prisma.user.findFirst({ where: { id: userId, ...(task.propertyId ? taskParticipantWhere(task.propertyId, authoritativeTaskUnitId(task)) : { active: true, role: { not: "TENANT" as const } }) }, select: { id: true } });
+    if (!target) return goWithMessage(request, `/ukoly/${id}`, "error", "Vybraný odpovědný nemá přístup k tomuto úkolu.");
+    if (String(form.get("revision") || "") !== task.updatedAt.toISOString()) return goWithMessage(request, `/ukoly/${id}`, "error", "Úkol se mezitím změnil. Obnovte stránku.");
+    const changed = await prisma.$transaction(async tx => {
+      const result = await tx.task.updateMany({ where: { id, updatedAt: task.updatedAt }, data: { assigneeId: userId } });
+      if (result.count) await tx.auditLog.create({ data: { userId: user.id, propertyId: task.propertyId, action: "TASK_ASSIGNEE_CHANGED", entityType: "Task", entityId: id, details: { before: task.assigneeId, after: userId } } });
+      return result.count;
+    });
+    return goWithMessage(request, `/ukoly/${id}`, changed ? "ok" : "error", changed ? "Odpovědný byl přiřazen." : "Úkol se mezitím změnil. Obnovte stránku.");
+  }
   if (action === "remove") {
     await prisma.taskMember.deleteMany({ where: { taskId: id, userId } });
   } else {

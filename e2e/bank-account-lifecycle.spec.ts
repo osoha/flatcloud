@@ -59,6 +59,11 @@ test("owner registration, isolated visibility, independent verification, notices
   expect((await db.inboxPayment.findUniqueOrThrow({where:{id:verify.id}})).propertyId).toBe(property.id);
   const notice=await db.bankAccountNotice.findFirstOrThrow({where:{leaseId:lease.id}});
   expect(Buffer.from(notice.pdfData).subarray(0,4).toString()).toBe("%PDF");
+  const audience = await db.announcementAudience.findMany({where:{announcementId:notice.announcementId}});
+  expect(audience.map(row=>[row.kind,row.leaseId])).toEqual([["TENANT_LEASE",lease.id]]);
+  const deliveryTask=await db.task.findUniqueOrThrow({where:{dedupeKey:`bank-notice:${notice.id}`}});
+  expect(deliveryTask.assigneeId).toBe(user.id);
+  expect(await db.announcement.count({where:{createdById:user.id,title:{startsWith:"Změna účtu pro nájemné"},body:{contains:notice.changeId}}})).toBe(0);
   expect(await db.auditLog.count({where:{entityId:lease.id,action:"LEASE_BANK_CHANGE_EFFECTIVE"}})).toBe(1);
   const savedPdf=Buffer.from(notice.pdfData);
   await login(tenantPage,tenantUser.email,password);await tenantPage.goto(`/portal/najemnik/${tenant.id}`);

@@ -16,8 +16,8 @@ type Property = Awaited<ReturnType<typeof accessibleProperties>>[number];
 type PropertyRow = { property: Property; expected: number; paid: number; debt: number };
 type ScopeOption = import("@/lib/portfolio-ownership").PortfolioPropertyOption;
 
-export function BasicPortfolio({ name, period, rows, photos, expected, paid, debt, taskCount, attention, announcementCount, scopeOptions, selection }: {
-  name: string; period: string; rows: PropertyRow[]; photos: EntityPhotos;
+export function BasicPortfolio({ viewerId, name, period, rows, photos, expected, paid, debt, taskCount, attention, announcementCount, scopeOptions, selection }: {
+  viewerId: string; name: string; period: string; rows: PropertyRow[]; photos: EntityPhotos;
   expected: number; paid: number; debt: number; taskCount: number;
   attention: { title: string; detail: string; href: string; tone: "bad" | "warn" | "info" }[];
   announcementCount: number; scopeOptions: ScopeOption[]; selection: PortfolioSelection;
@@ -32,7 +32,7 @@ export function BasicPortfolio({ name, period, rows, photos, expected, paid, deb
 
   return <div className="page basic-portfolio" data-guide="portfolio">
     <section className="basic-hero">
-      <div className="basic-hero-copy"><span className="basic-eyebrow">Váš domovský přehled</span><h1>{greeting(name)}</h1><p>Tady je to nejdůležitější z vašich nemovitostí. Podrobnosti jsou vždy na jedno kliknutí.</p><div className="basic-scope"><PortfolioScopePicker availableProperties={scopeOptions} selection={selection}/></div></div>
+      <div className="basic-hero-copy"><span className="basic-eyebrow">Váš domovský přehled</span><h1>{greeting(name)}</h1><p>Tady je to nejdůležitější z vašich nemovitostí. Podrobnosti jsou vždy na jedno kliknutí.</p><div className="basic-scope"><PortfolioScopePicker viewerId={viewerId} availableProperties={scopeOptions} selection={selection}/></div></div>
       <div className="basic-berry-note"><img className="basic-berry" src="/guide/properties.webp" alt="" aria-hidden="true"/><div><strong>Berryho přehled</strong><p>{debt > 0 ? "Některé platby už jsou po splatnosti." : beforeDue > 0 ? "Část předpisů teprve čeká na splatnost. Aktuální dluh je zobrazen zvlášť." : remaining > 0 ? "Stav předpisů a úhrad najdete v přehledu plateb." : "Vaše platby jsou pro tento měsíc uhrazené."}</p><Link href="/reporty?view=collections">Otevřít platby <ArrowRight size={16}/></Link></div></div>
     </section>
 

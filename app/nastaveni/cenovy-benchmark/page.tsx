@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { AutomationRunStatus } from "@/components/admin/AutomationRunStatus";
+import { appSettings } from "@/lib/settings";
 import { redirect } from "next/navigation";
 import { AdminSubnav } from "@/components/admin/AdminSubnav";
 import { Flash } from "@/components/FormUi";
@@ -13,10 +16,23 @@ export const dynamic="force-dynamic";
 export default async function SaleBenchmarkAdmin({searchParams}:{searchParams:Promise<{ok?:string;error?:string}>}){
   const user=await requireUser();if(user.role!=="SUPER_ADMIN")redirect("/portfolio");const query=await searchParams;
   const rows=await prisma.saleBenchmarkSnapshot.findMany({include:{importedBy:{select:{name:true}}},orderBy:[{marketYear:"desc"},{marketQuarter:"desc"},{cadastralName:"asc"},{metric:"asc"}],take:200});
+  const [index, average, mf, settings] = await Promise.all([
+    prisma.csuApartmentPriceIndex.findFirst({ where: { territoryCode: "CZ" }, orderBy: [{ marketYear: "desc" }, { marketQuarter: "desc" }] }),
+    prisma.csuApartmentAverage.findFirst({ where: { territoryCode: "CZ" }, orderBy: { sourcePeriod: "desc" } }),
+    prisma.mfRentDatasetRelease.findFirst({ orderBy: [{ marketYear: "desc" }, { marketQuarter: "desc" }, { importedAt: "desc" }] }),
+    appSettings(),
+  ]);
   const latest=rows[0];
-  return <Shell user={user}><div className="page sale-benchmark-admin-page"><div className="page-title"><div><PageHeading>Prodejní cenový benchmark</PageHeading><p>Auditované kvartální agregáty pro orientační valuaci. Nejde o znalecký posudek a import nikdy sám nepřepíše schválenou valuaci.</p></div></div><AdminSubnav active="benchmark"/><Flash ok={query.ok} error={query.error}/>
+  return <Shell user={user}><div className="page sale-benchmark-admin-page"><div className="page-title"><div><PageHeading>Cenová data a aktualizace</PageHeading><p>Oficiální ČSÚ a MF, výsledky plánovače a doplňkový ruční benchmark.</p></div></div><AdminSubnav active="benchmark"/><Flash ok={query.ok} error={query.error}/>
+    <section className="card"><h2>Automatické zdroje</h2><div className="table-wrap"><table><thead><tr><th>Zdroj</th><th>Poslední uložené období</th><th>Aktualizace zdroje / import</th><th>Použití</th></tr></thead><tbody>
+      <tr><td>ČSÚ · index cen bytů (CEN0401)</td><td>{index ? `${index.marketYear} Q${index.marketQuarter}` : "Bez dat"}</td><td>{index ? `${date(index.sourceUpdatedAt)} / ${date(index.importedAt)}` : "—"}</td><td>Vývoj osobního odhadu hodnoty od uživatelem nastaveného základu.</td></tr>
+      <tr><td>ČSÚ · průměrné ceny bytů (CEN0402)</td><td>{average?.sourcePeriod || "Bez dat"}</td><td>{average ? `${date(average.sourceUpdatedAt)} / ${date(average.importedAt)}` : "—"}</td><td>Referenční realizované ceny podle území.</td></tr>
+      <tr><td>MF · cenová mapa nájemného</td><td>{mf ? `${mf.marketYear} Q${mf.marketQuarter}` : "Bez dat"}</td><td>{settings.mfRentLastSummary || "Zatím bez výsledku"}</td><td><Link href="/nastaveni/system">Nájemné a nastavení synchronizace</Link></td></tr>
+    </tbody></table></div></section>
+    <AutomationRunStatus only={["csu-apartment-index", "csu-apartment-average", "mf-rent"]}/>
+    <details className="card history-disclosure legacy-benchmark"><summary>Doplňkový ruční benchmark a historie ({rows.length})</summary><p>Tyto agregáty stále používají obecné reportovací KPI pro prodejní benchmark. Osobní odhad hodnoty a automatická data ČSÚ mají vlastní výpočet. Import ručního benchmarku nepřepisuje osobní nastavení ani schválenou valuaci.</p>
     <div className="stat-grid v21-stat-grid"><div className="card stat"><div><span>Snapshoty</span><strong>{rows.length}</strong></div></div><div className="card stat"><div><span>Území</span><strong>{new Set(rows.map(row=>row.territoryCode)).size}</strong></div></div><div className="card stat"><div><span>Poslední kvartál</span><strong>{latest?`${latest.marketYear} Q${latest.marketQuarter}`:"—"}</strong></div></div><div className="card stat"><div><span>Nenamapováno</span><strong>{rows.filter(row=>row.mappingQuality==="UNMAPPED").length}</strong></div></div></div>
-    <div className="notice"><strong>Bez automatického scrapingu</strong><span>V této první bezpečné vrstvě lze uložit ručně ověřený snapshot nebo CSV. Pravidelný sběr se zapne až po potvrzení podporovaného datového přístupu a licence; technická dostupnost stránky sama nestačí.</span></div>
+
     <div className="detail-grid">
       <form className="card edit-form col-7" action="/api/admin/sale-benchmarks" method="post"><h2>Nový nebo opravný snapshot</h2><div className="form-grid">
         <label className="field"><span>Zdroj *</span><select name="source" defaultValue="SREALITY_PRICE_MAP">{Object.entries(saleBenchmarkSources).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label><label className="field"><span>Metrika *</span><select name="metric" defaultValue="REALIZED_AVERAGE">{Object.entries(saleBenchmarkMetrics).map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label>
@@ -29,5 +45,6 @@ export default async function SaleBenchmarkAdmin({searchParams}:{searchParams:Pr
       <div className="col-5 stack-column"><form className="card" action="/api/admin/sale-benchmarks" method="post" encType="multipart/form-data"><h2>Hromadný CSV import</h2><p className="muted-copy">Nejvýše 5 000 řádků a 2 MB. Celý soubor se zapisuje atomicky; konflikt opraví tentýž kvartální snapshot a změna zůstane v auditu.</p><label className="field"><span>CSV UTF-8 se středníkem</span><input name="file" type="file" accept=".csv,text/csv" required/></label><div className="form-actions"><a className="secondary" href="/api/admin/sale-benchmarks">Stáhnout vzor Černice</a><button className="primary" type="submit">Importovat CSV</button></div></form><div className="card"><h2>Metodická hranice</h2><p className="muted-copy">Realizované ceny a nabídkový puls zůstávají dvě oddělené řady. Důvěra se počítá z počtu vzorků: vysoká 20+, střední 8–19, nízká 3–7, pod 3 nedostatek dat. Fotografie ani plné texty inzerátů se neukládají.</p></div></div>
     </div>
     <section className="card portfolio-table-card"><div className="table-toolbar"><div><h2>Poslední snapshoty</h2><p>Maximálně 200 nejnovějších záznamů.</p></div></div><div className="table-wrap"><table><thead><tr><th>Území</th><th>Kvartál / okno</th><th>Řada</th><th>Kč/m²</th><th>Vzorek</th><th>Důvěra</th><th>Mapování</th><th>Import</th></tr></thead><tbody>{rows.length?rows.map(row=><tr key={row.id}><td><strong>{row.cadastralName}</strong><span className="owner-sub">{row.municipalityName||"—"} · {row.territoryCode}</span></td><td>{row.marketYear} Q{row.marketQuarter}<span className="owner-sub">{date(row.windowFrom)}–{date(row.windowTo)}{row.baselinePartial?" · částečný základ":""}</span></td><td>{saleBenchmarkMetrics[row.metric]}<span className="owner-sub">{saleBenchmarkSources[row.source]}</span></td><td><strong>{money(Number(row.pricePerSqmCents))}</strong></td><td>{row.sampleCount}<span className="owner-sub">vyřazeno {row.rejectedSampleCount}</span></td><td>{saleBenchmarkConfidenceLabels[row.confidence]}</td><td>{saleBenchmarkMappingQualities[row.mappingQuality]}</td><td>{date(row.retrievedAt)}<span className="owner-sub">{row.importedBy?.name||"systém"} · {row.parserVersion}</span></td></tr>):<tr><td colSpan={8} className="table-empty">Zatím bez importovaného benchmarku.</td></tr>}</tbody></table></div></section>
+    </details>
   </div></Shell>;
 }
