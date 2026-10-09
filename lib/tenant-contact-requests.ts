@@ -5,7 +5,7 @@ import { activeTenantLease, portalEditableUnitWhere } from "./tenant-portal-acce
 import { serializableTransaction } from "./serializable";
 import { leaseStatusAt } from "./lease-lifecycle-core";
 import { enqueueTenantTaskNotification } from "./tenant-portal-notifications";
-import { tenantPortalContact } from "./tenant-portal-contact";
+import { portalContactPropertyInclude, portalContactOwnerSelect, tenantPortalContact } from "./tenant-portal-contact";
 
 export type TenantContactSnapshot = { email: string | null; phone: string | null; correspondenceAddress: string | null };
 type ContactActor = { id: string; role: string; allProperties?: boolean };
@@ -96,10 +96,10 @@ export async function createTenantContactRequest(user: ContactActor, tenantId: s
     const contactLease = await tx.lease.findUniqueOrThrow({
       where: { id: leaseId },
       include: {
-        ownerBankAccount: { include: { owner: { include: { user: true } } } },
+        ownerBankAccount: { include: { owner: { select: portalContactOwnerSelect } } },
         unit: { include: {
-          ownerships: { include: { owner: { include: { user: true } } } },
-          property: { include: { manager: true, owner: { include: { user: true } }, communicationOwner: { include: { user: true } } } },
+          ownerships: { include: { owner: { select: portalContactOwnerSelect } } },
+          property: { include: portalContactPropertyInclude },
         } },
       },
     });

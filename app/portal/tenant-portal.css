@@ -425,6 +425,8 @@
 .tenant-portal-v2 .tp-message[open]>.tp-message-summary>.tp-message-chevron{transform:rotate(180deg)}
 .tenant-portal-v2 .tp-message>.tp-message-content{padding:0 16px 16px 62px}
 .tenant-portal-v2 .tp-message-content>p{padding-top:12px;border-top:1px solid #e6edf6;line-height:1.65}
+.tenant-portal-v2 .tp-message-content>p{white-space:pre-line;overflow-wrap:anywhere}
+.tenant-portal-v2 .tp-message-actions .tp-button{white-space:normal;text-align:center;min-height:42px}
 .tenant-portal-v2 .tp-contact{display:flex;flex-direction:column}
 .tenant-portal-v2 .tp-contact-person{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start}
 .tenant-portal-v2 .tp-contact-bio{min-width:0}

@@ -2,9 +2,11 @@ import { ArrowRight, Bell, CheckCheck, ChevronDown, ClipboardCheck } from "lucid
 import { tenantPortalMessages, type PortalMessageUser } from "@/lib/tenant-portal-messages";
 import { date } from "@/lib/format";
 import { taskStatuses } from "@/lib/labels";
+import { PortalBankNotice } from "./tenant-portal/PortalBankNotice";
+import type { PortalBankNotice as BankNotice } from "@/lib/portal-bank-notices";
 
-type Props = { tenantId: string; leaseId: string; user: PortalMessageUser; preview: boolean };
-export async function TenantPortalMessages({ tenantId, leaseId, user, preview }: Props) {
+type Props = { tenantId: string; leaseId: string; user: PortalMessageUser; preview: boolean; bankNotices?: BankNotice[]; bankAnchorId?: string };
+export async function TenantPortalMessages({ tenantId, leaseId, user, preview, bankNotices = [], bankAnchorId }: Props) {
   const content = await tenantPortalMessages(user, tenantId, leaseId, preview);
   if (!content) return null;
   type MessageContent = NonNullable<typeof content>;
@@ -15,7 +17,7 @@ export async function TenantPortalMessages({ tenantId, leaseId, user, preview }:
   const activeNotices = content.announcements.filter(item => isActive(item) && !item.userStates[0]?.dismissedAt);
   const archivedNotices = content.announcements.filter(item => !isActive(item) || item.userStates[0]?.dismissedAt);
   const archivedCount = archivedTasks.length + archivedNotices.length;
-  const pendingCount = activeTasks.filter(task => !task.userStates[0]?.tenantConfirmedAt).length + activeNotices.filter(item => !item.userStates[0]?.readAt).length;
+  const pendingCount = activeTasks.filter(task => !task.userStates[0]?.tenantConfirmedAt).length + activeNotices.filter(item => !item.userStates[0]?.readAt).length + bankNotices.filter(item => !item.reads[0]?.confirmedAt).length;
 
   function action(kind: "task" | "announcement", itemId: string, verb: string, label: string, revision?: string) {
     return <form action={`/api/portal/tenants/${tenantId}/messages`} method="post"><input type="hidden" name="leaseId" value={leaseId}/><input type="hidden" name="kind" value={kind}/><input type="hidden" name="itemId" value={itemId}/><input type="hidden" name="action" value={verb}/>{revision && <input type="hidden" name="revision" value={revision}/>}<button className="secondary tp-message-action" type="submit" disabled={preview}>{label}</button></form>;
@@ -45,6 +47,7 @@ export async function TenantPortalMessages({ tenantId, leaseId, user, preview }:
     </details>;
   }
   const activeItems = [
+    ...bankNotices.map(notice => <PortalBankNotice key={notice.id} notice={notice} tenantId={tenantId} preview={preview} anchor={notice.id === bankAnchorId}/>),
     ...activeNotices.filter(item => item.severity !== "INFO").map(item => notice(item)),
     ...activeTasks.map(item => task(item)),
     ...activeNotices.filter(item => item.severity === "INFO").map(item => notice(item)),
@@ -52,7 +55,7 @@ export async function TenantPortalMessages({ tenantId, leaseId, user, preview }:
   return <section className="tp-messages" id={`zpravy-${leaseId}`} aria-labelledby={`zpravy-title-${leaseId}`}>
     <div className="tp-section-heading"><div><span className="tp-eyebrow">Od správce a pronajímatele</span><h2 id={`zpravy-title-${leaseId}`}>Oznámení a úkoly</h2></div>{pendingCount > 0 && <span className="tp-message-count">{pendingCount} k přečtení</span>}</div>
     {activeItems.length ? <><div className="tp-message-list">{activeItems.slice(0, 3)}</div>{activeItems.length > 3 && <details className="tp-message-archive"><summary>Zobrazit další oznámení a úkoly <span>{activeItems.length - 3}</span></summary><div className="tp-message-list">{activeItems.slice(3)}</div></details>}</> : <div className="tp-message-empty"><CheckCheck size={24} aria-hidden="true"/><p>Teď pro vás nemáme žádné nové zprávy ani úkoly.</p></div>}
-    {preview && (activeTasks.length > 0 || activeNotices.length > 0) && <p className="tp-message-preview">Náhled správce · potvrzení a archivace jsou dostupné nájemníkovi.</p>}
+    {preview && (activeTasks.length > 0 || activeNotices.length > 0 || bankNotices.length > 0) && <p className="tp-message-preview">Náhled správce · potvrzení a archivace jsou dostupné nájemníkovi.</p>}
     {archivedCount > 0 && <details className="tp-message-archive"><summary>Archiv zpráv a vyřízené úkoly <span>{archivedCount}</span></summary><div className="tp-message-list">{archivedNotices.map(item => notice(item, true))}{archivedTasks.map(item => task(item, true))}</div></details>}
   </section>;
 }
