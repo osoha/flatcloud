@@ -31,11 +31,14 @@ export function tenantDirectoryWhere(user: Actor, propertyId: string, options: {
   const q = options.q?.trim().slice(0, 150);
   if (q) filters.push({ OR: ["name", "email", "communicationEmail", "phone"].map(field => ({ [field]: { contains: q, mode: "insensitive" } })) });
   if (options.free) {
-    const start = options.startDate || new Date();
+    // A lease occupies whole calendar days. Stored dates can be midnight or
+    // the canonical noon used by forms; include both ends of the chosen day.
+    const start = new Date(`${(options.startDate || new Date()).toISOString().slice(0, 10)}T00:00:00.000Z`);
+    const end = options.endDate ? new Date(`${options.endDate.toISOString().slice(0, 10)}T23:59:59.999Z`) : undefined;
     const overlap: Prisma.LeaseWhereInput = {
       cancelledAt: null,
       ...(options.excludeLeaseId ? { id: { not: options.excludeLeaseId } } : {}),
-      ...(options.endDate ? { startDate: { lte: options.endDate } } : {}),
+      ...(end ? { startDate: { lte: end } } : {}),
       AND: [{ OR: [{ endDate: null }, { endDate: { gte: start } }] }, { OR: [{ terminatedOn: null }, { terminatedOn: { gte: start } }] }],
     };
     filters.push({ leases: { none: overlap }, leaseParties: { none: { role: "CONTRACTING_PARTY", lease: overlap } } });

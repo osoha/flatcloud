@@ -133,6 +133,10 @@ test("tenant search pages the directory, protects foreign profiles and respects 
   const free = async (startDate: string, endDate: string) => (await (await page.request.get(`/api/properties/${f.property.id}/lease-tenants?scope=PROPERTY&free=1&startDate=${startDate}&endDate=${endDate}&q=Polish%2002`, {headers: await authHeaders(page)})).json()).options.map((row: string[]) => row[0]);
   expect(await free("2027-01-01", "2027-12-31")).toContain(f.tenants[2].id);
   expect(await free("2030-01-01", "2030-02-01")).not.toContain(f.tenants[2].id);
+  // The last day of the proposed term includes a future lease stored at noon.
+  expect(await free("2029-12-01", "2030-01-01")).not.toContain(f.tenants[2].id);
+  expect(await free("2030-12-31", "2031-12-31")).not.toContain(f.tenants[2].id);
+  expect(await free("2031-01-01", "2031-12-31")).toContain(f.tenants[2].id);
   // Contract creation requires a whole-property EDIT grant, beyond the unit's document grant.
   const grant = await db.userProperty.create({data: {propertyId: f.property.id, userId: f.manager.id, permission: "EDIT"}});
   const forged = await page.request.post(`/api/properties/${f.property.id}/leases`, {headers: await authHeaders(page), form: {tenantId: f.foreignTenant.id, unitId: f.units[6].id}, maxRedirects: 0});

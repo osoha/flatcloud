@@ -1,6 +1,6 @@
 # Opravy portfolia, smluv a bankovního nastavení — 10. 10. 2026
 
-Stav: DRAFT — implementováno, závěrečné ověření běží. Produkční sloučení a nasazení čeká na rozhodnutí po předložení auditu podle AGENTS.md.
+Stav: implementováno v [PR277](https://github.com/osoha/flatcloud/pull/277). Aktuální výsledky přejímky a rozhodnutí READY/BLOCKED jsou vedené v popisu PR. Produkční sloučení a nasazení čeká na rozhodnutí po předložení tohoto auditu podle AGENTS.md.
 
 ## Výsledné chování
 
@@ -20,6 +20,8 @@ Stav: DRAFT — implementováno, závěrečné ověření běží. Produkční s
 
 Oprava poskytuje ovládání, které u dokumentu chybělo. Uživatel s EDIT/ADMIN otevře na kartě dokumentu **Upravit zařazení**, zvolí skutečnou kategorii a smlouvu podle osoby a období a uloží změnu. Následně může samostatně zvolit **Zpřístupnit nájemníkovi**. Nájemník ani uživatel s pouhým globálním právem číst tato ovládání nedostane.
 
+Oprávnění se spravují v **Nemovitost → Nastavení → Správce a spolupracovníci → Uživatelé a přístupy**. `Zobrazení a editace` odpovídá EDIT, `Správa objektu a uživatelů` ADMIN. Existující individuální právo EDIT/ADMIN na jednotce rovněž dovoluje upravit její dokument. U superadmina není nutné přidávat nový příznak oprávnění; dříve chybělo samotné ovládání dokumentu.
+
 Produkční dokumenty nebyly automaticky přiřazeny. Samotný název souboru či jméno osoby nedokazuje správnou historickou smlouvu. Záznam bez `leaseId` může existovat po nahrání přílohy k jednotce nebo objektu; konkrétní historický původ nelze bez záznamu události prohlásit za ověřený.
 
 ## Audit a dopady
@@ -28,7 +30,7 @@ Produkční dokumenty nebyly automaticky přiřazeny. Samotný název souboru č
 - Rizikovější část: nová změna vazby dokumentu a zpřesnění rozsahu nájemníků v obou mutacích. Testy zahrnují EDIT versus VIEW, cizí jednotku, cizí profil, cizí Origin, zachování souboru a zrušení sdílení po změně vazby.
 - Úkolové přílohy, revize, doklady nákladů a důkazy odečtů se tímto formulářem nepřesouvají.
 - Změna metadat nepublikuje soubor nájemníkovi. Zapnutí sdílení má samostatné ovládání a existující kontrolu oprávnění.
-- Nájem ve více jednotkách zůstává možný. Filtr volných osob je volitelný a porovnává vybrané období včetně budoucích smluv, ukončení a zrušení; ručitel či kontakt sám osobu neobsadí.
+- Nájem ve více jednotkách zůstává možný. Filtr volných osob je volitelný a porovnává celé kalendářní dny vybraného období včetně budoucích smluv, ukončení a zrušení; ručitel či kontakt sám osobu neobsadí. Počátek jiné smlouvy i poslední den navrhovaného nájmu znamená překryv, bez ohledu na uložení data o půlnoci či v poledne.
 - Šest historických kontrol otisku reportového schématu přijalo schválenou změnu plochy z kladné na nezápornou. Ostatní otisky PDF a finančních kontraktů zůstávají kontrolované. Samostatná regrese ověřuje nulu, NULL, zápornou hodnotu a zachování kladného dělitele.
 - Propojení účtu vlastníka mimo zadání nebylo měněno. Dva vzdálené nápady zůstávají na konci pipeline.
 
@@ -37,7 +39,7 @@ Produkční dokumenty nebyly automaticky přiřazeny. Samotný název souboru č
 - Produkční build Next.js 16.2.10 / Node.js 22.23.1 prošel.
 - Prisma validate prošlo; všech 110 migrací aplikováno na izolované PostgreSQL 18.4.
 - Všech 160 verifikačních příkazů z build jobu CI prošlo. Lokální omezení Unix IPC vyžadovalo u části příkazů ekvivalentní `node --import tsx` místo CLI `tsx`; testy ani kontroly se nevypínaly. Dvě kontroly byly spuštěné s výchozím UTC a vypnutým úložištěm stejně jako v CI.
-- Playwright: závěrečný výsledek bude doplněn před označením READY.
+- Playwright přejímka zahrnuje osm nových scénářů: skutečný hover záložek; odznak/KPI/rozsah; úprava dokumentu a reset sdílení; zákaz editace pro čtenáře; velký adresář, cizí profil a hraniční dny nájmu; účty/Berry/mobil; Basic/budovy/návrat/paměť; prázdná jednotka s plochou 0. Počty výsledků celého balíku a samostatné kontroly úložiště jsou vedené v popisu PR a GitHub Actions.
 - Ruční vizuální kontrola bankovního přehledu na desktopu a šířce 390 px.
 
 Produkce a produkční data se během ověřování neměnily. Nasazení patří až za schválení tohoto výsledku.
