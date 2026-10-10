@@ -28,7 +28,7 @@ export const unitValuationRowSchema = z.object({
   unitLabel: z.string().min(1).max(120),
   disposition: optionalText(120),
   floor: optionalText(120),
-  areaM2: z.number().positive().nullable(),
+  areaM2: z.number().nonnegative().nullable(),
   amountCents: z.number().int(),
 }).strict();
 

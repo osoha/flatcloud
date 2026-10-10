@@ -1,0 +1,25 @@
+import assert from "node:assert/strict";
+import { unitAreaValue, parseAreaM2 } from "../lib/forms";
+import { parseUnitBatch } from "../lib/unit-batch";
+import { calculatePropertySnapshot } from "../lib/reporting/snapshot-calculator";
+import { unitValuationRowSchema } from "../lib/reporting/editorial-schema";
+
+const form = (area: string) => { const data = new FormData(); data.set("areaM2", area); return data; };
+assert.equal(unitAreaValue(form("")), null);
+assert.equal(unitAreaValue(form("0")), 0);
+assert.equal(unitAreaValue(form("12,5")), 12.5);
+assert.throws(() => unitAreaValue(form("-1")));
+assert.throws(() => unitAreaValue(form("NaN")));
+assert.throws(() => unitAreaValue(form("Infinity")));
+assert.throws(() => parseAreaM2("0"), "Price per square metre still needs a positive area");
+const valuation = {kind: "UNIT", unitLabel: "Stání", disposition: null, floor: null, areaM2: 0, amountCents: 100000};
+assert.equal(unitValuationRowSchema.parse(valuation).areaM2, 0);
+assert.throws(() => unitValuationRowSchema.parse({...valuation, areaM2: -1}));
+const rows = parseUnitBatch("Stání;;0\nByt;;\nKomora;;12,5");
+assert.deepEqual(rows.map(row => row.areaM2), [0, null, 12.5]);
+const result = calculatePropertySnapshot({ propertyId: "qa-property", asOf: new Date("2026-10-10T12:00Z"), units: rows.map((row, index) => ({id: String(index), areaM2: row.areaM2, leases: [], operationalStatusEvents: [{status: "STANDARD", effectiveAt: new Date("2026-01-01T12:00Z")}]})) });
+assert.deepEqual(result.quality.issues.filter(issue => issue.code === "MISSING_UNIT_AREA").map(issue => issue.unitId), ["1"]);
+assert.equal(result.data.rentRoll.missingAreaUnits, 1);
+assert.equal(result.data.rentRoll.rentableAreaM2, 12.5);
+assert.equal(result.data.rentRoll.weightedNetRentPerM2Cents, null);
+console.log("Unit area: zero is filled, null is missing, negative and invalid values are rejected, no zero divisor.");

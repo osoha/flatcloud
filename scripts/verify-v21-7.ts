@@ -28,7 +28,7 @@ const permissionLevelSelect = read("app/uzivatele/[id]/PermissionLevelSelect.tsx
 const userAccessStyles = read("app/uzivatele/[id]/user-access.module.css");
 
 checks.push(["sidebar contracts link to catalog", shell.includes('href="/smlouvy"') && !shell.includes('href="/smlouvy/upozorneni" icon={<CalendarCheck2')]);
-checks.push(["sidebar lease badge uses shared scope", shell.includes("leaseAccessWhere(user)")]);
+checks.push(["sidebar lease badge uses shared scope", shell.includes("leaseAccessWhere(contentUser)") && shell.includes("selection.mode === \"SELECTED\"") && shell.includes("isLeaseExpiring(lease, today)")]);
 checks.push(["catalog views", ["ACTIVE", "FUTURE", "EXPIRING", "HISTORY", "ALL"].every((view) => catalog.includes(view))]);
 const baseLease = { startDate: new Date("2026-01-01T12:00:00Z"), endDate: new Date("2026-11-28T12:00:00Z"), tenant: { name: "Jan Novák", email: "jan@example.cz" }, unit: { label: "A-12", property: { name: "Dům Alfa", address: "Hlavní 1", city: "Praha" } }, contractNumber: "SM-42", variableSymbol: "42001" };
 checks.push(["three Prague calendar months", addPragueCalendarMonths(new Date("2026-08-28T08:00:00Z"), 3) === "2026-11-28"]);

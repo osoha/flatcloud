@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { requirePropertyAccess, tenantAccessWhere, unitAccessWhere } from "@/lib/access";
+import { requirePropertyAccess, unitAccessWhere } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Field, Flash, FormCard, FormPage, Textarea } from "@/components/FormUi";
 import { LeaseCoreFields } from "@/components/LeaseCoreFields";
@@ -13,6 +13,7 @@ import { leaseStatuses } from "@/lib/labels";
 import { date, money } from "@/lib/format";
 import { hasPropertyPermission } from "@/lib/management";
 import { PropertyPermission } from "@prisma/client";
+import { initialLeaseTenants, directoryTenantOption } from "@/lib/lease-tenant-directory";
 import { rentRollAmountsAt } from "@/lib/reporting/rent-roll";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ export default async function EditLease({ params, searchParams }: { params: Prom
     prisma.lease.findMany({ where: { id: { not: leaseId } }, select: { variableSymbol: true } }),
   ]);
   if (!property || !lease) notFound();
-  const tenants = await prisma.tenant.findMany({ where: { AND: [tenantAccessWhere(user), { OR: [{ id: lease.tenantId }, { propertyLinks: { some: { propertyId: id } } }, { leases: { some: { unit: { propertyId: id } } } }, { leaseParties: { some: { lease: { unit: { propertyId: id } } } } }] }] }, orderBy: { name: "asc" } });
+  const tenants = await initialLeaseTenants(user, id, [lease.tenantId, ...lease.parties.map(party => party.tenantId)]);
   const used = new Set(usedRows.map((row) => row.variableSymbol));
   const identities = Object.fromEntries(property.units.map((unit) => [unit.id, proposedLeaseIdentity(property, unit, used)]));
   const proposals = Object.fromEntries(property.units.map((unit) => [unit.id, identities[unit.id]?.variableSymbol ?? null]));
@@ -46,7 +47,7 @@ export default async function EditLease({ params, searchParams }: { params: Prom
     {futureRentChange&&<div className="notice"><strong>Potvrzená budoucí změna: {money(futureRentChange.proposedRentCents)} od {date(futureRentChange.effectiveFrom)}</strong><span>Formulář zobrazuje dnešní účinné nájemné. Uložení ostatních údajů zachová schválenou budoucí verzi; změna indexace nebo zkrácení smlouvy před účinnost je blokováno.</span></div>}
     <div className="card lease-edit-finance-lock"><div><span className="eyebrow">Finance smlouvy</span><h2>{money(liveAmounts.rent.amountCents)} nájem + {money(liveAmounts.services.amountCents)} služby</h2><p className="muted-copy">Částky mají vlastní časovou historii a nelze je přepsat obecnou editací smlouvy.</p></div><a className="primary" href={`/smlouvy/${lease.id}/finance/upravit`}>Změnit od budoucího měsíce</a></div>
     <FormCard action={`/api/properties/${id}/leases/${lease.id}`} cancelHref={`/nemovitosti/${id}/jednotky/${lease.unitId}`}>
-      <LeaseCoreFields propertyId={id} unitOptions={property.units.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, `${tenant.name} · ${tenant.communicationEmail || tenant.email || tenant.phone || (tenant.type === "COMPANY" ? "firma" : "osoba")}`])} defaultUnitId={lease.unitId} defaultTenantId={lease.tenantId} defaultContractingPartyIds={lease.parties.filter((party) => party.role === "CONTRACTING_PARTY" && !party.isPrimary).map((party) => party.tenantId)} defaultPayerPartyIds={lease.parties.filter((party) => party.role === "PAYER" && !party.isPrimary).map((party) => party.tenantId)} defaultContactPartyIds={lease.parties.filter((party) => party.role === "CONTACT" && !party.isPrimary).map((party) => party.tenantId)} defaultGuarantorPartyIds={lease.parties.filter((party) => party.role === "GUARANTOR").map((party) => party.tenantId)} defaultContractNumber={lease.contractNumber} defaultStartDate={dateInput(lease.startDate)} defaultEndDate={dateInput(lease.endDate)} defaultDueDay={lease.dueDay} defaultRentTiming={lease.rentTiming} defaultVariableSymbol={lease.variableSymbol} defaultTenantBankAccount={lease.tenantBankAccount} proposals={proposals} ownersByUnit={ownersByUnit} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges defaultAutoChargesEnabled={lease.autoChargesEnabled} defaultIndexationEnabled={lease.indexationEnabled} defaultIndexationPercent={lease.indexationPercentBps == null ? "" : lease.indexationPercentBps / 100} defaultDeposit={moneyInput(lease.depositCents).replace(",", ".")} defaultDepositInterest={(lease.securityDepositTerms.at(-1)?.annualRateBps || 0) / 100}/>
+      <LeaseCoreFields propertyId={id} excludeLeaseId={lease.id} unitOptions={property.units.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map(directoryTenantOption)} defaultUnitId={lease.unitId} defaultTenantId={lease.tenantId} defaultContractingPartyIds={lease.parties.filter((party) => party.role === "CONTRACTING_PARTY" && !party.isPrimary).map((party) => party.tenantId)} defaultPayerPartyIds={lease.parties.filter((party) => party.role === "PAYER" && !party.isPrimary).map((party) => party.tenantId)} defaultContactPartyIds={lease.parties.filter((party) => party.role === "CONTACT" && !party.isPrimary).map((party) => party.tenantId)} defaultGuarantorPartyIds={lease.parties.filter((party) => party.role === "GUARANTOR").map((party) => party.tenantId)} defaultContractNumber={lease.contractNumber} defaultStartDate={dateInput(lease.startDate)} defaultEndDate={dateInput(lease.endDate)} defaultDueDay={lease.dueDay} defaultRentTiming={lease.rentTiming} defaultVariableSymbol={lease.variableSymbol} defaultTenantBankAccount={lease.tenantBankAccount} proposals={proposals} ownersByUnit={ownersByUnit} ownerAccountsByUnit={ownerAccountsByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges defaultAutoChargesEnabled={lease.autoChargesEnabled} defaultIndexationEnabled={lease.indexationEnabled} defaultIndexationPercent={lease.indexationPercentBps == null ? "" : lease.indexationPercentBps / 100} defaultDeposit={moneyInput(lease.depositCents).replace(",", ".")} defaultDepositInterest={(lease.securityDepositTerms.at(-1)?.annualRateBps || 0) / 100}/>
       <Textarea label="Poznámka" name="note" defaultValue={lease.note}/>
       <div className="field field-full"><h3>Upomínky a inkaso</h3><p className="muted-copy">Dočasné pozastavení má přednost před globálním automatickým plánem.</p></div>
       <Field label="Pozastavit automatické upomínky do" name="remindersPausedUntil" type="date" defaultValue={dateInput(lease.remindersPausedUntil)}/>

@@ -4,6 +4,8 @@ import { documentCategories, documentPhotoStages } from "@/lib/labels";
 import {DocumentTenantVisibility} from "./DocumentTenantVisibility";
 import {editableTenantDocumentIds, type DocumentSharingActor} from "@/lib/documents/tenant-visibility";
 import { DocumentImagePreview } from "./DocumentImagePreview";
+import {DocumentMetadataEditor} from "./DocumentMetadataEditor";
+import {documentMetadataChoices} from "@/lib/documents/metadata";
 
 export type DocumentListItem = {
   id: string; propertyId: string; unitId?: string | null; leaseId?: string | null; taskId?: string | null;
@@ -16,13 +18,16 @@ export type DocumentListItem = {
 
 export async function DocumentAttachments({ documents, empty = "Zatím nejsou přiloženy žádné dokumenty.", canDelete = false, returnTo = "/dokumenty", showContext = false, viewer }: { documents: DocumentListItem[]; empty?: string; canDelete?: boolean; returnTo?: string; showContext?: boolean; viewer?: DocumentSharingActor }) {
   if (!documents.length) return <div className="table-empty">{empty}</div>;
-  const editableSharing = viewer ? await editableTenantDocumentIds(viewer, documents.map(document => document.id)) : new Set<string>();
+  const [editableSharing, metadataChoices] = viewer ? await Promise.all([
+    editableTenantDocumentIds(viewer, documents.map(document => document.id)),
+    documentMetadataChoices(viewer, documents.map(document => document.id)),
+  ]) : [new Set<string>(), new Map<string, Array<[string, string]>>()];
   return <div className="document-grid">{documents.map((document) => {
     const category = documentCategories[document.category] || document.category;
     const stage = document.photoStage ? documentPhotoStages[document.photoStage] || document.photoStage : null;
     return <article className="document-card" key={document.id} data-document-id={document.id}>
       {document.fileAsset.mimeType.startsWith("image/") ? <DocumentImagePreview documentId={document.id} title={document.title}/> : <FileText size={32} aria-hidden="true"/>}
-      <div><strong>{document.title}</strong><span>{document.fileAsset.originalName} · {(document.fileAsset.sizeBytes / 1024).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} kB</span><span>{stage ? `${stage} · ` : ""}{category}</span>{showContext && <DocumentContext document={document}/>}<DocumentTenantVisibility document={document} canEdit={editableSharing.has(document.id)} returnTo={returnTo}/><div className="document-actions"><a href={`/api/documents/${document.id}/download`}>Stáhnout</a>{canDelete && <form action={`/api/documents/${document.id}`} method="post"><input type="hidden" name="returnTo" value={returnTo}/><button className="link-button" type="submit">Odstranit</button></form>}</div></div>
+      <div><strong>{document.title}</strong><span>{document.fileAsset.originalName} · {(document.fileAsset.sizeBytes / 1024).toLocaleString("cs-CZ", { maximumFractionDigits: 0 })} kB</span><span>{stage ? `${stage} · ` : ""}{category}</span>{showContext && <DocumentContext document={document}/>}<DocumentTenantVisibility document={document} canEdit={editableSharing.has(document.id)} returnTo={returnTo}/>{metadataChoices.has(document.id) && <DocumentMetadataEditor document={document} leases={metadataChoices.get(document.id)!} returnTo={returnTo}/>}<div className="document-actions"><a href={`/api/documents/${document.id}/download`}>Stáhnout</a>{canDelete && <form action={`/api/documents/${document.id}`} method="post"><input type="hidden" name="returnTo" value={returnTo}/><button className="link-button" type="submit">Odstranit</button></form>}</div></div>
     </article>;
   })}</div>;
 }

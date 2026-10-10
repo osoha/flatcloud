@@ -1,6 +1,6 @@
 import { UnitDisposition, UnitOperationalStatus, UnitType } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { floatValue, text } from "@/lib/forms";
+import { unitAreaValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { shouldCreateOperationalStatusEvent } from "@/lib/unit-operational-history";
@@ -30,7 +30,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         disposition,
         dispositionCustom: disposition === "OTHER" ? dispositionCustom : null,
         operationalStatus,
-        areaM2: floatValue(form, "areaM2"),
+        areaM2: unitAreaValue(form),
         note: text(form, "note"),
         ...(shouldCreateOperationalStatusEvent(current.operationalStatus, operationalStatus) ? { operationalStatusEvents: { create: { status: operationalStatus, source: "USER_CHANGE", createdById: access.user.id, effectiveAt: new Date() } } } : {}),
       },

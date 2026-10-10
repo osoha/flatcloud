@@ -36,7 +36,7 @@ check("create and edit flows validate access and synchronize parties", () => {
   const create = read("app/api/properties/[id]/leases/route.ts") + read("lib/lease-create.ts");
   const edit = read("app/api/properties/[id]/leases/[leaseId]/route.ts");
   for (const source of [create, edit]) {
-    assert.match(source, /tenantAccessWhere/);
+    assert.match(source, /leaseTenantAccessWhere\(access.user, id\)/);
     assert.match(source, /syncLeaseParties/);
     assert.match(source, /contractingPartyIds/);
   }
