@@ -26,7 +26,13 @@ test("Profi bulk readings are atomic; Basic keeps a simple entry and full histor
     const headers={Cookie:`fc_session=${session!.value}`};
     await page.request.post("/api/display-mode",{headers,form:{mode:"pro",returnTo:"/portfolio"}});
     await page.goto(`/nemovitosti/${property.id}/meridla`);
-    await expect(page.getByRole("heading",{name:"Měřidla a odečty"})).toBeVisible();
+    await expect(page.getByRole("heading",{name:"Objektová měřidla"})).toBeVisible();
+    const filters=page.locator(".profi-meter-filters");
+    await expect(filters.locator('select[name="unit"]')).toHaveValue("house");
+    await expect(page.locator('.profi-meter-bulk input[name^="value:"]')).toHaveCount(0);
+    await filters.locator('select[name="unit"]').selectOption("all");
+    await filters.getByRole("button",{name:"Filtrovat",exact:true}).click();
+    await expect(page.locator('.profi-meter-bulk input[name^="value:"]')).toHaveCount(2);
     await expect(page.getByText("Hromadný odečet")).toBeVisible();
     await page.getByText("Hromadný odečet",{exact:true}).click();
     const form=page.locator(".profi-meter-bulk form");
@@ -36,6 +42,7 @@ test("Profi bulk readings are atomic; Basic keeps a simple entry and full histor
     await form.getByRole("button",{name:"Uložit vyplněné odečty"}).click();
     await expect(page).toHaveURL(/error=/);
     expect(new URL(page.url()).searchParams.get("error")).toContain("Stav nenavazuje");
+    await expect(filters.locator('select[name="unit"]')).toHaveValue("all");
     expect(await db.meterReading.count({where:{meterId:{in:[first.id,second.id]}}})).toBe(2);
     await page.getByText("Hromadný odečet",{exact:true}).click();
     await form.locator('[name="readAt"]').fill("2026-02-01");
@@ -44,6 +51,7 @@ test("Profi bulk readings are atomic; Basic keeps a simple entry and full histor
     await form.getByRole("button",{name:"Uložit vyplněné odečty"}).click();
     await expect(page).toHaveURL(/ok=/);
     expect(new URL(page.url()).searchParams.get("ok")).toBe("Uloženo 2 odečtů.");
+    await expect(filters.locator('select[name="unit"]')).toHaveValue("all");
     expect(await db.meterReading.count({where:{meterId:{in:[first.id,second.id]}}})).toBe(4);
     await page.request.post("/api/display-mode",{headers,form:{mode:"basic",returnTo:"/portfolio"}});
     await page.goto(`/nemovitosti/${property.id}/jednotky/${unit.id}#meridla`);

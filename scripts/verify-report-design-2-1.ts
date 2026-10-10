@@ -496,8 +496,10 @@ async function main() {
       );
       assert.equal(
         hash("lib/documents/access.ts"),
-        // R24-B: human-approved internal-entry restriction; role/download behavior is browser gated.
-        "40fbe6030940a31a7453b1051859fc6a283e3827d9e23f22a9ba67fe19f9711b",
+        // PR275: additionally restrict shared-house owners to authorized units,
+        // including indirect contexts. Download denials are browser gated in
+        // admin-property-polish.spec.ts; production still requires human approval.
+        "2b9d283ad3016ca3af148a81e03b6cc723ea0ba4b3bdefae43c6874948d42c4d",
       );
     },
   );

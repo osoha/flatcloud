@@ -1,3 +1,4 @@
+import { taskQueueWhere } from "@/lib/task-access";
 import { accessibleProperties, leaseAccessWhere, taskAccessWhere } from "@/lib/access";
 import { filterPortfolioProperties, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import {headers} from "next/headers";
@@ -58,7 +59,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const selection=parsePortfolioSelection({ownerId:navigationQuery.get("ownerId")||undefined,properties:navigationQuery.has("properties")?navigationQuery.get("properties")!:undefined,propertyId:navigationQuery.get("propertyId")||undefined});
   const scopedDisplayReturnTo=displayReturnTo||withPortfolioSelection("/portfolio",new URLSearchParams(),selection);
   const ownerProperties = selection.ownerId ? filterPortfolioProperties(await accessibleProperties(contentUser,{includeInactive:true}),selection) : [];
-  const taskWhere = {AND:[taskAccessWhere(user),...(selection.ownerId?[portfolioTaskFilter(ownerProperties,selection)]:[]),...(selection.mode==="SELECTED"?[{OR:[{propertyId:{in:selection.propertyIds}},{propertyId:null}]}]:[])]};
+  const taskWhere = {AND:[taskAccessWhere(user),taskQueueWhere(user),...(selection.ownerId?[portfolioTaskFilter(ownerProperties,selection)]:[]),...(selection.mode==="SELECTED"?[{OR:[{propertyId:{in:selection.propertyIds}},{propertyId:null}]}]:[])]};
   const revisionWhere = { ...(fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } }), ...(selection.ownerId ? { propertyId: { in: ownerProperties.filter(property=>property.active).map(property=>property.id) } } : {}) };
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
   const [openTasks, announcementCount, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
@@ -88,7 +89,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const hasTenantPortal=tenantPortalAccesses.some(row=>tenantPortalContactMatches(user.email,row.tenant));
 
   return <div className={`app-shell v21-shell flatberry-shell${mode === "basic" ? " basic-shell" : ""}`}>
-    <ProfiAppearance graphics={Boolean(contentUser.profiGraphics)}/>{superAdmin && <AdminOperationsPanel/>}
+    <ProfiAppearance graphics={contentUser.profiGraphics !== false}/>{superAdmin && <AdminOperationsPanel/>}
     {!preview && <FirstLoginGuide userId={user.id}/>}
     <NativeDetailsEscape/>
     <ActiveTabVisibility/>

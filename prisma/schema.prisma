@@ -517,7 +517,7 @@ model User {
   ownerRepresentations OwnerRepresentative[]
   createdTenants Tenant[] @relation("TenantCreator")
   defaultDisplayMode String @default("basic")
-  profiGraphics Boolean @default(false)
+  profiGraphics Boolean @default(true)
   onboardingStatus String @default("available")
   onboardingStep String @default("welcome")
   onboardingVersion Int @default(1)

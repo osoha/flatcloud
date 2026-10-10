@@ -51,7 +51,7 @@ export default async function PortfolioQualityPage({ searchParams }: { searchPar
 
   return <Shell user={user}><div className="page portfolio-quality-page">
     <div className="breadcrumb"><Link href="/portfolio">Portfolio</Link><span>›</span><span>Kvalita a CAPEX</span></div>
-    <div className="page-title"><div><PageHeading>Kvalita a technický stav portfolia</PageHeading><p>Neutrální evidence stavu bytů a plánování obnovy bez vazby na budoucí prodej.</p></div><PortfolioScopePicker availableProperties={pickerProperties} selection={selection.mode === "ALL" ? selection : { ...selection, mode: "SELECTED", propertyIds: allowedPropertyIds }}/></div>
+    <div className="page-title"><div><PageHeading>Kvalita a technický stav portfolia</PageHeading><p>Neutrální evidence stavu bytů a plánování obnovy bez vazby na budoucí prodej.</p></div><PortfolioScopePicker viewerId={user.id} availableProperties={pickerProperties} selection={selection.mode === "ALL" ? selection : { ...selection, mode: "SELECTED", propertyIds: allowedPropertyIds }}/></div>
     <Flash ok={query.ok} error={query.error}/>
     <PortfolioQualitySubnav active="queue" query={selectionQuery}/>
     <div className="stat-grid v21-stat-grid quality-kpis"><Stat icon={<Home/>} label="Vybrané jednotky" value={String(units.length)}/><Stat icon={<ClipboardCheck/>} label="Aktuálně hodnoceno" value={`${assessed}/${units.length}`}/><Stat icon={<CalendarClock/>} label="Řešit ihned / probíhá" value={`${urgent} / ${inProgress}`}/><Stat icon={<Hammer/>} label="Ke spuštění / otevřený CAPEX" value={`${approvedToExecute} · ${money(plannedCapex)}`}/></div>

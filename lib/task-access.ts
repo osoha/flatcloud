@@ -82,3 +82,8 @@ export async function filterTaskEntryActivity<T extends { entityType: string; en
   const visible = new Set((await prisma.taskEntry.findMany({ where: { id: { in: ids }, ...taskEntryVisibilityWhere(user) }, select: { id: true } })).map(entry => entry.id));
   return rows.filter(row => { const id = entryId(row); return !id || visible.has(id); });
 }
+
+/** Personal work queue; administrative visibility does not make unrelated general tasks personal. */
+export function taskQueueWhere(user: User): Prisma.TaskWhereInput {
+  return { OR: [{ propertyId: { not: null } }, { assigneeId: user.id }, { members: { some: { userId: user.id } } }, { assigneeId: null, createdById: user.id }] };
+}

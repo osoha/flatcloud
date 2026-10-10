@@ -35,7 +35,7 @@ export default async function DocumentsPage({ searchParams }: { searchParams: Pr
   const catalogQuery = { ...q, properties: selectionValue ?? undefined, propertyId: undefined };
   const resetHref = withPortfolioSelection("/dokumenty", new URLSearchParams(), selection);
   const scopeInput = <>{selection.ownerId && <input type="hidden" name="ownerId" value={selection.ownerId}/>} {selectionValue !== null && <input type="hidden" name="properties" value={selectionValue}/>}</>;
-  const scopePicker = <PortfolioScopePicker availableProperties={availableProperties.map(property => portfolioPropertyOption(property))} selection={selection.mode === "ALL" ? selection : { ...selection, mode: "SELECTED", propertyIds: selectedIds }}/>;
+  const scopePicker = <PortfolioScopePicker viewerId={user.id} availableProperties={availableProperties.map(property => portfolioPropertyOption(property))} selection={selection.mode === "ALL" ? selection : { ...selection, mode: "SELECTED", propertyIds: selectedIds }}/>;
   const page = Math.max(1, Number(q.page) || 1);
   const dateFrom = validDate(q.dateFrom) ? businessDateKeyToInstant(q.dateFrom) : undefined;
   const dateTo = validDate(q.dateTo) ? businessDateEndInstant(q.dateTo) : undefined;

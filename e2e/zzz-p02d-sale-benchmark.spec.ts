@@ -43,7 +43,11 @@ test("P02D reports missing coverage, computes trend and requires explicit valuat
 
     await login(page);
     await page.goto("/nastaveni/cenovy-benchmark");
-    await expect(page.getByRole("heading",{name:"Prodejní cenový benchmark"})).toBeVisible();
+    await expect(page.getByRole("heading",{name:"Cenová data a aktualizace",exact:true})).toBeVisible();
+    const legacy=page.locator(".legacy-benchmark");
+    await expect(legacy).not.toHaveAttribute("open");
+    await legacy.locator("summary").click();
+    await expect(legacy.getByRole("button",{name:"Uložit auditovaný snapshot",exact:true})).toBeVisible();
     const missingConfirmation=await page.request.post(`/api/properties/${property.id}/sale-benchmark/accept-unit`,{form:{unitId:covered.id,snapshotId:current.snapshot.id},maxRedirects:0});expect(missingConfirmation.status()).toBe(303);expect(await db.unitValuationSnapshot.count({where:{unitId:covered.id,source:"MARKET_BENCHMARK"}})).toBe(0);
     const valuationRollback=new Error("rollback P02D valuation fixture");
     await expect(db.$transaction(async tx=>{const valuation=await createUnitValuationSnapshot(actor,property.id,covered.id,{marketValueCents:450_000_000,source:"MARKET_BENCHMARK",valuationDate:current.snapshot.windowTo,reference:`P02D:${current.snapshot.id}`},tx);expect(Number(valuation.marketValueCents)).toBe(450_000_000);expect(valuation.reference).toBe(`P02D:${current.snapshot.id}`);throw valuationRollback})).rejects.toBe(valuationRollback);

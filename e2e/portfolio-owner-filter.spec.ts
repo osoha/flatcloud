@@ -35,7 +35,9 @@ async function login(page: Page, email: string) {
 }
 async function selectOwner(page: Page, name: string) {
   await page.getByRole("button", { name: /Rozsah správy/ }).click();
-  await page.getByRole("dialog", { name: "Vybrat zobrazené objekty" }).getByRole("button", { name: new RegExp(name) }).click();
+  const picker = page.getByRole("dialog", { name: "Vybrat zobrazené objekty" });
+  const ownerId = await picker.getByRole("option").filter({ hasText: name }).getAttribute("value");
+  await picker.getByLabel("Vlastník jednotek", { exact: true }).selectOption(ownerId!);
   await page.getByRole("button", { name: "Použít výběr", exact: true }).click();
   await expect(page).toHaveURL(/ownerId=/);
 }
@@ -74,7 +76,20 @@ test("owner portfolio includes units in shared houses, narrows money and tasks, 
     { propertyId: veska.id, title: `Společný úkol ${tag}`, createdById: admin.id },
   ] });
   await login(page, admin.email);
+  await page.getByRole("button", { name: /Rozsah správy/ }).click();
+  await page.getByLabel("Hledat nemovitost nebo vlastníka").fill("sohaj");
+  await expect(page.locator(".scope-options label")).toHaveCount(3);
+  await expect(page.locator(".scope-options")).toContainText("Veská");
+  await page.getByRole("button", { name: "Zrušit změny", exact: true }).click();
   await selectOwner(page, ondrej.name);
+  await page.getByRole("button", { name: /Rozsah správy/ }).click();
+  await page.getByRole("button", { name: "Přidat vlastníka do oblíbených" }).click();
+  await page.getByRole("button", { name: "Zrušit změny", exact: true }).click();
+  await page.reload();
+  await page.getByRole("button", { name: /Rozsah správy/ }).click();
+  await expect(page.locator(".scope-owner-preset")).toHaveCount(1);
+  await expect(page.locator(".scope-owner-preset")).toContainText(ondrej.name);
+  await page.getByRole("button", { name: "Zrušit změny", exact: true }).click();
   await expect(page.locator(".basic-property-card")).toHaveCount(3);
   await expect(page.locator(".basic-payments")).toContainText(/6\s?000/);
   await expect(page.locator(".basic-property-grid").first()).not.toContainText("Cizí");
@@ -127,4 +142,22 @@ test("owner portfolio includes units in shared houses, narrows money and tasks, 
   await expect(ownerPage.locator("main")).toContainText(/4\s?000/);
   await expect(ownerPage.locator("main")).not.toContainText(/88\s?000/);
   await ownerPage.close();
+});
+
+test("search finds a house-level owner without treating that name as the legal unit owner", async ({ page }) => {
+  const tag = randomUUID(); fixtureTag = tag;
+  const admin = await db.user.create({ data: { email: `scope-alias-${tag}@flatcloud.test`, name: "Správce hledání", role: "SUPER_ADMIN", passwordHash: await bcrypt.hash(password, 8), onboardingStatus: "completed", defaultDisplayMode: "basic", isTestIdentity: true } });
+  const person = await db.owner.create({ data: { name: `Ondřej Šohaj ${tag}` } });
+  const company = await db.owner.create({ data: { name: `BrickFlow ${tag}` } });
+  const association = await db.owner.create({ data: { name: `SVJ ${tag}` } });
+  const property = await db.property.create({ data: { name: `Veská ${tag}`, address: "Testovací 1", city: "Plzeň", ownershipMode: "UNIT_BASED", ownerId: association.id, communicationOwnerId: association.id, ownerships: { create: [{ ownerId: person.id, shareBasisPoints: 0 }, { ownerId: association.id, shareBasisPoints: 10000 }] } } });
+  await db.unit.create({ data: { propertyId: property.id, label: "Firemní jednotka", ownerships: { create: { ownerId: company.id } } } });
+  await login(page, admin.email);
+  await page.getByRole("button", { name: /Rozsah správy/ }).click();
+  await page.getByLabel("Hledat nemovitost nebo vlastníka").fill(`sohaj ${tag}`);
+  await expect(page.locator(".scope-options label")).toHaveCount(1);
+  await expect(page.locator(".scope-options")).toContainText(property.name);
+  const ownerSelect = page.getByLabel("Vlastník jednotek", { exact: true });
+  await expect(ownerSelect.locator("option").filter({ hasText: person.name })).toHaveCount(0);
+  await expect(ownerSelect.locator("option").filter({ hasText: company.name })).toHaveCount(1);
 });

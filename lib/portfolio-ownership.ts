@@ -27,6 +27,8 @@ export function filterPortfolioProperties<T extends OwnershipProperty>(propertie
 export type PortfolioPropertyOption = {
   id: string; name: string; address: string; city: string; active: boolean;
   ownerId?: string; ownerName?: string; scopeKind?: "FLATCLOUD" | "EXTERNAL" | "UNCLASSIFIED";
+  /** Search aliases do not confer unit ownership or access. */
+  ownerSearchNames?: string[];
   owners: Array<Owner & { unitIds: string[] }>;
 };
 export function portfolioPropertyOption(property: OwnershipProperty & { name: string; address: string; city: string; active: boolean; communicationOwner?: Owner | null; flatcloudConsolidationBasisPoints?: number | null }, showGroup = false): PortfolioPropertyOption {
@@ -38,6 +40,9 @@ export function portfolioPropertyOption(property: OwnershipProperty & { name: st
   }
   return { id: property.id, name: property.name, address: property.address, city: property.city, active: property.active,
     ownerId: property.communicationOwner?.id || property.owner.id, ownerName: property.communicationOwner?.name || property.owner.name,
+    // Match the house header's recorded names, including legacy zero-share rows;
+    // legal unit-owner selection still uses positive unit ownerships above.
+    ownerSearchNames: [...new Set([property.owner.name, ...property.ownerships.map(row => row.owner.name)])],
     scopeKind: !showGroup ? undefined : property.flatcloudConsolidationBasisPoints == null ? "UNCLASSIFIED" : property.flatcloudConsolidationBasisPoints > 0 ? "FLATCLOUD" : "EXTERNAL",
     owners: [...owners.values()] };
 }

@@ -5,11 +5,13 @@ import bcrypt from "bcryptjs";
 const db = new PrismaClient();
 test.afterAll(() => db.$disconnect());
 test("vlastník nastaví samostatnou správu z průvodce; čtenář ji nezmění", async ({ page }) => {
+  if (!["localhost", "127.0.0.1", "postgres"].includes(new URL(process.env.DATABASE_URL!).hostname)) throw new Error("Isolated database required");
   const suffix = `${Date.now()}`;
   const password = "FlatBerry-Team-Setup-2026";
   const user = await db.user.create({ data: { name: "Team setup test", email: `team-${suffix}@example.invalid`, passwordHash: await bcrypt.hash(password, 4), role: "OWNER_VIEWER" } });
   const owner = await db.owner.create({ data: { name: "Team setup owner", userId: user.id } });
   const property = await db.property.create({ data: { name: "Team setup test house", address: "Testovací 1", city: "Plzeň", ownerId: owner.id, memberships: { create: { userId: user.id, permission: "ADMIN" } } } });
+  const manager = await db.user.create({ data: { name: "Jediný správce", email: `team-manager-${suffix}@example.invalid`, passwordHash: "unused", role: "PROPERTY_MANAGER", isTestIdentity: true } });
   try {
     await page.goto("/login");
     await page.getByLabel("E-mail", { exact: true }).fill(user.email);
@@ -19,6 +21,22 @@ test("vlastník nastaví samostatnou správu z průvodce; čtenář ji nezmění
     await page.goto(`/nemovitosti/${property.id}/prehled`);
     await page.locator(".onboarding-checklist summary").click();
     const step = page.locator(".onboarding-step-card").filter({ hasText: "Správce a spolupracovníci" });
+    await expect(step).not.toHaveClass(/done/);
+    // Two collaborators alone do not establish management responsibility.
+    await db.userProperty.create({ data: { propertyId: property.id, userId: manager.id, permission: "VIEW" } });
+    await page.reload(); await page.locator(".onboarding-checklist summary").click();
+    await expect(step).not.toHaveClass(/done/);
+    await db.userProperty.update({ where: { userId_propertyId: { userId: manager.id, propertyId: property.id } }, data: { permission: "EDIT" } });
+    await page.reload(); await page.locator(".onboarding-checklist summary").click();
+    await expect(step).toHaveClass(/done/);
+    await expect(step).toContainText(manager.name);
+    // An explicitly selected manager completes the step without two memberships.
+    await db.userProperty.delete({ where: { userId_propertyId: { userId: manager.id, propertyId: property.id } } });
+    await db.property.update({ where: { id: property.id }, data: { managerId: manager.id } });
+    await page.reload(); await page.locator(".onboarding-checklist summary").click();
+    await expect(step).toHaveClass(/done/);
+    await db.property.update({ where: { id: property.id }, data: { managerId: null } });
+    await page.reload(); await page.locator(".onboarding-checklist summary").click();
     await expect(step).not.toHaveClass(/done/);
     await step.click();
     await expect(page).toHaveURL(new RegExp(`/nastaveni/uzivatele$`));
@@ -30,6 +48,7 @@ test("vlastník nastaví samostatnou správu z průvodce; čtenář ji nezmění
     await page.goto(`/nemovitosti/${property.id}/prehled`);
     await page.locator(".onboarding-checklist summary").click();
     await expect(step).toHaveClass(/done/);
+    await expect(page.locator(".property-overview-contacts")).not.toContainText("Správce není přiřazen");
     await page.goto(`/nemovitosti/${property.id}/nastaveni`);
     await page.getByRole("link", { name: "Nastavit přístupy", exact: true }).click();
     await page.getByRole("button", { name: "Změnit na týmovou správu", exact: true }).click();
@@ -37,10 +56,12 @@ test("vlastník nastaví samostatnou správu z průvodce; čtenář ji nezmění
     await db.userProperty.update({ where: { userId_propertyId: { userId: user.id, propertyId: property.id } }, data: { permission: "VIEW" } });
     await page.reload();
     await expect(page.getByRole("button", { name: "Spravuji nemovitost sám", exact: true })).toHaveCount(0);
-    await page.request.post(`/api/properties/${property.id}/team-setup`, { form: { selfManaged: "true" } });
+    const deniedUrl = await page.evaluate(async id => (await fetch(`/api/properties/${id}/team-setup`, { method: "POST", body: new URLSearchParams({ selfManaged: "true" }) })).url, property.id);
+    expect(new URL(deniedUrl).pathname).toBe("/portfolio");
     expect((await db.property.findUniqueOrThrow({ where: { id: property.id } })).selfManaged).toBe(false);
   } finally {
     await db.property.update({ where: { id: property.id }, data: { active: false } });
     await db.user.update({ where: { id: user.id }, data: { active: false } });
+    await db.user.update({ where: { id: manager.id }, data: { active: false } });
   }
 });

@@ -5,8 +5,8 @@ const items = [
   { key: "system", href: "/nastaveni/system", label: "Integrace a automatizace" },
   { key: "announcements", href: "/nastaveni/oznameni", label: "Oznámení" },
   { key: "automation", href: "/nastaveni/automaticke-ukoly", label: "Automatické úkoly" },
-  { key: "benchmark", href: "/nastaveni/cenovy-benchmark", label: "Cenový benchmark" },
-  { key: "reporting", href: "/reporty/sablony", label: "Reporting" },
+  { key: "benchmark", href: "/nastaveni/cenovy-benchmark", label: "Cenová data" },
+  { key: "reporting", href: "/reporty/sablony", label: "Šablony reportů" },
   { key: "users", href: "/uzivatele", label: "Uživatelé" },
 ] as const;
 

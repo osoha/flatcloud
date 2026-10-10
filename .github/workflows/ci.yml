@@ -203,7 +203,9 @@ jobs:
   browser-smoke:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The full browser gate contains 280+ scenarios in addition to dedicated
+    # portal/upload checks. Let it finish and report every failure.
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:18

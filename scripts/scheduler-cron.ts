@@ -1,3 +1,4 @@
+import { meterTaskAutomationEnabled } from "../lib/meter-task-policy";
 import { applyDueBankAccountChanges } from "../lib/bank-account-changes";
 import { collectTenantPortalNotifications, processTenantPortalNotifications } from "../lib/tenant-portal-notifications";
 import { collectTaskNotifications, processTaskNotifications } from "../lib/task-notifications";
@@ -86,8 +87,7 @@ async function main() {
 
   try {
     const tasks = await runTaskAutomation();
-    const sandbox=process.env.RENDER_GIT_BRANCH?.startsWith("sandbox/")||process.env.RENDER_EXTERNAL_URL?.includes("sandbox");
-    const meterTasks = (sandbox||process.env.METER_TASK_AUTOMATION_ENABLED === "true") ? await runMeterTaskAutomation() : {summary:"Automatika odečtů čeká na aktivaci v produkci."};
+    const meterTasks = meterTaskAutomationEnabled() ? await runMeterTaskAutomation() : {summary:"Automatika odečtů čeká na aktivaci v produkci."};
     steps.push({name:"meter-tasks",status:"ok",summary:meterTasks.summary});
     steps.push({ name: "task-automation", status: "ok", summary: tasks.summary });
   } catch (error) {

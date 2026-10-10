@@ -2,15 +2,16 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { ChevronDown, Search } from "lucide-react";
+import { ChevronDown, Search, Star } from "lucide-react";
 import { createPortal } from "react-dom";
 import { portfolioSelectionLabel, withPortfolioSelection, type PortfolioSelection } from "@/lib/portfolio-selection";
 
 import { portfolioOwnerPresets, type PortfolioPropertyOption as PropertyOption } from "@/lib/portfolio-ownership";
 
+const normalizeSearch = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("cs");
 const unitCountLabel = (count: number) => `${count} ${count === 1 ? "jednotka" : count > 1 && count < 5 ? "jednotky" : "jednotek"}`;
 
-export function PortfolioScopePicker({ availableProperties, selection }: { availableProperties: PropertyOption[]; selection: PortfolioSelection }) {
+export function PortfolioScopePicker({ availableProperties, selection, viewerId }: { viewerId: string; availableProperties: PropertyOption[]; selection: PortfolioSelection }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -42,6 +43,13 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
     return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); window.visualViewport?.removeEventListener("resize", place); window.visualViewport?.removeEventListener("scroll", place); };
   }, [open]);
   const [search, setSearch] = useState("");
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const favoriteKey = `flatberry:portfolio-owner-favorites:${viewerId}`;
+  useEffect(() => { try { const saved: unknown = JSON.parse(localStorage.getItem(favoriteKey) || "[]"); setFavorites(Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string").slice(0, 5) : []); } catch { setFavorites([]); } }, [favoriteKey]);
+  function toggleFavorite(id: string) {
+    const next = favorites.includes(id) ? favorites.filter(value => value !== id) : [...favorites, id].slice(-5);
+    setFavorites(next); try { localStorage.setItem(favoriteKey, JSON.stringify(next)); } catch { /* Preference remains usable for this visit. */ }
+  }
   const selectionKey = `${selection.ownerId || ""}:` + (selection.mode === "ALL" ? `ALL:${availableProperties.filter(property => !selection.ownerId || property.owners.some(owner => owner.id === selection.ownerId)).map((property) => property.id).join(",")}` : `SELECTED:${selection.propertyIds.join(",")}`);
   const initial = useMemo(() => selection.mode === "ALL" ? availableProperties.filter(property => !selection.ownerId || property.owners.some(owner => owner.id === selection.ownerId)).map((property) => property.id) : selection.propertyIds, [selectionKey]);
   const [draftOwnerId, setDraftOwnerId] = useState(selection.ownerId);
@@ -68,8 +76,8 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
     };
   }, [open, initial]);
   const visible = useMemo(() => {
-    const needle = search.trim().toLocaleLowerCase("cs");
-    return availableProperties.filter((property) => (!draftOwnerId || property.owners.some(owner => owner.id === draftOwnerId)) && (!needle || `${property.name} ${property.address} ${property.city} ${property.ownerName || ""} ${property.owners.map(owner => owner.name).join(" ")}`.toLocaleLowerCase("cs").includes(needle)));
+    const needle = normalizeSearch(search.trim());
+    return availableProperties.filter((property) => (!draftOwnerId || property.owners.some(owner => owner.id === draftOwnerId)) && (!needle || normalizeSearch(`${property.name} ${property.address} ${property.city} ${property.ownerName || ""} ${(property.ownerSearchNames || []).join(" ")} ${property.owners.map(owner => owner.name).join(" ")}`).includes(needle)));
   }, [availableProperties, search, draftOwnerId]);
   const ownerPresets = useMemo(() => portfolioOwnerPresets(availableProperties), [availableProperties]);
   const selectedOwner = ownerPresets.find(owner => owner.id === selection.ownerId);
@@ -106,7 +114,9 @@ export function PortfolioScopePicker({ availableProperties, selection }: { avail
       <div className="scope-presets" aria-label="Rychlý výběr rozsahu">
         <p className="muted-copy">Vlastník vybere své jednotky napříč domy. Níže můžete výběr omezit na konkrétní objekty.</p>
         {groupPresets.map((preset) => <button className={`scope-group-preset ${preset.key.toLocaleLowerCase()}`} type="button" onClick={() => { setDraftOwnerId(undefined); setDraft(preset.propertyIds); }} key={preset.key}>{preset.label}<span>{preset.propertyIds.length}</span></button>)}
-        {ownerPresets.map((owner) => <button className="scope-owner-preset" type="button" aria-pressed={draftOwnerId === owner.id} onClick={() => { setDraftOwnerId(owner.id); setDraft(owner.propertyIds); }} key={owner.id}>{owner.name}<span>{unitCountLabel(owner.unitIds.length)}</span></button>)}
+        <label className="field scope-owner-select"><span>Vlastník jednotek</span><select aria-label="Vlastník jednotek" value={draftOwnerId || ""} onChange={event => { const owner = ownerPresets.find(row => row.id === event.target.value); setDraftOwnerId(owner?.id); setDraft(owner?.propertyIds || availableProperties.map(row => row.id)); setSearch(""); }}><option value="">Všichni vlastníci</option>{ownerPresets.map(owner => <option key={owner.id} value={owner.id}>{owner.name} · {unitCountLabel(owner.unitIds.length)}</option>)}</select></label>
+        {ownerPresets.filter(owner => search.trim() ? normalizeSearch(owner.name).includes(normalizeSearch(search.trim())) : favorites.includes(owner.id)).slice(0, 5).map(owner => <button className="scope-owner-preset" type="button" aria-pressed={draftOwnerId === owner.id} onClick={() => { setDraftOwnerId(owner.id); setDraft(owner.propertyIds); setSearch(""); }} key={owner.id}>{favorites.includes(owner.id) && <Star size={13}/>} {owner.name}<span>{unitCountLabel(owner.unitIds.length)}</span></button>)}
+        {draftOwnerId && <button className="scope-favorite-toggle" type="button" aria-pressed={favorites.includes(draftOwnerId)} onClick={() => toggleFavorite(draftOwnerId)}><Star size={14}/>{favorites.includes(draftOwnerId) ? "Odebrat z oblíbených" : "Přidat vlastníka do oblíbených"}</button>}
         {draftOwnerId && <button type="button" onClick={() => { setDraftOwnerId(undefined); setDraft(availableProperties.map(property => property.id)); }}>Zrušit filtr vlastníka</button>}
       </div>
 

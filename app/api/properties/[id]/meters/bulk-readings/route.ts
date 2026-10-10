@@ -7,9 +7,15 @@ import {go,goWithMessage} from "@/lib/route-response";
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}) {
   const {id}=await params, access=await requireManagedProperty(id);
   if(!access)return go(request,"/login");
-  const path=`/nemovitosti/${id}/meridla`;
+  let path=`/nemovitosti/${id}/meridla`;
   try {
-    const form=await request.formData(),readAt=readingDate(String(form.get("readAt")||""));
+    const form=await request.formData(),filters=new URLSearchParams();
+    for(const key of ["unit","type","state","sort","focus"]){
+      const value=form.get(`filter:${key}`);
+      if(typeof value==="string"&&value.length>0&&value.length<=200)filters.set(key,value);
+    }
+    if(filters.size)path+=`?${filters}`;
+    const readAt=readingDate(String(form.get("readAt")||""));
     const values=Array.from(form.entries()).filter(([key,value])=>key.startsWith("value:")&&typeof value==="string"&&value.trim()!=="").map(([key,value])=>({id:key.slice(6),value:Number(value)}));
     if(!values.length)throw new Error("Vyplňte stav alespoň jednoho měřidla.");
     if(values.length>100||new Set(values.map(v=>v.id)).size!==values.length||values.some(v=>!Number.isFinite(v.value)||v.value<0))throw new Error("Seznam odečtů není platný.");
