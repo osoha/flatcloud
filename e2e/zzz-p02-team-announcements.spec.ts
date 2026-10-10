@@ -60,7 +60,8 @@ test("P02 targeted announcement appears only to its property audience and can be
   await expect.poll(async()=>Boolean((await db.announcementUserState.findUnique({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}}))?.readAt)).toBe(true);
   expect((await db.announcementUserState.findUniqueOrThrow({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}})).dismissedAt).toBeNull();
   await expect(article).toBeVisible();
-  await article.getByRole("button",{name:"Skrýt",exact:true}).click();expect((await db.announcementUserState.findUniqueOrThrow({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}})).dismissedAt).not.toBeNull();
+  await article.getByRole("button",{name:"Skrýt",exact:true}).click();
+  await expect.poll(async()=>Boolean((await db.announcementUserState.findUniqueOrThrow({where:{announcementId_userId:{announcementId:announcement.id,userId:target.id}}})).dismissedAt)).toBe(true);
   const outsiderPage=await browser.newPage();await login(outsiderPage,outsider.email);await outsiderPage.goto("/portfolio");await expect(outsiderPage.getByText(announcement.title,{exact:true})).toHaveCount(0);
 });
 
