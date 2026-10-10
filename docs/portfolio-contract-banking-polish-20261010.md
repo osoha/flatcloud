@@ -12,7 +12,7 @@ Stav: implementováno v [PR277](https://github.com/osoha/flatcloud/pull/277). Ak
 | Bankovní účty | Standardní rozvržení, hledání a filtry vlastníka, nemovitosti, banky, používání a ověření. Přehled má nejvýše 20 účtů na stránce; QR, testy a nastavení jsou pod rozbalením. Původní serverové kontroly vlastníka a pověřeného správce zůstávají platné. |
 | Berry | Kliknutí na výrazný blok s Berrym spouští krokového bankovního průvodce. |
 | Nájemníci ve smlouvě | Hledání napříč dostupným adresářem, 40 výsledků na stránce, vlastní / domovní / dostupné profily a volitelné osoby bez překryvu nájmu ve zvoleném období. Při filtraci zůstávají vybrané osoby a role. Stejný domovní rozsah chrání vytvoření i změnu smlouvy na serveru. |
-| Neobsazená jednotka | Prázdný blok smlouvy má `Nová smlouva` s předvybranou jednotkou pro oprávněného správce. |
+| Neobsazená jednotka | Prázdný blok smlouvy má `Nová smlouva` s předvybranou jednotkou pro oprávněného správce. Viditelnost odpovídá stávajícímu právu vytvořit smlouvu: EDIT/ADMIN na nemovitosti nebo globální správce; samotné EDIT na jednotce dovolí upravit její dokument, ale nedává právo založit smlouvu. |
 | Basic | Do šesti jednotek přímo jednotky; větší výběr přes více budov nejprve budovy. Jedna budova zůstává v jednotkách. Ruční volba se pamatuje pro konkrétní účet, budovu lze otevřít a vrátit se k původnímu výběru. |
 | Plocha | `NULL` znamená nevyplněno; `0` je platný zadaný údaj, včetně hromadného zadání a reportové položky. Výpočty na m² nadále vyžadují kladnou plochu. Záporné a nečíselné hodnoty se odmítají. |
 

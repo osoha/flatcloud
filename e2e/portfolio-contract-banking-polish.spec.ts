@@ -197,4 +197,10 @@ test("a vacant zero-area unit offers a prefilled new contract and displays zero"
   await expect(empty.getByRole("link", {name: "Nová smlouva"})).toHaveAttribute("href", `/nemovitosti/${f.property.id}/smlouvy/nova?unitId=${f.units[6].id}`);
   await empty.getByRole("link", {name: "Nová smlouva"}).click();
   await expect(page.locator('select[name="unitId"]')).toHaveValue(f.units[6].id);
+  await db.userUnit.create({data: {userId: f.manager.id, unitId: f.units[6].id, permission: "EDIT"}});
+  await login(page, f.manager.email); await page.goto(`/nemovitosti/${f.property.id}/jednotky/${f.units[6].id}#smlouva`);
+  await expect(empty.getByRole("link", {name: "Nová smlouva"})).toHaveCount(0);
+  await db.userProperty.create({data: {userId: f.manager.id, propertyId: f.property.id, permission: "EDIT"}});
+  await page.reload();
+  await expect(empty.getByRole("link", {name: "Nová smlouva"})).toHaveAttribute("href", `/nemovitosti/${f.property.id}/smlouvy/nova?unitId=${f.units[6].id}`);
 });
