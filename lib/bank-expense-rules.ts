@@ -6,6 +6,7 @@ import { applyExpense } from "./bank-expenses";
 import { settledCents, expenseAccountIdentity } from "./bank-expense-values";
 import { bankAccountMatches } from "./inbound-bank/bank-email";
 import { reconcileTransactionReview } from "./bank-review-tasks";
+import { checkAutomaticBankOperation } from "./subscriptions/bank-guard";
 
 export async function expenseRuleAccess(tx:Prisma.TransactionClient,rule:Pick<BankExpenseRule,"sourcePropertyId"|"targetPropertyId"|"bankAccountId"|"unitId">,userId:string) {
   const user=await tx.user.findFirst({where:{id:userId,active:true}});if(!user)throw new Error("Autor pravidla není aktivní.");
@@ -23,6 +24,7 @@ export async function expenseRuleAccess(tx:Prisma.TransactionClient,rule:Pick<Ba
 // Executed only for freshly imported IDs or a user-confirmed preview; never during GET.
 export async function runExpenseRules(sourcePropertyId:string,ids:string[],actorId?:string,expectedRuleId?:string) {
   let applied=0,review=0;
+  if(!(await checkAutomaticBankOperation({propertyId:sourcePropertyId})).allowed)return {applied:0,review:ids.length};
   for(const id of [...new Set(ids)].slice(0,1000)) {
     try {const changed=await serializableTransaction(async tx=>{
       const bank=await tx.bankTransaction.findFirst({where:{id,bankAccount:{propertyId:sourcePropertyId}},include:{expenseAllocations:true,allocations:true,securityDepositReceipts:true}});
@@ -31,6 +33,7 @@ export async function runExpenseRules(sourcePropertyId:string,ids:string[],actor
       // Overlapping rules are ambiguous, including ignore-versus-cost rules.
       if(rules.length!==1||(expectedRuleId&&rules[0].id!==expectedRuleId))return false;
       const rule=rules[0];await expenseRuleAccess(tx,rule,rule.createdById);
+      if(!(await checkAutomaticBankOperation({propertyId:rule.targetPropertyId,...(rule.unitId?{unitId:rule.unitId}:{})},"paymentMatching",tx)).allowed)return null;
       if(actorId)await expenseRuleAccess(tx,rule,actorId);
       const userId=actorId||rule.createdById,reason=`Pravidlo „${rule.name}“ (${rule.id})`;
       if(rule.action==="CREATE_COST"||rule.action==="MATCH") {
@@ -47,7 +50,7 @@ export async function runExpenseRules(sourcePropertyId:string,ids:string[],actor
       await tx.bankExpenseRule.update({where:{id:rule.id},data:{usedCount:{increment:1},lastUsedAt:new Date()}});
       await tx.auditLog.create({data:{userId,propertyId:sourcePropertyId,action:"BANK_EXPENSE_RULE_APPLIED",entityType:"BankTransaction",entityId:id,details:{ruleId:rule.id,action:rule.action,targetPropertyId:rule.targetPropertyId}}});
       return true;
-    });if(changed)applied++;else review++;}catch {review++;}
+    });if(changed===null){review++;continue;}if(changed)applied++;else review++;}catch {review++;}
     await reconcileTransactionReview(id);
   }
   return {applied,review};

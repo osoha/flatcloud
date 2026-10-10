@@ -39,10 +39,15 @@ const propertyInclude = {
   },
 } satisfies Prisma.PropertyInclude;
 
-export async function accessibleProperties(user:{id:string;role:string;allProperties?:boolean}, options: { includeInactive?: boolean } = {}){
+/** The shared property ACL, also used by bounded data exports. */
+export function accessiblePropertyWhere(user:{id:string;role:string;allProperties?:boolean}, options: { includeInactive?: boolean } = {}): Prisma.PropertyWhereInput {
   const includeInactive = Boolean(options.includeInactive && ["SUPER_ADMIN", "MANAGER", "PROPERTY_MANAGER"].includes(user.role));
+  return { ...(hasAllPropertyAccess(user) ? {} : { OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}},{units:{some:{ownerships:{some:{owner:{userId:user.id}}}}}}] }), ...(includeInactive ? {} : { active: true }) };
+}
+
+export async function accessibleProperties(user:{id:string;role:string;allProperties?:boolean}, options: { includeInactive?: boolean } = {}){
   const properties = await prisma.property.findMany({
-    where: { ...(hasAllPropertyAccess(user) ? {} : { OR:[{memberships:{some:{userId:user.id}}},{units:{some:{userAccesses:{some:{userId:user.id}}}}},{units:{some:{ownerships:{some:{owner:{userId:user.id}}}}}}] }), ...(includeInactive ? {} : { active: true }) },
+    where: accessiblePropertyWhere(user, options),
     include: propertyInclude,
     orderBy:{name:"asc"}
   });

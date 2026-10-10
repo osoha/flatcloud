@@ -1,10 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { activeTenantLease } from "./tenant-portal-access";
+import { checkSubscriptionWrite } from "./subscriptions/service";
 import { portalMessageLease, type PortalMessageUser } from "./tenant-portal-messages";
 import { canEditTask } from "./task-access";
 import { serializableTransaction } from "./serializable";
-import { tenantPortalContact } from "./tenant-portal-contact";
+import { portalContactPropertyInclude, portalContactOwnerSelect, tenantPortalContact } from "./tenant-portal-contact";
 import { enqueueEntryNotifications } from "./task-notifications";
 import { leaseStatusAt } from "./lease-lifecycle-core";
 
@@ -124,6 +125,8 @@ export async function createTenantPortalConversation(user: PortalMessageUser, te
   return submissionTransaction(async tx => {
     const lease = await activeTenantLease(user.id, tenantId, input.leaseId, tx);
     if (!lease) throw new PortalConversationError("K tomuto nájemnímu vztahu nemáte přístup.", 403);
+    const subscription=await checkSubscriptionWrite(user,{propertyId:lease.unit.propertyId,unitId:lease.unitId},tx);
+    if(!subscription.allowed)throw new PortalConversationError(subscription.message||"Správa má dočasně pozastavené předplatné.",403);
     if (!lease.unit.property.active || !await tx.tenant.count({ where: { id: tenantId, active: true } })) throw new PortalConversationError("Zprávu lze odeslat pouze u aktivního bydlení.", 403);
     const dedupeKey = `tenant-message:${user.id}:${tenantId}:${lease.id}:${key}`;
     const previous = await tx.task.findUnique({ where: { dedupeKey }, select: { id: true, tenantPortalTitle: true, tenantPortalBody: true } });
@@ -132,7 +135,7 @@ export async function createTenantPortalConversation(user: PortalMessageUser, te
       return { taskId: previous.id, created: false };
     }
     // The assignee must match the actual manager/owner card, never an unrelated building owner.
-    const contactLease = await tx.lease.findUniqueOrThrow({ where: { id: lease.id }, include: { ownerBankAccount: { include: { owner: { include: { user: true } } } }, unit: { include: { ownerships: { include: { owner: { include: { user: true } } } }, property: { include: { manager: true, owner: { include: { user: true } }, communicationOwner: { include: { user: true } } } } } } } });
+    const contactLease = await tx.lease.findUniqueOrThrow({ where: { id: lease.id }, include: { ownerBankAccount: { include: { owner: { select: portalContactOwnerSelect } } }, unit: { include: { ownerships: { include: { owner: { select: portalContactOwnerSelect } } }, property: { include: portalContactPropertyInclude } } } } });
     const contact = tenantPortalContact(contactLease);
     const taskId = randomUUID();
     const task = await tx.task.create({ data: { id: taskId, title, description: body, tenantPortalTitle: title, tenantPortalBody: body, tenantPortalRequest: true, tenantPortalRequestKind: "MESSAGE", category: "GENERAL", status: "OPEN", propertyId: lease.unit.propertyId, unitId: lease.unitId, leaseId: lease.id, tenantId, createdById: user.id, assigneeId: contact?.user?.id || null, dedupeKey } });
@@ -145,6 +148,8 @@ export async function replyToTenantPortalConversation(user: PortalMessageUser, t
   const body = portalConversationBody(input.body), key = portalSubmissionKey(input.submissionKey);
   return submissionTransaction(async tx => {
     const task = await authorizedConversation(tx, user, tenantId, taskId);
+    const subscription=await checkSubscriptionWrite(user,{...(task.propertyId?{propertyId:task.propertyId}:{}),...(task.unitId?{unitId:task.unitId}:{})},tx);
+    if(!subscription.allowed)throw new PortalConversationError(subscription.message||"Správa má dočasně pozastavené předplatné.",403);
     if (!task.tenant?.active || !task.property?.active) throw new PortalConversationError("Zprávu lze odeslat pouze u aktivního bydlení.", 403);
     const tenantSubmissionKey = `tenant-reply:${user.id}:${tenantId}:${taskId}:${key}`;
     const existing = await tx.taskEntry.findUnique({ where: { tenantSubmissionKey }, select: { id: true, body: true } });

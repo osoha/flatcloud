@@ -1,5 +1,7 @@
+import { accessibleProperties, leaseAccessWhere, taskAccessWhere } from "@/lib/access";
+import { filterPortfolioProperties, portfolioTaskFilter } from "@/lib/portfolio-ownership";
 import {headers} from "next/headers";
-import {parsePortfolioSelection} from "@/lib/portfolio-selection";
+import {parsePortfolioSelection,withPortfolioSelection} from "@/lib/portfolio-selection";
 import { ProfiAppearance } from "@/components/ProfiAppearance";
 import { FirstLoginGuide } from "@/components/FirstLoginGuide";
 import { DisplayPreferences } from "@/components/DisplayPreferences";
@@ -16,8 +18,6 @@ import { openTaskStatuses } from "@/lib/operations";
 import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
 import { UserAvatar } from "@/components/UserAvatar";
 import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
-import { leaseAccessWhere } from "@/lib/access";
-import { taskAccessWhere } from "@/lib/access";
 import { unreadAnnouncementWhere } from "@/lib/announcements";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
@@ -30,6 +30,8 @@ import { UserActivityHeartbeat } from "@/components/UserActivityHeartbeat";
 import { AdminOperationsPanel } from "@/components/admin/AdminOperationsPanel";
 import {unmatchedQueueCount} from "@/lib/inbound-bank/queue-counts";
 import {tenantPortalContactMatches} from "@/lib/tenant-portal-access";
+import { summaryForUser, subscriptionsSandboxEnabled } from "@/lib/subscriptions/service";
+import { ShellSubscriptionNotice } from "@/components/ShellSubscriptionNotice";
 
 type ShellUser = {
   id: string;
@@ -50,22 +52,31 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   const context = await previewContext();
   const preview = context.requested && Boolean(context.actor);
   const user = preview ? context.actor! : contentUser;
-  const mode = preview ? "pro" : await displayMode(contentUser.id, contentUser.onboardingStatus === "pending" ? "basic" : contentUser.defaultDisplayMode === "basic" ? "basic" : "pro");
+  const mode = await displayMode(contentUser.id, contentUser.onboardingStatus === "pending" ? "basic" : contentUser.defaultDisplayMode === "basic" ? "basic" : "pro");
+  const navigationMode = preview ? "pro" : mode;
   const superAdmin = user.role === "SUPER_ADMIN";
   const fullAccess = hasAllPropertyAccess(user);
   const canAddProperty = canSeeAll(user.role) || (process.env.PUBLIC_REGISTRATION_ENABLED === "true" && user.role === "OWNER_VIEWER");
-  const navigationQuery=new URLSearchParams((await headers()).get("x-flatberry-search")||"");
-  const selection=parsePortfolioSelection({properties:navigationQuery.has("properties")?navigationQuery.get("properties")!:undefined,propertyId:navigationQuery.get("propertyId")||undefined});
-  const scopedDisplayReturnTo=displayReturnTo||(selection.mode==="ALL"?"/portfolio":`/portfolio?properties=${encodeURIComponent(selection.propertyIds.join(","))}`);
-  const taskWhere = {AND:[taskAccessWhere(user),...(selection.mode==="SELECTED"?[{OR:[{propertyId:{in:selection.propertyIds}},{propertyId:null}]}]:[])]};
-  const revisionWhere = fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } };
+  const requestHeaders = await headers();
+  const navigationQuery=new URLSearchParams(requestHeaders.get("x-flatberry-search")||"");
+  const selection=parsePortfolioSelection({ownerId:navigationQuery.get("ownerId")||undefined,properties:navigationQuery.has("properties")?navigationQuery.get("properties")!:undefined,propertyId:navigationQuery.get("propertyId")||undefined});
+  const billingAvailable = subscriptionsSandboxEnabled() && contentUser.role !== "TENANT";
+  const billingAccounts = billingAvailable ? await summaryForUser(contentUser.id) : [];
+  const propertyPath = (requestHeaders.get("x-flatberry-path") || "").match(/^\/nemovitosti\/([^/]+)(?:\/|$)/);
+  const billingPropertyIds = taskPropertyId ? [taskPropertyId] : propertyPath && propertyPath[1] !== "nova" ? [propertyPath[1]] : selection.mode === "SELECTED" ? selection.propertyIds : [];
+  const relevantBillingAccounts = billingAccounts.filter(account => account.enabled && account.enrolled && (!billingPropertyIds.length || account.scopes.some(scope => billingPropertyIds.includes(scope.propertyId))));
+  const profiAllowed = contentUser.role === "SUPER_ADMIN" || !relevantBillingAccounts.length || relevantBillingAccounts.some(account => account.features.profi);
+  const scopedDisplayReturnTo=displayReturnTo||withPortfolioSelection("/portfolio",new URLSearchParams(),selection);
+  const ownerProperties = selection.ownerId ? filterPortfolioProperties(await accessibleProperties(contentUser,{includeInactive:true}),selection) : [];
+  const taskWhere = {AND:[taskAccessWhere(user),...(selection.ownerId?[portfolioTaskFilter(ownerProperties,selection)]:[]),...(selection.mode==="SELECTED"?[{OR:[{propertyId:{in:selection.propertyIds}},{propertyId:null}]}]:[])]};
+  const revisionWhere = { ...(fullAccess ? {} : { property: { memberships: { some: { userId: user.id } } } }), ...(selection.ownerId ? { propertyId: { in: ownerProperties.filter(property=>property.active).map(property=>property.id) } } : {}) };
   const revisionHorizon = new Date(Date.now() + 60 * 86_400_000);
   const [openTasks, announcementCount, dueRevisions, unmatchedCount, leaseRows] = await Promise.all([
     prisma.task.count({ where: { ...taskWhere, status: { in: openTaskStatuses } } }),
     prisma.announcement.count({ where: unreadAnnouncementWhere(user) }),
     prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
-    unmatchedQueueCount(user),
-    prisma.lease.findMany({ where: leaseAccessWhere(user), select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
+    unmatchedQueueCount(user,selection.ownerId?ownerProperties.filter(property=>property.active).map(property=>property.id):undefined,selection.ownerId),
+    prisma.lease.findMany({ where: { AND: [leaseAccessWhere(user), ...(selection.ownerId ? [{unitId:{in:ownerProperties.filter(property=>property.active).flatMap(property=>property.units.map(unit=>unit.id))}}] : [])] }, select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
   ]);
   const today = new Date();
   const leaseHorizon = addCalendarMonths(today, 3);
@@ -96,7 +107,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     <aside className="sidebar">
       <SidebarCollapseToggle/>
       <nav className="nav v21-nav">
-        {mode === "pro" ? <>
+        {navigationMode === "pro" ? <>
         <div className="nav-label">Přehled</div>
         <Nav href="/portfolio" icon={<LayoutDashboard size={17}/>} label="Portfolio"/>
         {hasTenantPortal&&<Nav href="/portal/najemnik" icon={<House size={17}/>} label="Můj nájem"/>}
@@ -156,9 +167,10 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
       <div className="sidebar-footer">
         {mode === "basic" && !preview && <Link className="basic-sidebar-berry" href="/metodika?view=guides"><img src="/guide/welcome.webp" alt=""/><span>Poradím vám <span aria-hidden="true">→</span></span></Link>}
         {user.role !== "TENANT" && <div className="display-controls-row">
-          {!preview && <DisplayModeSwitch mode={mode} returnTo={scopedDisplayReturnTo}/>}
+          {!preview && <DisplayModeSwitch mode={mode} returnTo={scopedDisplayReturnTo} profiAllowed={profiAllowed}/>}
           <DisplayPreferences userId={user.id}/>
         </div>}
+        {billingAvailable && <Link className="secondary" href="/ucet/predplatne"><WalletCards size={15}/> Tarif a platby</Link>}
         <div className="user-card">
           <Link className="user-card-profile" href="/ucet" title="Můj účet"><UserAvatar user={user}/><div><strong>{user.name}</strong><small className="user-card-meta">{userRoles[user.role]||user.role}</small></div></Link>
           <form className="logout-form" action="/api/auth/logout" method="post"><button aria-label="Odhlásit" title="Odhlásit"><LogOut size={16}/></button></form>
@@ -172,7 +184,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
         <form className="search global-search" action="/hledat" method="get"><Search size={15}/><input name="q" aria-label="Hledat" placeholder="Hledat nemovitost, nájemníka, smlouvu, platbu nebo úkol…"/></form>
         <div className="top-spacer"/>
         <div className="top-actions">
-          {user.role !== "TENANT" && !preview && <DisplayModeSwitch mode={mode} mobile returnTo={scopedDisplayReturnTo}/>}
+          {user.role !== "TENANT" && !preview && <DisplayModeSwitch mode={mode} mobile returnTo={scopedDisplayReturnTo} profiAllowed={profiAllowed}/>}
           {user.role !== "TENANT" && <DisplayPreferences userId={user.id} mobile/>}
           {mode === "pro" && !preview && canAddManualPayment && <ScopeAwareLink className="secondary top-action" href={taskPropertyId ? `/platby/nova?properties=${encodeURIComponent(taskPropertyId)}` : "/platby/nova"}><Plus size={15}/><span>Ruční platba</span></ScopeAwareLink>}
           {mode === "pro" && !preview && canAddTask && <Link data-guide="add-task" className="secondary top-action" href={`/ukoly/novy${taskPropertyId ? `?propertyId=${taskPropertyId}${taskLeaseId ? `&leaseId=${taskLeaseId}` : ""}` : ""}`}><Plus size={15}/><span>Nový úkol</span></Link>}
@@ -180,6 +192,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
           <Link className="account-chip" href="/ucet" aria-label="Můj účet"><UserRound size={15}/><span>{context.target?.name || user.name}</span></Link>
         </div>
       </header>
+      <ShellSubscriptionNotice accounts={billingAccounts} propertyIds={billingPropertyIds} preview={preview}/>
       {mode === "basic" && <nav className="basic-mobile-nav" aria-label="Základní navigace"><ScopeAwareLink href="/portfolio"><LayoutDashboard size={18}/>Přehled</ScopeAwareLink><ScopeAwareLink href="/portfolio#nemovitosti" aria-current={undefined}><House size={18}/>Nemovitosti</ScopeAwareLink><ScopeAwareLink href="/reporty?view=collections"><WalletCards size={18}/>Platby</ScopeAwareLink><ScopeAwareLink href="/ukoly"><ListChecks size={18}/>Úkoly</ScopeAwareLink><ScopeAwareLink href="/dokumenty"><FileText size={18}/>Dokumenty</ScopeAwareLink></nav>}
       {children}
     </main>

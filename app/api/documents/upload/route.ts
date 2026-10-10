@@ -5,6 +5,7 @@ import { documentCategory, documentPhotoStage, prepareDocumentFiles } from "@/li
 import { fileStorageCapabilities } from "@/lib/storage";
 import { goWithMessage, safeInternalReturnPath } from "@/lib/route-response";
 import { prisma } from "@/lib/db";
+import { assertSubscriptionWrite } from "@/lib/subscriptions/request-guard";
 
 function value(form: FormData, key: string) { const raw=form.get(key); return typeof raw==="string"&&raw.trim()?raw.trim():undefined; }
 export async function POST(request: Request) {
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     if(!context.propertyId)throw new Error("Chybí kontext nemovitosti.");
     if (context.unitId && ["CONTRACT", "CONTRACT_ADDENDUM", "HANDOVER_PROTOCOL"].includes(value(form, "category") || "") && !context.leaseId) throw new Error("Ke smlouvě, dodatku nebo předávacímu protokolu vyberte konkrétní nájemní smlouvu.");
     const files=await prepareDocumentFiles(form),scope=await authorizeDocumentContext(user,context);
+    await assertSubscriptionWrite(user,{propertyId:scope.propertyId,...(scope.mode==="UNIT"?{unitId:scope.unitId}:{})});
     const prepared=await prepareDocumentBatch(user,files.map(file=>({...context,...file,category:documentCategory(form.get("category"),file),photoStage:documentPhotoStage(form.get("photoStage")),title:value(form,"title")||file.originalName,description:value(form,"description"),documentDate:value(form,"documentDate")?new Date(`${value(form,"documentDate")}T12:00:00`):undefined})),files.map(()=>scope));
     const stored=await storePreparedDocumentBatch(prepared);
     try{await prisma.$transaction(tx=>createStoredDocumentsInTransaction(tx,stored));}catch(error){await cleanupStoredDocumentBatch(stored);throw error;}

@@ -2,12 +2,13 @@ import {leaseContractPilotEnabled} from "@/lib/lease-contract/pilot";
 import { PageHeading } from "@/components/PageHeading";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { BarChart3, CheckCircle2, Database, HardDrive, Mail, Megaphone, Settings2, ShieldCheck, Users } from "lucide-react";
+import { BarChart3, CheckCircle2, CreditCard, Database, HardDrive, Mail, Megaphone, Settings2, ShieldCheck, Users } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { AdminSubnav } from "@/components/admin/AdminSubnav";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { appSettings } from "@/lib/settings";
+import { subscriptionsSandboxEnabled } from "@/lib/subscriptions/service";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,7 @@ export default async function AdminOverviewPage() {
     <div className="admin-module-grid">
       {leaseContractPilotEnabled() && <Module icon={<Mail/>} title="Náhled komunikace" text="Platební údaje, upomínky, zprávy a oficiální PDF v jednotném vzhledu." href="/nastaveni/nahled-komunikace" cta="Otevřít modelové náhledy"/>}
       <Module icon={<Settings2/>} title="Integrace a automatizace" text="Bankovní schránka, Drive, SMTP, upomínky a zdroje dat." href="/nastaveni/system" cta="Spravovat nastavení"/>
+      {subscriptionsSandboxEnabled() && <Module icon={<CreditCard/>} title="Tarify a předplatné" text="Ceny, limity, dostupné funkce a platební nastavení. Předplatné konkrétního uživatele spravujete v jeho profilu." href="/nastaveni/tarify" cta="Nastavit tarify"/>}
       <Module icon={<BarChart3/>} title="Reporting" text={`${templates} šablon · skupiny, verzované šablony a publikované výstupy.`} href="/reporty/sablony" cta="Otevřít reporting"/>
       <Module icon={<Users/>} title="Uživatelé a přístupy" text={`${activeUsers} aktivních uživatelů · role, pozvánky a oprávnění.`} href="/uzivatele" cta="Spravovat uživatele"/>
       <Module icon={<Megaphone/>} title="Oznámení" text="Globální a místní sdělení, časová platnost a cílové skupiny." href="/nastaveni/oznameni" cta="Spravovat oznámení"/>

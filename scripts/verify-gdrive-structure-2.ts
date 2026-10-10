@@ -137,8 +137,24 @@ async function main() {
   await check("Google Drive rename uses files.update PATCH on exact ID", () => { assert.equal(renamedHttp.id, "folder/id"); assert.match(calls[0].url, /files\/folder%2Fid/); assert.equal(calls[0].init?.method, "PATCH"); assert.match(String(calls[0].init?.body), /P1001_Test/); });
   await check("Google Drive move uses addParents/removeParents without byte upload", () => { assert.match(calls[1].url, /addParents=new-root/); assert.match(calls[1].url, /removeParents=old-root/); assert.equal(calls[1].init?.method, "PATCH"); assert.ok(calls.every(call => !call.url.includes("upload") && !call.url.includes("copy"))); });
 
-  const propertyRoute = read("app/api/properties/[id]/route.ts"), manualRoute = read("app/api/settings/storage/reconcile/route.ts"), service = read("lib/storage/property-drive-reconciliation.ts"), schema = read("prisma/schema.prisma");
-  await check("property DB update precedes best-effort Drive reconciliation", () => { assert.match(propertyRoute, /prisma\.\$transaction[\s\S]*reconcilePropertyDriveStructure/); assert.match(propertyRoute, /catch \(error\)[\s\S]*Změna je uložena/); });
+  const propertyRoute = read("app/api/properties/[id]/route.ts"), transactionHelper = read("lib/serializable.ts"), manualRoute = read("app/api/settings/storage/reconcile/route.ts"), service = read("lib/storage/property-drive-reconciliation.ts"), schema = read("prisma/schema.prisma");
+  await check("property DB update precedes best-effort Drive reconciliation", () => {
+    assert.match(propertyRoute, /import \{ serializableTransaction \} from "@\/lib\/serializable"/);
+    const transaction = propertyRoute.match(/const property = await serializableTransaction\(async tx => \{([\s\S]*?)return updated;\s*\}\);/);
+    assert.ok(transaction, "property update must await the complete transaction");
+    assert.match(transaction[1], /const updated = await tx\.property\.update/);
+    assert.doesNotMatch(transaction[1], /reconcilePropertyDriveStructure/);
+    const afterCommit = propertyRoute.slice(transaction.index! + transaction[0].length);
+    assert.match(afterCommit, /await reconcilePropertyDriveStructure/);
+    assert.match(afterCommit, /catch \(error\)[\s\S]*Změna je uložena/);
+  });
+  await check("property transaction wrapper preserves Serializable isolation and bounded P2034 retries", () => {
+    assert.match(transactionHelper, /const SERIALIZATION_RETRIES = 3;/);
+    assert.match(transactionHelper, /for \(let attempt = 0; ; attempt \+= 1\)/);
+    assert.match(transactionHelper, /return await prisma\.\$transaction\(work, \{ isolationLevel: Prisma\.TransactionIsolationLevel\.Serializable \}\)/);
+    assert.match(transactionHelper, /const retryable = error instanceof Prisma\.PrismaClientKnownRequestError && error\.code === "P2034"/);
+    assert.match(transactionHelper, /if \(!retryable \|\| attempt >= SERIALIZATION_RETRIES\) throw error;/);
+  });
   await check("portfolio reconciliation is server-enforced SUPER_ADMIN only", () => { assert.match(manualRoute, /user\.role !== "SUPER_ADMIN"/); assert.match(read("app/nastaveni/system/page.tsx"), /Synchronizovat strukturu Google Drive/); });
   await check("document reconciliation moves originals only", () => { assert.match(service, /moveFile\(asset\.storageKey/); assert.doesNotMatch(service, /moveFile\(asset\.(previewStorageKey|thumbnailStorageKey)/); });
   await check("historical document names are never inferred from title", () => { assert.doesNotMatch(service, /Document\.title|document\.title/); assert.doesNotMatch(service, /renameFile\(asset\.storageKey/); });

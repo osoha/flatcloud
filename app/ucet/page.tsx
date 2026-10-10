@@ -15,6 +15,7 @@ import { getMyOwnerReceiptSettings } from "@/lib/owner-receipt-settings";
 import Link from "next/link";
 import { IllustrationPicker } from "@/components/IllustrationPicker";
 import { suggestedIllustration } from "@/lib/illustration-library";
+import { subscriptionsSandboxEnabled } from "@/lib/subscriptions/service";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,7 @@ export default async function AccountPage({ searchParams }: { searchParams: Prom
         </div>
 
         <Flash ok={query.ok} error={query.error && !passwordError ? query.error : undefined}/>
+        {user.role !== "TENANT" && subscriptionsSandboxEnabled() && <section className="card account-card" id="predplatne"><h2>Tarif a platby</h2><p>Vaše portfolia, dostupné funkce, zakoupená kapacita a předplatné.</p><Link className="secondary" href="/ucet/predplatne">Otevřít předplatné →</Link></section>}
 
         <section id="upozorneni" data-guide="notifications" className="card account-card notification-settings">
           <h2>Upozornění</h2>

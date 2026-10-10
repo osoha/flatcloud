@@ -4,6 +4,8 @@ import { prisma } from "@/lib/db";
 import { floatValue, text } from "@/lib/forms";
 import { requireManagedProperty, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
+import { serializableTransaction } from "@/lib/serializable";
+import { attachCreatedUnit, checkSubscriptionCapacity, lockSubscriptionAccounts } from "@/lib/subscriptions/service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,14 +30,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (!property) throw new Error("Nemovitost nebyla nalezena.");
     if (!owner) throw new Error("Vyberte aktivního vlastníka.");
     if (ownerBankAccountId&&!account) throw new Error("Vybraný bankovní účet nepatří zvolenému vlastníkovi nebo není aktivní.");
-    const unit = await prisma.$transaction(async (tx) => {
+    const unit = await serializableTransaction(async (tx) => {
+      const subscriptionScope={propertyId:id,ownerId,additionalUnits:1};
+      await lockSubscriptionAccounts(access.user,subscriptionScope,tx);
+      const capacity=await checkSubscriptionCapacity(access.user,subscriptionScope,tx);
+      if(!capacity.allowed)throw new Error(capacity.message||"Tarif neumožňuje přidat další jednotku.");
       if(ownerBankAccountId)await tx.propertyPaymentAccount.upsert({
         where: { propertyId_ownerBankAccountId: { propertyId: id, ownerBankAccountId } },
         update: { active: true },
         create: { propertyId: id, ownerBankAccountId, active: true },
       });
       const operationalStatus = (text(form, "operationalStatus") || "STANDARD") as UnitOperationalStatus;
-      return tx.unit.create({
+      const created=await tx.unit.create({
       data: {
         propertyId: id,
         label: text(form, "label", true)!,
@@ -50,6 +56,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         operationalStatusEvents: { create: { status: operationalStatus, source: "USER_CHANGE", createdById: access.user.id, effectiveAt: new Date() } },
       },
       });
+      await attachCreatedUnit(access.user,id,created.id,tx);
+      return created;
     });
     await audit(access.user.id, "UNIT_CREATED", "Unit", unit.id, { propertyId: id, unitCode: unit.unitCode, label: unit.label, ownerId, ownerBankAccountId }, id);
     return goWithMessage(request, `/nemovitosti/${id}/jednotky`, "ok", ownerBankAccountId?"Jednotka byla vytvořena.":"Jednotka byla vytvořena bez účtu. Doplňte jej před založením nájemní smlouvy.");

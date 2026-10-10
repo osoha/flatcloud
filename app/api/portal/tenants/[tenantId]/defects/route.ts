@@ -9,6 +9,7 @@ import {serializableTransaction} from "@/lib/serializable";
 import {portalSubmissionKey} from "@/lib/tenant-portal-conversations";
 import {after} from "next/server";
 import {collectTaskNotifications,processTaskNotifications} from "@/lib/task-notifications";
+import {checkSubscriptionWrite} from "@/lib/subscriptions/service";
 
 export async function POST(request:Request,{params}:{params:Promise<{tenantId:string}>}) {
   const {tenantId}=await params;let target=`/portal/najemnik/${tenantId}#zavady`;
@@ -20,6 +21,9 @@ export async function POST(request:Request,{params}:{params:Promise<{tenantId:st
     target=`/portal/najemnik/${tenantId}#zavady-${encodeURIComponent(leaseId)}-nove`;
     const lease=await activeTenantLease(user.id,tenantId,leaseId);
     if(!lease)throw new Error("K tomuto nájemnímu vztahu nemáte přístup.");
+    const urgent=form.get("urgent")==="yes";
+    const subscription=await checkSubscriptionWrite(user,{propertyId:lease.unit.propertyId,unitId:lease.unitId});
+    if(!subscription.allowed&&!urgent)throw new Error("Správa má dočasně pozastavené předplatné. Nyní lze nahlásit pouze havárii nebo naléhavou závadu.");
     const title=String(form.get("title")||"").trim(),description=String(form.get("description")||"").trim();
     const tenantVisitNote=String(form.get("tenantVisitNote")||"").trim();
     if(tenantVisitNote.length>500)throw new Error("Poznámka ke vstupu je příliš dlouhá.");
@@ -37,10 +41,12 @@ export async function POST(request:Request,{params}:{params:Promise<{tenantId:st
       await serializableTransaction(async tx=>{
         const current=await activeTenantLease(user.id,tenantId,leaseId,tx);
         if(!current||current.unitId!==lease.unitId||current.unit.propertyId!==lease.unit.propertyId)throw new Error("Přístup nebo údaje o bydlení se mezitím změnily. Obnovte stránku a zkuste to znovu.");
+        const currentSubscription=await checkSubscriptionWrite(user,{propertyId:current.unit.propertyId,unitId:current.unitId},tx);
+        if(!currentSubscription.allowed&&!urgent)throw new Error("Předplatné správy je pozastavené; lze nahlásit pouze naléhavou závadu.");
         if(!current.unit.property.active||!await tx.tenant.count({where:{id:tenantId,active:true}}))throw new Error("Hlášení lze odeslat pouze u aktivního bydlení.");
         const previous=await tx.task.findUnique({where:{dedupeKey},select:{id:true,tenantPortalTitle:true,tenantPortalBody:true,tenantVisitNote:true,tenantEntryConsentAt:true}});
         if(previous){if(previous.tenantPortalTitle!==title||previous.tenantPortalBody!==description||previous.tenantVisitNote!==(tenantVisitNote||null)||Boolean(previous.tenantEntryConsentAt)!==Boolean(tenantEntryConsentAt))throw new Error("Tento formulář už byl odeslán. Pro další hlášení otevřete nový formulář.");taskId=previous.id;return;}
-        await tx.task.create({data:{id:taskId,title,description,tenantPortalTitle:title,tenantPortalBody:description,category:"MAINTENANCE",status:"OPEN",tenantPortalRequest:true,tenantPortalRequestKind:"DEFECT",dedupeKey,tenantEntryConsentAt,tenantVisitNote:tenantVisitNote||null,propertyId:current.unit.propertyId,unitId:current.unitId,leaseId:current.id,tenantId,createdById:user.id,assigneeId:resolveAutomaticTaskAssignee({manager:current.unit.property.manager,propertyOwner:current.unit.property.owner,unitOwnerships:current.unit.ownerships})}});
+        await tx.task.create({data:{id:taskId,title,description,tenantPortalTitle:title,tenantPortalBody:description,category:"MAINTENANCE",status:"OPEN",priority:urgent?"URGENT":"NORMAL",tenantPortalRequest:true,tenantPortalRequestKind:"DEFECT",dedupeKey,tenantEntryConsentAt,tenantVisitNote:tenantVisitNote||null,propertyId:current.unit.propertyId,unitId:current.unitId,leaseId:current.id,tenantId,createdById:user.id,assigneeId:resolveAutomaticTaskAssignee({manager:current.unit.property.manager,propertyOwner:current.unit.property.owner,unitOwnerships:current.unit.ownerships})}});
         if(batch)await createTaskAttachmentsInTransaction(tx,batch,taskId);
         await tx.auditLog.create({data:{userId:user.id,propertyId:lease.unit.propertyId,action:"TENANT_DEFECT_REPORTED",entityType:"Task",entityId:taskId,details:{tenantId,leaseId,photoCount:files.length,entryConsent:Boolean(tenantEntryConsentAt)}}});
         created=true;

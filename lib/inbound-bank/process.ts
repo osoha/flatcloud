@@ -7,6 +7,7 @@ import { bankAccountMatches, bankNameForCode, normalizeBankAccount } from "@/lib
 import { touchPropertyPaymentNotification, tryVerifyNotificationPayment } from "@/lib/bank-email-verification";
 import { runExpenseRules } from "@/lib/bank-expense-rules";
 import { reconcileInboxReview, reconcileTransactionReview } from "@/lib/bank-review-tasks";
+import { checkAutomaticAccountBankOperation, checkAutomaticBankOperation } from "@/lib/subscriptions/bank-guard";
 
 function normalizedVs(value?: string | null) {
   return (value || "").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
@@ -152,6 +153,8 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
     return { imported: false, reason: "Účtová pravidla mají nejednoznačný cíl." };
   }
   if (accountMatch.rule?.action === "IGNORE") {
+    const entitlement=await checkAutomaticAccountBankOperation(accountMatch.rule.ownerBankAccountId);
+    if(!entitlement.allowed)return {imported:false,reason:entitlement.message||"Pravidlo je pozastavené podle předplatného."};
     const reason = `Ignorováno účtovým pravidlem: ${accountMatch.rule.name}.`;
     await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IGNORED", parseNote: reason } });
     await reconcileInboxReview(inbox.id);
@@ -187,9 +190,18 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
     return { imported: false, reason: route.reason };
   }
 
+  const scopedLeaseId=route.leaseId||ruleLease?.id;
+  const scopedLease=scopedLeaseId?await prisma.lease.findUnique({where:{id:scopedLeaseId},select:{unitId:true}}):null;
+  const subscriptionScope={propertyId:route.propertyId,...(scopedLease?{unitId:scopedLease.unitId}:{})};
+  const entitlement=await checkAutomaticBankOperation(subscriptionScope,"bankNotifications");
+  // Keep the original inbox row retryable: upgrading may legitimately import it later.
+  if(!entitlement.allowed)return {imported:false,reason:entitlement.message||"Bankovní oznámení nejsou dostupná podle předplatného."};
+
   await touchPropertyPaymentNotification(route.propertyId, inbox.recipientAccount, inbox.receivedAt);
   const matchingRule = accountMatch.rule || explicitLeaseId || inbox.amountCents < 0 ? null : await matchingRuleForInbox(route.propertyId, inbox);
   if (matchingRule?.action === MatchRuleAction.IGNORE) {
+    const matching=await checkAutomaticBankOperation(subscriptionScope);
+    if(!matching.allowed)return {imported:false,reason:matching.message||"Párování je pozastavené podle předplatného."};
     const reason = `Ignorováno pravidlem: ${matchingRule.name}.`;
     await prisma.inboxPayment.update({ where: { id: inbox.id }, data: { status: "IGNORED", propertyId: route.propertyId, parseNote: reason } });
     await reconcileInboxReview(inbox.id);
@@ -220,6 +232,8 @@ export async function materializeInboxPayment(inboxId: string, explicitLeaseId?:
     await runExpenseRules(route.propertyId, [transaction.id]);
     await reconcileTransactionReview(transaction.id);
   } else if (accountMatch.rule?.action === "SUGGEST_LEASE" && ruleLease) {
+    const matching=await checkAutomaticBankOperation({propertyId:route.propertyId,unitId:ruleLease.unitId});
+    if(!matching.allowed)return {imported:false,reason:matching.message||"Párování je pozastavené podle předplatného."};
     await prisma.bankTransaction.update({where:{id:transaction.id},data:{status:"SUGGESTED",suggestedLeaseId:ruleLease.id,matchNote:`Návrh účtovým pravidlem: ${accountMatch.rule.name}.`}});
     await reconcileTransactionReview(transaction.id);
   } else if (explicitLeaseId || route.leaseId) {

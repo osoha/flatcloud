@@ -2,6 +2,7 @@ import { actualUser } from "@/lib/auth";
 import { serializableTransaction } from "@/lib/serializable";
 import { portalAnnouncementAudience, portalMessageLease, portalTaskAudience } from "@/lib/tenant-portal-messages";
 import { goWithMessage } from "@/lib/route-response";
+import { checkSubscriptionWrite } from "@/lib/subscriptions/service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ tenantId: string }> }) {
   const { tenantId } = await params;
@@ -17,6 +18,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ ten
     await serializableTransaction(async tx => {
       const lease = await portalMessageLease(user, tenantId, leaseId, false, tx);
       if (!lease) throw new Error("K tomuto nájemnímu vztahu nemáte přístup.");
+      const subscription=await checkSubscriptionWrite(user,{propertyId:lease.unit.propertyId,unitId:lease.unitId},tx);
+      if(!subscription.allowed)throw new Error(subscription.message||"Správa má dočasně pozastavené předplatné.");
       if (kind === "task" && ["read", "confirm"].includes(action)) {
         const task = await tx.task.findFirst({ where: { id: itemId, ...portalTaskAudience(tenantId, leaseId, { unitId: lease.unitId, propertyId: lease.unit.propertyId }) }, select: { status: true, tenantPortalPublishedAt: true } });
         if (!task || ["DONE", "CANCELLED"].includes(task.status)) throw new Error("Tento úkol už nelze potvrdit.");

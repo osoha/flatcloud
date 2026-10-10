@@ -5,6 +5,7 @@ import { requireManagedProperty, audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { shouldCreateOperationalStatusEvent } from "@/lib/unit-operational-history";
 import { serializableTransaction } from "@/lib/serializable";
+import { checkSubscriptionCapacity, lockSubscriptionAccounts } from "@/lib/subscriptions/service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; unitId: string }> }) {
   const { id, unitId } = await params;
@@ -21,8 +22,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (disposition === "OTHER" && !dispositionCustom) throw new Error("U jiné dispozice doplňte vlastní označení.");
     const operationalStatus = (text(form, "operationalStatus") || "STANDARD") as UnitOperationalStatus;
     const unit = await serializableTransaction(async (tx) => {
-      const current = await tx.unit.findFirst({ where: { id: unitId, propertyId: id }, select: { operationalStatus: true } });
+      const current = await tx.unit.findFirst({ where: { id: unitId, propertyId: id }, select: { operationalStatus: true,status:true } });
       if (!current) throw new Error("Jednotka nebyla nalezena.");
+      if(current.operationalStatus==="INACTIVE"&&operationalStatus!=="INACTIVE"&&current.status!=="INACTIVE"){
+        const subscriptionScope={propertyId:id,unitId,additionalUnits:1};
+        await lockSubscriptionAccounts(access.user,subscriptionScope,tx);
+        const capacity=await checkSubscriptionCapacity(access.user,subscriptionScope,tx);
+        if(!capacity.allowed)throw new Error(capacity.message||"Obnovení jednotky překračuje kapacitu tarifu.");
+      }
       return tx.unit.update({ where: { id: unitId }, data: {
         label: text(form, "label", true)!,
         floor: text(form, "floor"),

@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
 
+// A subscription simulation release must fail before touching a mismatched DB.
+if (process.env.FLATBERRY_SUBSCRIPTIONS_SANDBOX === "1") {
+  const database = new URL(process.env.DATABASE_URL || "postgres://invalid/invalid");
+  const isolatedLocal = !process.env.RENDER_SERVICE_ID && ["localhost", "127.0.0.1", "postgres"].includes(database.hostname);
+  const namedSandbox = process.env.RENDER_SERVICE_ID === "srv-dacselkmqu1s73bmjoq0" && process.env.RENDER_GIT_BRANCH === "sandbox/ux-agent" && database.pathname === "/flatcloud_ux_sandbox";
+  if (!isolatedLocal && !namedSandbox) throw new Error("Subscription sandbox release blocked: service, branch and database must match the isolated sandbox.");
+}
+
 const prismaCommand = process.platform === "win32" ? "npx.cmd" : "npx";
 
 // These migrations are explicitly safe to retry after Prisma recorded a failed
