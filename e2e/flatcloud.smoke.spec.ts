@@ -186,6 +186,10 @@ test("globální správce vidí provozní rozsah napříč vlastníky", async ({
   await expect(dialog.getByRole("button", { name: "Vybrat vše ve správě", exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: /FlatCloud Group/ })).toBeVisible();
   await expect(dialog.getByRole("button", { name: /Externí správa/ })).toBeVisible();
+  const ownerPicker=dialog.getByRole("combobox",{name:"Vlastník jednotek",exact:true});
+  await expect(ownerPicker).toBeVisible();
+  await ownerPicker.selectOption({index:1});
+  await dialog.getByRole("button",{name:"Přidat vlastníka do oblíbených",exact:true}).click();
   await expect(dialog.locator(".scope-owner-preset").first()).toBeVisible();
   await page.getByRole("button", { name: "Zrušit změny", exact: true }).click();
   await expect(page.getByText("FlatCloud · 100 %", { exact: true }).first()).toBeVisible();

@@ -69,17 +69,16 @@ test("R29D desktop finance a platby mají kompaktní hierarchii bez zbytečného
   await expect(page.getByRole("link", { name: "Nastavení reportů", exact: true })).toHaveAttribute("href", `/nemovitosti/${propertyId}/nastaveni/reporting`);
   const disclaimer = securityHeading.locator("xpath=..");
   const settingsGrid = disclaimer.locator("xpath=..");
-  const firstCard = settingsGrid.locator(":scope > .card").first();
   const disclaimerLayout = await disclaimer.evaluate((element) => {
     const style = getComputedStyle(element);
     const box = element.getBoundingClientRect();
     return { height: box.height, width: box.width, boxShadow: style.boxShadow, backgroundColor: style.backgroundColor };
   });
-  const firstCardWidth = await firstCard.evaluate((element) => element.getBoundingClientRect().width);
+  const settingsWidth = await settingsGrid.evaluate((element) => element.getBoundingClientRect().width);
   expect(disclaimerLayout.height).toBeLessThan(90);
   expect(disclaimerLayout.boxShadow).toBe("none");
   expect(disclaimerLayout.backgroundColor).toMatch(/rgba\(0, 0, 0, 0\)|transparent/);
-  expect(Math.abs(firstCardWidth - disclaimerLayout.width)).toBeLessThanOrEqual(3);
+  expect(Math.abs(settingsWidth - disclaimerLayout.width)).toBeLessThanOrEqual(3);
   await expectNoDocumentOverflow(page);
   assertNoBrowserFailures();
 });

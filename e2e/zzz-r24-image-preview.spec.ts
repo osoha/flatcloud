@@ -35,7 +35,7 @@ for (const scenario of ["desktop", "mobile", "error-retry"] as const) {
     await page.getByRole("button", { name: "Přihlásit se" }).click();
     await expect(page).toHaveURL(/\/portfolio(?:\?|$)/);
     await page.goto(`/ukoly/${task.id}`);
-    const editPanel = page.locator("details").filter({ has: page.locator("summary", { hasText: "Upravit případ" }) });
+    const editPanel = page.locator("details").filter({ has: page.locator("summary", { hasText: "Editovat úkol" }) });
     await editPanel.locator("summary").click();
     await expect(editPanel).toHaveAttribute("open", "");
     const draft = page.getByLabel("Nový komentář", { exact: true });

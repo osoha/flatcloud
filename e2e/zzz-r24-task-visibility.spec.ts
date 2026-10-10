@@ -37,18 +37,19 @@ async function login(page: Page, email: string) {
 async function post(page: Page, taskId: string, form: Record<string, string>, action = "entries") {
   return new URL(await page.evaluate(async ({ taskId, form, action }) => (await fetch(`/api/tasks/${taskId}/${action}`, { method: "POST", body: new URLSearchParams(form) })).url, { taskId, form, action })).searchParams;
 }
-for (const scope of ["property-view", "unit-view", "property-edit", "unit-edit", "admin", "foreign"] as const) {
+for (const scope of ["property-view", "property-unit-view", "unit-view", "property-edit", "unit-edit", "admin", "foreign"] as const) {
   test(`R24 visibility: ${scope} reads only authorized thread and attachments`, async ({ page }) => {
     const f = await fixture();
     const seed = await db.user.findUniqueOrThrow({ where: { email: R24_ROLE_USERS.technicalManager } });
     const actor = await db.user.create({ data: { name: `${marker} ${scope}`, email: `${randomUUID()}@flatcloud.test`, passwordHash: seed.passwordHash, isTestIdentity: true, role: scope === "admin" ? "SUPER_ADMIN" : "OWNER_VIEWER" } });
     if (scope.startsWith("property")) await db.userProperty.create({ data: { userId: actor.id, propertyId: f.unit.propertyId, permission: scope.endsWith("edit") ? "EDIT" : "VIEW" } });
-    if (scope.startsWith("unit")) await db.userUnit.create({ data: { userId: actor.id, unitId: f.unit.id, permission: scope.endsWith("edit") ? "EDIT" : "VIEW" } });
+    if (scope.startsWith("unit") || scope === "property-unit-view") await db.userUnit.create({ data: { userId: actor.id, unitId: f.unit.id, permission: scope.endsWith("edit") ? "EDIT" : "VIEW" } });
     if (scope === "foreign") {
       const other = await db.property.findFirstOrThrow({ where: { id: { not: f.unit.propertyId } } });
       await db.userProperty.create({ data: { userId: actor.id, propertyId: other.id, permission: "EDIT" } });
     }
     const editor = scope.endsWith("edit") || scope === "admin";
+    const mayReadUnitDocuments = scope !== "foreign" && scope !== "property-view";
     await login(page, actor.email);
     const response = await page.goto(`/ukoly/${f.task.id}`);
     if (scope === "foreign") expect(response?.status()).toBe(404);
@@ -63,11 +64,12 @@ for (const scope of ["property-view", "unit-view", "property-edit", "unit-edit",
       await expect(page.getByText(`${f.tag}_INTERNAL audit`, { exact: true })).toHaveCount(editor ? 1 : 0);
     }
     const allowed = await db.document.findMany({ where: { AND: [documentAccessWhere(actor), { id: { in: [f.privateDoc.id, f.publicDoc.id] } }] } });
-    expect(allowed.map(d => d.id).sort()).toEqual((scope === "foreign" ? [] : editor ? [f.privateDoc.id, f.publicDoc.id] : [f.publicDoc.id]).sort());
+    expect(allowed.map(d => d.id).sort()).toEqual((!mayReadUnitDocuments ? [] : editor ? [f.privateDoc.id, f.publicDoc.id] : [f.publicDoc.id]).sort());
     await page.goto(`/dokumenty?q=${encodeURIComponent(f.tag)}`);
     await expect(page.getByText(f.privateDoc.title, { exact: true })).toHaveCount(editor ? 1 : 0);
+    await expect(page.getByText(f.publicDoc.title, { exact: true })).toHaveCount(mayReadUnitDocuments ? 1 : 0);
     if (!editor) {
-      for (const doc of scope === "foreign" ? [f.privateDoc, f.publicDoc] : [f.privateDoc]) {
+      for (const doc of !mayReadUnitDocuments ? [f.privateDoc, f.publicDoc] : [f.privateDoc]) {
         for (const variant of ["original", "preview", "thumbnail"]) {
           const denied = await page.evaluate(async ({ id, variant }) => { const r = await fetch(`/api/documents/${id}/download?variant=${variant}`); return { status: r.status, location: r.headers.get("location"), body: await r.text() }; }, { id: doc.id, variant });
           expect(denied).toEqual({ status: 404, location: null, body: "Not found" });
