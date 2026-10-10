@@ -50,7 +50,7 @@ test("unit contract tab and documents upload contract scans to the deliberately 
   await page.locator('.unit-tabs a[href="#smlouva"]').click();
   await expect(page.getByRole("link", { name: "Nahrát smlouvu nebo dodatek" })).toHaveAttribute("href", `/smlouvy/${f.lease.id}#dokumenty`);
   await page.locator('.unit-tabs a[href="#dokumenty"]').click();
-  await page.locator("#dokumenty details>summary").click();
+  await page.locator("#dokumenty details:has(form.document-upload)>summary").click();
   const form = page.locator("#dokumenty form.document-upload");
   await form.locator('select[name="category"]').selectOption("CONTRACT");
   await expect(form.locator('select[name="leaseId"]')).toHaveValue("");

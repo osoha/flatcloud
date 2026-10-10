@@ -139,7 +139,7 @@ test("sharing rejects read-only, foreign, stale and internal document mutations;
     const revoked = await page.request.post(shareUrl(f.lease.id, f.contract.id), {headers: await authHeaders(page), form: {tenantVisible: "false"}, maxRedirects: 0});
     expect(revoked.headers().location).toContain("error="); expect((await db.document.findUniqueOrThrow({where: {id: f.contract.id}})).tenantVisible).toBe(true);
     await db.userUnit.update({where: {userId_unitId: {userId: f.manager.id, unitId: f.unit.id}}, data: {permission: "EDIT"}});
-    await page.goto(`/nemovitosti/${f.property.id}/jednotky/${f.unit.id}#dokumenty`); await page.locator("#dokumenty details>summary").click();
+    await page.goto(`/nemovitosti/${f.property.id}/jednotky/${f.unit.id}#dokumenty`); await page.locator("#dokumenty details:has(form.document-upload)>summary").click();
     const upload = page.locator("#dokumenty form.document-upload");
     await upload.locator('select[name="category"]').selectOption("HANDOVER_PROTOCOL"); await expect(upload.locator('select[name="leaseId"]')).toHaveValue(f.lease.id);
     await expect(upload).toContainText("Nové soubory jsou po nahrání pouze pro správu");
