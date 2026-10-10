@@ -29,9 +29,10 @@ test("Profi bulk readings are atomic; Basic keeps a simple entry and full histor
     await expect(page.getByRole("heading",{name:"Objektová měřidla"})).toBeVisible();
     const filters=page.locator(".profi-meter-filters");
     await expect(filters.locator('select[name="unit"]')).toHaveValue("house");
-    await expect(page.getByText("Hromadný odečet",{exact:true})).toHaveCount(0);
+    await expect(page.locator('.profi-meter-bulk input[name^="value:"]')).toHaveCount(0);
     await filters.locator('select[name="unit"]').selectOption("all");
     await filters.getByRole("button",{name:"Filtrovat",exact:true}).click();
+    await expect(page.locator('.profi-meter-bulk input[name^="value:"]')).toHaveCount(2);
     await expect(page.getByText("Hromadný odečet")).toBeVisible();
     await page.getByText("Hromadný odečet",{exact:true}).click();
     const form=page.locator(".profi-meter-bulk form");
