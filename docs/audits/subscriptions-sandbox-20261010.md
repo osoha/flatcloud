@@ -89,7 +89,8 @@ tvorbě, hromadném přidání a obnově archivovaných jednotek i objektů.
 Před nasazením jsou vyžadovány izolované migrace, Prisma validate,
 TypeScript, doménové verifikace, production build, nativní Playwright
 scénáře a audit změn. Výsledky místního ověření jsou přiložené k soukromému
-balíčku. Vzdálené CI, pull request ani živé nasazení zatím neproběhly.
+balíčku. Vydání do sandboxu je připravené v PR #276; živé nasazení následuje
+až po úspěchu všech požadovaných vzdálených kontrol.
 
 Místní ověření 10. 10. 2026: Prisma generate/validate, 111 izolovaných
 migrací, TypeScript, 22 doménových kontrol, production build a 20 browser
@@ -98,7 +99,20 @@ Samostatně prošlo sedm kontrol chyby databáze při ověření relace a náhle
 Po scénářích se změnil jen popisek kapacity tarifu na formulaci bez chybného
 skloňování; kontrola TypeScriptu a diffu se zopakovala.
 
-Zdrojový repozitář `osoha/flatcloud` je veřejný. Stávající nasazení sandboxu
-čerpá z tohoto repozitáře; publikování nového kódu vyžaduje výslovný souhlas
-uživatele, který veřejné zveřejnění zakázal. Alternativou je soukromý zdroj
-kódu pro sandbox. Produkční aplikace, její databáze ani prostředí se neměnily.
+Vzdálený workflow **Subscription sandbox** (běh 38051239100) ověřil totožný
+aplikační strom: 111 migrací, 22 doménových kontrol a 20/20 browser scénářů.
+Prošly i workflow R26 Hardening, Portfolio owner filter, User settings and
+tenant portal a Sandbox debt and popup verification. Obecné FlatCloud CI
+odhalilo zastaralou statickou kontrolu přímého volání transakce v ověřování
+Google Drive a hromadné tvorby jednotek. Kontroly jsou aktualizované na
+aktuální transakční obal; zachovávají ověření pořadí zápisů a návazných akcí
+i serializovatelnost.
+Finální obecné CI je povinná brána před nasazením.
+
+Zdrojový repozitář `osoha/flatcloud` je veřejný. Dne 10. 10. 2026 uživatel
+po vysvětlení rozdílu mezi zveřejněním zdrojového kódu a přístupem do aplikace
+výslovně schválil původní cestu přes tento repozitář. PR #276 míří pouze do
+`sandbox/ux-agent`. Stávající Render služba, URL i databáze zůstávají stejné;
+přístup do aplikace nadále vyžaduje přihlášení. Soukromá kopie repozitáře se
+pro toto vydání nepoužívá. Produkční `main`, služba, databáze ani prostředí
+se v tomto úkolu nemění.
