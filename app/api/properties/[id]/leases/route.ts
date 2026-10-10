@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { requireManagedProperty, audit } from "@/lib/management";
-import { tenantAccessWhere } from "@/lib/access";
+import { leaseTenantAccessWhere } from "@/lib/lease-tenant-directory";
 import { go, goWithMessage } from "@/lib/route-response";
 import { createLeaseFromForm } from "@/lib/lease-create";
 import { stringArray } from "@/lib/forms";
@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       guarantorPartyIds: stringArray(form, "guarantorPartyIds"),
     });
     const requestedTenantIds = allSelectedPartyIds(tenantId, partySelections);
-    const allowedTenants = await prisma.tenant.findMany({ where: { AND: [{ id: { in: requestedTenantIds } }, tenantAccessWhere(access.user)] }, select: { id: true } });
+    const allowedTenants = await prisma.tenant.findMany({ where: { AND: [{ id: { in: requestedTenantIds } }, leaseTenantAccessWhere(access.user, id)] }, select: { id: true } });
     const tenant = allowedTenants.find((row) => row.id === tenantId);
     if (!tenant) throw new Error("Vybraný nájemník není v rozsahu vašich oprávnění.");
     if (allowedTenants.length !== requestedTenantIds.length) throw new Error("Některá další smluvní strana není v rozsahu vašich oprávnění.");

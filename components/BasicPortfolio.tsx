@@ -11,12 +11,15 @@ import { paidCents, overdueDebtCents, isPastDue } from "@/lib/charges";
 import type { accessibleProperties } from "@/lib/access";
 import type { EntityPhotos } from "@/lib/entity-photos";
 import type { PortfolioSelection } from "@/lib/portfolio-selection";
+import {portfolioSelectionQuery, serializePortfolioSelection} from "@/lib/portfolio-selection";
+import {cookies, headers} from "next/headers";
+import {basicPortfolioView, basicPortfolioViewCookie, defaultBasicPortfolioView} from "@/lib/basic-portfolio-view";
 
 type Property = Awaited<ReturnType<typeof accessibleProperties>>[number];
 type PropertyRow = { property: Property; expected: number; paid: number; debt: number };
 type ScopeOption = import("@/lib/portfolio-ownership").PortfolioPropertyOption;
 
-export function BasicPortfolio({ viewerId, name, period, rows, photos, expected, paid, debt, taskCount, attention, announcementCount, scopeOptions, selection }: {
+export async function BasicPortfolio({ viewerId, name, period, rows, photos, expected, paid, debt, taskCount, attention, announcementCount, scopeOptions, selection }: {
   viewerId: string; name: string; period: string; rows: PropertyRow[]; photos: EntityPhotos;
   expected: number; paid: number; debt: number; taskCount: number;
   attention: { title: string; detail: string; href: string; tone: "bad" | "warn" | "info" }[];
@@ -25,6 +28,18 @@ export function BasicPortfolio({ viewerId, name, period, rows, photos, expected,
   const activeRows = rows.filter((row) => row.property.active);
   const archivedRows = rows.filter((row) => !row.property.active);
   const units = activeRows.flatMap((row) => row.property.units);
+  const query = new URLSearchParams((await headers()).get("x-flatberry-search") || "");
+  const preference = basicPortfolioView((await cookies()).get(basicPortfolioViewCookie(viewerId))?.value);
+  const view = basicPortfolioView(query.get("basicView") || undefined) || preference || defaultBasicPortfolioView(units.length, activeRows.length);
+  const returnTo = "/portfolio" + (query.size ? `?${query}` : "");
+  const buildingHref = (propertyId: string) => {
+    const params = new URLSearchParams(portfolioSelectionQuery({...selection, mode: "SELECTED", propertyIds: [propertyId]}));
+    params.set("basicView", "units");
+    params.set("basicBackProperties", serializePortfolioSelection(selection) ?? "*");
+    return `/portfolio?${params}#nemovitosti`;
+  };
+  const backProperties = query.get("basicBackProperties");
+  const backQuery = new URLSearchParams({basicView: "buildings", ...(selection.ownerId ? {ownerId: selection.ownerId} : {}), ...(backProperties !== null && backProperties !== "*" ? {properties: backProperties} : {})});
   const occupied = units.filter((unit) => currentLeaseForUnit(unit.leases)).length;
   const remaining = Math.max(0, expected - paid);
   const beforeDue=units.flatMap(unit=>unit.leases.flatMap(lease=>lease.charges)).filter(c=>c.active&&c.period===period&&c.debtTreatment==="CURRENT"&&!isPastDue(c.dueDate)).reduce((sum,c)=>sum+Math.max(0,c.amountCents-paidCents(c)),0);
@@ -53,8 +68,11 @@ export function BasicPortfolio({ viewerId, name, period, rows, photos, expected,
       </div>
     </section>
 
-    <section className="basic-properties" id="nemovitosti" data-guide="properties" aria-labelledby="basic-properties-heading"><div className="basic-section-heading"><div><span className="basic-eyebrow">Moje místo</span><h2 id="basic-properties-heading">Nemovitosti</h2></div></div>
-      <div className="basic-property-grid">{activeRows.flatMap(({ property }) => property.units.length ? property.units.map((unit, unitIndex) => {
+    <section className="basic-properties" id="nemovitosti" data-guide="properties" aria-labelledby="basic-properties-heading"><div className="basic-section-heading"><div><span className="basic-eyebrow">Moje místo</span><h2 id="basic-properties-heading">{view === "buildings" ? "Moje budovy" : "Moje jednotky"}</h2>{backProperties !== null && <Link href={`/portfolio?${backQuery}#nemovitosti`}>← Zpět na budovy</Link>}</div><form className="basic-portfolio-view" action="/api/account/basic-portfolio-view" method="post" aria-label="Pohled na nemovitosti"><input type="hidden" name="returnTo" value={returnTo}/><button type="submit" name="view" value="buildings" aria-pressed={view === "buildings"}>Budovy</button><button type="submit" name="view" value="units" aria-pressed={view === "units"}>Jednotky</button>{preference && <button type="submit" className="link-button" name="view" value="auto">Automaticky</button>}</form></div>
+      <div className="basic-property-grid" data-portfolio-view={view}>{view === "buildings" ? activeRows.map(({property, expected: propertyExpected, debt: propertyDebt}) => {
+        const propertyOccupied = property.units.filter(unit => currentLeaseForUnit(unit.leases)).length;
+        return <article className="basic-property-card basic-building-card" key={property.id}><Link className="basic-property-photo" href={buildingHref(property.id)} aria-label={`Otevřít jednotky v ${property.name}`}><EntityAvatar photoId={photos.properties[property.id]} identity={property.id} size="lg"/></Link><div className="basic-property-body"><Link href={buildingHref(property.id)} className="basic-property-name">{property.name} <ArrowRight size={17}/></Link><p>{property.address} · {property.city}</p><div className="basic-building-occupancy"><strong>{propertyOccupied} z {property.units.length}</strong><span>obsazených jednotek</span></div><div className="basic-rent"><span>{propertyExpected ? <><strong>{money(propertyExpected)}</strong> / {month}</> : "Bez předpisu v tomto měsíci"}</span>{propertyDebt > 0 ? <b className="basic-payment-late">Po splatnosti {money(propertyDebt)}</b> : <b className="basic-payment-ok">Bez dluhu po splatnosti</b>}</div></div></article>;
+      }) : activeRows.flatMap(({ property }) => property.units.length ? property.units.map((unit, unitIndex) => {
         const lease = currentLeaseForUnit(unit.leases);
         const charges = unit.leases.flatMap((item) => item.charges);
         const due = charges.filter((charge) => charge.active && charge.period === period);

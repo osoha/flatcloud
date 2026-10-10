@@ -595,7 +595,7 @@ async function main() {
       );
       assert.equal(
         hash("lib/reporting/editorial-schema.ts"),
-        "1e79b34172eddba838e2bf2beb6ca2867f17ce8803b6f5e67a764294333c609c",
+        "13719ea23a6a1b78b96aa388b390c70f182fd7519ef915f6a406549df19bc12a",
       );
       assert.match(
         read("lib/reporting/snapshot-schema.ts"),

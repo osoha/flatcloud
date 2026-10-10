@@ -95,6 +95,7 @@ test("tenant identity and author survive creation and editing; shared profiles r
   await expect(page.locator(`select[name="tenantId"] option[value="${tenant.id}"]`)).toHaveCount(1);
   await expect(page.locator(`select[name="tenantId"] option[value="${legacy.id}"]`)).toHaveCount(0);
   await page.getByLabel("Výběr nájemníků").selectOption("AVAILABLE");
+  await page.getByLabel("Hledat nájemníka", { exact: true }).fill(legacy.name);
   await expect(page.locator(`select[name="tenantId"] option[value="${legacy.id}"]`)).toHaveCount(1);
 });
 

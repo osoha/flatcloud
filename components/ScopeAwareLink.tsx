@@ -94,11 +94,18 @@ export function ScopeAwareLink({
       return currentValue === value;
     });
   const current = pathMatches && queryMatches;
+  // Styled page tabs already declare their selected category with .active.
+  // Inactive undefined props can disappear across a server/client boundary;
+  // falling back to the path would mark every query-based tab as current.
+  const selected = props.className !== undefined
+    ? props.className.split(/\s+/).includes("active")
+    : current;
+  const ariaCurrent = props["aria-current"] ?? (selected ? "page" : undefined);
   return (
     <Link
       href={scopedHref}
-      aria-current={current ? "page" : undefined}
       {...props}
+      aria-current={ariaCurrent}
     >
       {children}
     </Link>

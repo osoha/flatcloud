@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { requirePropertyAccess, tenantAccessWhere } from "@/lib/access";
+import { requirePropertyAccess } from "@/lib/access";
 import { Shell } from "@/components/Shell";
 import { Field, Flash, FormPage, Textarea } from "@/components/FormUi";
 import { RecoverableMutationForm } from "@/components/RecoverableMutationForm";
@@ -13,6 +13,7 @@ import { dateInput } from "@/lib/forms";
 import { proposedLeaseIdentity } from "@/lib/variable-symbol";
 import { ownerBankAccountLabel } from "@/lib/owner-bank-account";
 import { currentPeriod } from "@/lib/period";
+import { initialLeaseTenants, directoryTenantOption } from "@/lib/lease-tenant-directory";
 import { MethodologyCallout } from "@/components/MethodologyCallout";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function NewLease({ params, searchParams }: { params: Promi
     prisma.lease.findMany({ select: { variableSymbol: true } }),
   ]);
   if (!property) notFound();
-  const tenants = await prisma.tenant.findMany({ where: { AND: [tenantAccessWhere(user), { OR: [{ createdById: user.id }, { propertyLinks: { some: { propertyId: id } } }, { leases: { some: { unit: { propertyId: id } } } }, { leaseParties: { some: { lease: { unit: { propertyId: id } } } } }] }] }, orderBy: { name: "asc" } });
+  const tenants = await initialLeaseTenants(user, id, query.tenantId ? [query.tenantId] : [], "MINE");
   const availableUnits = property.units;
   const used = new Set(usedRows.map((row) => row.variableSymbol));
   const identities = Object.fromEntries(availableUnits.map((unit) => [unit.id, proposedLeaseIdentity(property, unit, used)]));
@@ -40,8 +41,8 @@ export default async function NewLease({ params, searchParams }: { params: Promi
   return <Shell user={user} taskPropertyId={id}><FormPage title="Přidat nájemní smlouvu" description="Zvolte jednotku a dobu trvání. FlatBerry při uložení automaticky určí stav smlouvy a zablokuje jakýkoli překryv s existujícím nájemním obdobím." backHref={`/nemovitosti/${id}/smlouvy`}>
     <Flash ok={query.ok} error={query.error}/>
     <MethodologyCallout slug="najemni-smlouva"/>
-    {availableUnits.length && tenants.length ? <RecoverableMutationForm action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu" draftKey={`new-lease:${id}`}>
-      <LeaseCoreFields tenantCreators={Object.fromEntries(tenants.map(tenant => [tenant.id, tenant.createdById]))} currentUserId={user.id} propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map((tenant) => [tenant.id, `${tenant.name} · ${tenant.communicationEmail || tenant.email || tenant.phone || (tenant.type === "COMPANY" ? "firma" : "osoba")}`])} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownersByUnit={ownersByUnit} ownerAccountsByUnit={ownerAccountsByUnit} landlordChoicesByUnit={landlordChoicesByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
+    {availableUnits.length ? <RecoverableMutationForm action={`/api/properties/${id}/leases`} cancelHref={`/nemovitosti/${id}/smlouvy`} submitLabel="Vytvořit smlouvu" draftKey={`new-lease:${id}`}>
+      <LeaseCoreFields tenantCreators={Object.fromEntries(tenants.map(tenant => [tenant.id, tenant.createdById]))} currentUserId={user.id} propertyId={id} unitOptions={availableUnits.map((unit) => [unit.id, unit.label])} tenantOptions={tenants.map(directoryTenantOption)} defaultUnitId={query.unitId} defaultTenantId={query.tenantId} defaultStartDate={dateInput(new Date())} proposals={proposals} contractNumberProposals={contractNumberProposals} ownersByUnit={ownersByUnit} ownerAccountsByUnit={ownerAccountsByUnit} landlordChoicesByUnit={landlordChoicesByUnit} tenantAccountsByTenant={tenantAccountsByTenant} showGenerateCharges showFinancialOnboarding currentBusinessPeriod={currentPeriod()}/>
       <Field label="Nájemné Kč / měsíc" name="rent" type="number" step="0.01" min={0} required/>
       <LeaseServiceFields/>
       <LeaseOccupantFields people={tenants.filter(tenant => tenant.type === "PERSON").map(tenant => ({ id: tenant.id, name: tenant.name, email: tenant.email, phone: tenant.phone }))}/>

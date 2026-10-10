@@ -26,7 +26,7 @@ export function calculatePropertySnapshot(input: { propertyId: string; asOf: Dat
     rentable += 1;
     const lease = unit.leases.find((candidate) => leaseStatusAt(candidate, input.asOf) === "ACTIVE");
     if (lease) occupancyActiveLeases.push(lease);
-    if (!unit.areaM2 || unit.areaM2 <= 0) { missingArea += 1; issues.push({ code: "MISSING_UNIT_AREA", severity: "WARNING", message: "Unit has no usable area.", propertyId: input.propertyId, unitId: unit.id }); }
+    if (unit.areaM2 == null) { missingArea += 1; issues.push({ code: "MISSING_UNIT_AREA", severity: "WARNING", message: "Unit area has not been entered.", propertyId: input.propertyId, unitId: unit.id }); }
     else { rentableArea += unit.areaM2; if (lease) occupiedArea += unit.areaM2; }
     if (!lease) continue;
 

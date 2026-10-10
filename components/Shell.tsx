@@ -16,9 +16,7 @@ import { AlertTriangle, BarChart3, BookOpen, CalendarCheck2, CalendarRange, Clip
 import { canSeeAll, hasAllPropertyAccess, previewContext } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { openTaskStatuses } from "@/lib/operations";
-import { addCalendarMonths, nextLeaseAnniversary } from "@/lib/lease-alerts";
 import { UserAvatar } from "@/components/UserAvatar";
-import { effectiveLeaseEnd, leaseStatusAt } from "@/lib/lease-lifecycle-core";
 import { unreadAnnouncementWhere } from "@/lib/announcements";
 import { isLeaseExpiring } from "@/lib/lease-catalog";
 import { userRoles } from "@/lib/labels";
@@ -67,18 +65,16 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
     prisma.announcement.count({ where: unreadAnnouncementWhere(user) }),
     prisma.complianceItem.count({ where: { ...revisionWhere, active: true, nextDueAt: { lte: revisionHorizon } } }),
     unmatchedQueueCount(user,selection.ownerId?ownerProperties.filter(property=>property.active).map(property=>property.id):undefined,selection.ownerId),
-    prisma.lease.findMany({ where: { AND: [leaseAccessWhere(user), ...(selection.ownerId ? [{unitId:{in:ownerProperties.filter(property=>property.active).flatMap(property=>property.units.map(unit=>unit.id))}}] : [])] }, select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
+    prisma.lease.findMany({ where: { AND: [
+      leaseAccessWhere(contentUser),
+      {unit: {property: {active: true}}},
+      ...(selection.ownerId ? [{unitId:{in:ownerProperties.filter(property=>property.active).flatMap(property=>property.units.map(unit=>unit.id))}}] : []),
+      ...(selection.mode === "SELECTED" ? [{unit: {propertyId: {in: selection.propertyIds}}}] : []),
+      ...(navigationQuery.get("propertyId") ? [{unit: {propertyId: navigationQuery.get("propertyId")!}}] : []),
+    ] }, select: { startDate: true, endDate: true, terminatedOn: true, cancelledAt: true } }),
   ]);
   const today = new Date();
-  const leaseHorizon = addCalendarMonths(today, 3);
-  const leaseAlertCount = leaseRows.reduce((count, lease) => {
-    if (leaseStatusAt(lease, today) !== "ACTIVE") return count;
-    const end = effectiveLeaseEnd(lease);
-    const expiry = isLeaseExpiring(lease, today) ? 1 : 0;
-    const anniversary = nextLeaseAnniversary(lease.startDate, today);
-    const anniversaryHit = anniversary <= leaseHorizon && (!end || anniversary <= end) ? 1 : 0;
-    return count + expiry + anniversaryHit;
-  }, 0);
+  const leaseAlertCount = leaseRows.filter(lease => isLeaseExpiring(lease, today)).length;
   const canAddTask = fullAccess || Boolean(await prisma.userProperty.count({ where: { userId: user.id, permission: { in: ["EDIT", "ADMIN"] } } }));
   const canAddManualPayment = fullAccess || Boolean(await prisma.user.findUnique({
     where: { id: user.id },
@@ -123,7 +119,7 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
 
         <CollapsibleNavGroup id="evidence" label="Evidence" activeRoots={["/najemnici", "/smlouvy", "/dokumenty", "/vlastnici"]} defaultOpen>
           <Nav href="/najemnici" icon={<Users size={17}/>} label="Nájemníci"/>
-          <Nav href="/smlouvy" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount}/>
+          <Nav href="/smlouvy" icon={<CalendarCheck2 size={17}/>} label="Smlouvy" count={leaseAlertCount} countLabel="Expirující smlouvy do 3 měsíců ve vybraném portfoliu"/>
           <Nav href="/dokumenty" icon={<FileText size={17}/>} label="Dokumenty"/>
           {fullAccess && <Nav href="/vlastnici" icon={<UsersRound size={17}/>} label="Vlastníci a SPV"/>}
         </CollapsibleNavGroup>
@@ -188,6 +184,6 @@ export async function Shell({ user: contentUser, children, taskPropertyId, taskL
   </div>;
 }
 
-function Nav({href,icon,label,count=0,noticeCount=0,activeQuery}:{href:string;icon:React.ReactNode;label:string;count?:number;noticeCount?:number;activeQuery?:Record<string,string>}){
-  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label} {...(href.includes("#") ? { "aria-current": undefined } : {})}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count">{count>99?"99+":count}</b>}{noticeCount>0&&<i className="nav-announcement-dot" title={`${noticeCount} nepřečtených oznámení`} aria-label={`${noticeCount} nepřečtených oznámení`}/>}</ScopeAwareLink>;
+function Nav({href,icon,label,count=0,noticeCount=0,activeQuery,countLabel}:{href:string;icon:React.ReactNode;label:string;count?:number;noticeCount?:number;activeQuery?:Record<string,string>;countLabel?:string}){
+  return <ScopeAwareLink href={href} activeQuery={activeQuery} title={label} aria-label={label} {...(href.includes("#") ? { "aria-current": undefined } : {})}><span className="ico">{icon}</span><span>{label}</span>{count>0&&<b className="nav-count" title={countLabel}>{count>99?"99+":count}</b>}{noticeCount>0&&<i className="nav-announcement-dot" title={`${noticeCount} nepřečtených oznámení`} aria-label={`${noticeCount} nepřečtených oznámení`}/>}</ScopeAwareLink>;
 }

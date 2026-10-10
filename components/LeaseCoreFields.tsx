@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useLeaseTenantDirectory } from "./useLeaseTenantDirectory";
 
 type Option = [string, string];
+const emptyAccounts: Record<string, string[]> = {};
 type OwnerAccountOption = { id: string; label: string } | null;
 type LandlordChoice = { id: string; name: string; account: OwnerAccountOption };
 
@@ -41,9 +43,10 @@ type Props = {
   defaultDeposit?: number | string;
   defaultDepositInterest?: number | string;
   propertyId?: string;
+  excludeLeaseId?: string;
 };
 
-export function LeaseCoreFields({ tenantCreators = {}, currentUserId, unitOptions, tenantOptions, defaultUnitId, defaultTenantId, defaultContractingPartyIds = [], defaultPayerPartyIds = [], defaultContactPartyIds = [], defaultGuarantorPartyIds = [], defaultContractNumber, defaultStartDate, defaultEndDate = "", defaultDueDay = 5, defaultRentTiming = "ADVANCE", defaultVariableSymbol = "", defaultTenantBankAccount = "", proposals = {}, contractNumberProposals = {}, ownersByUnit = {}, ownerAccountsByUnit = {}, landlordChoicesByUnit, tenantAccountsByTenant = {}, showGenerateCharges = false, defaultAutoChargesEnabled = true, defaultIndexationEnabled = false, defaultIndexationPercent = "", showFinancialOnboarding = false, currentBusinessPeriod = "", defaultDeposit = "", defaultDepositInterest = "0", propertyId }: Props) {
+export function LeaseCoreFields({ tenantCreators = {}, currentUserId, unitOptions, tenantOptions, defaultUnitId, defaultTenantId, defaultContractingPartyIds = [], defaultPayerPartyIds = [], defaultContactPartyIds = [], defaultGuarantorPartyIds = [], defaultContractNumber, defaultStartDate, defaultEndDate = "", defaultDueDay = 5, defaultRentTiming = "ADVANCE", defaultVariableSymbol = "", defaultTenantBankAccount = "", proposals = {}, contractNumberProposals = {}, ownersByUnit = {}, ownerAccountsByUnit = {}, landlordChoicesByUnit, tenantAccountsByTenant = emptyAccounts, showGenerateCharges = false, defaultAutoChargesEnabled = true, defaultIndexationEnabled = false, defaultIndexationPercent = "", showFinancialOnboarding = false, currentBusinessPeriod = "", defaultDeposit = "", defaultDepositInterest = "0", propertyId, excludeLeaseId }: Props) {
   const tenantSelectRef = useRef<HTMLSelectElement>(null);
   const router = useRouter();
   useEffect(() => {
@@ -65,34 +68,64 @@ export function LeaseCoreFields({ tenantCreators = {}, currentUserId, unitOption
   const [tenantBankAccount, setTenantBankAccount] = useState(defaultTenantBankAccount || tenantAccountsByTenant[initialTenant]?.[0] || "");
   const [indexationEnabled, setIndexationEnabled] = useState(defaultIndexationEnabled);
   const [startDate, setStartDate] = useState(defaultStartDate);
+  const [endDate, setEndDate] = useState(defaultEndDate);
   const [openingBalanceType, setOpeningBalanceType] = useState("ZERO");
   const [deposit, setDeposit] = useState(String(defaultDeposit));
   const [openingDepositStatus, setOpeningDepositStatus] = useState("NOT_FUNDED");
-  const [tenantScope, setTenantScope] = useState(currentUserId ? "MINE" : "AVAILABLE");
+  const [tenantScope, setTenantScope] = useState(currentUserId ? "MINE" : "PROPERTY");
+  const [tenantSearch, setTenantSearch] = useState("");
+  const [freeTenants, setFreeTenants] = useState(false);
   const [partySearch, setPartySearch] = useState("");
   const [selectedPartyIds, setSelectedPartyIds] = useState(() => new Set([...defaultContractingPartyIds, ...defaultPayerPartyIds, ...defaultContactPartyIds, ...defaultGuarantorPartyIds].filter(id => id !== initialTenant)));
+  const [roleSelections, setRoleSelections] = useState<Record<string, Set<string>>>({payerPartyIds: new Set(defaultPayerPartyIds), contactPartyIds: new Set(defaultContactPartyIds), guarantorPartyIds: new Set(defaultGuarantorPartyIds)});
+  const [draftError, setDraftError] = useState("");
+  const initialOptions = useMemo(() => tenantOptions || [], [tenantOptions]);
+  const [knownOptions, setKnownOptions] = useState(() => new Map(initialOptions));
+  const [knownAccounts, setKnownAccounts] = useState(tenantAccountsByTenant);
+  const rememberTenants = useCallback((options: Option[], accounts: Record<string, string[]>) => {
+    setKnownOptions(current => new Map([...current, ...options]));
+    setKnownAccounts(current => ({ ...current, ...accounts }));
+  }, []);
+  useEffect(() => rememberTenants(initialOptions, tenantAccountsByTenant), [initialOptions, tenantAccountsByTenant, rememberTenants]);
+  const selectedTenantIds = [tenantId, ...selectedPartyIds].filter(Boolean).join(",");
+  const directorySettings = { propertyId, initialOptions, scope: tenantScope, free: freeTenants, startDate, endDate: termType === "FIXED" ? endDate : "", excludeLeaseId, selected: selectedTenantIds, onKnown: rememberTenants };
+  const primaryDirectory = useLeaseTenantDirectory({ ...directorySettings, q: tenantSearch });
+  const partyDirectory = useLeaseTenantDirectory({ ...directorySettings, q: partySearch });
   useEffect(() => {
-    const restoreParties = (event: Event) => {
+    const restoreParties = async (event: Event) => {
       const { form, draft } = (event as CustomEvent<{ form: HTMLFormElement; draft: Record<string, string | boolean> }>).detail;
       if (tenantSelectRef.current?.form !== form) return;
       const primary = typeof draft.tenantId === "string" ? draft.tenantId : initialTenant;
-      const allowed = new Set((tenantOptions || []).map(([id]) => id));
+      const allowed = new Set(knownOptions.keys());
+      const draftIds = [primary, ...Object.entries(draft).flatMap(([key, checked]) => checked === true && /^(contractingPartyIds|payerPartyIds|contactPartyIds|guarantorPartyIds):/.test(key) ? [key.split(":")[1]] : [])].filter(Boolean);
+      if (propertyId && draftIds.some(id => !allowed.has(id))) {
+        try {
+          const response = await fetch(`/api/properties/${propertyId}/lease-tenants?${new URLSearchParams({selected: draftIds.join(",")})}`);
+          if (!response.ok) throw new Error(await response.text());
+          const data = await response.json() as {selected: Option[]; accounts: Record<string, string[]>};
+          data.selected.forEach(([id]) => allowed.add(id));
+          rememberTenants(data.selected, data.accounts);
+        } catch { setDraftError("Osoby z rozpracované smlouvy se nepodařilo načíst. Ověřte výběr před uložením."); return; }
+      }
       const selected = new Set<string>();
       const contracting = new Set<string>();
+      const roles: Record<string, Set<string>> = {payerPartyIds: new Set(), contactPartyIds: new Set(), guarantorPartyIds: new Set()};
       for (const [key, checked] of Object.entries(draft)) {
         const [role, id] = key.split(":");
         if (checked !== true || id === primary || !allowed.has(id)) continue;
         if (["contractingPartyIds", "payerPartyIds", "contactPartyIds", "guarantorPartyIds"].includes(role)) selected.add(id);
         if (role === "contractingPartyIds") contracting.add(id);
+        if (roles[role]) roles[role].add(id);
       }
       if (typeof draft.unitId === "string" && unitOptions.some(([id]) => id === draft.unitId)) setUnitId(draft.unitId);
       if (typeof draft.landlordOwnerId === "string") setLandlordOwnerId(draft.landlordOwnerId);
       if (allowed.has(primary)) setTenantId(primary);
-      if (draft.tenantScope === "AVAILABLE" || draft.tenantScope === "MINE") setTenantScope(draft.tenantScope);
+      if (["PROPERTY", "AVAILABLE", "MINE"].includes(String(draft.tenantScope))) setTenantScope(String(draft.tenantScope));
       if (typeof draft.tenantBankAccount === "string") setTenantBankAccount(draft.tenantBankAccount);
       if (typeof draft.variableSymbol === "string") setVariableSymbol(draft.variableSymbol);
       if (typeof draft.contractNumber === "string") setContractNumber(draft.contractNumber);
       if (typeof draft.startDate === "string") setStartDate(draft.startDate);
+      if (typeof draft.endDate === "string") setEndDate(draft.endDate);
       if (typeof draft.deposit === "string") setDeposit(draft.deposit);
       if (draft.termType === "FIXED" || draft.termType === "INDEFINITE") setTermType(draft.termType);
       setIndexationEnabled(draft.indexationEnabled === true);
@@ -100,19 +133,21 @@ export function LeaseCoreFields({ tenantCreators = {}, currentUserId, unitOption
       for (const value of ["NOT_FUNDED", "FULLY_FUNDED", "PARTIAL"]) if (draft[`openingDepositStatus:${value}`] === true) setOpeningDepositStatus(value);
       setSelectedPartyIds(selected);
       setAdditionalPartyIds(contracting);
+      setRoleSelections(roles);
+      setDraftError(draftIds.some(id => !allowed.has(id)) ? "Některá osoba z rozpracované smlouvy již není dostupná. Ověřte výběr před uložením." : "");
     };
     window.addEventListener("flatberry:restore-form-draft", restoreParties);
     return () => window.removeEventListener("flatberry:restore-form-draft", restoreParties);
-  }, [tenantOptions, unitOptions, initialTenant]);
-  const primaryTenantOptions = tenantOptions?.filter(([id]) => tenantScope === "AVAILABLE" || tenantCreators[id] === currentUserId || id === tenantId) || [];
+  }, [knownOptions, unitOptions, initialTenant, propertyId, rememberTenants]);
+  const primaryTenantOptions = [...new Map([...primaryDirectory.options, ...(tenantId && knownOptions.has(tenantId) ? [[tenantId, knownOptions.get(tenantId)!] as Option] : [])]).entries()];
   const historicalOnboarding = showFinancialOnboarding && Boolean(currentBusinessPeriod && startDate.slice(0, 7) < currentBusinessPeriod);
   const proposed = useMemo(() => proposals[unitId] || "", [proposals, unitId]);
   const landlordChoices = landlordChoicesByUnit?.[unitId] || [];
   const selectedLandlord = landlordChoices.length === 1 ? landlordChoices[0] : landlordChoices.find(owner => owner.id === landlordOwnerId);
   const unitOwner = selectedLandlord || ownersByUnit[unitId];
   const ownerAccount = landlordChoicesByUnit ? selectedLandlord?.account || null : ownerAccountsByUnit[unitId] || null;
-  const knownTenantAccounts = tenantAccountsByTenant[tenantId] || [];
-  const visiblePartyOptions = tenantOptions?.filter(([value, label]) => value !== tenantId && (!partySearch.trim() || label.toLocaleLowerCase("cs").includes(partySearch.trim().toLocaleLowerCase("cs")))) || [];
+  const knownTenantAccounts = knownAccounts[tenantId] || [];
+  const visiblePartyOptions = partyDirectory.options.filter(([value]) => value !== tenantId);
 
   function changeUnit(next: string) {
     const priorProposal = proposals[unitId] || "";
@@ -130,22 +165,31 @@ export function LeaseCoreFields({ tenantCreators = {}, currentUserId, unitOption
       updated.delete(next);
       return updated;
     });
-    setTenantBankAccount(tenantAccountsByTenant[next]?.[0] || "");
+    setTenantBankAccount(knownAccounts[next]?.[0] || "");
     setSelectedPartyIds(current => new Set([...current].filter(id => id !== next)));
   }
 
+  function changePartyRole(role: string, id: string, checked: boolean) {
+    setRoleSelections(current => {
+      const selected = new Set(current[role]);
+      if (checked) selected.add(id); else selected.delete(id);
+      return {...current, [role]: selected};
+    });
+  }
+
   return <>
+    {draftError && <p className="field field-full form-error" role="alert">{draftError}</p>}
     <label className="field"><span>Jednotka *</span><select name="unitId" value={unitId} onChange={(event) => changeUnit(event.target.value)} required>{unitOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-    {tenantOptions && currentUserId && <label className="field"><span>Výběr nájemníků</span><select name="tenantScope" value={tenantScope} onChange={event => setTenantScope(event.target.value)}><option value="MINE">Moji založení nájemníci</option><option value="AVAILABLE">Všechny dostupné profily</option></select><small>Starší profily bez doloženého autora najdete mezi dostupnými profily.</small></label>}
-    {tenantOptions && <label className="field"><span>Hlavní smluvní strana *</span><select ref={tenantSelectRef} name="tenantId" value={tenantId} onChange={(event) => changeTenant(event.target.value)} required><option value="">Vyberte nájemníka</option>{primaryTenantOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select><small>Vyberte vlastní nebo dostupný sdílený profil. Hlavní strana se používá jako výchozí kontakt a plátce.</small>{propertyId && <Link href={`/nemovitosti/${propertyId}/najemnici/novy`} target="_blank" rel="noreferrer">Založit nového nájemníka v nové kartě →</Link>}<button className="secondary" type="button" onClick={() => router.refresh()}>Načíst nově založené profily</button></label>}
-    {tenantOptions && <fieldset className="field field-full lease-party-picker"><legend>Osoby a role ve smlouvě</legend><p>Hlavní strana je při nové smlouvě automaticky smluvní stranou, primárním plátcem i kontaktem. Při editaci zůstávají existující role zachovány. U dalších osob určete jejich skutečnou roli.</p>{tenantOptions.length > 4 && <label className="scope-search"><span className="sr-only">Hledat další smluvní osobu</span><input value={partySearch} onChange={(event) => setPartySearch(event.target.value)} placeholder="Najít osobu v této nemovitosti…"/></label>}<label className="field"><span>Přidat osobu do smlouvy</span><select value="" onChange={event => { const value = event.target.value; if (value) setSelectedPartyIds(current => new Set([...current, value])); }}><option value="">Vyberte profil pro další roli</option>{visiblePartyOptions.filter(([value]) => !selectedPartyIds.has(value)).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><div className="lease-party-role-list">{(tenantOptions || []).filter(([value]) => value !== tenantId && selectedPartyIds.has(value)).map(([value, label]) => <div className="lease-party-role-row" key={value}><strong>{label}</strong><button type="button" className="secondary" onClick={() => { setSelectedPartyIds(current => new Set([...current].filter(id => id !== value))); setAdditionalPartyIds(current => new Set([...current].filter(id => id !== value))); }}>Odebrat osobu ze smlouvy</button><div><label className="checkbox-field"><input type="checkbox" name="contractingPartyIds" value={value} checked={additionalPartyIds.has(value)} onChange={(event) => setAdditionalPartyIds((current) => { const updated = new Set(current); if (event.target.checked) updated.add(value); else updated.delete(value); return updated; })}/><span>Smluvní strana</span></label><label className="checkbox-field"><input type="checkbox" name="payerPartyIds" value={value} defaultChecked={defaultPayerPartyIds.includes(value)}/><span>Plátce</span></label><label className="checkbox-field"><input type="checkbox" name="contactPartyIds" value={value} defaultChecked={defaultContactPartyIds.includes(value)}/><span>Kontakt</span></label><label className="checkbox-field"><input type="checkbox" name="guarantorPartyIds" value={value} defaultChecked={defaultGuarantorPartyIds.includes(value)}/><span>Ručitel</span></label></div></div>)}</div>{tenantOptions.length < 2 && <small>Založte nejprve druhý samostatný profil nájemníka. Není kvůli tomu nutné vytvářet další smlouvu.</small>}<small>Osobu, která v jednotce pouze bydlí a nemá smluvní odpovědnost, evidujte v sekci Obyvatelé.</small></fieldset>}
+    {tenantOptions && <div className="field field-full lease-tenant-filters"><label className="field"><span>Výběr nájemníků</span><select name="tenantScope" value={tenantScope} onChange={event => setTenantScope(event.target.value)}><option value="PROPERTY">Nájemníci této nemovitosti</option><option value="MINE">Moji založení nájemníci</option><option value="AVAILABLE">Všechny dostupné profily</option></select></label><label className="field"><span>Hledat nájemníka</span><input type="search" value={tenantSearch} onChange={event => setTenantSearch(event.target.value)} placeholder="Jméno, e-mail nebo telefon"/></label><label className="checkbox-field"><input type="checkbox" checked={freeTenants} onChange={event => setFreeTenants(event.target.checked)}/><span>Pouze volní pro zvolené období smlouvy</span></label><small>Vyhledávání prochází celý dostupný seznam. Obsazené osoby lze vybrat po vypnutí filtru, například pro další samostatný nájem.</small></div>}
+    {tenantOptions && <div className="field"><label className="field"><span>Hlavní smluvní strana *</span><select ref={tenantSelectRef} name="tenantId" value={tenantId} onChange={(event) => changeTenant(event.target.value)} required><option value="">Vyberte nájemníka</option>{primaryTenantOptions.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><div className="tenant-directory-pagination"><button className="secondary" type="button" disabled={primaryDirectory.page === 1 || primaryDirectory.loading} onClick={() => primaryDirectory.setPage(page => page - 1)}>Předchozí osoby</button><span role="status">{primaryDirectory.loading ? "Hledám…" : `Strana ${primaryDirectory.page}`}</span><button className="secondary" type="button" disabled={!primaryDirectory.hasMore || primaryDirectory.loading} onClick={() => primaryDirectory.setPage(page => page + 1)}>Další osoby</button></div>{primaryDirectory.error && <small role="alert">{primaryDirectory.error}</small>}<small>Hlavní strana se používá jako výchozí kontakt a plátce. Již vybrané osoby zůstávají zachované při změně filtru.</small>{propertyId && <Link href={`/nemovitosti/${propertyId}/najemnici/novy`} target="_blank" rel="noreferrer">Založit nového nájemníka v nové kartě →</Link>}<button className="secondary" type="button" onClick={() => { router.refresh(); primaryDirectory.refresh(); partyDirectory.refresh(); }}>Načíst nově založené profily</button></div>}
+    {tenantOptions && <fieldset className="field field-full lease-party-picker"><legend>Osoby a role ve smlouvě</legend><p>Hlavní strana je při nové smlouvě automaticky smluvní stranou, primárním plátcem i kontaktem. Při editaci zůstávají existující role zachovány. U dalších osob určete jejich skutečnou roli.</p>{<label className="scope-search"><span className="sr-only">Hledat další smluvní osobu</span><input value={partySearch} onChange={(event) => setPartySearch(event.target.value)} placeholder="Najít osobu v této nemovitosti…"/></label>}<label className="field"><span>Přidat osobu do smlouvy</span><select value="" onChange={event => { const value = event.target.value; if (value) setSelectedPartyIds(current => new Set([...current, value])); }}><option value="">Vyberte profil pro další roli</option>{visiblePartyOptions.filter(([value]) => !selectedPartyIds.has(value)).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><div className="tenant-directory-pagination"><button className="secondary" type="button" disabled={partyDirectory.page === 1 || partyDirectory.loading} onClick={() => partyDirectory.setPage(page => page - 1)}>Předchozí další osoby</button><span role="status">{partyDirectory.loading ? "Hledám…" : `Strana ${partyDirectory.page}`}</span><button className="secondary" type="button" disabled={!partyDirectory.hasMore || partyDirectory.loading} onClick={() => partyDirectory.setPage(page => page + 1)}>Další smluvní osoby</button></div>{partyDirectory.error && <small role="alert">{partyDirectory.error}</small>}<div className="lease-party-role-list">{[...knownOptions.entries()].filter(([value]) => value !== tenantId && selectedPartyIds.has(value)).map(([value, label]) => <div className="lease-party-role-row" key={value}><strong>{label}</strong><button type="button" className="secondary" onClick={() => { setSelectedPartyIds(current => new Set([...current].filter(id => id !== value))); setAdditionalPartyIds(current => new Set([...current].filter(id => id !== value))); }}>Odebrat osobu ze smlouvy</button><div><label className="checkbox-field"><input type="checkbox" name="contractingPartyIds" value={value} checked={additionalPartyIds.has(value)} onChange={(event) => setAdditionalPartyIds((current) => { const updated = new Set(current); if (event.target.checked) updated.add(value); else updated.delete(value); return updated; })}/><span>Smluvní strana</span></label><label className="checkbox-field"><input type="checkbox" name="payerPartyIds" value={value} checked={roleSelections.payerPartyIds.has(value)} onChange={event => changePartyRole("payerPartyIds", value, event.target.checked)}/><span>Plátce</span></label><label className="checkbox-field"><input type="checkbox" name="contactPartyIds" value={value} checked={roleSelections.contactPartyIds.has(value)} onChange={event => changePartyRole("contactPartyIds", value, event.target.checked)}/><span>Kontakt</span></label><label className="checkbox-field"><input type="checkbox" name="guarantorPartyIds" value={value} checked={roleSelections.guarantorPartyIds.has(value)} onChange={event => changePartyRole("guarantorPartyIds", value, event.target.checked)}/><span>Ručitel</span></label></div></div>)}</div>{tenantOptions.length < 2 && <small>Založte nejprve druhý samostatný profil nájemníka. Není kvůli tomu nutné vytvářet další smlouvu.</small>}<small>Osobu, která v jednotce pouze bydlí a nemá smluvní odpovědnost, evidujte v sekci Obyvatelé.</small></fieldset>}
     {landlordChoicesByUnit && (landlordChoices.length === 1 ? <div className="field notice"><strong>Smluvní pronajímatel</strong><span>{landlordChoices[0].name} · převzato z vlastníka jednotky</span><input type="hidden" name="landlordOwnerId" value={landlordChoices[0].id}/></div> : <label className="field"><span>Smluvní pronajímatel *</span><select name="landlordOwnerId" value={landlordOwnerId} onChange={event => setLandlordOwnerId(event.target.value)} required><option value="">Vyberte vlastníka jednotky uvedeného ve smlouvě</option>{landlordChoices.map(owner => <option value={owner.id} key={owner.id}>{owner.name}</option>)}</select><small>Pronajímatel a jeho účet se uloží společně se smlouvou; další potvrzení nebude potřeba.</small></label>)}
     {ownerAccount ? <label className="field"><span>Účet vlastníka pro úhrady *</span><input value={ownerAccount.label} readOnly/><input type="hidden" name="ownerBankAccountId" value={ownerAccount.id}/><small>Účet se přebírá z vybrané jednotky a použije se v předpisech i QR platbě. {propertyId && unitId && <a href={`/bankovni-ucty?unitId=${unitId}`} target="_blank" rel="noreferrer">Změnit účet pro nájemné →</a>}</small></label> : <div className="field form-error missing-owner-account" role="alert"><strong>Nejprve nastavte účet vlastníka jednotky{unitOwner ? ` · ${unitOwner.name}` : ""}</strong><span>Účet musí být uložen u vlastníka a potvrzen jako příjemce plateb této jednotky. Vyplněná data zůstanou ve formuláři.</span>{propertyId && unitId && <Link href={`/bankovni-ucty?unitId=${unitId}`} target="_blank" rel="noreferrer">Nastavit příjemce plateb jednotky v nové kartě →</Link>}<button className="secondary" type="button" onClick={() => router.refresh()}>Znovu načíst účet vlastníka</button><select aria-label="Účet vlastníka pro úhrady" value="" onChange={() => undefined} required><option value="">Účet není nastaven</option></select></div>}
     <label className="field"><span>Účet nájemníka ve smlouvě</span><input name="tenantBankAccount" list="tenant-bank-accounts" value={tenantBankAccount} onChange={(event) => setTenantBankAccount(event.target.value)} placeholder="IBAN nebo číslo účtu plátce"/><datalist id="tenant-bank-accounts">{knownTenantAccounts.map((account) => <option value={account} key={account}/>)}</datalist><small>Použije se pro první automatické párování příchozí platby.</small></label>
     <label className="field"><span>Číslo smlouvy</span><input name="contractNumber" value={contractNumber} onChange={(event) => setContractNumber(event.target.value)}/><small>{contractNumberProposals[unitId] ? `Automatický návrh podle stabilního ID nemovitosti, jednotky a pořadí vztahu: ${contractNumberProposals[unitId]}` : "Číslo smlouvy lze zadat ručně."}</small></label>
     <label className="field"><span>Doba trvání *</span><select name="termType" value={termType} onChange={(event) => setTermType(event.target.value)}><option value="FIXED">Na dobu určitou</option><option value="INDEFINITE">Na dobu neurčitou</option></select></label>
     <label className="field"><span>Platnost od *</span><input name="startDate" type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} required/></label>
-    {termType === "FIXED" && <label className="field"><span>Platnost do *</span><input name="endDate" type="date" defaultValue={defaultEndDate} required/></label>}
+    {termType === "FIXED" && <label className="field"><span>Platnost do *</span><input name="endDate" type="date" value={endDate} onChange={event => setEndDate(event.target.value)} required/></label>}
     <div className="field notice"><strong>Stav smlouvy se určuje automaticky</strong><span>Budoucí / Aktivní / Ukončená se vypočítá z platnosti smlouvy a případného ukončení.</span></div>
     <label className="field"><span>Den splatnosti *</span><input name="dueDay" type="number" min={1} max={31} defaultValue={defaultDueDay} required/></label>
     <label className="field"><span>Způsob placení</span><select name="rentTiming" defaultValue={defaultRentTiming}><option value="ADVANCE">Dopředné – v daném měsíci</option><option value="ARREARS">Zpětné – v následujícím měsíci</option></select></label>

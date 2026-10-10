@@ -2,7 +2,6 @@
 
 import { BankConnectionWizard } from "./BankConnectionWizard";
 import { useState } from "react";
-import Image from "next/image";
 
 const banks = [
   { code: "3030", name: "Air Bank", title: "Oznámení o změně zůstatku", helpUrl: "https://www.airbank.cz/co-vas-nejvic-zajima/nastaveni-upozorneni-pod-uctem/", steps: ["V aplikaci My Air otevřete Menu → Nastavení a banka → Oznámení a vyberte upozornění ke svému účtu.", "Zapněte zasílání mailem a ověřte, že zpráva o příchozí platbě obsahuje částku, účet příjemce a variabilní symbol."] },
@@ -34,10 +33,6 @@ export function BankNotificationGuide({ mailbox, includeAssignment = false, acco
   const offset = includeAssignment ? 1 : 0;
 
   return <div className="owner-bank-guide"><BankConnectionWizard mailbox={mailbox} bank={bank} selectedName={selectedName}/>
-    <div className="bank-guide-intro">
-      <Image src="/guide/finance.webp" width={82} height={82} alt="Berry provází nastavením banky"/>
-      <div><strong>Berry vás provede propojením banky</strong><p>Vyberte banku účtu, na který chodí nájemné. Potom postupujte podle kroků níže.</p></div>
-    </div>
     <label className="field bank-guide-select"><span>Banka pro tento účet</span><select value={selectedCode} onChange={(event) => setSelectedCode(event.target.value)}>
       <option value="">Vyberte banku</option>
       {banks.map((item) => <option key={item.code} value={item.code}>{item.name} /{item.code}</option>)}

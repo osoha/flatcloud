@@ -6,7 +6,7 @@ export type ReportingQualityIssue = z.infer<typeof reportingQualityIssueSchema>;
 
 export const reportingQualityCopy: Record<ReportingQualityIssue["code"], { label: string; description: string }> = {
   UNKNOWN_OPERATIONAL_HISTORY: { label: "Chybí historie provozního režimu", description: "K rozhodnému datu není známý provozní režim jednotky." },
-  MISSING_UNIT_AREA: { label: "Chybí plocha jednotky", description: "Jednotka nemá vyplněnou použitelnou podlahovou plochu." },
+  MISSING_UNIT_AREA: { label: "Chybí plocha jednotky", description: "Plocha jednotky nebyla zadána. Výslovně zadaná nula je vyplněný údaj." },
   RENT_SOURCE_LEGACY_FALLBACK: { label: "Nájem nebo služby používají starší nastavení", description: "Částka byla převzata ze staršího nastavení smlouvy. Zkontrolujte pravidelné položky předpisu." },
   MISSING_RENT_SOURCE: { label: "Chybí zdroj nájemného", description: "Smlouva nemá pro rozhodné datum nastavenou použitelnou položku nájemného." },
   MISSING_CHARGE_FOR_PERIOD: { label: "Chybí předpis za období", description: "Aktivní smlouva nemá za rozhodný měsíc vytvořený předpis." },

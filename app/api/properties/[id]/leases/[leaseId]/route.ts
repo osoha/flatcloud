@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { boolValue, dateValue, intValue, moneyToCents, stringArray, text } from "@/lib/forms";
 import { normalizePayerAccount } from "@/lib/owner-bank-account";
 import { requireManagedProperty, audit } from "@/lib/management";
-import { tenantAccessWhere } from "@/lib/access";
+import { leaseTenantAccessWhere } from "@/lib/lease-tenant-directory";
 import { allSelectedPartyIds, normalizeLeasePartySelections, syncLeaseParties } from "@/lib/lease-parties";
 import { assertUniqueVariableSymbol, validateVariableSymbol } from "@/lib/variable-symbol";
 import { go, goWithMessage } from "@/lib/route-response";
@@ -47,7 +47,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     const [unit, allowedTenants] = await Promise.all([
       prisma.unit.findFirst({ where: { id: unitId, propertyId: id }, include: { ownerships: { include: { ownerBankAccount: true }, orderBy: { createdAt: "asc" } } } }),
-      prisma.tenant.findMany({ where: { AND: [{ id: { in: requestedTenantIds } }, tenantAccessWhere(access.user)] } }),
+      prisma.tenant.findMany({ where: { AND: [{ id: { in: requestedTenantIds } }, leaseTenantAccessWhere(access.user, id)] } }),
     ]);
     const tenant = allowedTenants.find((row) => row.id === tenantId);
     if (!unit) throw new Error("Vybraná jednotka nebyla nalezena.");

@@ -20,6 +20,12 @@ export function floatValue(form: FormData, key: string) {
   return value;
 }
 
+export function unitAreaValue(form: FormData) {
+  const area = floatValue(form, "areaM2");
+  if (area !== null && area < 0) throw new Error("Plocha nesmí být záporná.");
+  return area;
+}
+
 export function moneyToCents(form: FormData, key: string, fallback = 0) {
   const raw = String(form.get(key) ?? "").trim().replace(/\s/g, "").replace(",", ".");
   if (!raw) return fallback;
