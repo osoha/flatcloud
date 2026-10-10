@@ -6,6 +6,9 @@ const baseURL = process.env.E2E_BASE_URL || localBaseUrl;
 
 export default defineConfig({
   testDir: "./e2e",
+  // Generic CI verifies the application with subscriptions disabled. The
+  // dedicated subscription workflow opts in and retains its strict DB guard.
+  testIgnore: process.env.FLATBERRY_SUBSCRIPTIONS_SANDBOX === "1" ? [] : ["**/subscriptions.spec.ts"],
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   // This scenario assumed every newly saved forecast produced an addendum candidate.

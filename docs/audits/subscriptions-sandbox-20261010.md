@@ -109,6 +109,14 @@ aktuální transakční obal; zachovávají ověření pořadí zápisů a náva
 i serializovatelnost.
 Finální obecné CI je povinná brána před nasazením.
 
+V opakovaném obecném CI (běh 38051952823) prošel celý build a 281 browser
+scénářů. Obecný běh s vypnutým modulem objevil také devět scénářů předplatného;
+jejich bezpečnostní příprava správně odmítla chybějící explicitní sandboxový
+příznak. Playwright proto tyto scénáře objevuje pouze při příznaku `1`.
+Izolace databáze i všechna tvrzení devíti scénářů zůstávají beze změny.
+Samostatný workflow předplatného (38051952824) s explicitním příznakem
+znovu prošel 20/20 scénářů; opravené obecné CI musí následně rovněž uspět.
+
 Zdrojový repozitář `osoha/flatcloud` je veřejný. Dne 10. 10. 2026 uživatel
 po vysvětlení rozdílu mezi zveřejněním zdrojového kódu a přístupem do aplikace
 výslovně schválil původní cestu přes tento repozitář. PR #276 míří pouze do
