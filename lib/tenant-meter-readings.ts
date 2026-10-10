@@ -1,4 +1,5 @@
 import {Prisma} from "@prisma/client";
+import { checkSubscriptionWrite } from "./subscriptions/service";
 import sharp from "sharp";
 import {prisma} from "./db";
 import {businessDateKey} from "./calendar";
@@ -57,6 +58,8 @@ async function readingContext(client:Prisma.TransactionClient|typeof prisma,acto
   if(!user||user.role==="SUPER_ADMIN"||!access||!tenantPortalContactMatches(user.email,access.tenant))throw new Error("K tomuto nájemnímu vztahu nemáte přístup.");
   const lease=await client.lease.findFirst({where:{id:input.leaseId,OR:[{tenantId:input.tenantId},{parties:{some:{tenantId:input.tenantId,role:"CONTRACTING_PARTY"}}}]},include:{unit:{select:{propertyId:true}}}});
   if(!lease||leaseStatusAt(lease)!=="ACTIVE")throw new Error("K tomuto nájemnímu vztahu nemáte přístup.");
+  const subscription=await checkSubscriptionWrite(actor,{propertyId:lease.unit.propertyId,unitId:lease.unitId},client);
+  if(!subscription.allowed)throw new Error(subscription.message||"Správa má dočasně pozastavené předplatné.");
   if(businessDateKey(readAt)<businessDateKey(lease.startDate))throw new Error("Datum odečtu nemůže být před začátkem vašeho nájmu.");
   const meter=await client.meter.findFirst({where:{id:input.meterId,unitId:lease.unitId,propertyId:lease.unit.propertyId,active:true},include:{readings:true}});
   if(!meter)throw new Error("Měřidlo není dostupné pro vaše bydlení. Obraťte se na správce.");

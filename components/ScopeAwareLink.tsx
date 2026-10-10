@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+const OWNER_STORAGE_KEY = "flatberry:owner-scope";
 const STORAGE_KEY = "flatcloud:property-scope";
 const scopedRoots = [
   "/portfolio",
@@ -18,9 +19,9 @@ const scopedRoots = [
   "/distribuce",
 ];
 
-function withPropertyScope(href: string, propertyScope: string | null) {
+function withPropertyScope(href: string, propertyScope: string | null, ownerScope: string | null) {
   if (
-    propertyScope === null ||
+    (propertyScope === null && ownerScope === null) ||
     !scopedRoots.some(
       (root) =>
         href === root ||
@@ -33,7 +34,8 @@ function withPropertyScope(href: string, propertyScope: string | null) {
   const [pathAndQuery, hash = ""] = href.split("#", 2);
   const [path, query = ""] = pathAndQuery.split("?", 2);
   const params = new URLSearchParams(query);
-  if (!params.has("properties") && !params.has("propertyId")) params.set("properties", propertyScope);
+  if (propertyScope !== null && !params.has("properties") && !params.has("propertyId")) params.set("properties", propertyScope);
+  if (ownerScope && !params.has("ownerId")) params.set("ownerId", ownerScope);
   return `${path}?${params.toString()}${hash ? `#${hash}` : ""}`;
 }
 
@@ -48,6 +50,8 @@ export function ScopeAwareLink({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const currentOwner = searchParams.get("ownerId");
+  const [rememberedOwner, setRememberedOwner] = useState(currentOwner);
   const currentScope = searchParams.get("properties") ?? searchParams.get("propertyId");
   const [rememberedScope, setRememberedScope] = useState(currentScope);
 
@@ -63,9 +67,15 @@ export function ScopeAwareLink({
     }
   }, [currentScope, pathname]);
 
+  useEffect(() => {
+    if (currentOwner) { window.sessionStorage.setItem(OWNER_STORAGE_KEY, currentOwner); setRememberedOwner(currentOwner); }
+    else if (scopedRoots.includes(pathname)) { window.sessionStorage.removeItem(OWNER_STORAGE_KEY); setRememberedOwner(null); }
+    else setRememberedOwner(window.sessionStorage.getItem(OWNER_STORAGE_KEY));
+  }, [currentOwner, pathname]);
+
   const scopedHref = useMemo(
-    () => withPropertyScope(href, currentScope ?? rememberedScope),
-    [href, currentScope, rememberedScope],
+    () => withPropertyScope(href, scopedRoots.includes(pathname) ? currentScope : currentScope ?? rememberedScope, scopedRoots.includes(pathname) ? currentOwner : currentOwner ?? rememberedOwner),
+    [href, currentScope, rememberedScope, currentOwner, rememberedOwner, pathname],
   );
   const targetPath = href.split(/[?#]/, 1)[0];
   const shareholderRoots = ["/reporty/akcionarske", "/reporty/kvartalni", "/reporty/vyrocni", "/reporty/rocni-checklist", "/reporty/sablony"];

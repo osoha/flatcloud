@@ -509,6 +509,8 @@ enum ReportDesignBackgroundMode {
 }
 
 model User {
+  subscriptionAccounts SubscriptionAccount[] @relation("SubscriptionPayer")
+  subscriptionAudits SubscriptionAudit[] @relation("SubscriptionAuditActor")
   contractSignature ContractSignatureProfile?
   receiptSignatureData Bytes?
   receiptIssuerName String?
@@ -633,6 +635,7 @@ model PasswordResetToken {
 }
 
 model Owner {
+  subscriptionAccounts SubscriptionAccount[]
   dateOfBirth DateTime? @db.Date
   legalRegistry String?
   id                                 String                      @id @default(cuid())
@@ -705,6 +708,7 @@ model OwnerBankAccount {
 }
 
 model Property {
+  subscriptionScopes SubscriptionScope[]
   sourceExpenseRules BankExpenseRule[] @relation("ExpenseRuleSource")
   targetExpenseRules BankExpenseRule[] @relation("ExpenseRuleTarget")
   bankExpenseAllocations      BankExpenseAllocation[]
@@ -1237,6 +1241,7 @@ model SaleBenchmarkSnapshot {
 }
 
 model Unit {
+  subscriptionScopes SubscriptionScope[]
   bankAccountChanges BankAccountChangeUnit[]
   expenseRules BankExpenseRule[]
   id                        String                       @id @default(cuid())
@@ -3388,4 +3393,110 @@ model BankAccountNoticeRead {
   confirmedAt DateTime?
 
   @@id([noticeId, userId])
+}
+
+
+/// Additive sandbox billing: no membership or rental-payment tables are changed.
+model SubscriptionSetting {
+  id String @id @default("global")
+  value Json
+  updatedAt DateTime @updatedAt
+}
+
+model SubscriptionAccount {
+  id String @id @default(cuid())
+  payerUserId String
+  payer User @relation("SubscriptionPayer", fields: [payerUserId], references: [id], onDelete: Restrict)
+  ownerId String?
+  owner Owner? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  kind String @default("OWN")
+  billingName String
+  billingEmail String
+  plan String @default("FREE")
+  interval String @default("MONTHLY")
+  contract Json
+  paidUntil DateTime?
+  trialUntil DateTime?
+  offerKind String @default("NONE")
+  offerUntil DateTime?
+  discountPercent Int @default(0)
+  fixedPriceCents Int?
+  featureOverrides Json @default("{}")
+  overridesUntil DateTime?
+  recurringConsent Boolean @default(false)
+  simulationNow DateTime?
+  scopes SubscriptionScope[]
+  paymentRequests SubscriptionPaymentRequest[]
+  audits SubscriptionAudit[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([ownerId])
+  @@index([payerUserId])
+}
+
+/// P:<property> covers the entire object; U:<unit> only the selected unit.
+/// Service validates that property and unit coverage never overlap across payers.
+model SubscriptionScope {
+  id String @id @default(cuid())
+  scopeKey String @unique
+  accountId String
+  account SubscriptionAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  propertyId String
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Restrict)
+  unitId String?
+  unit Unit? @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  createdAt DateTime @default(now())
+  @@index([accountId])
+  @@index([propertyId])
+  @@index([unitId])
+}
+
+model SubscriptionPaymentRequest {
+  id String @id @default(cuid())
+  accountId String
+  account SubscriptionAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  reference String @unique
+  method String
+  amountCents Int
+  currency String @default("CZK")
+  recipientAccount String
+  contractSnapshot Json
+  interval String
+  status String @default("PENDING")
+  paidAt DateTime?
+  events SubscriptionPaymentEvent[]
+  createdAt DateTime @default(now())
+  @@index([accountId, createdAt])
+}
+
+model SubscriptionPaymentEvent {
+  id String @id @default(cuid())
+  requestId String
+  request SubscriptionPaymentRequest @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  provider String
+  providerEventId String
+  amountCents Int
+  currency String
+  recipientAccount String
+  reference String
+  paymentStatus String
+  result String
+  reason String?
+  createdAt DateTime @default(now())
+  @@unique([provider, providerEventId])
+  @@index([requestId])
+}
+
+model SubscriptionAudit {
+  id String @id @default(cuid())
+  accountId String?
+  account SubscriptionAccount? @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  actorId String
+  actor User @relation("SubscriptionAuditActor", fields: [actorId], references: [id], onDelete: Restrict)
+  action String
+  reason String
+  before Json?
+  after Json?
+  createdAt DateTime @default(now())
+  @@index([accountId, createdAt])
 }

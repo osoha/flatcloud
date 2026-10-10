@@ -3,6 +3,7 @@ import { prisma } from "./db";
 import { businessDateKey, businessDateKeyToInstant, businessTodayKey } from "./calendar";
 import { effectiveLeaseEnd, leaseStatusAt } from "./lease-lifecycle-core";
 import { nextLeaseAnniversary } from "./lease-alerts";
+import {checkSubscriptionFeature,checkSubscriptionWrite} from "./subscriptions/service";
 
 type Client = Prisma.TransactionClient | typeof prisma;
 type RuleWithOverrides = TaskAutomationRule & { overrides: Array<{ propertyId: string; mode: "INHERIT" | "ENABLED" | "DISABLED" }> };
@@ -74,6 +75,8 @@ export async function runTaskAutomation(now = new Date(), client: Client = prism
   const candidates = await previewTaskAutomation(now,client);
   let created=0,existing=0,assignedExisting=0;
   for (const candidate of candidates) {
+    const worker={id:"subscription-task-worker",role:"SYSTEM"},scope={propertyId:candidate.propertyId,unitId:candidate.unitId};
+    if(!(await checkSubscriptionFeature(worker,"profi",scope,client)).allowed||!(await checkSubscriptionWrite(worker,scope,client)).allowed)continue;
     const rule = await client.taskAutomationRule.findUniqueOrThrow({ where: { id: candidate.ruleId } });
     const dedupeKey=`automation:${candidate.eventKey}`;
     const existingTask=await client.task.findUnique({where:{dedupeKey},select:{id:true,assigneeId:true,status:true}});

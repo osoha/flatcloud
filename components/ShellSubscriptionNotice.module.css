@@ -1,0 +1,6 @@
+.notice { margin: 12px 24px 0; padding: 12px 16px; border: 1px solid #e3cda4; border-radius: 12px; background: #fff9ed; color: #573b16; }
+.notice ul { padding: 0; margin: 0; list-style: none; display: grid; gap: 8px; }
+.notice li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+.notice a { margin-left: auto; font-weight: 650; text-decoration: underline; }
+.notice small { color: #725b39; }
+@media (max-width: 600px) { .notice { margin: 10px 12px 0; } .notice a { margin-left: 0; } }

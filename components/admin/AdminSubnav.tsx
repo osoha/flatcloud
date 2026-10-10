@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { subscriptionsSandboxEnabled } from "@/lib/subscriptions/service";
 
 const items = [
   { key: "overview", href: "/nastaveni", label: "Přehled" },
   { key: "system", href: "/nastaveni/system", label: "Integrace a automatizace" },
+  { key: "subscriptions", href: "/nastaveni/tarify", label: "Tarify a předplatné" },
   { key: "announcements", href: "/nastaveni/oznameni", label: "Oznámení" },
   { key: "automation", href: "/nastaveni/automaticke-ukoly", label: "Automatické úkoly" },
   { key: "benchmark", href: "/nastaveni/cenovy-benchmark", label: "Cenový benchmark" },
@@ -12,6 +14,6 @@ const items = [
 
 export function AdminSubnav({ active }: { active: typeof items[number]["key"] }) {
   return <nav className="admin-subnav" aria-label="Sekce administrace">
-    {items.map((item) => <Link key={item.key} className={active === item.key ? "active" : ""} href={item.href}>{item.label}</Link>)}
+    {items.filter(item => item.key !== "subscriptions" || subscriptionsSandboxEnabled()).map((item) => <Link key={item.key} className={active === item.key ? "active" : ""} href={item.href}>{item.label}</Link>)}
   </nav>;
 }

@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import { filterPortfolioProperties, portfolioOwnerPresets, portfolioPropertyOption, unitPortfolioOwners, type OwnershipProperty } from "../lib/portfolio-ownership";
+import { parsePortfolioSelection, portfolioSelectionQuery, withPortfolioSelection } from "../lib/portfolio-selection";
+
+const ondrej = { id: "ondrej", name: "Ondřej Šohaj" }, pokorny = { id: "pokorny", name: "František Pokorný" }, other = { id: "other", name: "Jiný vlastník" }, svj = { id: "svj", name: "SVJ / kontakt" };
+const unit = (id: string, owners: typeof ondrej[], amount: number) => ({ id, amount, ownerships: owners.map(owner => ({ ownerId: owner.id, owner, shareBasisPoints: Math.floor(10000 / owners.length) })) });
+const property = (id: string, owner: typeof ondrej, units: ReturnType<typeof unit>[], ownershipMode = "UNIT_BASED") => ({ id, name: id, city: "Test", address: "Test 1", active: true, owner, communicationOwner: svj, ownershipMode, ownerships: [], units });
+const properties = [property("own-a", ondrej, [unit("a", [ondrej], 100)]), property("own-b", ondrej, [unit("b", [ondrej], 200)]), property("veska", svj, [unit("v-own", [ondrej], 300), unit("v-foreign", [other], 9999)]), property("moskevska", svj, [unit("m-own", [pokorny], 400), unit("m-foreign", [other], 8888)])];
+const original = structuredClone(properties);
+const pick = (ownerId: string) => filterPortfolioProperties(properties, { mode: "ALL", ownerId });
+assert.deepEqual(pick(ondrej.id).flatMap(p => p.units.map(u => u.id)), ["a", "b", "v-own"]);
+assert.equal(pick(ondrej.id).flatMap(p => p.units).reduce((sum, unit) => sum + unit.amount, 0), 600);
+assert.deepEqual(pick(pokorny.id).flatMap(p => p.units.map(u => u.id)), ["m-own"]);
+assert.deepEqual(pick(svj.id), [], "Communication owner is not the owner of everybody's units");
+assert.deepEqual(pick("unknown"), [], "Unknown owners must not reset to the whole portfolio");
+assert.deepEqual(filterPortfolioProperties(properties, { mode: "SELECTED", propertyIds: [], ownerId: ondrej.id }), []);
+assert.deepEqual(filterPortfolioProperties(properties, { mode: "SELECTED", propertyIds: ["veska", "moskevska"], ownerId: ondrej.id }).flatMap(p => p.units.map(u => u.id)), ["v-own"]);
+const restricted = properties.map(p => ({ ...p, units: p.units.filter(u => u.id !== "v-own") }));
+assert.equal(filterPortfolioProperties(restricted, { mode: "ALL", ownerId: ondrej.id }).flatMap(p => p.units).length, 2, "The filter cannot recover units removed by authorization");
+const coowned = property("shared", svj, [unit("shared-unit", [ondrej, other], 1000)]);
+assert.equal(filterPortfolioProperties([coowned], { mode: "ALL", ownerId: ondrej.id })[0].units.length, 1);
+assert.equal(filterPortfolioProperties([coowned], { mode: "ALL", ownerId: other.id })[0].units.length, 1);
+const inherited = property("whole", ondrej, [unit("inherited", [], 10)], "WHOLE_OBJECT");
+assert.deepEqual(unitPortfolioOwners(inherited, inherited.units[0]), [ondrej]);
+assert.deepEqual(unitPortfolioOwners({ ...inherited, ownershipMode: "SVJ" }, inherited.units[0]), []);
+const overriding = { ...inherited, units: [unit("override", [other], 20)] };
+assert.equal(filterPortfolioProperties([overriding], { mode: "ALL", ownerId: ondrej.id }).length, 0);
+const zero = { ...inherited, units: [{ ...unit("zero", [ondrej], 20), ownerships: [{ owner: ondrej, ownerId: ondrej.id, shareBasisPoints: 0 }] }] };
+assert.equal(filterPortfolioProperties([zero], { mode: "ALL", ownerId: ondrej.id }).length, 0);
+const sameName = property("duplicate-name", svj, [unit("another-person", [{ id: "other-ondrej", name: ondrej.name }], 30)]);
+const presets = portfolioOwnerPresets([...properties, sameName].map(p => portfolioPropertyOption(p)));
+assert.equal(presets.find(p => p.id === ondrej.id)?.unitIds.length, 3);
+assert.equal(presets.filter(p => p.name === ondrej.name).length, 2, "Names must not be used as identity keys");
+assert.deepEqual(properties, original, "Narrowing must not mutate source data or other views");
+for (const selection of [{ mode: "ALL" as const, ownerId: ondrej.id }, { mode: "SELECTED" as const, propertyIds: ["veska"], ownerId: ondrej.id }, { mode: "SELECTED" as const, propertyIds: [], ownerId: ondrej.id }]) {
+  assert.deepEqual(parsePortfolioSelection(Object.fromEntries(new URLSearchParams(portfolioSelectionQuery(selection)))), selection);
+  const url = withPortfolioSelection("/reporty", new URLSearchParams("view=collections&ownerId=old&propertyId=old"), selection);
+  assert.equal(new URL(url, "https://example.test").searchParams.get("ownerId"), ondrej.id);
+}
+assert.equal(withPortfolioSelection("/portfolio", new URLSearchParams("ownerId=ondrej&properties=veska"), { mode: "ALL" }), "/portfolio");
+console.log("PASS: unit ownership, shared houses, co-ownership, sums, restricted access, empty scopes, duplicate names, and URL round trips");

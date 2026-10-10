@@ -1,3 +1,4 @@
+import { withPortfolioSelection } from "../lib/portfolio-selection";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -25,7 +26,10 @@ check("filter actions retain a stable visual hierarchy", () => {
   assert.match(css, /\.document-filter-actions \.text-button/);
   assert.match(page, /className="document-filter-actions"/);
   assert.match(page, /className="text-button" href=\{resetHref\}>Zrušit filtry/);
-  assert.match(page, /const resetHref = selectionValue === null \? "\/dokumenty" : `\/dokumenty\?properties=\$\{encodeURIComponent\(selectionValue\)\}`/);
+  assert.match(page, /const resetHref = withPortfolioSelection\("\/dokumenty", new URLSearchParams\(\), selection\)/);
+  assert.equal(withPortfolioSelection("/dokumenty", new URLSearchParams(), { mode: "ALL" }), "/dokumenty");
+  assert.equal(withPortfolioSelection("/dokumenty", new URLSearchParams(), { mode: "SELECTED", propertyIds: ["house"] }), "/dokumenty?properties=house");
+  assert.equal(withPortfolioSelection("/dokumenty", new URLSearchParams(), { mode: "SELECTED", propertyIds: ["house"], ownerId: "owner" }), "/dokumenty?ownerId=owner&properties=house");
   assert.match(page, /type="hidden" name="properties" value=\{selectionValue\}/);
 });
 

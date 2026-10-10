@@ -9,6 +9,7 @@ import { go, goWithMessage } from "@/lib/route-response";
 import { outstandingCents } from "@/lib/charges";
 import { recomputeTransactionStatus } from "@/lib/matching";
 import { serializableTransaction } from "@/lib/serializable";
+import { checkSubscriptionWrite } from "@/lib/subscriptions/service";
 
 export async function POST(request: Request) {
   const user = await currentUser();
@@ -28,6 +29,8 @@ export async function POST(request: Request) {
     const result = await serializableTransaction(async (tx) => {
       const lease = await tx.lease.findFirst({ where: { id: leaseId, unit: editableUnitWhere(user) }, include: { tenant: true, unit: { include: { property: true } }, charges: { where: { active: true }, include: { allocations: true, securityDepositOffsets: true, creditApplications: true }, orderBy: { dueDate: "asc" } } } });
       if (!lease) throw new Error("Vybraný nájemní vztah nebyl nalezen nebo k němu nemáte právo editace.");
+      const subscription=await checkSubscriptionWrite(user,{propertyId:lease.unit.propertyId,unitId:lease.unitId},tx);
+      if(!subscription.allowed)throw new Error(subscription.message||"Předplatné tohoto portfolia umožňuje pouze čtení.");
       let remainingPayment = amountCents;
       const allocations: { chargeId: string; amountCents: number }[] = [];
       for (const charge of lease.charges) {

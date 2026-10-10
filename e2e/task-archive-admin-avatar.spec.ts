@@ -23,6 +23,7 @@ test("super-admin can select a library avatar for another user without changing 
   try {
     await login(page, process.env.E2E_ADMIN_EMAIL || "e2e.admin@flatcloud.test", process.env.E2E_ADMIN_PASSWORD || "FlatCloud-E2E-Only-Password-2026");
     await page.goto(`/uzivatele/${target.id}`);
+    await page.getByText("Změnit avatar nebo fotografii", { exact: true }).click();
     await page.locator('input[name="avatarChoice"][value="library:person:25"]').check();
     await page.getByRole("button", { name: "Uložit změny uživatele" }).click();
     await expect(page.getByRole("status")).toContainText("uloženi");

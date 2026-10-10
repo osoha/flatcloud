@@ -1,3 +1,4 @@
+import { portfolioTaskFilter } from "../lib/portfolio-ownership";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
@@ -17,8 +18,11 @@ assert.match(portfolio, /leaseAlertsForProperties\(activeProperties\)/);
 // alerts remain live-only above. Browser coverage checks matching counts on
 // Portfolio, sidebar and Tasks for an explicitly selected inactive property.
 assert.match(portfolio, /taskVisibilityScope = \{ AND: \[taskAccessWhere\(user\)/);
-assert.match(portfolio, /selection.mode === "ALL" \? \{\} : \{ OR: \[\{ propertyId: \{ in: allowedSelection \}/);
-assert.match(portfolio, /unmatchedQueueCount\(user,propertyIds\)/);
+assert.match(portfolio, /portfolioTaskFilter\(properties, selection\)/);
+const archived = { id: "archived", active: false, ownershipMode: "UNIT_BASED", owner: { id: "owner", name: "Owner" }, ownerships: [], units: [] };
+assert.deepEqual(portfolioTaskFilter([archived], { mode: "SELECTED", propertyIds: [archived.id] }), { OR: [{ propertyId: { in: [archived.id] } }, { propertyId: null }] });
+assert.deepEqual(portfolioTaskFilter([archived], { mode: "ALL" }), {});
+assert.match(portfolio, /unmatchedQueueCount\(user,propertyIds,selection.ownerId\)/);
 const queueCounts = read("lib/inbound-bank/queue-counts.ts");
 assert.match(queueCounts, /bankAccountScopes\(actor\)/);
 assert.match(queueCounts, /bankAccount:\{propertyId:\{in:propertyIds\}\}/);

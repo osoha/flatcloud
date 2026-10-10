@@ -2,10 +2,11 @@ import { randomUUID } from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "./db";
 import { activeTenantLease, portalEditableUnitWhere } from "./tenant-portal-access";
+import { checkSubscriptionWrite } from "./subscriptions/service";
 import { serializableTransaction } from "./serializable";
 import { leaseStatusAt } from "./lease-lifecycle-core";
 import { enqueueTenantTaskNotification } from "./tenant-portal-notifications";
-import { tenantPortalContact } from "./tenant-portal-contact";
+import { portalContactPropertyInclude, portalContactOwnerSelect, tenantPortalContact } from "./tenant-portal-contact";
 
 export type TenantContactSnapshot = { email: string | null; phone: string | null; correspondenceAddress: string | null };
 type ContactActor = { id: string; role: string; allProperties?: boolean };
@@ -80,6 +81,8 @@ export async function createTenantContactRequest(user: ContactActor, tenantId: s
   return contactSubmissionTransaction(async tx => {
     const lease = await activeTenantLease(user.id, tenantId, leaseId, tx);
     if (!lease || !lease.unit.property.active || user.role === "SUPER_ADMIN") throw new Error("K tomuto nájemnímu vztahu nemáte přístup.");
+    const subscription=await checkSubscriptionWrite(user,{propertyId:lease.unit.propertyId,unitId:lease.unitId},tx);
+    if(!subscription.allowed)throw new Error(subscription.message||"Správa má dočasně pozastavené předplatné.");
     const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId } });
     if (!tenant.active) throw new Error("K tomuto nájemnímu vztahu nemáte přístup.");
     const existing = await tx.task.findUnique({ where: { dedupeKey }, select: { tenantId: true, leaseId: true, contactChangeRequest: { select: requestSelect } } });
@@ -96,10 +99,10 @@ export async function createTenantContactRequest(user: ContactActor, tenantId: s
     const contactLease = await tx.lease.findUniqueOrThrow({
       where: { id: leaseId },
       include: {
-        ownerBankAccount: { include: { owner: { include: { user: true } } } },
+        ownerBankAccount: { include: { owner: { select: portalContactOwnerSelect } } },
         unit: { include: {
-          ownerships: { include: { owner: { include: { user: true } } } },
-          property: { include: { manager: true, owner: { include: { user: true } }, communicationOwner: { include: { user: true } } } },
+          ownerships: { include: { owner: { select: portalContactOwnerSelect } } },
+          property: { include: portalContactPropertyInclude },
         } },
       },
     });

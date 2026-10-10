@@ -8,6 +8,7 @@ import { currentReceiptActor, receiptLandlordChoices, type ReceiptActor } from "
 import { leaseAccessWhere } from "./access";
 import { currentPeriod } from "./period";
 import { receiptPdf, type ReceiptSnapshot } from "./receipt-pdf";
+import { checkSubscriptionFeature, checkSubscriptionWrite } from "./subscriptions/service";
 export { receiptPdf } from "./receipt-pdf";
 
 type ReceivedCharge={active:boolean;period:string;amountCents:number;debtTreatment:string;allocations:Array<{amountCents:number;transaction:{amountCents:number;currency:string;bookedAt:Date;status:string}}> ;securityDepositOffsets:Array<{amountCents:number}>;creditApplications:Array<{amountCents:number}>};
@@ -77,6 +78,10 @@ async function issuePaymentReceipt(actorId:string,input:{mode:"tenant"|"staff";t
     const charge=await tx.charge.findFirst({where:{id:chargeId,lease:leaseWhere},include:{items:true,allocations:{include:{transaction:{include:{allocations:true,securityDepositReceipts:true}}}},securityDepositOffsets:true,creditApplications:true,lease:{include:{tenant:true,unit:{include:{property:true}}}}}});
     const permittedLifecycle=charge&&(input.mode==="tenant" ? charge.lease.tenant.active&&leaseStatusAt(charge.lease)==="ACTIVE" : !charge.lease.cancelledAt&&leaseStatusAt(charge.lease)!=="FUTURE");
     if(!charge||!charge.lease.unit.property.active||!permittedLifecycle||!receiptEligible(charge,charge.lease.currency))throw new Error("Doklad lze vystavit pouze k platnému nájmu plně uhrazenému připsanou platbou.");
+    const subscriptionScope={propertyId:charge.lease.unit.propertyId,unitId:charge.lease.unitId};
+    for(const decision of [await checkSubscriptionFeature(user,"paymentReceipts",subscriptionScope),await checkSubscriptionWrite(user,subscriptionScope)]) {
+      if(!decision.allowed)throw new Error(decision.message||"Tarif tohoto portfolia neumožňuje vystavení nového dokladu.");
+    }
     if(charge.allocations.some(a=>a.transaction.allocations.reduce((sum,p)=>sum+p.amountCents,0)+a.transaction.securityDepositReceipts.reduce((sum,p)=>sum+p.amountCents,0)>a.transaction.amountCents))throw new Error("Úhrada vyžaduje kontrolu správcem.");
     const resolved=await resolveLeaseReceiptIssuer(charge.leaseId,charge.period,tx),issuer=resolved.issuer;if(!issuer)throw new Error(resolved.status.reason);
     const totalItems=charge.items.reduce((sum,item)=>sum+item.amountCents,0);

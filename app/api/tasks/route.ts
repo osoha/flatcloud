@@ -12,6 +12,7 @@ import { cleanupStoredDocumentBatch, createStoredDocumentsInTransaction, prepare
 import { cleanupTaskAttachments, createTaskAttachmentsInTransaction, storeTaskAttachments } from "@/lib/task-attachments";
 import { taskParticipantWhere } from "@/lib/task-access";
 import { operationalChecklist } from "@/lib/operational-checklists";
+import { assertSubscriptionWrite } from "@/lib/subscriptions/request-guard";
 
 const categories = new Set(["COLLECTION", "MAINTENANCE", "LEASE", "COMPLIANCE", "GENERAL"]);
 const priorities = new Set(["LOW", "NORMAL", "HIGH", "URGENT"]);
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
       const tenantInProperty = await prisma.lease.findFirst({ where: { tenantId, unit: { propertyId } }, select: { id: true } });
       if (!tenantInProperty) throw new Error("Vybraný nájemník nemá v této nemovitosti evidovanou smlouvu.");
     }
+    await assertSubscriptionWrite(user,{...(propertyId?{propertyId}:{}),...(resolvedUnitId?{unitId:resolvedUnitId}:{})});
     const participantScope=propertyId?taskParticipantWhere(propertyId,resolvedUnitId||null):null;
     if (assigneeId) {
       const assignee = await prisma.user.findFirst({

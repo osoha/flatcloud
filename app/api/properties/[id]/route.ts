@@ -8,6 +8,8 @@ import { go, goWithMessage } from "@/lib/route-response";
 import { parsePropertyTechnicalForm, technicalDataJson } from "@/lib/property-technical";
 import { reconcilePropertyDriveStructure } from "@/lib/storage/property-drive-reconciliation";
 import { consolidationBasisPoints, safePropertyManagementScope } from "@/lib/ownership-scope";
+import { serializableTransaction } from "@/lib/serializable";
+import { checkSubscriptionCapacity, lockSubscriptionAccounts } from "@/lib/subscriptions/service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,9 +30,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     const invitationMode=text(form,"tenantPortalInvitationMode")||"MANUAL";
     if(!Object.values(TenantPortalInvitationMode).includes(invitationMode as TenantPortalInvitationMode))throw new Error("Neplatné nastavení pozvánek nájemníka.");
     const previous = await prisma.property.findUnique({ where: { id }, select: { managerId: true, name: true, active: true, ownerId: true } });
-    const property = await prisma.$transaction(async tx => {
+    const property = await serializableTransaction(async tx => {
       await tx.$queryRaw`SELECT id FROM "Property" WHERE id = ${id} FOR UPDATE`;
-      const current = await tx.property.findUniqueOrThrow({ where: { id }, select: { ownerId: true } });
+      const current = await tx.property.findUniqueOrThrow({ where: { id }, select: { ownerId: true,active:true } });
+      if(!current.active&&boolValue(form,"active")){
+        const subscriptionScope={propertyId:id,reactivatingProperty:true};
+        await lockSubscriptionAccounts(access.user,subscriptionScope,tx);
+        const capacity=await checkSubscriptionCapacity(access.user,subscriptionScope,tx);
+        if(!capacity.allowed)throw new Error(capacity.message||"Obnovení objektu překračuje kapacitu tarifu.");
+      }
       if (ownerId && ownerId !== current.ownerId) throw new Error("Změnu vlastníka proveďte v sekci Vlastníci s potvrzením účinnosti a historie.");
       const updated = await tx.property.update({ where: { id }, data: {
         name: text(form, "name", true)!,

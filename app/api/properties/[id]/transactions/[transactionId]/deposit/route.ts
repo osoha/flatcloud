@@ -8,6 +8,7 @@ import { recomputeTransactionStatus } from "@/lib/matching";
 import { go, goWithMessage } from "@/lib/route-response";
 import { serializableTransaction } from "@/lib/serializable";
 import { assertTransactionAcceptsDeposit } from "@/lib/payment-safety";
+import {checkSubscriptionFeature,checkSubscriptionWrite} from "@/lib/subscriptions/service";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string; transactionId: string }> }) {
   const { id, transactionId } = await params; const user = await currentUser(); if (!user) return go(request, "/login");
@@ -18,6 +19,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (transaction.source === "expense-statement") throw new Error("Pohyb patří do evidence bankovních výdajů a vratek, nikoli k nájemnému nebo kauci.");
       assertTransactionAcceptsDeposit(transaction.status);
       const lease = await tx.lease.findFirst({ where: { id: leaseId, unit: editableUnitWhere(user, id) }, select: { id: true, tenantId: true, unitId: true } }); if (!lease) throw new Error("Smlouva nebyla nalezena nebo k ní nemáte právo editace.");
+      const subscriptionScope={propertyId:id,unitId:lease.unitId};
+      const subscription=await checkSubscriptionWrite(user,subscriptionScope,tx);
+      if(!subscription.allowed)throw new Error(subscription.message||"Cílové portfolio umožňuje pouze čtení.");
+      if(transaction.source!=="manual"){const feature=await checkSubscriptionFeature(user,"paymentMatching",subscriptionScope,tx);if(!feature.allowed)throw new Error(feature.message||"Párování není součástí tarifu.");}
       const used = transaction.allocations.reduce((sum, row) => sum + row.amountCents, 0) + transaction.securityDepositReceipts.filter((row) => row.type === "RECEIVED").reduce((sum, row) => sum + row.amountCents, 0); if (amountCents <= 0 || amountCents > transaction.amountCents - used) throw new Error("Částka převyšuje nepoužitou část platby.");
       const movement = await tx.securityDepositMovement.create({ data: { leaseId, type: SecurityDepositMovementType.RECEIVED, amountCents, effectiveAt, note: text(form, "note"), bankTransactionId: transactionId, createdById: user.id } });
       return { lease, movement };

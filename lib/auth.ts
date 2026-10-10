@@ -15,24 +15,44 @@ function getSessionSecret() {
 }
 export async function createSession(userId: string, sessionVersion: number) { const token=await new SignJWT({userId,sessionVersion}).setProtectedHeader({alg:"HS256"}).setIssuedAt().setExpirationTime("12h").sign(getSessionSecret()); const store=await cookies(); store.set("fc_session",token,{httpOnly:true,sameSite:"lax",secure:process.env.NODE_ENV==="production",path:"/",maxAge:43200,priority:"high"}); }
 export async function clearSession(){const store=await cookies();store.delete("fc_session");store.delete(PREVIEW_COOKIE);}
-export async function actualUser(){const store=await cookies();const token=store.get("fc_session")?.value;if(!token)return null;try{const{payload}=await jwtVerify(token,getSessionSecret());if(typeof payload.userId!=="string")return null;const user=await prisma.user.findFirst({where:{id:payload.userId,active:true},select:{id:true,email:true,name:true,passwordHash:true,sessionVersion:true,role:true,active:true,allProperties:true,flatcloudMember:true,phone:true,title:true,avatarMimeType:true,avatarChoice:true,onboardingStatus:true,defaultDisplayMode:true,profiGraphics:true,createdAt:true,updatedAt:true}});return user && sessionVersionMatches(payload.sessionVersion,user.sessionVersion) ? user : null}catch{return null}}
+export async function sessionUser(token?: string, strictDatabaseErrors = false){
+  if(!token)return null;
+  let userId:string,sessionVersion:unknown;
+  try{
+    const{payload}=await jwtVerify(token,getSessionSecret());
+    if(typeof payload.userId!=="string")return null;
+    userId=payload.userId;sessionVersion=payload.sessionVersion;
+  }catch{return null;}
+  try{
+    const user=await prisma.user.findFirst({where:{id:userId,active:true},select:{id:true,email:true,name:true,passwordHash:true,sessionVersion:true,role:true,active:true,allProperties:true,flatcloudMember:true,phone:true,title:true,avatarMimeType:true,avatarChoice:true,onboardingStatus:true,defaultDisplayMode:true,profiGraphics:true,createdAt:true,updatedAt:true}});
+    return user&&sessionVersionMatches(sessionVersion,user.sessionVersion)?user:null;
+  }catch(error){if(strictDatabaseErrors)throw error;return null;}
+}
+export async function actualUser(){return sessionUser((await cookies()).get("fc_session")?.value)}
 export async function requireUser(){const user=await currentUser();if(!user)redirect((await cookies()).has(PREVIEW_COOKIE)?"/nahled/omezeni":"/login");return user}
 export function canSeeAll(role:string){return role==="SUPER_ADMIN"||role==="MANAGER"}
 export function hasAllPropertyAccess(user:{role:string;allProperties?:boolean}){return canSeeAll(user.role)||Boolean(user.allProperties)}
 export function canManageProperty(role:string){return role==="SUPER_ADMIN"||role==="MANAGER"||role==="PROPERTY_MANAGER"}
 
-export async function previewContext() {
-  const actor = await actualUser();
-  const token = (await cookies()).get(PREVIEW_COOKIE)?.value;
+export async function previewContextFromTokens(sessionToken?: string, token?: string, strictDatabaseErrors = false) {
+  const actor = await sessionUser(sessionToken,strictDatabaseErrors);
   if (!actor || !token) return { actor, target: null, requested: Boolean(token) };
+  let targetId:string,targetVersion:unknown;
   try {
     if (actor.role !== "SUPER_ADMIN") throw new Error("Forbidden");
     const { payload } = await jwtVerify(token, getSessionSecret(), { audience: "flatberry-user-preview", algorithms: ["HS256"] });
     if (payload.actorId !== actor.id || payload.actorVersion !== actor.sessionVersion || typeof payload.targetId !== "string") throw new Error("Invalid preview");
-    const target = await prisma.user.findFirst({where:{id:payload.targetId,active:true},select:{id:true,email:true,name:true,passwordHash:true,sessionVersion:true,role:true,active:true,allProperties:true,flatcloudMember:true,phone:true,title:true,avatarMimeType:true,avatarChoice:true,onboardingStatus:true,defaultDisplayMode:true,profiGraphics:true,createdAt:true,updatedAt:true}});
-    if (!target || target.sessionVersion !== payload.targetVersion) throw new Error("Target changed");
-    return { actor, target, requested: true };
+    targetId=payload.targetId;targetVersion=payload.targetVersion;
   } catch { return { actor, target: null, requested: true }; }
+  try{
+    const target = await prisma.user.findFirst({where:{id:targetId,active:true},select:{id:true,email:true,name:true,passwordHash:true,sessionVersion:true,role:true,active:true,allProperties:true,flatcloudMember:true,phone:true,title:true,avatarMimeType:true,avatarChoice:true,onboardingStatus:true,defaultDisplayMode:true,profiGraphics:true,createdAt:true,updatedAt:true}});
+    if (!target || target.sessionVersion !== targetVersion) return {actor,target:null,requested:true};
+    return { actor, target, requested: true };
+  } catch(error) { if(strictDatabaseErrors)throw error;return { actor, target: null, requested: true }; }
+}
+export async function previewContext() {
+  const store = await cookies();
+  return previewContextFromTokens(store.get("fc_session")?.value, store.get(PREVIEW_COOKIE)?.value);
 }
 export async function startUserPreview(actor: NonNullable<Awaited<ReturnType<typeof actualUser>>>, target: {id:string;sessionVersion:number}) {
   if (actor.role !== "SUPER_ADMIN" || actor.id === target.id) throw new Error("Náhled není povolen.");

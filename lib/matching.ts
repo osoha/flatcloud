@@ -5,6 +5,8 @@ import { resolveCollectionTasksIfSettled } from "./tasks";
 import { outstandingCents } from "./charges";
 import { serializableTransaction } from "./serializable";
 import { reconcileTransactionReview } from "./bank-review-tasks";
+import { checkAutomaticBankOperation } from "./subscriptions/bank-guard";
+import { checkSubscriptionWrite } from "./subscriptions/service";
 
 type TransactionStatusInput = {
   amountCents: number;
@@ -57,6 +59,8 @@ function ruleMatches(rule: {
 }
 
 async function setSuggestion(transactionId: string, leaseId: string, note: string, matchedRuleId?: string) {
+  const lease=await prisma.lease.findUnique({where:{id:leaseId},select:{unitId:true,unit:{select:{propertyId:true}}}});
+  if(!lease||!(await checkAutomaticBankOperation({propertyId:lease.unit.propertyId,unitId:lease.unitId})).allowed)return;
   await prisma.bankTransaction.update({
     where: { id: transactionId },
     data: { status: PaymentStatus.SUGGESTED, suggestedLeaseId: leaseId, matchNote: note, matchedRuleId: matchedRuleId || null },
@@ -90,7 +94,18 @@ export async function recomputeTransactionStatusTx(tx:Prisma.TransactionClient|t
   await reconcileTransactionReview(transactionId, tx);
 }
 
-export async function allocateAvailableTransactionToLeaseTx(tx:Prisma.TransactionClient,transactionId:string,leaseId:string){const transaction=await tx.bankTransaction.findUnique({where:{id:transactionId},include:{allocations:true,securityDepositReceipts:true,bankAccount:true}});if(!transaction||transaction.amountCents<=0||transaction.source==="expense-statement")return null;const lease=await tx.lease.findFirst({where:{id:leaseId,unit:{propertyId:transaction.bankAccount.propertyId}},include:{charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true},orderBy:{dueDate:"asc"}}}});if(!lease)return null;const available=transaction.amountCents-transaction.allocations.reduce((sum,row)=>sum+row.amountCents,0)-transaction.securityDepositReceipts.filter(row=>row.type==="RECEIVED").reduce((sum,row)=>sum+row.amountCents,0),plan=planOldestChargeAllocations(lease.charges.map(charge=>({chargeId:charge.id,outstandingCents:outstandingCents(charge)})),available);for(const allocation of plan.allocations)await tx.paymentAllocation.upsert({where:{transactionId_chargeId:{transactionId,chargeId:allocation.chargeId}},update:{amountCents:{increment:allocation.amountCents}},create:{transactionId,chargeId:allocation.chargeId,amountCents:allocation.amountCents}});return {leaseId,allocations:plan.allocations.map(row=>({...row,leaseId})),remainingCents:plan.remainingCents}}
+export async function allocateAvailableTransactionToLeaseTx(tx:Prisma.TransactionClient,transactionId:string,leaseId:string){
+  const transaction=await tx.bankTransaction.findUnique({where:{id:transactionId},include:{allocations:true,securityDepositReceipts:true,bankAccount:true}});
+  if(!transaction||transaction.amountCents<=0||transaction.source==="expense-statement")return null;
+  const lease=await tx.lease.findFirst({where:{id:leaseId,unit:{propertyId:transaction.bankAccount.propertyId}},include:{charges:{where:{active:true},include:{allocations:true,securityDepositOffsets:true,creditApplications:true},orderBy:{dueDate:"asc"}}}});
+  if(!lease)return null;
+  const subscriptionScope={propertyId:transaction.bankAccount.propertyId,unitId:lease.unitId};
+  const entitlement=transaction.source==="manual"?await checkSubscriptionWrite({id:"subscription-bank-worker",role:"SYSTEM"},subscriptionScope,tx):await checkAutomaticBankOperation(subscriptionScope,"paymentMatching",tx);
+  if(!entitlement.allowed)return null;
+  const available=transaction.amountCents-transaction.allocations.reduce((sum,row)=>sum+row.amountCents,0)-transaction.securityDepositReceipts.filter(row=>row.type==="RECEIVED").reduce((sum,row)=>sum+row.amountCents,0),plan=planOldestChargeAllocations(lease.charges.map(charge=>({chargeId:charge.id,outstandingCents:outstandingCents(charge)})),available);
+  for(const allocation of plan.allocations)await tx.paymentAllocation.upsert({where:{transactionId_chargeId:{transactionId,chargeId:allocation.chargeId}},update:{amountCents:{increment:allocation.amountCents}},create:{transactionId,chargeId:allocation.chargeId,amountCents:allocation.amountCents}});
+  return {leaseId,allocations:plan.allocations.map(row=>({...row,leaseId})),remainingCents:plan.remainingCents};
+}
 
 export async function processTransaction(transactionId: string) {
   const transaction = await prisma.bankTransaction.findUnique({
@@ -99,6 +114,7 @@ export async function processTransaction(transactionId: string) {
   });
   if (!transaction || transaction.source === "expense-statement" || transaction.allocations.length || transaction.status === PaymentStatus.IGNORED) return;
   if (transaction.amountCents <= 0) {
+    if(!(await checkAutomaticBankOperation({propertyId:transaction.bankAccount.propertyId})).allowed)return;
     await prisma.bankTransaction.update({ where: { id: transactionId }, data: { status: PaymentStatus.IGNORED, matchNote: "Odchozí platba – k posouzení v Bankovních výdajích a úhradách nákladů." } });
     await reconcileTransactionReview(transactionId);
     return;
@@ -112,6 +128,7 @@ export async function processTransaction(transactionId: string) {
   for (const rule of rules) {
     if (!ruleMatches(rule, transaction)) continue;
     if (rule.action === MatchRuleAction.IGNORE) {
+      if(!(await checkAutomaticBankOperation({propertyId})).allowed)return;
       await prisma.bankTransaction.update({ where: { id: transaction.id }, data: { status: PaymentStatus.IGNORED, matchedRuleId: rule.id, matchNote: `Ignorováno pravidlem: ${rule.name}` } });
       await reconcileTransactionReview(transaction.id);
       return;
@@ -161,6 +178,7 @@ export async function processTransaction(transactionId: string) {
   if (await choose(scored.filter((row) => row.payer && row.exactAmount), "Automaticky: známý účet plátce + přesná částka.")) return;
   if (recipient && await choose(scored.filter((row) => row.ownerAccount && row.payer), "Návrh podle cílového účtu vlastníka a známého účtu plátce; částka nesouhlasí přesně s otevřeným předpisem.", true)) return;
 
+  if(!(await checkAutomaticBankOperation({propertyId})).allowed)return;
   await prisma.bankTransaction.update({ where: { id: transaction.id }, data: { status: PaymentStatus.UNMATCHED, matchNote: "Nenalezeno jednoznačné pravidlo. Platba čeká na dopárování odpovědným správcem." } });
   await reconcileTransactionReview(transaction.id);
 }

@@ -296,6 +296,7 @@ html.fc-sidebar-collapsed .flatberry-shell .sidebar-footer .user-card-profile:ho
 
 /* Basic: a quieter owner dashboard over the existing scoped portfolio. */
 .display-mode-switch{display:grid;gap:6px;margin:0 0 10px}.display-mode-caption{color:#71829b;font-size:11px;padding-left:3px}.display-mode-switch>div{display:flex;gap:3px;padding:4px;background:#eef3fa;border-radius:12px}.flatberry-shell .display-mode-switch button{border:0;min-height:36px;padding:6px 12px;flex:1;background:transparent;color:#556983;border-radius:9px;font-size:12px;font-weight:650;cursor:pointer}.flatberry-shell .display-mode-switch button.selected{color:#165ad9;background:#fff;box-shadow:0 1px 4px #152f521c}.display-mode-switch-mobile{display:none}
+.flatberry-shell .display-mode-switch .subscription-mode-upgrade{display:flex;align-items:center;justify-content:center;flex:1;min-height:36px;padding:6px 7px;color:#556983;border-radius:9px;font-size:12px;font-weight:650;text-decoration:none}
 html.fc-sidebar-collapsed .display-mode-switch:not(.display-mode-switch-mobile){display:none}
 .basic-shell .v21-nav{gap:7px}.basic-shell .v21-nav a{min-height:48px;font-size:14px}.basic-shell .v21-nav .ico svg{width:21px;height:21px}
 .flatberry-shell .basic-portfolio{max-width:1510px;margin:0 auto;padding:32px clamp(18px,3vw,48px) 65px;color:#263c5b}.basic-portfolio .basic-eyebrow{color:#5275a0;font-size:11px;font-weight:750;letter-spacing:.09em;text-transform:uppercase}

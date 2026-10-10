@@ -7,6 +7,8 @@ import { audit } from "@/lib/management";
 import { go, goWithMessage } from "@/lib/route-response";
 import { safeBuildingType, technicalDataJson } from "@/lib/property-technical";
 import { consolidationBasisPoints, safePropertyManagementScope } from "@/lib/ownership-scope";
+import { serializableTransaction } from "@/lib/serializable";
+import { attachCreatedProperty, checkSubscriptionCapacity, lockSubscriptionAccounts } from "@/lib/subscriptions/service";
 
 export async function POST(request: Request) {
   const user = await currentUser();
@@ -25,15 +27,21 @@ export async function POST(request: Request) {
     const wholeObject = boolValue(form, "wholeObjectOwner");
     const managementScope = safePropertyManagementScope(text(form, "managementScope"));
     const flatcloudConsolidationBasisPoints = consolidationBasisPoints(text(form, "flatcloudConsolidationPercent"));
-    const property = await prisma.$transaction(async tx=>{
+    const property = await serializableTransaction(async tx=>{
+      const subscriptionScope={ownerId:requestedOwnerId||undefined,additionalProperties:1};
+      await lockSubscriptionAccounts(user,subscriptionScope,tx);
+      const capacity=await checkSubscriptionCapacity(user,subscriptionScope,tx);
+      if(!capacity.allowed)throw new Error(capacity.message||"Tarif neumožňuje přidat další objekt.");
       const ownerId=internal?requestedOwnerId!:(await tx.owner.upsert({where:{userId:user.id},create:{userId:user.id,name:user.name,email:user.email,type:"PERSON",affiliation:"EXTERNAL"},update:{},select:{id:true}})).id;
-      return tx.property.create({ data: {
+      const created=await tx.property.create({ data: {
       name: text(form, "name", true)!, address: text(form, "address", true)!, city: text(form, "city", true)!,
       postalCode: text(form, "postalCode"), note: text(form, "note"), technicalData: technicalDataJson({ buildingType: safeBuildingType(text(form, "buildingType")) }),
       ownerId, ownershipMode, communicationOwnerId, managerId, ...(isFlatcloudMember(user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}),
       ownerships: { create: { ownerId, shareBasisPoints: wholeObject ? 10000 : 0 } },
       memberships: internal ? managerId && managerId!==user.id ? {create:{userId:managerId,permission:"ADMIN"}} : undefined : {create:{userId:user.id,permission:"ADMIN"}},
     } });
+      await attachCreatedProperty(user,created.id,tx);
+      return created;
     });
     await audit(user.id, "PROPERTY_CREATED", "Property", property.id, { propertyCode: property.propertyCode, ownerId:property.ownerId, ownershipMode, communicationOwnerId, managerId, ...(isFlatcloudMember(user) ? {managementScope, flatcloudConsolidationBasisPoints} : {}) });
     return goWithMessage(request, `/nemovitosti/${property.id}/prehled`, "ok", "Nemovitost byla vytvořena.");

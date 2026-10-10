@@ -1,6 +1,6 @@
 import { currentUser } from "@/lib/auth";
-import { displayModeCookie } from "@/lib/display-mode";
-import { go, safeInternalReturnPath } from "@/lib/route-response";
+import { displayModeCookie, profiDisplayAllowed } from "@/lib/display-mode";
+import { go, goWithMessage, safeInternalReturnPath } from "@/lib/route-response";
 
 export async function POST(request: Request) {
   const user = await currentUser();
@@ -8,6 +8,7 @@ export async function POST(request: Request) {
   const form = await request.formData();
   const mode = form.get("mode");
   if (mode !== "basic" && mode !== "pro") return go(request, "/portfolio");
+  if(mode==="pro"&&!(await profiDisplayAllowed(user.id)))return goWithMessage(request,"/ucet/predplatne","error","Režim Profi je dostupný v placeném tarifu. Vaše portfolio zůstává v režimu Basic.");
   const returnTo = safeInternalReturnPath(form.get("returnTo"), "/portfolio");
   // Preserve portfolio, document filters and the reviewed unit page across modes.
   // Unrelated return paths still fall back to the portfolio.
