@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { expect, test, type Page } from "@playwright/test";
 import { prisma as db } from "../lib/db";
 import { defaultBasicPortfolioView } from "../lib/basic-portfolio-view";
+import { documentAccessWhere } from "../lib/documents/access";
 
 const password = "Portfolio-Polish-QA-Only-2026";
 test.setTimeout(90000);
@@ -107,6 +108,16 @@ test("document assignment is editable with EDIT, preserves the file, remains pri
   expect(denied.headers().location).toContain("error=");
   expect((await db.document.findUniqueOrThrow({where: {id: f.document.id}})).leaseId).toBe(history.id);
   expect((await page.request.post(`/api/documents/${f.document.id}/metadata`, {headers: {...await authHeaders(page), Origin: "https://outside.example"}, form: {title: "CSRF", category: "OTHER", leaseId: ""}, maxRedirects: 0})).status()).toBe(403);
+  const legacy = await db.document.create({data: {propertyId: f.property.id, leaseId: f.lease.id, fileAssetId: f.asset.id, title: "Starší dokument s vazbou přes smlouvu", category: "OTHER", tenantVisible: true, createdById: f.actor.id}});
+  await db.userUnit.create({data: {userId: f.reader.id, unitId: f.units[1].id, permission: "VIEW"}});
+  const otherUnitAccess = documentAccessWhere({...f.reader, allProperties: false});
+  expect(await db.document.count({where: {id: legacy.id, AND: [otherUnitAccess]}})).toBe(0);
+  const unlinked = await page.request.post(`/api/documents/${legacy.id}/metadata`, {headers: await authHeaders(page), form: {title: legacy.title, category: "OTHER", leaseId: "", returnTo: "/dokumenty"}, maxRedirects: 0});
+  expect(unlinked.headers().location).toContain("ok=");
+  expect(await db.document.findUniqueOrThrow({where: {id: legacy.id}})).toMatchObject({leaseId: null, unitId: f.units[0].id, fileAssetId: f.asset.id, tenantVisible: false});
+  expect(await db.document.count({where: {id: legacy.id, AND: [otherUnitAccess]}})).toBe(0);
+  const unlinkAudit = await db.auditLog.findFirstOrThrow({where: {entityId: legacy.id, action: "DOCUMENT_METADATA_CHANGED"}});
+  expect(unlinkAudit.details).toMatchObject({before: {unitId: null, leaseId: f.lease.id}, after: {unitId: f.units[0].id, leaseId: null, tenantVisible: false}});
 });
 
 test("global read access exposes no document edit controls and cannot change metadata", async ({page}) => {

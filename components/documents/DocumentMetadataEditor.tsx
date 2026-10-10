@@ -11,7 +11,7 @@ export function DocumentMetadataEditor({document, leases, returnTo}: {document: 
       <label className="field"><span>Název dokumentu</span><input name="title" defaultValue={document.title} maxLength={250} required/></label>
       <label className="field"><span>Kategorie dokumentu</span><select name="category" value={category} onChange={event => setCategory(event.target.value)}>{Object.entries(documentCategories).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
       <label className="field"><span>Přiřazení ke smlouvě{needsLease ? " *" : ""}</span><select name="leaseId" defaultValue={document.leaseId || ""} required={needsLease}><option value="">Pouze objekt / jednotka</option>{leases.map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
-      <p className="muted-copy">Zvolte smlouvu podle nájemníka a období dokumentu. Po změně smlouvy je dokument pouze pro správu; zpřístupnění nájemníkovi se zapíná samostatně na kartě dokumentu.</p>
+      <p className="muted-copy">Zvolte smlouvu podle nájemníka a období dokumentu. Odebrání smlouvy zachová vazbu na původní jednotku. Po změně smlouvy je dokument pouze pro správu; zpřístupnění nájemníkovi se zapíná samostatně na kartě dokumentu.</p>
       <button className="secondary" type="submit">Uložit zařazení</button>
     </form>
   </details>;

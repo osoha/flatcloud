@@ -8,7 +8,7 @@ Stav: implementováno v [PR277](https://github.com/osoha/flatcloud/pull/277). Ak
 | --- | --- |
 | Horní záložky | Modrá zůstává zvolené kategorii. Neaktivní záložka je světlá a reaguje na skutečné najetí myši. Opravena společná komponenta, která dříve u všech kategorií se stejnou cestou nastavovala `aria-current="page"`. |
 | Upozornění Smlouvy | Počítá stejné aktivní smlouvy končící do tří kalendářních měsíců jako KPI Expirující, včetně filtru vlastníka a objektů. Výročí zůstávají v samostatném přehledu; nepřičítají se ke smlouvám. |
-| Dokumenty | Na kartě běžné přílohy je `Upravit zařazení`: název, kategorie a smlouva. Nabízené smlouvy odpovídají jednotce, objektu a přístupu uživatele. Změna smlouvy nastaví dokument jako soukromý a zapíše audit. Soubor a jeho identita se zachovají. |
+| Dokumenty | Na kartě běžné přílohy je `Upravit zařazení`: název, kategorie a smlouva. Nabízené smlouvy odpovídají jednotce, objektu a přístupu uživatele. Změna smlouvy nastaví dokument jako soukromý a zapíše audit. Soubor a jeho identita se zachovají. Odebrání jediné smluvní vazby u staršího dokumentu zachová původní jednotku, aby se nerozšířil přístup na celý dům. |
 | Bankovní účty | Standardní rozvržení, hledání a filtry vlastníka, nemovitosti, banky, používání a ověření. Přehled má nejvýše 20 účtů na stránce; QR, testy a nastavení jsou pod rozbalením. Původní serverové kontroly vlastníka a pověřeného správce zůstávají platné. |
 | Berry | Kliknutí na výrazný blok s Berrym spouští krokového bankovního průvodce. |
 | Nájemníci ve smlouvě | Hledání napříč dostupným adresářem, 40 výsledků na stránce, vlastní / domovní / dostupné profily a volitelné osoby bez překryvu nájmu ve zvoleném období. Při filtraci zůstávají vybrané osoby a role. Stejný domovní rozsah chrání vytvoření i změnu smlouvy na serveru. |
@@ -29,6 +29,7 @@ Produkční dokumenty nebyly automaticky přiřazeny. Samotný název souboru č
 - Žádná databázová migrace, změna autentizace, role, produkčního oprávnění ani tajných údajů.
 - Rizikovější část: nová změna vazby dokumentu a zpřesnění rozsahu nájemníků v obou mutacích. Testy zahrnují EDIT versus VIEW, cizí jednotku, cizí profil, cizí Origin, zachování souboru a zrušení sdílení po změně vazby.
 - Úkolové přílohy, revize, doklady nákladů a důkazy odečtů se tímto formulářem nepřesouvají.
+- U staršího dokumentu s `unitId=NULL`, jehož jednotka je určena pouze smlouvou, se při odebrání smlouvy uloží tato původní jednotka. Efektivní rozsah přístupu zůstane stejný; audit zachytí `unitId` před změnou i po ní. Regrese ověřuje, že čtenář jiné jednotky dokument nevidí před odebráním ani po něm.
 - Změna metadat nepublikuje soubor nájemníkovi. Zapnutí sdílení má samostatné ovládání a existující kontrolu oprávnění.
 - Nájem ve více jednotkách zůstává možný. Filtr volných osob je volitelný a porovnává celé kalendářní dny vybraného období včetně budoucích smluv, ukončení a zrušení; ručitel či kontakt sám osobu neobsadí. Počátek jiné smlouvy i poslední den navrhovaného nájmu znamená překryv, bez ohledu na uložení data o půlnoci či v poledne.
 - Šest historických kontrol otisku reportového schématu přijalo schválenou změnu plochy z kladné na nezápornou. Ostatní otisky PDF a finančních kontraktů zůstávají kontrolované. Samostatná regrese ověřuje nulu, NULL, zápornou hodnotu a zachování kladného dělitele.

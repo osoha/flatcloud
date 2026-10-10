@@ -48,10 +48,13 @@ export async function updateDocumentMetadata(tx: Prisma.TransactionClient, user:
   }
   const reassigned = doc.leaseId !== input.leaseId;
   const tenantVisible = reassigned ? false : doc.tenantVisible;
-  await tx.document.update({where: {id}, data: {title, category: input.category as DocumentCategory, leaseId: input.leaseId, tenantVisible, ...(input.category !== "PHOTO" ? {photoStage: null} : {})}});
+  // A legacy document can have its only unit anchor through the lease.
+  // Unlinking must retain that unit instead of widening it to the whole house.
+  const retainedUnitId = doc.unitId || (reassigned && !input.leaseId ? unitId : null) || null;
+  await tx.document.update({where: {id}, data: {title, category: input.category as DocumentCategory, unitId: retainedUnitId, leaseId: input.leaseId, tenantVisible, ...(input.category !== "PHOTO" ? {photoStage: null} : {})}});
   await tx.auditLog.create({data: {userId: user.id, propertyId: doc.propertyId, action: "DOCUMENT_METADATA_CHANGED", entityType: "Document", entityId: id, details: {
-    before: {title: doc.title, category: doc.category, leaseId: doc.leaseId, tenantVisible: doc.tenantVisible},
-    after: {title, category: input.category, leaseId: input.leaseId, tenantVisible},
+    before: {title: doc.title, category: doc.category, unitId: doc.unitId, leaseId: doc.leaseId, tenantVisible: doc.tenantVisible},
+    after: {title, category: input.category, unitId: retainedUnitId, leaseId: input.leaseId, tenantVisible},
   }}});
   return {reassigned};
 }
